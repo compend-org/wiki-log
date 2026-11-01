@@ -153,10 +153,7 @@ export default function Comments({
       {topLevel.map((c) => {
         const replies = repliesOf(c.id);
         return (
-          <div
-            key={c.id}
-            className="flex flex-col gap-3 rounded-lg border border-line p-3"
-          >
+          <div key={c.id} className="card flex flex-col gap-3 p-3">
             {renderComment(c, c.id)}
 
             {replies.length > 0 && (
