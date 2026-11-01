@@ -2,10 +2,11 @@
 
 // Wikimedia asks every client to identify itself. Put your app's name and
 // a way to reach you here.
-const USER_AGENT = "WikiLog/0.1 (https://example.com; you@example.com)";
+const CONTACT = process.env.WIKI_CONTACT ?? "no contact set";
+const USER_AGENT = `WikiLog/0.1 (${CONTACT})`;
 
 // Articles about real people are blocked unless you set this to true
-export const ALLOW_PEOPLE = false;
+export const ALLOW_PEOPLE = true;
 
 const HEADERS = { "User-Agent": USER_AGENT, "Api-User-Agent": USER_AGENT };
 
@@ -55,12 +56,19 @@ export async function searchTitles(query: string): Promise<SearchHit[]> {
     }[];
   } = await res.json();
 
-  return (data.pages ?? []).map((p) => ({
-    key: p.key,
-    title: p.title,
-    description: p.description ?? null,
-    imageUrl: freeImage(p.thumbnail?.url),
-  }));
+  return (data.pages ?? [])
+    .map((p) => ({
+      key: p.key,
+      title: p.title,
+      description: p.description ?? null,
+      imageUrl: freeImage(p.thumbnail?.url),
+    }))
+    .filter(
+      (h) =>
+        !/disambiguation|topics referred to by the same term/i.test(
+          `${h.title} ${h.description ?? ""}`
+        )
+    );
 }
 
 // True if Wikidata says the item is a human. If the check fails, we say yes,

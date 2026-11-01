@@ -1,4 +1,4 @@
-import LogLinkForm from "@/components/LogLinkForm";
+import ItemSearch from "@/components/ItemSearch";
 import Feed from "@/components/Feed";
 import { parseLimit } from "@/lib/paging";
 
@@ -13,7 +13,7 @@ export default async function Home({
 
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-8 p-4 sm:p-8">
-      <LogLinkForm />
+      <ItemSearch />
       <Feed
         tab={tab === "everyone" || tab === "following" ? tab : undefined}
         limit={parseLimit(limit)}

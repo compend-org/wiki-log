@@ -1,42 +1,42 @@
 import { notFound } from "next/navigation";
-import LogForm from "@/components/LogForm";
-import { getVideoInfo, USE_STUB } from "@/lib/video";
-import VideoLogs from "@/components/VideoLogs";
-import { parseLimit } from "@/lib/paging";
+import { connection } from "next/server";
+import { getItemById } from "@/lib/wikipedia";
 
 export const instant = false;
 
-export default async function VideoPage({
-
+export default async function ItemPage({
   params,
-  searchParams
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ limit?: string }>;
 }) {
-
+  await connection();
   const { id } = await params;
-  const { limit } = await searchParams;
 
-  const video = await getVideoInfo(id);
-  if (!video) notFound();
+  const result = await getItemById(id);
+  if ("error" in result) notFound();
+  const { item } = result;
 
   return (
-    <main className="min-h-screen flex flex-col items-center gap-4 p-8">
-      {USE_STUB ? (
-        <div className="aspect-video w-full max-w-xl rounded-lg bg-surface" />
-      ) : (
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
+      {item.imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={`https://i.ytimg.com/vi/${id}/hqdefault.jpg`}
-          alt={video.title}
-          className="w-full max-w-xl rounded-lg"
+          src={item.imageUrl}
+          alt={item.title}
+          className="max-h-96 w-full rounded-lg object-contain"
         />
+      ) : (
+        <div className="aspect-video w-full rounded-lg bg-surface" />
       )}
-      <h1 className="text-2xl font-bold text-center">{video.title}</h1>
-      <p className="text-muted">{video.author}</p>
-      <LogForm id={id} />
-      <VideoLogs itemId={id} limit={parseLimit(limit)} />
+      <h1 className="text-3xl font-bold">{item.title}</h1>
+      {item.description && <p className="text-muted">{item.description}</p>}
+      <p className="text-xs text-muted">
+        From{" "}
+        <a href={item.pageUrl} className="underline">
+          Wikipedia
+        </a>
+        , licensed CC BY-SA 4.0.
+      </p>
     </main>
   );
 }
