@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { readLogs, deleteLog, type Log } from "@/lib/logs";
-import { USE_STUB } from "@/lib/video";
+import ItemImage from "@/components/ItemImage";
+import Stars from "@/components/Stars";
 
 export default function DiaryPage() {
   const [logs, setLogs] = useState<Log[]>([]);
@@ -17,10 +18,24 @@ export default function DiaryPage() {
       if (data.user) {
         setSignedIn(true);
         setLogs(await readLogs(data.user.id));
+      } else {
+        setSignedIn(false);
+        setLogs([]);
       }
       setLoaded(true);
     }
+
     load();
+
+    function handleVisible() {
+      if (document.visibilityState === "visible") load();
+    }
+    document.addEventListener("visibilitychange", handleVisible);
+    window.addEventListener("focus", load);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisible);
+      window.removeEventListener("focus", load);
+    };
   }, []);
 
   async function handleDelete(id: string) {
@@ -34,7 +49,7 @@ export default function DiaryPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col gap-4 p-8">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
       <h1 className="text-3xl font-bold">Diary</h1>
 
       {loaded && !signedIn && (
@@ -48,29 +63,16 @@ export default function DiaryPage() {
       )}
 
       {logs.map((log) => (
-        <div
-          key={log.id}
-          className="flex items-start gap-2 rounded-lg border border-line p-3"
-        >
+        <div key={log.id} className="card flex items-start gap-2 p-3">
           <Link href={`/item/${log.id}`} className="flex flex-1 gap-4">
-            {USE_STUB ? (
-              <div className="aspect-video w-32 rounded bg-surface" />
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={`https://i.ytimg.com/vi/${log.id}/mqdefault.jpg`}
-                alt={log.title}
-                className="w-32 rounded"
-              />
-            )}
-            <div className="flex flex-col gap-1">
+            <ItemImage
+              src={log.imageUrl}
+              alt={log.title}
+              className="h-20 w-20 shrink-0 rounded"
+            />
+            <div className="flex min-w-0 flex-col gap-1">
               <span className="font-semibold">{log.title}</span>
-              <span className="text-accent">
-                {"★".repeat(log.rating)}
-                <span className="text-muted/60">
-                  {"★".repeat(5 - log.rating)}
-                </span>
-              </span>
+              <Stars rating={log.rating} />
               {log.review && <p className="text-sm">{log.review}</p>}
               <span className="text-xs text-muted">
                 {new Date(log.loggedAt).toLocaleDateString()}

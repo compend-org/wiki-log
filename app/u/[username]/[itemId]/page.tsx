@@ -2,11 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { USE_STUB } from "@/lib/video";
 import { escapeLike, isValidName } from "@/lib/username";
 import { getLikedSet, likeKey } from "@/lib/likes";
 import LikeButton from "@/components/LikeButton";
 import Comments, { type CommentItem } from "@/components/Comments";
+import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
 
 export const instant = false;
@@ -17,7 +17,7 @@ type LogRow = {
   rating: number;
   review: string;
   logged_at: string;
-  items: { title: string } | null;
+  items: { title: string; image_url: string | null } | null;
   likes: { count: number }[];
 };
 
@@ -41,8 +41,8 @@ export default async function ReviewPage({
   let name = rawName;
   try {
     name = decodeURIComponent(rawName);
-  } catch { }
-  if (!isValidName(name) || !/^[A-Za-z0-9_-]{11}$/.test(itemId)) notFound();
+  } catch {}
+  if (!isValidName(name) || !/^Q\d+$/.test(itemId)) notFound();
 
   const supabase = await createClient();
 
@@ -58,7 +58,9 @@ export default async function ReviewPage({
 
   const { data: logData } = await supabase
     .from("logs")
-    .select("user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count)")
+    .select(
+      "user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count)"
+    )
     .eq("user_id", profile.id)
     .eq("item_id", itemId)
     .maybeSingle();
@@ -86,37 +88,36 @@ export default async function ReviewPage({
   }));
 
   const likedSet = await getLikedSet(supabase, viewerId, [log]);
-  const title = log.items?.title ?? "Unknown video";
+  const title = log.items?.title ?? "Unknown item";
 
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 p-4 sm:p-8">
-      <article className="flex flex-col gap-3 rounded-lg border border-line p-4">
-        <Link href={`/item/${itemId}`} className="block">
-          {USE_STUB ? (
-            <div className="aspect-video w-full rounded bg-surface" />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={`https://i.ytimg.com/vi/${itemId}/hqdefault.jpg`}
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
+      <article className="card flex flex-col gap-3 p-4">
+        <div className="flex gap-4">
+          <Link href={`/item/${itemId}`} className="shrink-0">
+            <ItemImage
+              src={log.items?.image_url}
               alt={title}
-              className="aspect-video w-full rounded object-cover"
+              className="h-28 w-28 rounded"
             />
-          )}
-        </Link>
-        <Link href={`/item/${itemId}`} className="text-xl font-bold">
-          {title}
-        </Link>
-        <p className="text-sm text-muted">
-          Review by{" "}
-          <Link
-            href={`/u/${encodeURIComponent(profile.username)}`}
-            className="underline"
-          >
-            {profile.username}
-          </Link>{" "}
-          · {log.logged_at.slice(0, 10)}
-        </p>
-        <Stars rating={log.rating} />
+          </Link>
+          <div className="flex min-w-0 flex-col gap-1">
+            <Link href={`/item/${itemId}`} className="text-xl font-bold">
+              {title}
+            </Link>
+            <p className="text-sm text-muted">
+              Review by{" "}
+              <Link
+                href={`/u/${encodeURIComponent(profile.username)}`}
+                className="underline"
+              >
+                {profile.username}
+              </Link>{" "}
+              · {log.logged_at.slice(0, 10)}
+            </p>
+            <Stars rating={log.rating} />
+          </div>
+        </div>
         {log.review && <p className="whitespace-pre-wrap">{log.review}</p>}
         {log.review && (
           <div>

@@ -2,24 +2,30 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getVideoInfo } from "@/lib/video";
+import { getItemById } from "@/lib/wikipedia";
 import { cleanName, escapeLike, isValidName } from "@/lib/username";
 
-// Looks the video up on the server and caches it (users can't write to `items`)
-async function ensureVideo(itemId: string): Promise<string | null> {
-  const video = await getVideoInfo(itemId);
-  if (!video) return "Couldn't find that video.";
+const ITEM_ID = /^Q\d+$/;
+
+// Looks the item up on Wikipedia and Wikidata and caches it
+// (users can't write to `items` themselves)
+async function ensureItem(itemId: string): Promise<string | null> {
+  const result = await getItemById(itemId);
+  if ("error" in result) return result.error;
+  const { item } = result;
 
   const { error } = await createAdminClient().from("items").upsert({
-    id: itemId,
-    title: video.title,
-    channel_name: video.author,
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    image_url: item.imageUrl,
+    page_url: item.pageUrl,
     fetched_at: new Date().toISOString(),
   });
   return error ? error.message : null;
 }
 
-export async function logVideo(input: {
+export async function logItem(input: {
   itemId: string;
   rating: number;
   review: string;
@@ -29,9 +35,7 @@ export async function logVideo(input: {
   const userId = data?.claims?.sub;
   if (!userId) return { error: "You need to sign in to log items." };
 
-  if (!/^[A-Za-z0-9_-]{11}$/.test(input.itemId)) {
-    return { error: "Invalid video ID." };
-  }
+  if (!ITEM_ID.test(input.itemId)) return { error: "Invalid item." };
   if (
     !Number.isFinite(input.rating) ||
     input.rating < 0.5 ||
@@ -41,9 +45,9 @@ export async function logVideo(input: {
     return { error: "Invalid rating." };
   }
 
-  // The server looks the video up itself instead of trusting the browser
-  const videoError = await ensureVideo(input.itemId);
-  if (videoError) return { error: videoError };
+  // The server looks the item up itself instead of trusting the browser
+  const itemError = await ensureItem(input.itemId);
+  if (itemError) return { error: itemError };
 
   // Saved as the signed-in user, so RLS applies
   const { error } = await supabase.from("logs").upsert({
@@ -124,12 +128,10 @@ export async function setFavourite(input: {
   ) {
     return { error: "Invalid slot." };
   }
-  if (!/^[A-Za-z0-9_-]{11}$/.test(input.itemId)) {
-    return { error: "Invalid video ID." };
-  }
+  if (!ITEM_ID.test(input.itemId)) return { error: "Invalid item." };
 
-  const videoError = await ensureVideo(input.itemId);
-  if (videoError) return { error: videoError };
+  const itemError = await ensureItem(input.itemId);
+  if (itemError) return { error: itemError };
 
   const { error } = await supabase
     .from("favourites")
@@ -141,7 +143,7 @@ export async function setFavourite(input: {
     return {
       error:
         error.code === "23505"
-          ? "That video is already in your top 5."
+          ? "That item is already in your top 5."
           : error.message,
     };
   }

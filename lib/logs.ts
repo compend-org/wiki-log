@@ -3,12 +3,13 @@ import { createClient } from "@/lib/supabase/client";
 export type Log = {
   id: string;
   title: string;
+  imageUrl: string | null;
   rating: number;
   review: string;
   loggedAt: string;
 };
 
-// One user's log for one video, or null
+// One user's log for one item, or null
 export async function readLog(
   itemId: string,
   userId: string
@@ -36,10 +37,14 @@ export async function readLogs(userId: string): Promise<Log[]> {
   if (!data) return [];
 
   return data.map((row) => {
-    const video = row.items as unknown as { title: string } | null;
+    const item = row.items as unknown as {
+      title: string;
+      image_url: string | null;
+    } | null;
     return {
       id: row.item_id,
-      title: video?.title ?? "Unknown video",
+      title: item?.title ?? "Unknown item",
+      imageUrl: item?.image_url ?? null,
       rating: row.rating,
       review: row.review,
       loggedAt: row.logged_at,

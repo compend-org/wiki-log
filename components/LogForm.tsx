@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { readLog } from "@/lib/logs";
-import { logVideo } from "@/app/actions";
-import { useRouter } from "next/navigation";
-import RatingInput from "./RatingInput";
+import { logItem } from "@/app/actions";
+import RatingInput from "@/components/RatingInput";
 
 export default function LogForm({ id }: { id: string }) {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
@@ -38,7 +38,7 @@ export default function LogForm({ id }: { id: string }) {
   async function handleSave() {
     setBusy(true);
     setError("");
-    const result = await logVideo({ itemId: id, rating, review });
+    const result = await logItem({ itemId: id, rating, review });
     setBusy(false);
     if (result.error) {
       setError(result.error);
@@ -55,13 +55,13 @@ export default function LogForm({ id }: { id: string }) {
   if (!signedIn) {
     return (
       <Link href="/login" className="underline">
-        Sign in to log this video
+        Sign in to review this
       </Link>
     );
   }
 
   return (
-    <div className="flex w-full max-w-xl flex-col gap-3">
+    <div className="flex w-full flex-col gap-3">
       <RatingInput
         value={rating}
         onChange={(v) => {
@@ -77,7 +77,7 @@ export default function LogForm({ id }: { id: string }) {
         }}
         placeholder="Add a review (optional)"
         rows={3}
-        className="rounded-lg border border-line px-4 py-2 bg-surface text-foreground"
+        className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"
       />
       <button
         type="button"
@@ -88,10 +88,10 @@ export default function LogForm({ id }: { id: string }) {
         {busy
           ? "Saving…"
           : rating === 0
-            ? "Pick a rating first"
-            : saved
-              ? "Logged ✓"
-              : "Log it"}
+          ? "Pick a rating first"
+          : saved
+          ? "Logged ✓"
+          : "Log it"}
       </button>
       {error && <p className="text-danger">{error}</p>}
     </div>

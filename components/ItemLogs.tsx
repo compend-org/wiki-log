@@ -19,7 +19,7 @@ type Row = {
     comments: { count: number }[];
 };
 
-export default async function VideoLogs({ itemId, limit = PAGE_SIZE }: { itemId: string; limit?: number }) {
+export default async function ItemLogs({ itemId, limit = PAGE_SIZE }: { itemId: string; limit?: number }) {
     await connection();
     const supabase = await createClient();
 
