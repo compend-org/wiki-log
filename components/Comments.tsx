@@ -18,12 +18,12 @@ export default function Comments({
   comments,
   viewerId,
   logUserId,
-  logVideoId,
+  logItemId,
 }: {
   comments: CommentItem[];
   viewerId: string | null;
   logUserId: string;
-  logVideoId: string;
+  logItemId: string;
 }) {
   const [topText, setTopText] = useState<string>("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export default function Comments({
     setError("");
     const { error } = await createClient().from("comments").insert({
       log_user_id: logUserId,
-      log_video_id: logVideoId,
+      log_item_id: logItemId,
       user_id: viewerId,
       parent_id: parentId,
       body: trimmed,

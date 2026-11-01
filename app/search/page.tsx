@@ -31,12 +31,12 @@ async function searchVideos(term: string): Promise<VideoResult[]> {
   // Two separate queries keep user input out of any filter syntax
   const [byTitle, byChannel] = await Promise.all([
     supabase
-      .from("videos")
+      .from("items")
       .select("id, title, channel_name")
       .ilike("title", pattern)
       .limit(20),
     supabase
-      .from("videos")
+      .from("items")
       .select("id, title, channel_name")
       .ilike("channel_name", pattern)
       .limit(20),
@@ -52,7 +52,7 @@ async function searchVideos(term: string): Promise<VideoResult[]> {
 export default function SearchPage() {
   const [query, setQuery] = useState<string>("");
   const [people, setPeople] = useState<Person[]>([]);
-  const [videos, setVideos] = useState<VideoResult[]>([]);
+  const [items, setVideos] = useState<VideoResult[]>([]);
   const [resultsFor, setResultsFor] = useState<string>("");
 
   const term = query.trim();
@@ -89,7 +89,7 @@ export default function SearchPage() {
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Videos, channels or people"
+        placeholder="items, channels or people"
         autoFocus
         className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"
       />
@@ -102,7 +102,7 @@ export default function SearchPage() {
         <p className="text-sm text-muted">Searching…</p>
       )}
 
-      {ready && people.length === 0 && videos.length === 0 && (
+      {ready && people.length === 0 && items.length === 0 && (
         <p className="text-muted">No results.</p>
       )}
 
@@ -126,15 +126,15 @@ export default function SearchPage() {
         </section>
       )}
 
-      {ready && videos.length > 0 && (
+      {ready && items.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-            Videos
+            items
           </h2>
-          {videos.map((video) => (
+          {items.map((video) => (
             <Link
               key={video.id}
-              href={`/video/${video.id}`}
+              href={`/item/${video.id}`}
               className="flex gap-4 rounded-lg border border-line p-3"
             >
               {USE_STUB ? (

@@ -4,10 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { setFavourite, removeFavourite } from "@/app/actions";
-import { getVideoId } from "@/lib/youtube";
+import { getitemId } from "@/lib/youtube";
 import { USE_STUB } from "@/lib/video";
 
-export type Slot = { videoId: string; title: string };
+export type Slot = { itemId: string; title: string };
 
 export default function Favourites({
     slots,
@@ -26,7 +26,7 @@ export default function Favourites({
         e.preventDefault();
         if (editing === null) return;
 
-        const id = getVideoId(link);
+        const id = getitemId(link);
         if (!id) {
             setError("That doesn't look like a YouTube link.");
             return;
@@ -34,7 +34,7 @@ export default function Favourites({
 
         setBusy(true);
         setError("");
-        const result = await setFavourite({ position: editing, videoId: id });
+        const result = await setFavourite({ position: editing, itemId: id });
         setBusy(false);
         if (result.error) {
             setError(result.error);
@@ -71,7 +71,7 @@ export default function Favourites({
                         return (
                             <div key={position} className="relative">
                                 <Link
-                                    href={`/video/${slot.videoId}`}
+                                    href={`/item/${slot.itemId}`}
                                     title={slot.title}
                                     className="block transition-transform hover:-translate-y-0.5"
                                 >
@@ -82,7 +82,7 @@ export default function Favourites({
                                     ) : (
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img
-                                            src={`https://i.ytimg.com/vi/${slot.videoId}/mqdefault.jpg`}
+                                            src={`https://i.ytimg.com/vi/${slot.itemId}/mqdefault.jpg`}
                                             alt={slot.title}
                                             className="aspect-video w-full rounded object-cover"
                                         />
@@ -114,8 +114,8 @@ export default function Favourites({
                             }}
                             aria-label={`Add a video to slot ${position}`}
                             className={`flex aspect-video items-center justify-center rounded-lg border-2 border-dashed text-xl transition-colors hover:border-accent hover:text-accent ${editing === position
-                                    ? "border-accent text-accent"
-                                    : "border-line text-muted"
+                                ? "border-accent text-accent"
+                                : "border-line text-muted"
                                 }`}
                         >
                             +

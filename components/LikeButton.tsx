@@ -7,13 +7,13 @@ import { createClient } from "@/lib/supabase/client";
 export default function LikeButton({
   viewerId,
   authorId,
-  videoId,
+  itemId,
   initialCount,
   initiallyLiked,
 }: {
   viewerId: string | null;
   authorId: string;
-  videoId: string;
+  itemId: string;
   initialCount: number;
   initiallyLiked: boolean;
 }) {
@@ -40,16 +40,16 @@ export default function LikeButton({
     const supabase = createClient();
     const { error } = next
       ? await supabase.from("likes").insert({
-          user_id: viewerId,
-          log_user_id: authorId,
-          log_video_id: videoId,
-        })
+        user_id: viewerId,
+        log_user_id: authorId,
+        log_item_id: itemId,
+      })
       : await supabase
-          .from("likes")
-          .delete()
-          .eq("user_id", viewerId)
-          .eq("log_user_id", authorId)
-          .eq("log_video_id", videoId);
+        .from("likes")
+        .delete()
+        .eq("user_id", viewerId)
+        .eq("log_user_id", authorId)
+        .eq("log_item_id", itemId);
 
     if (error) {
       setLiked(!next);
@@ -68,9 +68,8 @@ export default function LikeButton({
       disabled={own}
       aria-pressed={liked}
       aria-label={liked ? "Unlike this review" : "Like this review"}
-      className={`inline-flex items-center gap-1 text-sm disabled:cursor-default ${
-        liked ? "text-accent" : "text-muted"
-      }`}
+      className={`inline-flex items-center gap-1 text-sm disabled:cursor-default ${liked ? "text-accent" : "text-muted"
+        }`}
     >
       <span aria-hidden="true">{liked ? "♥" : "♡"}</span>
       {count > 0 && <span>{count}</span>}

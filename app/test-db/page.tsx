@@ -11,12 +11,12 @@ export default async function TestDb() {
   const { data: claimsData } = await supabase.auth.getClaims();
   const email = claimsData?.claims?.email;
 
-  const { data, error } = await supabase.from("videos").select("*");
+  const { data, error } = await supabase.from("items").select("*");
 
   return (
     <main className="flex flex-col items-start gap-4 p-8">
       <pre>
-        {error ? `Error: ${error.message}` : `videos rows: ${data.length}`}
+        {error ? `Error: ${error.message}` : `items rows: ${data.length}`}
       </pre>
       <pre>{email ? `Signed in as ${email}` : "Not signed in"}</pre>
       {email ? (

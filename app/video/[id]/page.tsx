@@ -36,7 +36,7 @@ export default async function VideoPage({
       <h1 className="text-2xl font-bold text-center">{video.title}</h1>
       <p className="text-muted">{video.author}</p>
       <LogForm id={id} />
-      <VideoLogs videoId={id} limit={parseLimit(limit)} />
+      <VideoLogs itemId={id} limit={parseLimit(limit)} />
     </main>
   );
 }

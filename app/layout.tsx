@@ -21,7 +21,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "YT Log",
-  description: "Log, rate and review the videos you watch.",
+  description: "Log, rate and review the items you watch.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

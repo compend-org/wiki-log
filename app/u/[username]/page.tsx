@@ -12,18 +12,18 @@ import Stars from "@/components/Stars";
 export const instant = false;
 
 type LogRow = {
-  video_id: string;
+  item_id: string;
   rating: number;
   review: string;
   logged_at: string;
-  videos: { title: string } | null;
+  items: { title: string } | null;
   comments: { count: number }[];
 };
 
 type FavRow = {
   position: number;
-  video_id: string;
-  videos: { title: string } | null;
+  item_id: string;
+  items: { title: string } | null;
 };
 
 export default async function ProfilePage({
@@ -37,7 +37,7 @@ export default async function ProfilePage({
   let name = rawName;
   try {
     name = decodeURIComponent(rawName);
-  } catch {}
+  } catch { }
   if (!isValidName(name)) notFound();
 
   const supabase = await createClient();
@@ -57,7 +57,7 @@ export default async function ProfilePage({
       supabase
         .from("logs")
         .select(
-          "video_id, rating, review, logged_at, videos(title), comments(count)"
+          "item_id, rating, review, logged_at, items(title, image_url), comments(count)"
         )
         .eq("user_id", profile.id)
         .order("logged_at", { ascending: false }),
@@ -71,15 +71,15 @@ export default async function ProfilePage({
         .eq("follower_id", profile.id),
       viewerId
         ? supabase
-            .from("follows")
-            .select("follower_id")
-            .eq("follower_id", viewerId)
-            .eq("following_id", profile.id)
-            .maybeSingle()
+          .from("follows")
+          .select("follower_id")
+          .eq("follower_id", viewerId)
+          .eq("following_id", profile.id)
+          .maybeSingle()
         : Promise.resolve({ data: null }),
       supabase
         .from("favourites")
-        .select("position, video_id, videos(title)")
+        .select("position, item_id, items(title, image_url)")
         .eq("user_id", profile.id),
     ]);
 
@@ -92,7 +92,7 @@ export default async function ProfilePage({
   const slots: (Slot | null)[] = [1, 2, 3, 4, 5].map((pos) => {
     const row = favRows.find((r) => r.position === pos);
     return row
-      ? { videoId: row.video_id, title: row.videos?.title ?? "Unknown video" }
+      ? { itemId: row.item_id, title: row.items?.title ?? "Unknown video" }
       : null;
   });
 
@@ -133,12 +133,12 @@ export default async function ProfilePage({
       {logs.length === 0 && <p className="text-muted">Nothing logged yet.</p>}
 
       {logs.map((log) => {
-        const title = log.videos?.title ?? "Unknown video";
+        const title = log.items?.title ?? "Unknown video";
         const commentCount = log.comments?.[0]?.count ?? 0;
         return (
           <Link
-            key={log.video_id}
-            href={`${profileHref}/${log.video_id}`}
+            key={log.item_id}
+            href={`${profileHref}/${log.item_id}`}
             className="card flex gap-4 p-3"
           >
             {USE_STUB ? (
@@ -146,7 +146,7 @@ export default async function ProfilePage({
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={`https://i.ytimg.com/vi/${log.video_id}/mqdefault.jpg`}
+                src={`https://i.ytimg.com/vi/${log.item_id}/mqdefault.jpg`}
                 alt={title}
                 className="aspect-video w-32 shrink-0 rounded object-cover"
               />

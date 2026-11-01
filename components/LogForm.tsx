@@ -38,7 +38,7 @@ export default function LogForm({ id }: { id: string }) {
   async function handleSave() {
     setBusy(true);
     setError("");
-    const result = await logVideo({ videoId: id, rating, review });
+    const result = await logVideo({ itemId: id, rating, review });
     setBusy(false);
     if (result.error) {
       setError(result.error);

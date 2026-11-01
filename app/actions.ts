@@ -5,13 +5,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getVideoInfo } from "@/lib/video";
 import { cleanName, escapeLike, isValidName } from "@/lib/username";
 
-// Looks the video up on the server and caches it (users can't write to `videos`)
-async function ensureVideo(videoId: string): Promise<string | null> {
-  const video = await getVideoInfo(videoId);
+// Looks the video up on the server and caches it (users can't write to `items`)
+async function ensureVideo(itemId: string): Promise<string | null> {
+  const video = await getVideoInfo(itemId);
   if (!video) return "Couldn't find that video.";
 
-  const { error } = await createAdminClient().from("videos").upsert({
-    id: videoId,
+  const { error } = await createAdminClient().from("items").upsert({
+    id: itemId,
     title: video.title,
     channel_name: video.author,
     fetched_at: new Date().toISOString(),
@@ -20,16 +20,16 @@ async function ensureVideo(videoId: string): Promise<string | null> {
 }
 
 export async function logVideo(input: {
-  videoId: string;
+  itemId: string;
   rating: number;
   review: string;
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to sign in to log videos." };
+  if (!userId) return { error: "You need to sign in to log items." };
 
-  if (!/^[A-Za-z0-9_-]{11}$/.test(input.videoId)) {
+  if (!/^[A-Za-z0-9_-]{11}$/.test(input.itemId)) {
     return { error: "Invalid video ID." };
   }
   if (
@@ -42,13 +42,13 @@ export async function logVideo(input: {
   }
 
   // The server looks the video up itself instead of trusting the browser
-  const videoError = await ensureVideo(input.videoId);
+  const videoError = await ensureVideo(input.itemId);
   if (videoError) return { error: videoError };
 
   // Saved as the signed-in user, so RLS applies
   const { error } = await supabase.from("logs").upsert({
     user_id: userId,
-    video_id: input.videoId,
+    item_id: input.itemId,
     rating: input.rating,
     review: input.review.slice(0, 5000),
     logged_at: new Date().toISOString(),
@@ -110,7 +110,7 @@ export async function signIn(input: {
 
 export async function setFavourite(input: {
   position: number;
-  videoId: string;
+  itemId: string;
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -124,17 +124,17 @@ export async function setFavourite(input: {
   ) {
     return { error: "Invalid slot." };
   }
-  if (!/^[A-Za-z0-9_-]{11}$/.test(input.videoId)) {
+  if (!/^[A-Za-z0-9_-]{11}$/.test(input.itemId)) {
     return { error: "Invalid video ID." };
   }
 
-  const videoError = await ensureVideo(input.videoId);
+  const videoError = await ensureVideo(input.itemId);
   if (videoError) return { error: videoError };
 
   const { error } = await supabase
     .from("favourites")
     .upsert(
-      { user_id: userId, position: input.position, video_id: input.videoId },
+      { user_id: userId, position: input.position, item_id: input.itemId },
       { onConflict: "user_id,position" }
     );
   if (error) {

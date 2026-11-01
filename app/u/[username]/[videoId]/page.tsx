@@ -13,11 +13,11 @@ export const instant = false;
 
 type LogRow = {
   user_id: string;
-  video_id: string;
+  item_id: string;
   rating: number;
   review: string;
   logged_at: string;
-  videos: { title: string } | null;
+  items: { title: string } | null;
   likes: { count: number }[];
 };
 
@@ -33,16 +33,16 @@ type CommentQueryRow = {
 export default async function ReviewPage({
   params,
 }: {
-  params: Promise<{ username: string; videoId: string }>;
+  params: Promise<{ username: string; itemId: string }>;
 }) {
   await connection();
-  const { username: rawName, videoId } = await params;
+  const { username: rawName, itemId } = await params;
 
   let name = rawName;
   try {
     name = decodeURIComponent(rawName);
   } catch { }
-  if (!isValidName(name) || !/^[A-Za-z0-9_-]{11}$/.test(videoId)) notFound();
+  if (!isValidName(name) || !/^[A-Za-z0-9_-]{11}$/.test(itemId)) notFound();
 
   const supabase = await createClient();
 
@@ -58,9 +58,9 @@ export default async function ReviewPage({
 
   const { data: logData } = await supabase
     .from("logs")
-    .select("user_id, video_id, rating, review, logged_at, videos(title), likes(count)")
+    .select("user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count)")
     .eq("user_id", profile.id)
-    .eq("video_id", videoId)
+    .eq("item_id", itemId)
     .maybeSingle();
   if (!logData) notFound();
   const log = logData as unknown as LogRow;
@@ -71,7 +71,7 @@ export default async function ReviewPage({
       "id, parent_id, body, created_at, user_id, profiles!comments_user_id_profiles_fkey(username)"
     )
     .eq("log_user_id", profile.id)
-    .eq("log_video_id", videoId)
+    .eq("log_item_id", itemId)
     .order("created_at", { ascending: true });
 
   const comments: CommentItem[] = (
@@ -86,24 +86,24 @@ export default async function ReviewPage({
   }));
 
   const likedSet = await getLikedSet(supabase, viewerId, [log]);
-  const title = log.videos?.title ?? "Unknown video";
+  const title = log.items?.title ?? "Unknown video";
 
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <article className="flex flex-col gap-3 rounded-lg border border-line p-4">
-        <Link href={`/video/${videoId}`} className="block">
+        <Link href={`/item/${itemId}`} className="block">
           {USE_STUB ? (
             <div className="aspect-video w-full rounded bg-surface" />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`}
+              src={`https://i.ytimg.com/vi/${itemId}/hqdefault.jpg`}
               alt={title}
               className="aspect-video w-full rounded object-cover"
             />
           )}
         </Link>
-        <Link href={`/video/${videoId}`} className="text-xl font-bold">
+        <Link href={`/item/${itemId}`} className="text-xl font-bold">
           {title}
         </Link>
         <p className="text-sm text-muted">
@@ -123,9 +123,9 @@ export default async function ReviewPage({
             <LikeButton
               viewerId={viewerId ?? null}
               authorId={log.user_id}
-              videoId={log.video_id}
+              itemId={log.item_id}
               initialCount={log.likes?.[0]?.count ?? 0}
-              initiallyLiked={likedSet.has(likeKey(log.user_id, log.video_id))}
+              initiallyLiked={likedSet.has(likeKey(log.user_id, log.item_id))}
             />
           </div>
         )}
@@ -135,7 +135,7 @@ export default async function ReviewPage({
         comments={comments}
         viewerId={viewerId ?? null}
         logUserId={profile.id}
-        logVideoId={videoId}
+        logItemId={itemId}
       />
     </main>
   );

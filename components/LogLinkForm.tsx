@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getVideoId } from "@/lib/youtube";
+import { getitemId } from "@/lib/youtube";
 
 export default function LogLinkForm() {
   const [link, setLink] = useState<string>("");
@@ -11,12 +11,12 @@ export default function LogLinkForm() {
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const id = getVideoId(link);
+    const id = getitemId(link);
     if (!id) {
       setError("That doesn't look like a YouTube link.");
       return;
     }
-    router.push(`/video/${id}`);
+    router.push(`/item/${id}`);
   }
 
   return (

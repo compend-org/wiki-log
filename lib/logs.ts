@@ -1,4 +1,4 @@
-  import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 
 export type Log = {
   id: string;
@@ -10,13 +10,13 @@ export type Log = {
 
 // One user's log for one video, or null
 export async function readLog(
-  videoId: string,
+  itemId: string,
   userId: string
 ): Promise<{ rating: number; review: string } | null> {
   const { data } = await createClient()
     .from("logs")
     .select("rating, review")
-    .eq("video_id", videoId)
+    .eq("item_id", itemId)
     .eq("user_id", userId)
     .maybeSingle();
   return data ?? null;
@@ -26,7 +26,7 @@ export async function readLog(
 export async function readLogs(userId: string): Promise<Log[]> {
   const { data, error } = await createClient()
     .from("logs")
-    .select("video_id, rating, review, logged_at, videos(title)")
+    .select("item_id, rating, review, logged_at, items(title, image_url)")
     .eq("user_id", userId)
     .order("logged_at", { ascending: false });
   if (error) {
@@ -36,9 +36,9 @@ export async function readLogs(userId: string): Promise<Log[]> {
   if (!data) return [];
 
   return data.map((row) => {
-    const video = row.videos as unknown as { title: string } | null;
+    const video = row.items as unknown as { title: string } | null;
     return {
-      id: row.video_id,
+      id: row.item_id,
       title: video?.title ?? "Unknown video",
       rating: row.rating,
       review: row.review,
@@ -48,10 +48,10 @@ export async function readLogs(userId: string): Promise<Log[]> {
 }
 
 // Returns an error message, or null on success (RLS limits this to your own logs)
-export async function deleteLog(videoId: string): Promise<string | null> {
+export async function deleteLog(itemId: string): Promise<string | null> {
   const { error } = await createClient()
     .from("logs")
     .delete()
-    .eq("video_id", videoId);
+    .eq("item_id", itemId);
   return error ? error.message : null;
 }

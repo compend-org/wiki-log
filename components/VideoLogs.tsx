@@ -10,7 +10,7 @@ import LoadMore from "@/components/LoadMore";
 
 type Row = {
     user_id: string;
-    video_id: string;
+    item_id: string;
     rating: number;
     review: string;
     logged_at: string;
@@ -19,7 +19,7 @@ type Row = {
     comments: { count: number }[];
 };
 
-export default async function VideoLogs({ videoId, limit = PAGE_SIZE }: { videoId: string; limit?: number }) {
+export default async function VideoLogs({ itemId, limit = PAGE_SIZE }: { itemId: string; limit?: number }) {
     await connection();
     const supabase = await createClient();
 
@@ -29,8 +29,8 @@ export default async function VideoLogs({ videoId, limit = PAGE_SIZE }: { videoI
     const { data, error } = await supabase
         .from("logs")
         .select(
-            "user_id, video_id, rating, review, logged_at, videos(title), profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count)")
-        .eq("video_id", videoId)
+            "user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count)")
+        .eq("item_id", itemId)
         .order("logged_at", { ascending: false });
 
     if (error) {
@@ -84,14 +84,14 @@ export default async function VideoLogs({ videoId, limit = PAGE_SIZE }: { videoI
                             <LikeButton
                                 viewerId={viewerId ?? null}
                                 authorId={row.user_id}
-                                videoId={row.video_id}
+                                itemId={row.item_id}
                                 initialCount={row.likes?.[0]?.count ?? 0}
-                                initiallyLiked={likedSet.has(likeKey(row.user_id, row.video_id))}
+                                initiallyLiked={likedSet.has(likeKey(row.user_id, row.item_id))}
                             />
                         )}
                         {row.profiles && (
                             <Link
-                                href={`/u/${encodeURIComponent(row.profiles.username)}/${row.video_id}`}
+                                href={`/u/${encodeURIComponent(row.profiles.username)}/${row.item_id}`}
                                 className="underline"
                             >
                                 {commentLabel(row.comments?.[0]?.count ?? 0)}
@@ -101,7 +101,7 @@ export default async function VideoLogs({ videoId, limit = PAGE_SIZE }: { videoI
                 </div>
             ))}
             {rows.length > limit && (
-                <LoadMore href={`/video/${videoId}?limit=${limit + PAGE_SIZE}`} />
+                <LoadMore href={`/item/${itemId}?limit=${limit + PAGE_SIZE}`} />
             )}
         </section>
     );

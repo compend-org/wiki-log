@@ -52,7 +52,7 @@ export default function DiaryPage() {
           key={log.id}
           className="flex items-start gap-2 rounded-lg border border-line p-3"
         >
-          <Link href={`/video/${log.id}`} className="flex flex-1 gap-4">
+          <Link href={`/item/${log.id}`} className="flex flex-1 gap-4">
             {USE_STUB ? (
               <div className="aspect-video w-32 rounded bg-surface" />
             ) : (

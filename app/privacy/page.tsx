@@ -6,7 +6,7 @@ export default function PrivacyPage() {
       <h2 className="text-xl font-bold">What we store</h2>
       <p>
         Your email address and a hashed (unreadable) password, so you can sign
-        in. Your username, the videos you log with
+        in. Your username, the items you log with
         your ratings and reviews, and who you follow.
       </p>
 

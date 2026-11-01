@@ -10,7 +10,7 @@ type NotificationRow = {
   read: boolean;
   created_at: string;
   log_user_id: string | null;
-  log_video_id: string | null;
+  log_item_id: string | null;
   profiles: { username: string } | null;
 };
 
@@ -38,7 +38,7 @@ export default function NotificationsPage() {
       const { data, error } = await supabase
         .from("notifications")
         .select(
-          "id, type, read, created_at, log_user_id, log_video_id, profiles!notifications_actor_fkey(username)"
+          "id, type, read, created_at, log_user_id, log_item_id, profiles!notifications_actor_fkey(username)"
         )
         .eq("recipient_id", userId)
         .order("created_at", { ascending: false })
@@ -52,15 +52,15 @@ export default function NotificationsPage() {
       setRows(list);
 
       // Video titles and review-owner names, fetched in one go each
-      const videoIds = [
-        ...new Set(list.map((n) => n.log_video_id).filter((v): v is string => !!v)),
+      const itemIds = [
+        ...new Set(list.map((n) => n.log_item_id).filter((v): v is string => !!v)),
       ];
       const ownerIds = [
         ...new Set(list.map((n) => n.log_user_id).filter((v): v is string => !!v)),
       ];
       const [vids, profs] = await Promise.all([
-        videoIds.length
-          ? supabase.from("videos").select("id, title").in("id", videoIds)
+        itemIds.length
+          ? supabase.from("items").select("id, title").in("id", itemIds)
           : Promise.resolve({ data: [] as { id: string; title: string }[] }),
         ownerIds.length
           ? supabase.from("profiles").select("id, username").in("id", ownerIds)
@@ -85,11 +85,11 @@ export default function NotificationsPage() {
 
   function describe(n: NotificationRow): { text: string; href: string } {
     const actor = n.profiles?.username ?? "Someone";
-    const title = n.log_video_id ? titles[n.log_video_id] ?? "a video" : "";
+    const title = n.log_item_id ? titles[n.log_item_id] ?? "a video" : "";
     const ownerName = n.log_user_id ? owners[n.log_user_id] : undefined;
     const reviewHref =
-      ownerName && n.log_video_id
-        ? `/u/${encodeURIComponent(ownerName)}/${n.log_video_id}`
+      ownerName && n.log_item_id
+        ? `/u/${encodeURIComponent(ownerName)}/${n.log_item_id}`
         : "/";
 
     switch (n.type) {
@@ -144,9 +144,8 @@ export default function NotificationsPage() {
           <Link
             key={n.id}
             href={href}
-            className={`flex flex-col gap-1 rounded-lg border p-3 ${
-              n.read ? "border-line" : "border-accent bg-surface"
-            }`}
+            className={`flex flex-col gap-1 rounded-lg border p-3 ${n.read ? "border-line" : "border-accent bg-surface"
+              }`}
           >
             <span className="text-sm">{text}</span>
             <span className="text-xs text-muted">

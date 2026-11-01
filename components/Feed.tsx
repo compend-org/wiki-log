@@ -13,11 +13,11 @@ type Tab = "following" | "everyone";
 
 type FeedRow = {
     user_id: string;
-    video_id: string;
+    item_id: string;
     rating: number;
     review: string;
     logged_at: string;
-    videos: { title: string } | null;
+    items: { title: string } | null;
     profiles: { username: string } | null;
     likes: { count: number }[];
     comments: { count: number }[];
@@ -57,7 +57,7 @@ export default async function Feed({
         let query = supabase
             .from("logs")
             .select(
-                "user_id, video_id, rating, review, logged_at, videos(title), profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count)"
+                "user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count)"
             )
             .order("logged_at", { ascending: false })
             .limit(limit + 1);
@@ -129,17 +129,17 @@ export default async function Feed({
 
             {rows.map((row) => (
                 <div
-                    key={`${row.user_id}-${row.video_id}`}
+                    key={`${row.user_id}-${row.item_id}`}
                     className="flex gap-4 rounded-lg border border-line p-3"
                 >
-                    <Link href={`/video/${row.video_id}`} className="shrink-0">
+                    <Link href={`/item/${row.item_id}`} className="shrink-0">
                         {USE_STUB ? (
                             <div className="aspect-video w-32 rounded bg-surface" />
                         ) : (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                                src={`https://i.ytimg.com/vi/${row.video_id}/mqdefault.jpg`}
-                                alt={row.videos?.title ?? "Video"}
+                                src={`https://i.ytimg.com/vi/${row.item_id}/mqdefault.jpg`}
+                                alt={row.items?.title ?? "Video"}
                                 className="aspect-video w-32 rounded object-cover"
                             />
                         )}
@@ -158,8 +158,8 @@ export default async function Feed({
                             )}{" "}
                             logged
                         </span>
-                        <Link href={`/video/${row.video_id}`} className="font-semibold">
-                            {row.videos?.title ?? "Unknown video"}
+                        <Link href={`/item/${row.item_id}`} className="font-semibold">
+                            {row.items?.title ?? "Unknown video"}
                         </Link>
                         <Stars rating={row.rating} />
                         {row.review && <p className="text-sm">{row.review}</p>}
@@ -169,17 +169,17 @@ export default async function Feed({
                                 <LikeButton
                                     viewerId={viewerId ?? null}
                                     authorId={row.user_id}
-                                    videoId={row.video_id}
+                                    itemId={row.item_id}
                                     initialCount={row.likes?.[0]?.count ?? 0}
                                     initiallyLiked={likedSet.has(
-                                        likeKey(row.user_id, row.video_id)
+                                        likeKey(row.user_id, row.item_id)
                                     )}
                                 />
                             )
                             }
                             {row.profiles && (
                                 <Link
-                                    href={`/u/${encodeURIComponent(row.profiles.username)}/${row.video_id}`}
+                                    href={`/u/${encodeURIComponent(row.profiles.username)}/${row.item_id}`}
                                     className="underline"
                                 >
                                     {commentLabel(row.comments?.[0]?.count ?? 0)}
