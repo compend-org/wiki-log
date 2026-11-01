@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { getItemById } from "@/lib/wikipedia";
+import { getItemForPage } from "@/lib/items";
 import { parseLimit } from "@/lib/paging";
 import LogForm from "@/components/LogForm";
 import ItemLogs from "@/components/ItemLogs";
@@ -18,7 +18,7 @@ export default async function ItemPage({
   const { id } = await params;
   const { limit } = await searchParams;
 
-  const result = await getItemById(id);
+  const result = await getItemForPage(id);
   if ("error" in result) notFound();
   const { item } = result;
 

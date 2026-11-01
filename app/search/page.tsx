@@ -3,18 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { USE_STUB } from "@/lib/video";
+import { escapeLike } from "@/lib/username";
+import ItemImage from "@/components/ItemImage";
 
-type Person = { username: string; };
-type VideoResult = { id: string; title: string; channel_name: string | null };
-
-// In SQL patterns, % and _ are wildcards, so escape them
-function escapeLike(s: string): string {
-  return s.replace(/[\\%_]/g, "\\$&");
-}
+type Person = { username: string };
+type ItemResult = {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+};
 
 async function searchPeople(term: string): Promise<Person[]> {
-  if (term.length < 2) return [];
   const { data, error } = await createClient()
     .from("profiles")
     .select("username")
@@ -24,53 +24,33 @@ async function searchPeople(term: string): Promise<Person[]> {
   return error || !data ? [] : data;
 }
 
-async function searchVideos(term: string): Promise<VideoResult[]> {
-  const supabase = createClient();
-  const pattern = `%${escapeLike(term)}%`;
-
-  // Two separate queries keep user input out of any filter syntax
-  const [byTitle, byChannel] = await Promise.all([
-    supabase
-      .from("items")
-      .select("id, title, channel_name")
-      .ilike("title", pattern)
-      .limit(20),
-    supabase
-      .from("items")
-      .select("id, title, channel_name")
-      .ilike("channel_name", pattern)
-      .limit(20),
-  ]);
-
-  const merged = new Map<string, VideoResult>();
-  for (const row of [...(byTitle.data ?? []), ...(byChannel.data ?? [])]) {
-    if (!merged.has(row.id)) merged.set(row.id, row);
-  }
-  return [...merged.values()].slice(0, 20);
+async function searchItems(term: string): Promise<ItemResult[]> {
+  const { data, error } = await createClient()
+    .from("items")
+    .select("id, title, description, image_url")
+    .ilike("title", `%${escapeLike(term)}%`)
+    .order("title")
+    .limit(20);
+  return error || !data ? [] : data;
 }
 
 export default function SearchPage() {
   const [query, setQuery] = useState<string>("");
   const [people, setPeople] = useState<Person[]>([]);
-  const [items, setVideos] = useState<VideoResult[]>([]);
+  const [items, setItems] = useState<ItemResult[]>([]);
   const [resultsFor, setResultsFor] = useState<string>("");
 
   const term = query.trim();
-  // Usernames are lowercase letters, numbers and underscores only
-  const userTerm = term.toLowerCase().replace(/[^a-z0-9_]/g, "");
 
   useEffect(() => {
     if (term.length < 2) return;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const [p, v] = await Promise.all([
-        searchPeople(userTerm),
-        searchVideos(term),
-      ]);
+      const [p, i] = await Promise.all([searchPeople(term), searchItems(term)]);
       if (cancelled) return;
       setPeople(p);
-      setVideos(v);
+      setItems(i);
       setResultsFor(term);
     }, 300);
 
@@ -78,18 +58,18 @@ export default function SearchPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [term, userTerm]);
+  }, [term]);
 
   const ready = term.length >= 2 && resultsFor === term;
 
   return (
-    <main className="mx-auto flex max-w-xl flex-1 flex-col gap-4 p-4 sm:p-8">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
       <h1 className="text-3xl font-bold">Search</h1>
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="items, channels or people"
+        placeholder="Reviewed items or people"
         autoFocus
         className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"
       />
@@ -106,6 +86,35 @@ export default function SearchPage() {
         <p className="text-muted">No results.</p>
       )}
 
+      {ready && items.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+            Items
+          </h2>
+          {items.map((item) => (
+            <Link
+              key={item.id}
+              href={`/item/${item.id}`}
+              className="card flex items-center gap-3 p-3"
+            >
+              <ItemImage
+                src={item.image_url}
+                alt={item.title}
+                className="h-14 w-14 shrink-0 rounded"
+              />
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate font-semibold">{item.title}</span>
+                {item.description && (
+                  <span className="truncate text-sm text-muted">
+                    {item.description}
+                  </span>
+                )}
+              </div>
+            </Link>
+          ))}
+        </section>
+      )}
+
       {ready && people.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
@@ -114,51 +123,22 @@ export default function SearchPage() {
           {people.map((person) => (
             <Link
               key={person.username}
-              href={`/u/${person.username}`}
-              className="flex flex-col rounded-lg border border-line px-4 py-3"
+              href={`/u/${encodeURIComponent(person.username)}`}
+              className="card px-4 py-3 font-semibold"
             >
-              <span className="font-semibold">
-                {person.username}
-              </span>
-              <span className="text-sm text-muted">@{person.username}</span>
+              {person.username}
             </Link>
           ))}
         </section>
       )}
 
-      {ready && items.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-            items
-          </h2>
-          {items.map((video) => (
-            <Link
-              key={video.id}
-              href={`/item/${video.id}`}
-              className="flex gap-4 rounded-lg border border-line p-3"
-            >
-              {USE_STUB ? (
-                <div className="aspect-video w-32 shrink-0 rounded bg-surface" />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={`https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`}
-                  alt={video.title}
-                  className="aspect-video w-32 shrink-0 rounded object-cover"
-                />
-              )}
-              <div className="flex min-w-0 flex-col gap-1">
-                <span className="font-semibold">{video.title}</span>
-                {video.channel_name && (
-                  <span className="text-sm text-muted">
-                    {video.channel_name}
-                  </span>
-                )}
-              </div>
-            </Link>
-          ))}
-        </section>
-      )}
+      <p className="text-sm text-muted">
+        Can&apos;t find what you want to review? Search all of Wikipedia from{" "}
+        <Link href="/" className="underline">
+          the home page
+        </Link>
+        .
+      </p>
     </main>
   );
 }

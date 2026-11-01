@@ -51,7 +51,7 @@ export default function NotificationsPage() {
       const list = (data ?? []) as unknown as NotificationRow[];
       setRows(list);
 
-      // Video titles and review-owner names, fetched in one go each
+      // Item titles and review-owner names, fetched in one go each
       const itemIds = [
         ...new Set(list.map((n) => n.log_item_id).filter((v): v is string => !!v)),
       ];
@@ -85,7 +85,7 @@ export default function NotificationsPage() {
 
   function describe(n: NotificationRow): { text: string; href: string } {
     const actor = n.profiles?.username ?? "Someone";
-    const title = n.log_item_id ? titles[n.log_item_id] ?? "a video" : "";
+    const title = n.log_item_id ? titles[n.log_item_id] ?? "an item" : "";
     const ownerName = n.log_user_id ? owners[n.log_user_id] : undefined;
     const reviewHref =
       ownerName && n.log_item_id

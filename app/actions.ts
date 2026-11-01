@@ -4,12 +4,24 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getItemById } from "@/lib/wikipedia";
 import { cleanName, escapeLike, isValidName } from "@/lib/username";
+import { MAX_AGE_MS } from "@/lib/items";
 
 const ITEM_ID = /^Q\d+$/;
 
 // Looks the item up on Wikipedia and Wikidata and caches it
 // (users can't write to `items` themselves)
 async function ensureItem(itemId: string): Promise<string | null> {
+  const { data: existing } = await createAdminClient()
+    .from("items")
+    .select("fetched_at")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (
+    existing &&
+    Date.now() - new Date(existing.fetched_at).getTime() < MAX_AGE_MS
+  ) {
+    return null;
+  }
   const result = await getItemById(itemId);
   if ("error" in result) return result.error;
   const { item } = result;
