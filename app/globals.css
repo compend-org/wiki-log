@@ -1,13 +1,14 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #0a1017;
-  --color-surface: #111b26;
-  --color-line: #263646;
-  --color-foreground: #d8e1e8;
-  --color-muted: #7f95a8;
-  --color-accent: #f0a23b;
-  --color-danger: #ff4d5e;
+  --color-background: #ffffff;
+  --color-surface: #f1f3f8; /* pale blue-grey: bars, headers, inputs */
+  --color-line: #a9adb8; /* thin grey borders */
+  --color-foreground: #000000;
+  --color-muted: #555555;
+  --color-accent: #0000cc; /* link blue */
+  --color-danger: #b00000;
+  --color-star: #c98a00; /* a gold that reads on white */
 }
 
 @theme inline {
@@ -16,34 +17,29 @@
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+  /* Headings, the nav brand and similar all read this variable */
+  --font-display-src: "Times New Roman", Times, "Liberation Serif", serif;
 }
 
 html {
   background: var(--color-background);
+  /* A little smaller than the default, so everything gets denser */
+  font-size: 15px;
 }
 
-/* Night street: a sodium-lamp glow at the top, cold blue at the bottom right */
 body {
   min-height: 100vh;
+  background: var(--color-background);
   color: var(--color-foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-  background:
-    radial-gradient(1100px 480px at 50% -160px, rgb(240 162 59 / 0.1), transparent 70%),
-    radial-gradient(900px 600px at 100% 100%, rgb(40 90 140 / 0.14), transparent 70%),
-    var(--color-background);
-  background-attachment: fixed;
+  font-family: "Times New Roman", Times, "Liberation Serif", serif;
 }
 
-
 @layer base {
-
-  /* Condensed uppercase headings everywhere */
   h1,
   h2 {
-    font-family: var(--font-display-src), "Arial Narrow", sans-serif;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    font-family: var(--font-display-src);
+    font-weight: bold;
   }
 
   /* Tailwind 4 leaves buttons with the default arrow cursor */
@@ -52,20 +48,9 @@ body {
     cursor: pointer;
   }
 
-  img {
-    border-radius: 0.5rem;
-    box-shadow:
-      0 0 0 1px var(--color-line),
-      0 6px 18px rgb(0 0 0 / 0.45);
-  }
-
-  a,
-  button {
-    transition:
-      color 0.15s,
-      background-color 0.15s,
-      border-color 0.15s,
-      opacity 0.15s;
+  /* Plain old-fashioned links: underline on hover */
+  a:hover {
+    text-decoration: underline;
   }
 
   ::placeholder {
@@ -74,39 +59,46 @@ body {
   }
 
   ::selection {
-    background: rgb(240 162 59 / 0.35);
+    background: rgb(0 0 204 / 0.25);
   }
 
   :focus-visible {
     outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
+    outline-offset: 1px;
   }
 
   input:focus-visible,
   textarea:focus-visible,
   select:focus-visible {
-    outline: none;
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 1px var(--color-accent);
+  }
+
+  /* Every image (thumbnails, avatars) gets a thin frame, with no shadow */
+  img {
+    border: 1px solid var(--color-line);
   }
 }
 
 @layer components {
   .card {
     border: 1px solid var(--color-line);
-    border-radius: 0.75rem;
-    background: rgb(17 27 38 / 0.6);
-
-    .stars {
-      text-shadow: 0 0 10px rgb(240 162 59 / 0.45);
-    }
-
-
+    background: var(--color-background);
   }
 
-  /* Cards that are links light up on hover */
+  /* Cards that are links: no blue text, a pale tint on hover */
+  a.card {
+    color: var(--color-foreground);
+  }
+
   a.card:hover {
-    border-color: rgb(240 162 59 / 0.6);
-    background: rgb(17 27 38 / 0.9);
+    background: var(--color-surface);
+    text-decoration: none;
   }
 }
+
+/* No rounded corners anywhere. Blunt, but it reaches every component. */
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
+} 

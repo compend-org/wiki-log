@@ -18,7 +18,7 @@ export default function Stars({
       </span>
       <span
         aria-hidden="true"
-        className="stars absolute inset-0 whitespace-nowrap text-accent"
+        className="absolute inset-0 whitespace-nowrap text-star"
         style={{
           clipPath: `inset(-0.5em ${(1 - fraction) * 100}% -0.5em -0.5em)`,
         }}

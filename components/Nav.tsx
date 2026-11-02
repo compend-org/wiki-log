@@ -52,17 +52,17 @@ export default function Nav() {
 
   const shownUnread = userId ? unread : 0;
 
-  // Amber for the page you're on, muted for the rest
+  // Link blue, with the page you're on in black
   const tone = (href: string) =>
     pathname === href || pathname.startsWith(href + "/")
-      ? "text-accent"
-      : "text-muted hover:text-foreground";
+      ? "text-foreground"
+      : "text-accent hover:text-foreground";
 
   return (
-    <nav className="sticky top-0 z-20 flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-accent/30 bg-background/80 px-4 py-3 backdrop-blur sm:px-8">
+    <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-line bg-surface px-4 py-2 text-sm sm:px-8">
       <Link
         href="/"
-        className="font-[family-name:var(--font-display-src)] text-2xl font-bold uppercase tracking-[0.2em] text-accent"
+        className="mr-2 text-xl font-bold text-foreground no-underline"
       >
         {SITE_NAME}
       </Link>
@@ -94,25 +94,23 @@ export default function Nav() {
         >
           <NotificationIcon />
           {shownUnread > 0 && (
-            <span className="rounded-full bg-accent px-1.5 text-xs font-semibold text-background">
+            <span className="bg-accent px-1.5 text-xs font-bold text-background">
               {shownUnread > 9 ? "9+" : shownUnread}
             </span>
           )}
         </Link>
       )}
 
-      <div className="ml-auto flex items-center gap-3 text-sm">
+      <div className="ml-auto flex items-center gap-4">
         {userId ? (
           <>
             {username && (
               <Link
                 href={`/u/${encodeURIComponent(username)}`}
-                className="flex items-center gap-2 text-muted hover:text-foreground"
+                className="flex items-center gap-2 text-accent underline hover:no-underline"
               >
-                <Avatar name={username} path={avatarPath} size={28} />
-                <span className="hidden max-w-[8rem] truncate sm:inline">
-                  {username}
-                </span>
+                <Avatar name={username} path={avatarPath} size={22} />
+                <span className="max-w-[8rem] truncate">{username}</span>
               </Link>
             )}
             <Link
@@ -123,12 +121,19 @@ export default function Nav() {
             >
               <SettingsIcon />
             </Link>
-            <button type="button" onClick={handleSignOut} className="underline">
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="text-accent underline hover:no-underline"
+            >
               Sign out
             </button>
           </>
         ) : (
-          <Link href="/login" className="underline">
+          <Link
+            href="/login"
+            className="text-accent underline hover:no-underline"
+          >
             Sign in
           </Link>
         )}
