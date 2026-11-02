@@ -34,7 +34,7 @@
   --color-line: #263646;
   --color-foreground: #d8e1e8;
   --color-muted: #7f95a8;
-  --color-accent: #f0a23b;
+  --color-accent: #e8e5e5;
   --color-danger: #ff5a6a;
   --color-star: #f0a23b;
 }
@@ -119,4 +119,16 @@ body {
 *::before,
 *::after {
   border-radius: 0 !important;
+}
+
+.logo-dark {
+  display: none;
+}
+
+:root[data-theme="dark"] .logo-light {
+  display: none;
+}
+
+:root[data-theme="dark"] .logo-dark {
+  display: inline-block;
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
-import { SITE_NAME } from "@/lib/site";
+import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 import { themeInitScript } from "@/lib/theme";
 import "flag-icons/css/flag-icons.min.css";
 
@@ -18,6 +18,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: SITE_NAME,
+  description: SITE_TAGLINE,
+  icons: {
+    icon: [
+      { url: "/logo-light.png", media: "(prefers-color-scheme: light)" },
+      { url: "/logo-dark.png", media: "(prefers-color-scheme: dark)" },
+    ],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

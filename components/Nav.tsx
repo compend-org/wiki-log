@@ -62,8 +62,24 @@ export default function Nav() {
     <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-line bg-surface px-4 py-2 text-sm sm:px-8">
       <Link
         href="/"
-        className="mr-2 text-xl font-bold text-foreground no-underline"
+        className="mr-2 flex items-center gap-2 text-xl font-bold text-foreground no-underline"
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo-light.png"
+          alt=""
+          width={35}
+          height={35}
+          className="logo-light border-0"
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo-dark.png"
+          alt=""
+          width={35}
+          height={35}
+          className="logo-dark border-0"
+        />
         {SITE_NAME}
       </Link>
 
