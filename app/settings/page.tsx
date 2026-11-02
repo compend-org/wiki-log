@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
 import DeleteAccount from "@/components/DeleteAccount";
 import AvatarUpload from "@/components/AvatarUpload";
+import ThemeSetting from "@/components/ThemeSetting";
 
 export default function SettingsPage() {
   const [loaded, setLoaded] = useState<boolean>(false);
@@ -81,6 +82,7 @@ export default function SettingsPage() {
     <main className="mx-auto flex max-w-sm flex-1 flex-col gap-4 p-4 sm:p-8">
       <h1 className="text-3xl font-bold">Profile settings</h1>
       <AvatarUpload />
+      <ThemeSetting />
       <p className="text-sm text-muted">
         Your name and logs are public. You can also sign in with your name.
       </p>

@@ -109,7 +109,7 @@ export default function Nav() {
                 href={`/u/${encodeURIComponent(username)}`}
                 className="flex items-center gap-2 text-accent underline hover:no-underline"
               >
-                <Avatar name={username} path={avatarPath} size={22} />
+                <Avatar name={username} path={avatarPath} size={40} />
                 <span className="max-w-[8rem] truncate">{username}</span>
               </Link>
             )}
