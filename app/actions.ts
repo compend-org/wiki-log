@@ -63,12 +63,11 @@ export async function logItem(input: {
   if (itemError) return { error: itemError };
 
   // Saved as the signed-in user, so RLS applies
-  const { error } = await supabase.from("logs").upsert({
+  const { error } = await supabase.from("logs").insert({
     user_id: userId,
     item_id: input.itemId,
     rating: input.rating,
     review: input.review.slice(0, 5000),
-    logged_at: new Date().toISOString(),
   });
   if (error) return { error: error.message };
 

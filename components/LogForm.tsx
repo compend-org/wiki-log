@@ -4,48 +4,45 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { readLog } from "@/lib/logs";
 import { logItem } from "@/app/actions";
 import RatingInput from "@/components/RatingInput";
 
-export default function LogForm({ id }: { id: string }) {
+export default function LogForm({
+  id,
+  alreadyLogged = false,
+}: {
+  id: string;
+  alreadyLogged?: boolean;
+}) {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [rating, setRating] = useState<number>(0);
   const [review, setReview] = useState<string>("");
-  const [saved, setSaved] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
+  const [done, setDone] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const router = useRouter();
 
   useEffect(() => {
-    async function load() {
-      const { data } = await createClient().auth.getUser();
-      if (!data.user) {
-        setSignedIn(false);
-        return;
-      }
-      setSignedIn(true);
-      const existing = await readLog(id, data.user.id);
-      if (existing) {
-        setRating(existing.rating);
-        setReview(existing.review);
-        setSaved(true);
-      }
-    }
-    load();
-  }, [id]);
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => setSignedIn(Boolean(data.user)));
+  }, []);
 
   async function handleSave() {
     setBusy(true);
     setError("");
+    setDone(false);
     const result = await logItem({ itemId: id, rating, review });
     setBusy(false);
     if (result.error) {
       setError(result.error);
-    } else {
-      setSaved(true);
-      router.refresh();
+      return;
     }
+    // Ready for the next entry
+    setRating(0);
+    setReview("");
+    setDone(true);
+    router.refresh();
   }
 
   if (signedIn === null) {
@@ -66,33 +63,34 @@ export default function LogForm({ id }: { id: string }) {
         value={rating}
         onChange={(v) => {
           setRating(v);
-          setSaved(false);
+          setDone(false);
         }}
       />
       <textarea
         value={review}
         onChange={(e) => {
           setReview(e.target.value);
-          setSaved(false);
+          setDone(false);
         }}
         placeholder="Add a review (optional)"
         rows={3}
-        className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"
+        className="border border-line bg-surface px-4 py-2 text-foreground"
       />
       <button
         type="button"
         onClick={handleSave}
         disabled={rating === 0 || busy}
-        className="rounded-lg bg-accent px-4 py-2 text-background disabled:opacity-40"
+        className="self-start bg-accent px-4 py-2 text-background disabled:opacity-40"
       >
         {busy
           ? "Saving…"
           : rating === 0
           ? "Pick a rating first"
-          : saved
-          ? "Logged ✓"
+          : alreadyLogged
+          ? "Log it again"
           : "Log it"}
       </button>
+      {done && <p className="text-sm text-accent">Entry added.</p>}
       {error && <p className="text-danger">{error}</p>}
     </div>
   );

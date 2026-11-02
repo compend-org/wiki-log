@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { escapeLike, isValidName } from "@/lib/username";
+import { isUuid } from "@/lib/ids";
 import { getLikedSet, likeKey } from "@/lib/likes";
 import { getAlsoLiked } from "@/lib/alsoLiked";
 import LikeButton from "@/components/LikeButton";
@@ -14,6 +15,7 @@ import Stars from "@/components/Stars";
 export const instant = false;
 
 type LogRow = {
+  id: string;
   user_id: string;
   item_id: string;
   rating: number;
@@ -36,16 +38,16 @@ type CommentQueryRow = {
 export default async function ReviewPage({
   params,
 }: {
-  params: Promise<{ username: string; itemId: string }>;
+  params: Promise<{ username: string; logId: string }>;
 }) {
   await connection();
-  const { username: rawName, itemId } = await params;
+  const { username: rawName, logId } = await params;
 
   let name = rawName;
   try {
     name = decodeURIComponent(rawName);
   } catch {}
-  if (!isValidName(name) || !/^Q\d+$/.test(itemId)) notFound();
+  if (!isValidName(name)) notFound();
 
   const supabase = await createClient();
 
@@ -56,16 +58,33 @@ export default async function ReviewPage({
     .maybeSingle();
   if (!profile) notFound();
 
+  // Old links used the item's id: send them to that person's latest entry
+  if (/^Q\d+$/.test(logId)) {
+    const { data: latest } = await supabase
+      .from("logs")
+      .select("id")
+      .eq("user_id", profile.id)
+      .eq("item_id", logId)
+      .order("logged_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latest) {
+      redirect(`/u/${encodeURIComponent(profile.username)}/${latest.id}`);
+    }
+    notFound();
+  }
+  if (!isUuid(logId)) notFound();
+
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
   const { data: logData } = await supabase
     .from("logs")
     .select(
-      "user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count)"
+      "id, user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count)"
     )
+    .eq("id", logId)
     .eq("user_id", profile.id)
-    .eq("item_id", itemId)
     .maybeSingle();
   if (!logData) notFound();
   const log = logData as unknown as LogRow;
@@ -75,8 +94,7 @@ export default async function ReviewPage({
     .select(
       "id, parent_id, body, created_at, user_id, profiles!comments_user_id_profiles_fkey(username), comment_likes(count)"
     )
-    .eq("log_user_id", profile.id)
-    .eq("log_item_id", itemId)
+    .eq("log_id", log.id)
     .order("created_at", { ascending: true });
 
   const commentRows = (commentData ?? []) as unknown as CommentQueryRow[];
@@ -114,7 +132,7 @@ export default async function ReviewPage({
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <article className="card flex flex-col gap-3 p-4">
         <div className="flex gap-4">
-          <Link href={`/item/${itemId}`} className="shrink-0">
+          <Link href={`/item/${log.item_id}`} className="shrink-0">
             <ItemImage
               src={log.items?.image_url}
               alt={title}
@@ -122,7 +140,7 @@ export default async function ReviewPage({
             />
           </Link>
           <div className="flex min-w-0 flex-col gap-1">
-            <Link href={`/item/${itemId}`} className="text-xl font-bold">
+            <Link href={`/item/${log.item_id}`} className="text-xl font-bold">
               {title}
             </Link>
             <p className="text-sm text-muted">
@@ -144,9 +162,9 @@ export default async function ReviewPage({
             <LikeButton
               viewerId={viewerId ?? null}
               authorId={log.user_id}
-              itemId={log.item_id}
+              logId={log.id}
               initialCount={log.likes?.[0]?.count ?? 0}
-              initiallyLiked={likedSet.has(likeKey(log.user_id, log.item_id))}
+              initiallyLiked={likedSet.has(log.id)}
             />
           </div>
         )}
@@ -154,14 +172,13 @@ export default async function ReviewPage({
 
       <AlsoLiked
         likes={alsoLiked.get(likeKey(log.user_id, log.item_id)) ?? []}
-        itemId={itemId}
       />
 
       <Comments
         comments={comments}
         viewerId={viewerId ?? null}
         table="comments"
-        scope={{ log_user_id: profile.id, log_item_id: itemId }}
+        scope={{ log_id: log.id }}
         ownerId={profile.id}
         likeable
       />

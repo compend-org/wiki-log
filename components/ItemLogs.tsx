@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getLikedSet, likeKey } from "@/lib/likes";
+import { getLikedSet } from "@/lib/likes";
 import { commentLabel } from "@/lib/format";
 import { PAGE_SIZE } from "@/lib/paging";
 import LikeButton from "@/components/LikeButton";
@@ -9,6 +9,7 @@ import LoadMore from "@/components/LoadMore";
 import Stars from "@/components/Stars";
 
 type Row = {
+  id: string;
   user_id: string;
   item_id: string;
   rating: number;
@@ -35,7 +36,7 @@ export default async function ItemLogs({
   const { data, error } = await supabase
     .from("logs")
     .select(
-      "user_id, item_id, rating, review, logged_at, profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count)"
+      "id, user_id, item_id, rating, review, logged_at, profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count)"
     )
     .eq("item_id", itemId)
     .order("logged_at", { ascending: false });
@@ -45,34 +46,43 @@ export default async function ItemLogs({
   }
 
   const rows = (data ?? []) as unknown as Row[];
-  const likedSet = await getLikedSet(supabase, viewerId, rows);
+  const shown = rows.slice(0, limit);
+  const likedSet = await getLikedSet(supabase, viewerId, shown);
 
-  const count = rows.length;
+  // The average counts each person's latest rating once
+  const latest = new Map<string, number>();
+  for (const r of rows) {
+    if (!latest.has(r.user_id)) latest.set(r.user_id, Number(r.rating));
+  }
+  const people = latest.size;
   const average =
-    count > 0 ? rows.reduce((sum, r) => sum + r.rating, 0) / count : 0;
+    people > 0
+      ? [...latest.values()].reduce((sum, v) => sum + v, 0) / people
+      : 0;
 
   return (
     <section className="flex w-full flex-col gap-3">
       <h2 className="text-xl font-bold">
-        {count === 0 ? "No logs yet" : "Logs"}
+        {rows.length === 0 ? "No logs yet" : "Logs"}
       </h2>
 
-      {count > 0 && (
+      {rows.length > 0 && (
         <p className="text-muted">
-          <span className="text-accent">★</span> {average.toFixed(1)} average ·{" "}
-          {count} {count === 1 ? "log" : "logs"}
+          <span className="text-star">★</span> {average.toFixed(1)} average from{" "}
+          {people} {people === 1 ? "person" : "people"}
+          {rows.length > people && <> · {rows.length} entries</>}
         </p>
       )}
 
-      {rows.slice(0, limit).map((row) => {
+      {shown.map((row) => {
         const author = row.profiles?.username;
         const reviewHref = author
-          ? `/u/${encodeURIComponent(author)}/${row.item_id}`
+          ? `/u/${encodeURIComponent(author)}/${row.id}`
           : null;
 
         return (
           <div
-            key={row.user_id}
+            key={row.id}
             className="card relative flex flex-col gap-1 p-3 hover:border-accent/60"
           >
             {reviewHref && (
@@ -105,11 +115,9 @@ export default async function ItemLogs({
                   <LikeButton
                     viewerId={viewerId ?? null}
                     authorId={row.user_id}
-                    itemId={row.item_id}
+                    logId={row.id}
                     initialCount={row.likes?.[0]?.count ?? 0}
-                    initiallyLiked={likedSet.has(
-                      likeKey(row.user_id, row.item_id)
-                    )}
+                    initiallyLiked={likedSet.has(row.id)}
                   />
                 </span>
               )}

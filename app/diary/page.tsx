@@ -39,7 +39,9 @@ export default function DiaryPage() {
   }, []);
 
   async function handleDelete(id: string) {
-    if (!window.confirm("Delete this log?")) return;
+    if (!window.confirm("Delete this entry, with its likes and comments?")) {
+      return;
+    }
     const error = await deleteLog(id);
     if (error) {
       window.alert(error);
@@ -64,7 +66,7 @@ export default function DiaryPage() {
 
       {logs.map((log) => (
         <div key={log.id} className="card flex items-start gap-2 p-3">
-          <Link href={`/item/${log.id}`} className="flex flex-1 gap-4">
+          <Link href={`/item/${log.itemId}`} className="flex flex-1 gap-4">
             <ItemImage
               src={log.imageUrl}
               alt={log.title}

@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 import { getItemForPage } from "@/lib/items";
 import { parseLimit } from "@/lib/paging";
-import LogForm from "@/components/LogForm";
-import ItemLogs from "@/components/ItemLogs";
 import AddToList from "@/components/AddToList";
+import ItemImage from "@/components/ItemImage";
+import LogForm from "@/components/LogForm";
+import MyEntries, { type MyEntry } from "@/components/MyEntries";
+import ItemLogs from "@/components/ItemLogs";
 
 export const instant = false;
 
@@ -23,6 +26,27 @@ export default async function ItemPage({
   if ("error" in result) notFound();
   const { item } = result;
 
+  // The viewer's own earlier entries for this item
+  const supabase = await createClient();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const viewerId: string | undefined = claimsData?.claims?.sub;
+
+  let myEntries: MyEntry[] = [];
+  if (viewerId) {
+    const { data } = await supabase
+      .from("logs")
+      .select("id, rating, review, logged_at")
+      .eq("user_id", viewerId)
+      .eq("item_id", id)
+      .order("logged_at", { ascending: false });
+    myEntries = (data ?? []).map((r) => ({
+      id: r.id,
+      rating: Number(r.rating),
+      review: r.review,
+      loggedAt: r.logged_at,
+    }));
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-col gap-3">
@@ -31,10 +55,14 @@ export default async function ItemPage({
           <img
             src={item.imageUrl}
             alt={item.title}
-            className="max-h-96 w-full rounded-lg object-contain"
+            className="max-h-96 w-full object-contain"
           />
         ) : (
-          <div className="aspect-video w-full rounded-lg bg-surface" />
+          <ItemImage
+            src={null}
+            alt={item.title}
+            className="aspect-video max-h-80 w-full"
+          />
         )}
         <h1 className="text-3xl font-bold">{item.title}</h1>
         {item.description && <p className="text-muted">{item.description}</p>}
@@ -46,8 +74,10 @@ export default async function ItemPage({
           , licensed CC BY-SA 4.0.
         </p>
       </div>
+
       <AddToList itemId={id} title={item.title} imageUrl={item.imageUrl} />
-      <LogForm id={id} />
+      <LogForm id={id} alreadyLogged={myEntries.length > 0} />
+      <MyEntries entries={myEntries} />
       <ItemLogs itemId={id} limit={parseLimit(limit)} />
     </main>
   );

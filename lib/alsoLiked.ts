@@ -2,15 +2,25 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { likeKey } from "@/lib/likes";
 
 export type AlsoLikedEntry = {
+  logId: string;
   userId: string;
   username: string;
   avatarPath: string | null;
   rating: number;
 };
 
-// Keyed by likeKey(reviewerId, itemId): the reviews that reviewer has liked
-// on that same item
+// Keyed by likeKey(reviewerId, itemId): the entries that reviewer has liked on
+// that same item, at most one per person
 export type AlsoLikedMap = Map<string, AlsoLikedEntry[]>;
+
+type Row = {
+  id: string;
+  user_id: string;
+  item_id: string;
+  rating: number;
+  logged_at: string;
+  likes: { user_id: string; created_at: string }[];
+};
 
 export async function getAlsoLiked(
   supabase: SupabaseClient,
@@ -23,57 +33,67 @@ export async function getAlsoLiked(
   const reviewerIds = [...new Set(rows.map((r) => r.user_id))];
   const itemIds = [...new Set(rows.map((r) => r.item_id))];
 
-  // Reviews these people have liked, on the same items (newest like first)
-  const { data: likeRows } = await supabase
-    .from("likes")
-    .select("user_id, log_user_id, log_item_id, created_at")
-    .in("user_id", reviewerIds)
-    .in("log_item_id", itemIds)
-    .order("created_at", { ascending: false });
+  // Entries on these items that these people have liked
+  const { data } = await supabase
+    .from("logs")
+    .select(
+      "id, user_id, item_id, rating, logged_at, likes!inner(user_id, created_at)"
+    )
+    .in("item_id", itemIds)
+    .in("likes.user_id", reviewerIds);
 
-  // Keep only the pairs actually on screen (the query above is a cross product)
-  const likes = (likeRows ?? []).filter((l) =>
-    wanted.has(likeKey(l.user_id, l.log_item_id))
-  );
-  if (likes.length === 0) return result;
+  const liked = (data ?? []) as unknown as Row[];
+  if (liked.length === 0) return result;
 
-  const likedUserIds = [...new Set(likes.map((l) => l.log_user_id))];
+  const ownerIds = [...new Set(liked.map((l) => l.user_id))];
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, username, avatar_path")
+    .in("id", ownerIds);
+  const people = new Map((profiles ?? []).map((p) => [p.id as string, p]));
 
-  const [logsRes, profilesRes] = await Promise.all([
-    supabase
-      .from("logs")
-      .select("user_id, item_id, rating")
-      .in("user_id", likedUserIds)
-      .in("item_id", itemIds),
-    supabase
-      .from("profiles")
-      .select("id, username, avatar_path")
-      .in("id", likedUserIds),
-  ]);
+  // One entry per person: if the reviewer liked several entries by the same
+  // person, keep that person's most recently logged one
+  const best = new Map<
+    string,
+    { key: string; likedAt: number; loggedAt: number; entry: AlsoLikedEntry }
+  >();
 
-  const ratings = new Map(
-    (logsRes.data ?? []).map((l) => [
-      likeKey(l.user_id, l.item_id),
-      Number(l.rating),
-    ])
-  );
-  const people = new Map((profilesRes.data ?? []).map((p) => [p.id, p]));
+  for (const log of liked) {
+    const person = people.get(log.user_id);
+    if (!person) continue;
 
-  for (const l of likes) {
-    const rating = ratings.get(likeKey(l.log_user_id, l.log_item_id));
-    const person = people.get(l.log_user_id);
-    if (rating === undefined || !person) continue;
+    for (const like of log.likes) {
+      const key = likeKey(like.user_id, log.item_id);
+      if (!wanted.has(key)) continue;
 
-    const key = likeKey(l.user_id, l.log_item_id);
-    const list = result.get(key) ?? [];
-    list.push({
-      userId: person.id,
-      username: person.username,
-      avatarPath: person.avatar_path ?? null,
-      rating,
-    });
-    result.set(key, list);
+      const slot = `${key}:${log.user_id}`;
+      const loggedAt = new Date(log.logged_at).getTime();
+      const current = best.get(slot);
+
+      if (!current || loggedAt > current.loggedAt) {
+        best.set(slot, {
+          key,
+          likedAt: new Date(like.created_at).getTime(),
+          loggedAt,
+          entry: {
+            logId: log.id,
+            userId: person.id,
+            username: person.username,
+            avatarPath: person.avatar_path ?? null,
+            rating: Number(log.rating),
+          },
+        });
+      }
+    }
   }
 
+  // Most recently liked first
+  const found = [...best.values()].sort((a, b) => b.likedAt - a.likedAt);
+  for (const f of found) {
+    const list = result.get(f.key) ?? [];
+    list.push(f.entry);
+    result.set(f.key, list);
+  }
   return result;
 }

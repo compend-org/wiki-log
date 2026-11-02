@@ -16,17 +16,19 @@ type NotificationRow = {
     | "list_reply";
   read: boolean;
   created_at: string;
-  log_user_id: string | null;
-  log_item_id: string | null;
+  log_id: string | null;
   list_id: string | null;
   profiles: { username: string } | null;
 };
+
+type LogInfo = { owner: string; item: string };
 
 export default function NotificationsPage() {
   const [loaded, setLoaded] = useState<boolean>(false);
   const [signedIn, setSignedIn] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [rows, setRows] = useState<NotificationRow[]>([]);
+  const [logs, setLogs] = useState<Record<string, LogInfo>>({});
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [listTitles, setListTitles] = useState<Record<string, string>>({});
   const [owners, setOwners] = useState<Record<string, string>>({});
@@ -47,7 +49,7 @@ export default function NotificationsPage() {
       const { data, error } = await supabase
         .from("notifications")
         .select(
-          "id, type, read, created_at, log_user_id, log_item_id, list_id, profiles!notifications_actor_fkey(username)"
+          "id, type, read, created_at, log_id, list_id, profiles!notifications_actor_fkey(username)"
         )
         .eq("recipient_id", userId)
         .order("created_at", { ascending: false })
@@ -60,16 +62,25 @@ export default function NotificationsPage() {
       const list = (data ?? []) as unknown as NotificationRow[];
       setRows(list);
 
-      // Item titles, list titles and review-owner names, one lookup each
-      const itemIds = [
-        ...new Set(list.map((n) => n.log_item_id).filter((v): v is string => !!v)),
+      // The entries these refer to, then their items and owners
+      const logIds = [
+        ...new Set(list.map((n) => n.log_id).filter((v): v is string => !!v)),
       ];
       const listIds = [
         ...new Set(list.map((n) => n.list_id).filter((v): v is string => !!v)),
       ];
-      const ownerIds = [
-        ...new Set(list.map((n) => n.log_user_id).filter((v): v is string => !!v)),
-      ];
+
+      const logRes = logIds.length
+        ? await supabase
+            .from("logs")
+            .select("id, user_id, item_id")
+            .in("id", logIds)
+        : { data: [] as { id: string; user_id: string; item_id: string }[] };
+      const logRows = logRes.data ?? [];
+
+      const itemIds = [...new Set(logRows.map((l) => l.item_id))];
+      const ownerIds = [...new Set(logRows.map((l) => l.user_id))];
+
       const [items, lists, profs] = await Promise.all([
         itemIds.length
           ? supabase.from("items").select("id, title").in("id", itemIds)
@@ -81,6 +92,12 @@ export default function NotificationsPage() {
           ? supabase.from("profiles").select("id, username").in("id", ownerIds)
           : Promise.resolve({ data: [] as { id: string; username: string }[] }),
       ]);
+
+      setLogs(
+        Object.fromEntries(
+          logRows.map((l) => [l.id, { owner: l.user_id, item: l.item_id }])
+        )
+      );
       setTitles(Object.fromEntries((items.data ?? []).map((v) => [v.id, v.title])));
       setListTitles(
         Object.fromEntries((lists.data ?? []).map((v) => [v.id, v.title]))
@@ -103,13 +120,14 @@ export default function NotificationsPage() {
 
   function describe(n: NotificationRow): { text: string; href: string } {
     const actor = n.profiles?.username ?? "Someone";
-    const title = n.log_item_id ? titles[n.log_item_id] ?? "an item" : "";
-    const listTitle = n.list_id ? listTitles[n.list_id] ?? "a list" : "";
-    const ownerName = n.log_user_id ? owners[n.log_user_id] : undefined;
+    const entry = n.log_id ? logs[n.log_id] : undefined;
+    const title = entry ? titles[entry.item] ?? "an item" : "an item";
+    const ownerName = entry ? owners[entry.owner] : undefined;
     const reviewHref =
-      ownerName && n.log_item_id
-        ? `/u/${encodeURIComponent(ownerName)}/${n.log_item_id}`
+      ownerName && n.log_id
+        ? `/u/${encodeURIComponent(ownerName)}/${n.log_id}`
         : "/";
+    const listTitle = n.list_id ? listTitles[n.list_id] ?? "a list" : "";
     const listHref = n.list_id ? `/list/${n.list_id}#comments` : "/";
 
     switch (n.type) {
@@ -121,7 +139,7 @@ export default function NotificationsPage() {
           href: reviewHref,
         };
       case "reply": {
-        const whose = n.log_user_id === myId ? "your" : `${ownerName ?? "someone"}'s`;
+        const whose = entry?.owner === myId ? "your" : `${ownerName ?? "someone"}'s`;
         return {
           text: `${actor} replied to your comment on ${whose} review of ${title}`,
           href: reviewHref,
@@ -179,7 +197,7 @@ export default function NotificationsPage() {
           <Link
             key={n.id}
             href={href}
-            className={`flex flex-col gap-1 rounded-lg border p-3 ${
+            className={`flex flex-col gap-1 border p-3 ${
               n.read ? "border-line" : "border-accent bg-surface"
             }`}
           >

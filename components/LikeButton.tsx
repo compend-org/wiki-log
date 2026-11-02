@@ -7,13 +7,13 @@ import { createClient } from "@/lib/supabase/client";
 export default function LikeButton({
   viewerId,
   authorId,
-  itemId,
+  logId,
   initialCount,
   initiallyLiked,
 }: {
   viewerId: string | null;
   authorId: string;
-  itemId: string;
+  logId: string;
   initialCount: number;
   initiallyLiked: boolean;
 }) {
@@ -39,17 +39,14 @@ export default function LikeButton({
 
     const supabase = createClient();
     const { error } = next
-      ? await supabase.from("likes").insert({
-          user_id: viewerId,
-          log_user_id: authorId,
-          log_item_id: itemId,
-        })
+      ? await supabase
+          .from("likes")
+          .insert({ user_id: viewerId, log_id: logId })
       : await supabase
           .from("likes")
           .delete()
           .eq("user_id", viewerId)
-          .eq("log_user_id", authorId)
-          .eq("log_item_id", itemId);
+          .eq("log_id", logId);
 
     if (error) {
       setLiked(!next);
