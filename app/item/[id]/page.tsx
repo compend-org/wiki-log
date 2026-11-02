@@ -4,6 +4,7 @@ import { getItemForPage } from "@/lib/items";
 import { parseLimit } from "@/lib/paging";
 import LogForm from "@/components/LogForm";
 import ItemLogs from "@/components/ItemLogs";
+import AddToList from "@/components/AddToList";
 
 export const instant = false;
 
@@ -45,7 +46,7 @@ export default async function ItemPage({
           , licensed CC BY-SA 4.0.
         </p>
       </div>
-
+      <AddToList itemId={id} title={item.title} imageUrl={item.imageUrl} />
       <LogForm id={id} />
       <ItemLogs itemId={id} limit={parseLimit(limit)} />
     </main>

@@ -182,6 +182,7 @@ export async function removeFavourite(
 export async function addToList(input: {
   listId: string;
   itemId: string;
+  order?: string[];
 }): Promise<{
   error?: string;
   item?: { itemId: string; title: string; imageUrl: string | null };
@@ -193,6 +194,12 @@ export async function addToList(input: {
 
   if (!isUuid(input.listId)) return { error: "Invalid list." };
   if (!ITEM_ID.test(input.itemId)) return { error: "Invalid item." };
+  if (
+    input.order &&
+    (input.order.length > 101 || !input.order.every((id) => ITEM_ID.test(id)))
+  ) {
+    return { error: "Invalid order." };
+  }
 
   const { data: list } = await supabase
     .from("lists")
@@ -225,6 +232,15 @@ export async function addToList(input: {
           ? "That item is already in this list."
           : error.message,
     };
+  }
+
+  // Ranked lists: move the new item into the place the user chose
+  if (input.order) {
+    const { error: orderError } = await supabase.rpc("reorder_list_items", {
+      p_list: input.listId,
+      p_items: input.order,
+    });
+    if (orderError) return { error: orderError.message };
   }
 
   const { data: item } = await supabase
