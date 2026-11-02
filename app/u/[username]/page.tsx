@@ -9,6 +9,7 @@ import Favourites, { type Slot } from "@/components/Favourites";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
 import Avatar from "@/components/Avatar";
+import SignOutButton from "@/components/SignOutButton";
 
 export const instant = false;
 
@@ -161,9 +162,12 @@ export default async function ProfilePage({
               Sign in to follow
             </Link>
           ) : isOwner ? (
-            <Link href="/settings" className="underline">
-              Edit profile
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/settings" className="underline">
+                Edit profile
+              </Link>
+              <SignOutButton className="sm:hidden" />
+            </div>
           ) : (
             <FollowButton
               viewerId={viewerId}

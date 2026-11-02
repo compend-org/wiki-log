@@ -11,6 +11,8 @@ import SettingsIcon from "./SettingsIcon";
 import SearchIcon from "./SearchIcon";
 import DiaryIcon from "./DiaryIcon";
 import NotificationIcon from "./NotificationIcon";
+import SignInIcon from "./SignInIcon";
+import SignOutButton from "./SignOutButton";
 
 export default function Nav() {
   const { userId, username, avatarPath } = useCurrentUser();
@@ -59,29 +61,28 @@ export default function Nav() {
       : "text-accent hover:text-foreground";
 
   return (
-    <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-line bg-surface px-4 py-2 text-sm sm:px-8">
-      <Link
-        href="/"
-        className="mr-2 flex items-center gap-2 text-xl font-bold text-foreground no-underline"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/logo-light.png"
-          alt=""
-          width={35}
-          height={35}
-          className="logo-light border-0"
-        />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/logo-dark.png"
-          alt=""
-          width={35}
-          height={35}
-          className="logo-dark border-0"
-        />
-        {SITE_NAME}
-      </Link>
+    <nav className="flex flex-nowrap items-center justify-between gap-x-3 border-b border-line bg-surface px-4 py-2 text-sm sm:flex-wrap sm:justify-start sm:gap-x-5 sm:gap-y-1 sm:px-8">      <Link
+      href="/"
+      className="sm:mr-2 flex items-center gap-2 text-xl font-bold text-foreground no-underline"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo-light.png"
+        alt=""
+        width={35}
+        height={35}
+        className="logo-light border-0"
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo-dark.png"
+        alt=""
+        width={35}
+        height={35}
+        className="logo-dark border-0"
+      />
+      <span className="hidden sm:inline">{SITE_NAME}</span>
+    </Link>
 
       <Link
         href="/diary"
@@ -117,16 +118,17 @@ export default function Nav() {
         </Link>
       )}
 
-      <div className="ml-auto flex items-center gap-4">
+      <div className="contents sm:ml-auto sm:flex sm:items-center sm:gap-4">
         {userId ? (
           <>
             {username && (
               <Link
                 href={`/u/${encodeURIComponent(username)}`}
+                aria-label={`${username}'s profile`}
                 className="flex items-center gap-2 text-accent underline hover:no-underline"
               >
                 <Avatar name={username} path={avatarPath} size={40} />
-                <span className="max-w-[8rem] truncate">{username}</span>
+                <span className="hidden max-w-[8rem] truncate sm:inline">{username}</span>
               </Link>
             )}
             <Link
@@ -137,20 +139,16 @@ export default function Nav() {
             >
               <SettingsIcon />
             </Link>
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="text-accent underline hover:no-underline"
-            >
-              Sign out
-            </button>
+            <SignOutButton className="hidden text-accent hover:text-foreground sm:flex" />
           </>
         ) : (
           <Link
             href="/login"
-            className="text-accent underline hover:no-underline"
+            aria-label="Sign in"
+            title="Sign in"
+            className={`flex ${tone("/login")}`}
           >
-            Sign in
+            <SignInIcon />
           </Link>
         )}
       </div>

@@ -19,7 +19,7 @@ export default function Avatar({
       <div
         aria-hidden="true"
         style={style}
-        className={`flex shrink-0 items-center justify-center rounded-full bg-surface text-muted ${className}`}
+        className={`avatar flex shrink-0 items-center justify-center rounded-full bg-surface text-muted ${className}`}
       >
         <span
           style={{ fontSize: size * 0.45 }}
@@ -40,7 +40,7 @@ export default function Avatar({
       height={size}
       draggable={false}
       style={style}
-      className={`shrink-0 rounded-full object-cover ${className}`}
+      className={`avatar shrink-0 rounded-full object-cover ${className}`}
     />
   );
 }
