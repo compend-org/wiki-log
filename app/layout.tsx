@@ -4,6 +4,7 @@ import "./globals.css";
 import Nav from "@/components/Nav";
 import { SITE_NAME } from "@/lib/site";
 import { themeInitScript } from "@/lib/theme";
+import "flag-icons/css/flag-icons.min.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

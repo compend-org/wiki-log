@@ -5,10 +5,10 @@ import { getLikedSet, likeKey } from "@/lib/likes";
 import { commentLabel } from "@/lib/format";
 import { PAGE_SIZE } from "@/lib/paging";
 import LikeButton from "@/components/LikeButton";
+import ListLikeButton from "@/components/ListLikeButton";
 import LoadMore from "@/components/LoadMore";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
-import ListLikeButton from "@/components/ListLikeButton";
 
 type Tab = "following" | "everyone";
 
@@ -171,9 +171,9 @@ export default async function Feed({
                         key={t}
                         href={`/?tab=${t}`}
                         scroll={false}
-                        className={`-mb-px flex-1 border-b-2 px-4 py-3 text-center text-sm font-semibold ${active === t
-                            ? "border-accent text-foreground"
-                            : "border-transparent text-muted"
+                        className={`-mb-px flex-1 border-b-2 px-4 py-3 text-center ${active === t
+                                ? "border-accent text-foreground"
+                                : "border-transparent text-muted"
                             }`}
                     >
                         {t === "following" ? "Following" : "Everyone"}
@@ -291,7 +291,10 @@ export default async function Feed({
                 return (
                     <div
                         key={`log-${row.user_id}-${row.item_id}`}
-                        className="card relative flex gap-4 p-3 hover:border-accent/60"
+                        className={`card relative grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-3 p-3 hover:border-accent/60 ${row.review
+                                ? "sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.2fr)]"
+                                : ""
+                            }`}
                     >
                         {reviewHref && (
                             <Link
@@ -300,9 +303,10 @@ export default async function Feed({
                                 className="absolute inset-0 rounded-[inherit]"
                             />
                         )}
+
                         <Link
                             href={`/item/${row.item_id}`}
-                            className="relative z-10 shrink-0"
+                            className="relative z-10 shrink-0 self-center"
                         >
                             <ItemImage
                                 src={row.items?.image_url}
@@ -310,6 +314,7 @@ export default async function Feed({
                                 className="h-20 w-20 rounded"
                             />
                         </Link>
+
                         <div className="flex min-w-0 flex-col gap-1">
                             <span className="text-sm text-muted">
                                 {author ? (
@@ -331,7 +336,6 @@ export default async function Feed({
                                 {title}
                             </Link>
                             <Stars rating={row.rating} />
-                            {row.review && <p className="text-sm">{row.review}</p>}
                             <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
                                 <span>{new Date(row.logged_at).toLocaleDateString()}</span>
                                 {row.review && (
@@ -354,6 +358,12 @@ export default async function Feed({
                                 )}
                             </div>
                         </div>
+
+                        {row.review && (
+                            <p className="col-span-2 line-clamp-6 whitespace-pre-wrap break-words text-sm sm:col-span-1 sm:border-l sm:border-dashed sm:border-line sm:pl-4">
+                                {row.review}
+                            </p>
+                        )}
                     </div>
                 );
             })}

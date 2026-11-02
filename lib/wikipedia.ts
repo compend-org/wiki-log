@@ -1,11 +1,11 @@
 // Everything that talks to Wikipedia and Wikidata. Server-side only.
+import { DEFAULT_LANG, LANGUAGES, type LangCode } from "@/lib/languages";
 
-// Wikimedia asks every client to identify itself. Put your app's name and
-// a way to reach you here.
+// Wikimedia asks every client to identify itself, with a way to reach you
 const CONTACT = process.env.WIKI_CONTACT ?? "no contact set";
 const USER_AGENT = `WikiLog/0.1 (${CONTACT})`;
 
-// Articles about real people are blocked unless you set this to true
+// Articles about real people are blocked unless this is true
 export const ALLOW_PEOPLE = true;
 
 const HEADERS = { "User-Agent": USER_AGENT, "Api-User-Agent": USER_AGENT };
@@ -36,13 +36,16 @@ function freeImage(url: string | undefined | null): string | null {
   return full.includes("/wikipedia/commons/") ? full : null;
 }
 
-// Suggestions as you type
-export async function searchTitles(query: string): Promise<SearchHit[]> {
+// Suggestions as you type, from the Wikipedia in the chosen language
+export async function searchTitles(
+  query: string,
+  lang: LangCode = DEFAULT_LANG
+): Promise<SearchHit[]> {
   const q = query.trim();
   if (q.length < 2) return [];
 
   const res = await fetch(
-    `https://en.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(q)}&limit=8`,
+    `https://${lang}.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(q)}&limit=8`,
     { headers: HEADERS }
   );
   if (!res.ok) return [];
@@ -93,10 +96,13 @@ async function mightBeHuman(qid: string): Promise<boolean> {
   }
 }
 
-// An article by its page key, like "Apple" or "Heat_(1995_film)"
-export async function getItemByKey(key: string): Promise<LookupResult> {
+// An article by its page key on one language's Wikipedia
+export async function getItemByKey(
+  key: string,
+  lang: LangCode = DEFAULT_LANG
+): Promise<LookupResult> {
   const res = await fetch(
-    `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(key)}`,
+    `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(key)}`,
     { headers: HEADERS }
   );
   if (!res.ok) return { error: "Couldn't find that article." };
@@ -130,27 +136,38 @@ export async function getItemByKey(key: string): Promise<LookupResult> {
       imageUrl: freeImage(data.thumbnail?.source),
       pageUrl:
         data.content_urls?.desktop?.page ??
-        `https://en.wikipedia.org/wiki/${encodeURIComponent(key)}`,
+        `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(key)}`,
     },
   };
 }
 
-// An article by its Wikidata ID, like "Q89"
+// An item by its Wikidata ID, like "Q89". Uses the English article when there
+// is one, so an item looks the same whoever added it, and otherwise the first
+// article in any supported language.
 export async function getItemById(qid: string): Promise<LookupResult> {
   if (!/^Q\d+$/.test(qid)) return { error: "Invalid item." };
 
+  const sites = LANGUAGES.map((l) => `${l.code}wiki`).join("|");
   const res = await fetch(
-    `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${qid}&props=sitelinks&sitefilter=enwiki&format=json`,
+    `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${qid}&props=sitelinks&sitefilter=${encodeURIComponent(sites)}&format=json`,
     { headers: HEADERS }
   );
   if (!res.ok) return { error: "Couldn't reach Wikidata." };
 
   const data: {
-    entities?: Record<string, { sitelinks?: { enwiki?: { title?: string } } }>;
+    entities?: Record<string, { sitelinks?: Record<string, { title?: string }> }>;
   } = await res.json();
 
-  const title = data.entities?.[qid]?.sitelinks?.enwiki?.title;
-  if (!title) return { error: "That item has no English Wikipedia article." };
+  const links = data.entities?.[qid]?.sitelinks ?? {};
+  const order: LangCode[] = [
+    DEFAULT_LANG,
+    ...LANGUAGES.map((l) => l.code).filter((c) => c !== DEFAULT_LANG),
+  ];
 
-  return getItemByKey(title.replace(/ /g, "_"));
+  for (const code of order) {
+    const title = links[`${code}wiki`]?.title;
+    if (title) return getItemByKey(title.replace(/ /g, "_"), code);
+  }
+
+  return { error: "That item has no article in a supported language." };
 }
