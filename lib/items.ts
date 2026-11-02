@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getItemById, type ItemData, type LookupResult } from "@/lib/wikipedia";
+import { ITEM_ID_PATTERN, isCompoundId } from "@/lib/ids";
 
 // A cached item is trusted for a week, then refreshed from Wikipedia
 export const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -32,7 +33,7 @@ function toItem(row: ItemRow): ItemData {
 
 // For item pages. Call after `await connection()`, since it reads the clock.
 export async function getItemForPage(id: string): Promise<LookupResult> {
-  if (!/^Q\d+$/.test(id)) return { error: "Invalid item." };
+  if (!ITEM_ID_PATTERN.test(id)) return { error: "Invalid item." };
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -43,6 +44,11 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
     .eq("id", id)
     .maybeSingle();
   const cached = data as ItemRow | null;
+
+  // Compounds live only in our database
+  if (isCompoundId(id)) {
+    return cached ? { item: toItem(cached) } : { error: "Unknown compound." };
+  }
 
   if (
     cached &&

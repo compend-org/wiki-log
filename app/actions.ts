@@ -5,13 +5,23 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getItemById } from "@/lib/wikipedia";
 import { cleanName, escapeLike, isValidName } from "@/lib/username";
 import { MAX_AGE_MS } from "@/lib/items";
-import { isUuid } from "@/lib/ids";
+import { isUuid, ITEM_ID_PATTERN, isCompoundId } from "@/lib/ids";
+import { FEATURES } from "@/lib/features";
 
-const ITEM_ID = /^Q\d+$/;
+const ITEM_ID = ITEM_ID_PATTERN;
 
 // Looks the item up on Wikipedia and Wikidata and caches it
 // (users can't write to `items` themselves)
 async function ensureItem(itemId: string): Promise<string | null> {
+  // Compounds only exist in our own database
+  if (isCompoundId(itemId)) {
+    const { data } = await createAdminClient()
+      .from("items")
+      .select("id")
+      .eq("id", itemId)
+      .maybeSingle();
+    return data ? null : "That compound doesn't exist.";
+  }
   const { data: existing } = await createAdminClient()
     .from("items")
     .select("fetched_at")
@@ -296,4 +306,64 @@ export async function addToList(input: {
       imageUrl: item?.image_url ?? null,
     },
   };
+}
+
+export async function createCompound(input: {
+  title: string;
+  description: string;
+  parts: string[];
+}): Promise<{
+  id?: string;
+  existing?: { id: string; title: string };
+  error?: string;
+}> {
+  if (!FEATURES.compounds) return { error: "Crafting is turned off." };
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { error: "You need to sign in to craft." };
+
+  const title = input.title.trim().replace(/\s+/g, " ");
+  const description = input.description.trim();
+  if (title.length < 1 || title.length > 80) {
+    return { error: "Names are 1–80 characters." };
+  }
+  if (/[\u0000-\u001f]/.test(title)) {
+    return { error: "That name has invalid characters." };
+  }
+  if (description.length > 500) {
+    return { error: "Descriptions are at most 500 characters." };
+  }
+
+  const parts = input.parts;
+  if (!Array.isArray(parts) || parts.length < 2 || parts.length > 8) {
+    return { error: "A compound needs 2 to 8 ingredients." };
+  }
+  if (!parts.every((p) => typeof p === "string" && ITEM_ID.test(p))) {
+    return { error: "Invalid ingredient." };
+  }
+  if (new Set(parts).size !== parts.length) {
+    return { error: "Each ingredient can only be used once." };
+  }
+
+  // Make sure every ingredient is stored in the database
+  const problems = await Promise.all(parts.map((p) => ensureItem(p)));
+  const problem = problems.find((p) => p !== null);
+  if (problem) return { error: problem };
+
+  const { data: result, error } = await createAdminClient().rpc(
+    "create_compound",
+    {
+      p_user: userId,
+      p_title: title,
+      p_description: description,
+      p_parts: parts,
+    }
+  );
+  if (error) return { error: error.message };
+
+  const r = result as { id: string; title: string; existing: boolean };
+  return r.existing
+    ? { existing: { id: r.id, title: r.title } }
+    : { id: r.id };
 }

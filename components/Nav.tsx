@@ -13,7 +13,9 @@ import DiaryIcon from "./DiaryIcon";
 import NotificationIcon from "./NotificationIcon";
 import SignInIcon from "./SignInIcon";
 import SignOutButton from "./SignOutButton";
+import CraftIcon from "./CraftIcon";
 import { useLoginHref } from "@/lib/useLoginHref";
+import { FEATURES } from "@/lib/features";
 
 export default function Nav() {
   const loginHref = useLoginHref();
@@ -103,6 +105,16 @@ export default function Nav() {
       >
         <SearchIcon />
       </Link>
+      {FEATURES.compounds && (
+        <Link
+          href="/craft"
+          aria-label="Craft a compound"
+          title="Craft a compound"
+          className={`flex ${tone("/craft")}`}
+        >
+          <CraftIcon />
+        </Link>
+      )}
 
       {userId && (
         <Link

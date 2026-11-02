@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getItemForPage } from "@/lib/items";
+import { isCompoundId } from "@/lib/ids";
 import { parseLimit } from "@/lib/paging";
 import { CONTACT_EMAIL } from "@/lib/site";
 import AddToList from "@/components/AddToList";
@@ -9,8 +11,11 @@ import ItemImage from "@/components/ItemImage";
 import LogForm from "@/components/LogForm";
 import MyEntries, { type MyEntry } from "@/components/MyEntries";
 import ItemLogs from "@/components/ItemLogs";
+import { FEATURES } from "@/lib/features";
 
 export const instant = false;
+
+type Part = { id: string; title: string; imageUrl: string | null };
 
 export default async function ItemPage({
   params,
@@ -24,14 +29,15 @@ export default async function ItemPage({
   const { limit } = await searchParams;
 
   const result = await getItemForPage(id);
+  if (isCompoundId(id) && !FEATURES.compounds) notFound();
   if ("error" in result) notFound();
   const { item } = result;
 
-  // The viewer's own earlier entries for this item
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
+  // The viewer's own earlier entries for this item
   let myEntries: MyEntry[] = [];
   if (viewerId) {
     const { data } = await supabase
@@ -46,6 +52,69 @@ export default async function ItemPage({
       review: r.review,
       loggedAt: r.logged_at,
     }));
+  }
+
+  // For a compound: who made it, and from what
+  const compound = isCompoundId(id);
+  let madeFrom: Part[] = [];
+  let creator: string | null = null;
+  let createdAt: string | null = null;
+
+  if (compound) {
+    const { data: c } = await supabase
+      .from("compounds")
+      .select("creator_id, created_at")
+      .eq("item_id", id)
+      .maybeSingle();
+    createdAt = c?.created_at ?? null;
+
+    const { data: partRows } = await supabase
+      .from("compound_parts")
+      .select("part_id, position")
+      .eq("compound_id", id)
+      .order("position");
+    const partIds = (partRows ?? []).map((r) => r.part_id as string);
+
+    if (partIds.length > 0) {
+      const { data: partItems } = await supabase
+        .from("items")
+        .select("id, title, image_url")
+        .in("id", partIds);
+      const byId = new Map((partItems ?? []).map((i) => [i.id as string, i]));
+      madeFrom = partIds.flatMap((pid) => {
+        const it = byId.get(pid);
+        return it
+          ? [{ id: pid, title: it.title, imageUrl: it.image_url }]
+          : [];
+      });
+    }
+
+    if (c?.creator_id) {
+      const { data: p } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", c.creator_id)
+        .maybeSingle();
+      creator = p?.username ?? null;
+    }
+  }
+
+  // Compounds that use this item as an ingredient
+  const { data: usedRows } = FEATURES.compounds
+    ? await supabase
+      .from("compound_parts")
+      .select("compound_id")
+      .eq("part_id", id)
+      .limit(12)
+    : { data: null };
+  const usedIds = (usedRows ?? []).map((r) => r.compound_id as string);
+  let usedIn: { id: string; title: string }[] = [];
+  if (usedIds.length > 0) {
+    const { data: ci } = await supabase
+      .from("items")
+      .select("id, title")
+      .in("id", usedIds);
+    usedIn = (ci ?? []) as { id: string; title: string }[];
   }
 
   const removalLink = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
@@ -89,16 +158,80 @@ export default async function ItemPage({
             className="aspect-video max-h-80 w-full"
           />
         )}
+
         <h1 className="text-3xl font-bold">{item.title}</h1>
         {item.description && <p className="text-muted">{item.description}</p>}
-        <p className="text-xs text-muted">
-          From{" "}
-          <a href={item.pageUrl} className="underline">
-            Wikipedia
-          </a>
-          , licensed CC BY-SA 4.0.
-        </p>
+
+        {compound ? (
+          <p className="text-xs text-muted">
+            A compound
+            {creator && (
+              <>
+                {" "}
+                crafted by{" "}
+                <Link
+                  href={`/u/${encodeURIComponent(creator)}`}
+                  className="underline"
+                >
+                  {creator}
+                </Link>
+              </>
+            )}
+            {createdAt && <> on {createdAt.slice(0, 10)}</>}.
+          </p>
+        ) : (
+          <p className="text-xs text-muted">
+            From{" "}
+            <a href={item.pageUrl} className="underline">
+              Wikipedia
+            </a>
+            , licensed CC BY-SA 4.0.
+          </p>
+        )}
       </div>
+
+      {compound && madeFrom.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+            Made from
+          </h2>
+          <ul className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+            {madeFrom.map((p) => (
+              <li key={p.id}>
+                <Link
+                  href={`/item/${p.id}`}
+                  className="flex flex-col gap-1 no-underline"
+                >
+                  <ItemImage
+                    src={p.imageUrl}
+                    alt={p.title}
+                    className="aspect-square w-full"
+                  />
+                  <span className="truncate text-xs">{p.title}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {usedIn.length > 0 && (
+        <section className="flex flex-col gap-1">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+            Used in
+          </h2>
+          <p className="text-sm">
+            {usedIn.map((c, i) => (
+              <span key={c.id}>
+                {i > 0 && ", "}
+                <Link href={`/item/${c.id}`} className="underline">
+                  {c.title}
+                </Link>
+              </span>
+            ))}
+          </p>
+        </section>
+      )}
 
       <AddToList itemId={id} title={item.title} imageUrl={item.imageUrl} />
       <LogForm id={id} alreadyLogged={myEntries.length > 0} />
