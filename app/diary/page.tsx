@@ -7,6 +7,7 @@ import { readLogs, deleteLog, type Log } from "@/lib/logs";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
 import { useLoginHref } from "@/lib/useLoginHref";
+import DeleteIcon from "@/components/DeleteIcon";
 
 export default function DiaryPage() {
   const loginHref = useLoginHref();
@@ -86,9 +87,11 @@ export default function DiaryPage() {
           <button
             type="button"
             onClick={() => handleDelete(log.id)}
-            className="text-sm text-danger"
+            aria-label="Delete this entry"
+            title="Delete this entry"
+            className="flex shrink-0 p-1 text-danger hover:opacity-70"
           >
-            Delete
+            <DeleteIcon />
           </button>
         </div>
       ))}

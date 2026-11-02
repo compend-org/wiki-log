@@ -19,14 +19,35 @@ export default function LoginForm({ next }: { next: string }) {
   const [password, setPassword] = useState<string>("");
   const [message, setMessage] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
+  // An address that has been sent a confirmation link
+  const [pendingEmail, setPendingEmail] = useState<string>("");
+  const [notice, setNotice] = useState<string>("");
+
+  // Where the confirmation link should bring the person back to
+  const returnAddress = () => `${window.location.origin}${next}`;
 
   async function handleSignIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setMessage("");
+    setNotice("");
     const result = await signIn({ identifier, password });
     if (result.error) {
       setBusy(false);
+      if (/not confirmed/i.test(result.error)) {
+        if (identifier.includes("@")) {
+          setPendingEmail(identifier.trim());
+          setMessage("");
+          setNotice(
+            "Your email address hasn't been confirmed yet. Check your inbox for the link, or send it again."
+          );
+        } else {
+          setMessage(
+            "Your email address hasn't been confirmed yet. Check your inbox, or sign in with your email address to have it sent again."
+          );
+        }
+        return;
+      }
       setMessage(result.error);
       return;
     }
@@ -44,6 +65,7 @@ export default function LoginForm({ next }: { next: string }) {
 
     setBusy(true);
     setMessage("");
+    setNotice("");
     const supabase = createClient();
 
     const { data: taken } = await supabase
@@ -60,7 +82,10 @@ export default function LoginForm({ next }: { next: string }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username: name } },
+      options: {
+        data: { username: name },
+        emailRedirectTo: returnAddress(),
+      },
     });
     setBusy(false);
     if (error) {
@@ -70,11 +95,67 @@ export default function LoginForm({ next }: { next: string }) {
     if (data.session) {
       window.location.href = next;
     } else {
-      setMessage("Check your email to confirm your account.");
+      setPendingEmail(email.trim());
+      setNotice(
+        "Check your email for a confirmation link. It can take a minute, and it may land in spam."
+      );
     }
   }
 
+  async function handleResend() {
+    setBusy(true);
+    setMessage("");
+    const { error } = await createClient().auth.resend({
+      type: "signup",
+      email: pendingEmail,
+      options: { emailRedirectTo: returnAddress() },
+    });
+    setBusy(false);
+    if (error) {
+      setMessage(
+        /rate|seconds|too many/i.test(error.message)
+          ? "Please wait a minute before asking again."
+          : error.message
+      );
+      return;
+    }
+    setNotice(`We sent another link to ${pendingEmail}.`);
+  }
+
   const inputClass = "border border-line bg-surface px-4 py-2 text-foreground";
+
+  if (pendingEmail) {
+    return (
+      <main className="mx-auto flex max-w-sm flex-1 flex-col justify-center gap-4 p-4 sm:p-8">
+        <h1 className="text-3xl font-bold">Check your email</h1>
+        <p>
+          We sent a confirmation link to{" "}
+          <span className="font-semibold">{pendingEmail}</span>.
+        </p>
+        {notice && <p className="text-sm text-muted">{notice}</p>}
+        <button
+          type="button"
+          onClick={handleResend}
+          disabled={busy}
+          className="self-start border border-line px-4 py-2 disabled:opacity-40"
+        >
+          {busy ? "Sending…" : "Send it again"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setPendingEmail("");
+            setNotice("");
+            setMessage("");
+          }}
+          className="self-start text-sm underline"
+        >
+          Back
+        </button>
+        {message && <p className="text-danger">{message}</p>}
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto flex max-w-sm flex-1 flex-col justify-center gap-4 p-4 sm:p-8">
@@ -108,6 +189,9 @@ export default function LoginForm({ next }: { next: string }) {
           >
             {busy ? "Signing in…" : "Sign in"}
           </button>
+          <Link href="/forgot-password" className="text-sm underline">
+            Forgot your password?
+          </Link>
         </form>
       ) : (
         <form onSubmit={handleSignUp} className="flex flex-col gap-3">
@@ -131,9 +215,9 @@ export default function LoginForm({ next }: { next: string }) {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password (6+ characters)"
+            placeholder="Password (8+ characters)"
             required
-            minLength={6}
+            minLength={8}
             className={inputClass}
           />
           <button
@@ -159,6 +243,7 @@ export default function LoginForm({ next }: { next: string }) {
         onClick={() => {
           setMode(mode === "signin" ? "signup" : "signin");
           setMessage("");
+          setNotice("");
         }}
         className="text-sm underline"
       >
@@ -167,6 +252,7 @@ export default function LoginForm({ next }: { next: string }) {
           : "Already have an account? Sign in"}
       </button>
 
+      {notice && <p className="text-sm text-muted">{notice}</p>}
       {message && <p className="text-danger">{message}</p>}
     </main>
   );
