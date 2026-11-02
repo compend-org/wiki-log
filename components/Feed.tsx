@@ -9,6 +9,7 @@ import ListLikeButton from "@/components/ListLikeButton";
 import LoadMore from "@/components/LoadMore";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
+import Avatar from "@/components/Avatar";
 
 type Tab = "following" | "everyone";
 
@@ -20,7 +21,7 @@ type LogRow = {
     review: string;
     logged_at: string;
     items: { title: string; image_url: string | null } | null;
-    profiles: { username: string } | null;
+    profiles: { username: string, avatar_path: string | null } | null;
     likes: { count: number }[];
     comments: { count: number }[];
 };
@@ -31,7 +32,7 @@ type ListRow = {
     title: string;
     ranked: boolean;
     created_at: string;
-    profiles: { username: string } | null;
+    profiles: { username: string, avatar_path: string | null } | null;
     list_items: { count: number }[];
     list_likes: { count: number }[];
     list_comments: { count: number }[];
@@ -86,14 +87,14 @@ export default async function Feed({
         let logQuery = supabase
             .from("logs")
             .select(
-                "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count)"
+                "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count)"
             )
             .order("logged_at", { ascending: false })
             .limit(limit + 1);
         let listQuery = supabase
             .from("lists")
             .select(
-                "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username), list_items(count), list_likes(count), list_comments(count)"
+                "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count)"
             )
             .order("created_at", { ascending: false })
             .limit(limit + 1);
@@ -170,6 +171,7 @@ export default async function Feed({
         const author = l.profiles?.username;
         const preview = previews.get(l.id) ?? [];
         const itemCount = l.list_items?.[0]?.count ?? 0;
+        const avatarPath = l.profiles?.avatar_path ?? null;
 
         return (
             <div
@@ -181,18 +183,21 @@ export default async function Feed({
                     aria-label={`Open the list ${l.title}`}
                     className="absolute inset-0 rounded-[inherit]"
                 />
-                <span className="text-sm text-muted">
+                <span className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
                     {author ? (
                         <Link
                             href={`/u/${encodeURIComponent(author)}`}
-                            className="relative z-10 underline"
+                            className="relative z-10 inline-flex items-center gap-1.5 underline"
                         >
+                            {avatarPath && (
+                                <Avatar name={author} path={avatarPath} size={16} />
+                            )}
                             {author}
                         </Link>
                     ) : (
-                        "Someone"
-                    )}{" "}
-                    made a {l.ranked ? "ranked " : ""}list
+                        <span>Someone</span>
+                    )}
+                    <span>made a {l.ranked ? "ranked " : ""}list</span>
                 </span>
                 <span className="font-semibold">{l.title}</span>
                 {preview.length > 0 && (
@@ -238,13 +243,13 @@ export default async function Feed({
         const reviewHref = author
             ? `/u/${encodeURIComponent(author)}/${row.id}`
             : null;
-
+        const avatarPath = row.profiles?.avatar_path ?? null;
         return (
             <div
                 key={`log-${row.id}`}
                 className={`card relative grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-3 p-3 hover:border-accent/60 ${row.review
-                        ? "@xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.2fr)]"
-                        : ""
+                    ? "@xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.2fr)]"
+                    : ""
                     }`}
             >
                 {reviewHref && (
@@ -267,18 +272,21 @@ export default async function Feed({
                 </Link>
 
                 <div className="flex min-w-0 flex-col gap-1">
-                    <span className="text-sm text-muted">
+                    <span className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
                         {author ? (
                             <Link
                                 href={`/u/${encodeURIComponent(author)}`}
-                                className="relative z-10 underline"
+                                className="relative z-10 inline-flex items-center gap-1.5 underline"
                             >
+                                {avatarPath && (
+                                    <Avatar name={author} path={avatarPath} size={16} />
+                                )}
                                 {author}
                             </Link>
                         ) : (
-                            "Someone"
-                        )}{" "}
-                        logged
+                            <span>Someone</span>
+                        )}
+                        <span>logged</span>
                     </span>
                     <Link
                         href={`/item/${row.item_id}`}
@@ -332,8 +340,8 @@ export default async function Feed({
                         href={`/?tab=${t}`}
                         scroll={false}
                         className={`-mb-px flex-1 border-b-2 px-4 py-2 text-center ${active === t
-                                ? "border-accent text-foreground"
-                                : "border-transparent text-muted"
+                            ? "border-accent text-foreground"
+                            : "border-transparent text-muted"
                             }`}
                     >
                         {t === "following" ? "Following" : "Everyone"}
