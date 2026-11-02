@@ -61,33 +61,13 @@ export default async function ItemPage({
             <img
               src={item.imageUrl}
               alt={item.title}
-              className={
-                item.imageNonFree
-                  ? "max-h-72 w-auto max-w-[330px] self-start object-contain"
-                  : "max-h-96 w-full object-contain"
-              }
+              className="max-h-96 w-full object-contain"
             />
             <figcaption className="text-xs text-muted">
               {item.imageNonFree ? (
-                <>
-                  Non-free image from Wikipedia, shown at low resolution for
-                  review and commentary
-                  {item.imageFilePage && (
-                    <>
-                      {" "}
-                      (
-                      <a href={item.imageFilePage} className="underline">
-                        source and rights
-                      </a>
-                      )
-                    </>
-                  )}
-                  . Rights holder?{" "}
-                  <a href={removalLink} className="underline">
-                    Request removal
-                  </a>
-                  .
-                </>
+                <a href={removalLink} className="underline">
+                  Request removal
+                </a>
               ) : (
                 <>
                   Image:{" "}

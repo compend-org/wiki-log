@@ -27,3 +27,11 @@ export function shortLabel(title: string, max = 32): string {
   const base = lastSpace >= max * 0.6 ? cut.slice(0, lastSpace) : cut;
   return `${base.trimEnd()}…`;
 }
+
+// A smaller version of a Wikimedia thumbnail address, for small boxes. Other
+// addresses are returned unchanged.
+export function thumbUrl(url: string, width = 330): string {
+  const m = /^(.*\/thumb\/.*\/)(\d+)px-([^/]+)$/.exec(url);
+  if (!m) return url;
+  return Number(m[2]) > width ? `${m[1]}${width}px-${m[3]}` : url;
+}

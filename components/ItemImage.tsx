@@ -1,4 +1,4 @@
-import { shortLabel } from "@/lib/format";
+import { shortLabel, thumbUrl } from "@/lib/format";
 
 const CHAR_WIDTH = 0.66; // average width of a bold character, in em (a little generous)
 const LINE_HEIGHT = 1.15;
@@ -103,7 +103,7 @@ export default function ItemImage({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={src}
+      src={thumbUrl(src)}
       alt={alt}
       draggable={false}
       className={`object-cover ${className}`}
