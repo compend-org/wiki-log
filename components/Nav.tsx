@@ -5,13 +5,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { SITE_NAME } from "@/lib/site";
+import Avatar from "@/components/Avatar";
 import SettingsIcon from "./SettingsIcon";
 import SearchIcon from "./SearchIcon";
 import DiaryIcon from "./DiaryIcon";
 import NotificationIcon from "./NotificationIcon";
 
 export default function Nav() {
-  const { userId, username } = useCurrentUser();
+  const { userId, username, avatarPath } = useCurrentUser();
   const [unread, setUnread] = useState<number>(0);
   const router = useRouter();
   const pathname = usePathname();
@@ -48,9 +50,9 @@ export default function Nav() {
     router.refresh();
   }
 
-  const shownName = username ?? "";
   const shownUnread = userId ? unread : 0;
 
+  // Amber for the page you're on, muted for the rest
   const tone = (href: string) =>
     pathname === href || pathname.startsWith(href + "/")
       ? "text-accent"
@@ -60,33 +62,59 @@ export default function Nav() {
     <nav className="sticky top-0 z-20 flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-accent/30 bg-background/80 px-4 py-3 backdrop-blur sm:px-8">
       <Link
         href="/"
-        className="font-[family-name:var(--font-display-src)] text-2xl font-bold uppercase tracking-[0.2em] text-accent"      >
-        YT Log
+        className="font-[family-name:var(--font-display-src)] text-2xl font-bold uppercase tracking-[0.2em] text-accent"
+      >
+        {SITE_NAME}
       </Link>
-      <Link href="/diary" aria-label="Diary" title="Diary" className={`flex ${tone("/diary")}`}>
+
+      <Link
+        href="/diary"
+        aria-label="Diary"
+        title="Diary"
+        className={`flex ${tone("/diary")}`}
+      >
         <DiaryIcon />
       </Link>
-      <Link href="/search" aria-label="Search" title="Search" className={`inline-flex items-center gap-1 ${tone("/search")}`} >
+
+      <Link
+        href="/search"
+        aria-label="Search"
+        title="Search"
+        className={`flex ${tone("/search")}`}
+      >
         <SearchIcon />
       </Link>
-      {
-        userId && (
-          <Link href="/notifications" aria-label="Notifications" title="Notifications" className={`inline-flex items-center gap-1 ${tone("/notifications")}`}>
-            <NotificationIcon />
-            {shownUnread > 0 && (
-              <span className="rounded-full bg-accent px-1.5 text-xs font-semibold text-background">
-                {shownUnread > 9 ? "9+" : shownUnread}
-              </span>
-            )}
-          </Link>
-        )
-      }
+
+      {userId && (
+        <Link
+          href="/notifications"
+          aria-label="Notifications"
+          title="Notifications"
+          className={`inline-flex items-center gap-1 ${tone("/notifications")}`}
+        >
+          <NotificationIcon />
+          {shownUnread > 0 && (
+            <span className="rounded-full bg-accent px-1.5 text-xs font-semibold text-background">
+              {shownUnread > 9 ? "9+" : shownUnread}
+            </span>
+          )}
+        </Link>
+      )}
+
       <div className="ml-auto flex items-center gap-3 text-sm">
         {userId ? (
           <>
-            {username && <Link href={`/u/${encodeURIComponent(username)}`} className="hidden text-muted sm:inline">
-              {shownName}
-            </Link>}
+            {username && (
+              <Link
+                href={`/u/${encodeURIComponent(username)}`}
+                className="flex items-center gap-2 text-muted hover:text-foreground"
+              >
+                <Avatar name={username} path={avatarPath} size={28} />
+                <span className="hidden max-w-[8rem] truncate sm:inline">
+                  {username}
+                </span>
+              </Link>
+            )}
             <Link
               href="/settings"
               aria-label="Settings"
@@ -105,6 +133,6 @@ export default function Nav() {
           </Link>
         )}
       </div>
-    </nav >
+    </nav>
   );
 }

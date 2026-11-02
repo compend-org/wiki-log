@@ -84,6 +84,12 @@ export async function deleteAccount(): Promise<{ error?: string }> {
   // Deleting the auth user also deletes their profile, logs, favourites and
   // follows (the foreign keys use "on delete cascade")
   const admin = createAdminClient();
+  const { data: files } = await admin.storage.from("avatars").list(userId);
+  if (files && files.length > 0) {
+    await admin.storage
+      .from("avatars")
+      .remove(files.map((f) => `${userId}/${f.name}`));
+  }
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) return { error: error.message };
 

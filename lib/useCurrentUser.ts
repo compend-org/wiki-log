@@ -7,6 +7,7 @@ export function useCurrentUser() {
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
+  const [avatarPath, setAvatarPath] = useState<string | null>(null);
 
   // Who is signed in, kept up to date on sign-in and sign-out
   useEffect(() => {
@@ -27,7 +28,7 @@ export function useCurrentUser() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Their name, refetched when they change it in Settings
+  // Their name and picture, refetched when they change them in Settings
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -35,10 +36,12 @@ export function useCurrentUser() {
     const load = async () => {
       const { data } = await createClient()
         .from("profiles")
-        .select("username")
+        .select("username, avatar_path")
         .eq("id", userId)
         .maybeSingle();
-      if (!cancelled) setUsername(data?.username ?? null);
+      if (cancelled) return;
+      setUsername(data?.username ?? null);
+      setAvatarPath(data?.avatar_path ?? null);
     };
 
     load();
@@ -49,5 +52,10 @@ export function useCurrentUser() {
     };
   }, [userId]);
 
-  return { userId, email, username: userId ? username : null };
+  return {
+    userId,
+    email,
+    username: userId ? username : null,
+    avatarPath: userId ? avatarPath : null,
+  };
 }

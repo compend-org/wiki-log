@@ -8,6 +8,7 @@ import FollowButton from "@/components/FollowButton";
 import Favourites, { type Slot } from "@/components/Favourites";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
+import Avatar from "@/components/Avatar";
 
 export const instant = false;
 
@@ -52,14 +53,14 @@ export default async function ProfilePage({
   let name = rawName;
   try {
     name = decodeURIComponent(rawName);
-  } catch {}
+  } catch { }
   if (!isValidName(name)) notFound();
 
   const supabase = await createClient();
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username")
+    .select("id, username, avatar_path")
     .ilike("username", escapeLike(name))
     .maybeSingle();
   if (!profile) notFound();
@@ -86,11 +87,11 @@ export default async function ProfilePage({
         .eq("follower_id", profile.id),
       viewerId
         ? supabase
-            .from("follows")
-            .select("follower_id")
-            .eq("follower_id", viewerId)
-            .eq("following_id", profile.id)
-            .maybeSingle()
+          .from("follows")
+          .select("follower_id")
+          .eq("follower_id", viewerId)
+          .eq("following_id", profile.id)
+          .maybeSingle()
         : Promise.resolve({ data: null }),
       supabase
         .from("favourites")
@@ -113,10 +114,10 @@ export default async function ProfilePage({
     const row = favRows.find((r) => r.position === pos);
     return row
       ? {
-          itemId: row.item_id,
-          title: row.items?.title ?? "Unknown item",
-          imageUrl: row.items?.image_url ?? null,
-        }
+        itemId: row.item_id,
+        title: row.items?.title ?? "Unknown item",
+        imageUrl: row.items?.image_url ?? null,
+      }
       : null;
   });
 
@@ -146,7 +147,10 @@ export default async function ProfilePage({
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <header className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold">{profile.username}</h1>
+        <div className="flex items-center gap-4">
+          <Avatar name={profile.username} path={profile.avatar_path} size={72} />
+          <h1 className="text-3xl font-bold">{profile.username}</h1>
+        </div>
         <p className="text-sm text-muted">
           {followers} {followers === 1 ? "follower" : "followers"} · {following}{" "}
           following · {logs.length} {logs.length === 1 ? "log" : "logs"}
