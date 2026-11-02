@@ -165,7 +165,7 @@ export default async function ProfilePage({
           ) : isOwner ? (
             <div className="flex items-center gap-4">
               <Link href="/settings" className="underline">
-                Edit profile
+                Profile settings
               </Link>
               <SignOutButton className="inline-flex sm:hidden" />
             </div>

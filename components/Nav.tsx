@@ -145,14 +145,14 @@ export default function Nav() {
                 <span className="hidden max-w-[8rem] truncate sm:inline">{username}</span>
               </Link>
             )}
-            <Link
+            {/* <Link
               href="/settings"
               aria-label="Settings"
               title="Settings"
               className={`flex ${tone("/settings")}`}
             >
               <SettingsIcon />
-            </Link>
+            </Link> */}
             <SignOutButton
               className="hidden sm:inline-flex"
               labelClassName="hidden sm:inline"
