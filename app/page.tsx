@@ -6,7 +6,6 @@ import Feed from "@/components/Feed";
 import FeedTabs from "@/components/FeedTabs";
 import { createClient } from "@/lib/supabase/server";
 import { parseLimit } from "@/lib/paging";
-import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 
 export const instant = false;
 
@@ -27,11 +26,12 @@ export default async function Home({
     tab === "following" || tab === "everyone"
       ? tab
       : signedIn
-        ? "following"
-        : "everyone";
+      ? "following"
+      : "everyone";
   const feedLimit = parseLimit(limit);
 
-  const loading = <p className="text-muted">Loading…</p>;
+  // Centred, with some room above and below so it sits in the middle of the feed
+  const loading = <p className="py-12 text-center text-muted">Loading…</p>;
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 p-4 sm:p-8">
@@ -46,7 +46,7 @@ export default async function Home({
             </Link>{" "}
             or{" "}
             <Link
-               href="/?tab=everyone"
+              href="/?tab=everyone"
               className="text-accent underline hover:no-underline"
             >
               browse
