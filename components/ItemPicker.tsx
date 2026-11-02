@@ -130,7 +130,7 @@ export default function ItemPicker({
             role="listbox"
             // Keeps focus in the input while you click an option
             onMouseDown={(e) => e.preventDefault()}
-            className="absolute z-10 mt-1 max-h-96 w-full overflow-auto rounded-lg border border-line bg-background shadow-lg"
+            className="absolute z-[15] mt-1 max-h-96 w-full overflow-auto rounded-lg border border-line bg-background shadow-lg"
           >
             {!ready && (
               <li className="px-4 py-3 text-sm text-muted">Searching…</li>
