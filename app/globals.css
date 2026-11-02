@@ -139,3 +139,14 @@ body {
 .avatar {
   border-radius: 9999px !important;
 }
+
+/* Default profile pictures: one for light mode, one for dark mode */
+.avi-dark {
+  display: none;
+}
+:root[data-theme="dark"] .avi-light {
+  display: none;
+}
+:root[data-theme="dark"] .avi-dark {
+  display: inline-block;
+}

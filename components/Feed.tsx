@@ -4,14 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { getLikedSet } from "@/lib/likes";
 import { commentLabel } from "@/lib/format";
 import { PAGE_SIZE } from "@/lib/paging";
+import Avatar from "@/components/Avatar";
 import LikeButton from "@/components/LikeButton";
 import ListLikeButton from "@/components/ListLikeButton";
 import LoadMore from "@/components/LoadMore";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
-import Avatar from "@/components/Avatar";
 
-type Tab = "following" | "everyone";
+type Mode = "following" | "everyone";
 
 type LogRow = {
     id: string;
@@ -21,7 +21,7 @@ type LogRow = {
     review: string;
     logged_at: string;
     items: { title: string; image_url: string | null } | null;
-    profiles: { username: string, avatar_path: string | null } | null;
+    profiles: { username: string; avatar_path: string | null } | null;
     likes: { count: number }[];
     comments: { count: number }[];
 };
@@ -32,7 +32,7 @@ type ListRow = {
     title: string;
     ranked: boolean;
     created_at: string;
-    profiles: { username: string, avatar_path: string | null } | null;
+    profiles: { username: string; avatar_path: string | null } | null;
     list_items: { count: number }[];
     list_likes: { count: number }[];
     list_comments: { count: number }[];
@@ -49,10 +49,10 @@ type Entry =
     | { kind: "list"; date: string; list: ListRow };
 
 export default async function Feed({
-    tab,
+    mode,
     limit = PAGE_SIZE,
 }: {
-    tab?: Tab;
+    mode: Mode;
     limit?: number;
 }) {
     await connection();
@@ -61,11 +61,8 @@ export default async function Feed({
     const { data: claimsData } = await supabase.auth.getClaims();
     const viewerId: string | undefined = claimsData?.claims?.sub;
 
-    // Signed-in visitors start on Following, signed-out ones on Everyone
-    const active: Tab = tab ?? (viewerId ? "following" : "everyone");
-
     let followingIds: string[] = [];
-    if (active === "following" && viewerId) {
+    if (mode === "following" && viewerId) {
         const { data: followRows } = await supabase
             .from("follows")
             .select("following_id")
@@ -83,7 +80,7 @@ export default async function Feed({
         { title: string; image_url: string | null }[]
     >();
 
-    if (active === "everyone" || followingIds.length > 0) {
+    if (mode === "everyone" || followingIds.length > 0) {
         let logQuery = supabase
             .from("logs")
             .select(
@@ -98,7 +95,7 @@ export default async function Feed({
             )
             .order("created_at", { ascending: false })
             .limit(limit + 1);
-        if (active === "following") {
+        if (mode === "following") {
             logQuery = logQuery.in("user_id", followingIds);
             listQuery = listQuery.in("user_id", followingIds);
         }
@@ -161,17 +158,17 @@ export default async function Feed({
         }
     }
 
-    const needsSignIn = active === "following" && !viewerId;
+    const needsSignIn = mode === "following" && !viewerId;
     const noFollows =
-        active === "following" && Boolean(viewerId) && followingIds.length === 0;
+        mode === "following" && Boolean(viewerId) && followingIds.length === 0;
 
     // The two kinds of card. Their layout follows the width of the column they
     // sit in (the "@xl:" variants), not the width of the screen.
     const renderList = (l: ListRow) => {
         const author = l.profiles?.username;
+        const avatarPath = l.profiles?.avatar_path ?? null;
         const preview = previews.get(l.id) ?? [];
         const itemCount = l.list_items?.[0]?.count ?? 0;
-        const avatarPath = l.profiles?.avatar_path ?? null;
 
         return (
             <div
@@ -189,9 +186,7 @@ export default async function Feed({
                             href={`/u/${encodeURIComponent(author)}`}
                             className="relative z-10 inline-flex items-center gap-1.5 underline"
                         >
-                            {avatarPath && (
-                                <Avatar name={author} path={avatarPath} size={16} />
-                            )}
+                            <Avatar name={author} path={avatarPath} size={16} />
                             {author}
                         </Link>
                     ) : (
@@ -240,10 +235,11 @@ export default async function Feed({
     const renderLog = (row: LogRow) => {
         const title = row.items?.title ?? "Unknown item";
         const author = row.profiles?.username;
+        const avatarPath = row.profiles?.avatar_path ?? null;
         const reviewHref = author
             ? `/u/${encodeURIComponent(author)}/${row.id}`
             : null;
-        const avatarPath = row.profiles?.avatar_path ?? null;
+
         return (
             <div
                 key={`log-${row.id}`}
@@ -332,23 +328,7 @@ export default async function Feed({
     const listEntries = entries.filter((e) => e.kind === "list");
 
     return (
-        <section className="mx-auto flex w-full max-w-2xl flex-col gap-4 lg:max-w-none">
-            <div className="flex border-b border-line lg:mx-auto lg:w-[calc(50%-0.75rem)]">
-                {(["following", "everyone"] as const).map((t) => (
-                    <Link
-                        key={t}
-                        href={`/?tab=${t}`}
-                        scroll={false}
-                        className={`-mb-px flex-1 border-b-2 px-4 py-2 text-center ${active === t
-                            ? "border-accent text-foreground"
-                            : "border-transparent text-muted"
-                            }`}
-                    >
-                        {t === "following" ? "Following" : "Everyone"}
-                    </Link>
-                ))}
-            </div>
-
+        <section className="flex flex-col gap-4">
             {needsSignIn && (
                 <p className="text-muted">
                     <Link href="/login" className="underline">
@@ -375,7 +355,7 @@ export default async function Feed({
                 !errorMessage &&
                 entries.length === 0 && (
                     <p className="text-muted">
-                        {active === "following"
+                        {mode === "following"
                             ? "Nothing from the people you follow yet."
                             : "Nothing here yet."}
                     </p>
@@ -391,7 +371,7 @@ export default async function Feed({
                     {/* Wide screens: reviews on the left, lists on the right */}
                     <div className="hidden gap-6 lg:grid lg:grid-cols-2 lg:items-start">
                         <div className="@container flex min-w-0 flex-col gap-4">
-                            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted text-center">
+                            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
                                 Reviews
                             </h2>
                             {reviewEntries.length === 0 ? (
@@ -401,7 +381,7 @@ export default async function Feed({
                             )}
                         </div>
                         <div className="@container flex min-w-0 flex-col gap-4">
-                            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted text-center">
+                            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
                                 Lists
                             </h2>
                             {listEntries.length === 0 ? (
@@ -414,7 +394,9 @@ export default async function Feed({
                 </>
             )}
 
-            {hasMore && <LoadMore href={`/?tab=${active}&limit=${limit + PAGE_SIZE}`} />}
+            {hasMore && (
+                <LoadMore href={`/?tab=${mode}&limit=${limit + PAGE_SIZE}`} />
+            )}
         </section>
     );
 }
