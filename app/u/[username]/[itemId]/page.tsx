@@ -149,8 +149,10 @@ export default async function ReviewPage({
       <Comments
         comments={comments}
         viewerId={viewerId ?? null}
-        logUserId={profile.id}
-        logItemId={itemId}
+        table="comments"
+        scope={{ log_user_id: profile.id, log_item_id: itemId }}
+        ownerId={profile.id}
+        likeable
       />
     </main>
   );

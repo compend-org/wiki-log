@@ -6,11 +6,19 @@ import { createClient } from "@/lib/supabase/client";
 
 type NotificationRow = {
   id: string;
-  type: "like" | "comment" | "reply" | "follow";
+  type:
+    | "like"
+    | "comment"
+    | "reply"
+    | "follow"
+    | "list_like"
+    | "list_comment"
+    | "list_reply";
   read: boolean;
   created_at: string;
   log_user_id: string | null;
   log_item_id: string | null;
+  list_id: string | null;
   profiles: { username: string } | null;
 };
 
@@ -20,6 +28,7 @@ export default function NotificationsPage() {
   const [error, setError] = useState<string>("");
   const [rows, setRows] = useState<NotificationRow[]>([]);
   const [titles, setTitles] = useState<Record<string, string>>({});
+  const [listTitles, setListTitles] = useState<Record<string, string>>({});
   const [owners, setOwners] = useState<Record<string, string>>({});
   const [myId, setMyId] = useState<string>("");
 
@@ -38,7 +47,7 @@ export default function NotificationsPage() {
       const { data, error } = await supabase
         .from("notifications")
         .select(
-          "id, type, read, created_at, log_user_id, log_item_id, profiles!notifications_actor_fkey(username)"
+          "id, type, read, created_at, log_user_id, log_item_id, list_id, profiles!notifications_actor_fkey(username)"
         )
         .eq("recipient_id", userId)
         .order("created_at", { ascending: false })
@@ -51,22 +60,31 @@ export default function NotificationsPage() {
       const list = (data ?? []) as unknown as NotificationRow[];
       setRows(list);
 
-      // Item titles and review-owner names, fetched in one go each
+      // Item titles, list titles and review-owner names, one lookup each
       const itemIds = [
         ...new Set(list.map((n) => n.log_item_id).filter((v): v is string => !!v)),
+      ];
+      const listIds = [
+        ...new Set(list.map((n) => n.list_id).filter((v): v is string => !!v)),
       ];
       const ownerIds = [
         ...new Set(list.map((n) => n.log_user_id).filter((v): v is string => !!v)),
       ];
-      const [vids, profs] = await Promise.all([
+      const [items, lists, profs] = await Promise.all([
         itemIds.length
           ? supabase.from("items").select("id, title").in("id", itemIds)
+          : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+        listIds.length
+          ? supabase.from("lists").select("id, title").in("id", listIds)
           : Promise.resolve({ data: [] as { id: string; title: string }[] }),
         ownerIds.length
           ? supabase.from("profiles").select("id, username").in("id", ownerIds)
           : Promise.resolve({ data: [] as { id: string; username: string }[] }),
       ]);
-      setTitles(Object.fromEntries((vids.data ?? []).map((v) => [v.id, v.title])));
+      setTitles(Object.fromEntries((items.data ?? []).map((v) => [v.id, v.title])));
+      setListTitles(
+        Object.fromEntries((lists.data ?? []).map((v) => [v.id, v.title]))
+      );
       setOwners(Object.fromEntries((profs.data ?? []).map((p) => [p.id, p.username])));
       setLoaded(true);
 
@@ -86,11 +104,13 @@ export default function NotificationsPage() {
   function describe(n: NotificationRow): { text: string; href: string } {
     const actor = n.profiles?.username ?? "Someone";
     const title = n.log_item_id ? titles[n.log_item_id] ?? "an item" : "";
+    const listTitle = n.list_id ? listTitles[n.list_id] ?? "a list" : "";
     const ownerName = n.log_user_id ? owners[n.log_user_id] : undefined;
     const reviewHref =
       ownerName && n.log_item_id
         ? `/u/${encodeURIComponent(ownerName)}/${n.log_item_id}`
         : "/";
+    const listHref = n.list_id ? `/list/${n.list_id}#comments` : "/";
 
     switch (n.type) {
       case "like":
@@ -113,6 +133,21 @@ export default function NotificationsPage() {
           href: n.profiles
             ? `/u/${encodeURIComponent(n.profiles.username)}`
             : "/",
+        };
+      case "list_like":
+        return {
+          text: `${actor} liked your list “${listTitle}”`,
+          href: n.list_id ? `/list/${n.list_id}` : "/",
+        };
+      case "list_comment":
+        return {
+          text: `${actor} commented on your list “${listTitle}”`,
+          href: listHref,
+        };
+      case "list_reply":
+        return {
+          text: `${actor} replied to your comment on the list “${listTitle}”`,
+          href: listHref,
         };
     }
   }
@@ -144,8 +179,9 @@ export default function NotificationsPage() {
           <Link
             key={n.id}
             href={href}
-            className={`flex flex-col gap-1 rounded-lg border p-3 ${n.read ? "border-line" : "border-accent bg-surface"
-              }`}
+            className={`flex flex-col gap-1 rounded-lg border p-3 ${
+              n.read ? "border-line" : "border-accent bg-surface"
+            }`}
           >
             <span className="text-sm">{text}</span>
             <span className="text-xs text-muted">

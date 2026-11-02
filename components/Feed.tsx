@@ -8,10 +8,11 @@ import LikeButton from "@/components/LikeButton";
 import LoadMore from "@/components/LoadMore";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
+import ListLikeButton from "@/components/ListLikeButton";
 
 type Tab = "following" | "everyone";
 
-type FeedRow = {
+type LogRow = {
     user_id: string;
     item_id: string;
     rating: number;
@@ -22,6 +23,28 @@ type FeedRow = {
     likes: { count: number }[];
     comments: { count: number }[];
 };
+
+type ListRow = {
+    id: string;
+    user_id: string;
+    title: string;
+    ranked: boolean;
+    created_at: string;
+    profiles: { username: string } | null;
+    list_items: { count: number }[];
+    list_likes: { count: number }[];
+    list_comments: { count: number }[];
+};
+
+type PreviewRow = {
+    list_id: string;
+    position: number;
+    items: { title: string; image_url: string | null } | null;
+};
+
+type Entry =
+    | { kind: "log"; date: string; log: LogRow }
+    | { kind: "list"; date: string; list: ListRow };
 
 export default async function Feed({
     tab,
@@ -48,28 +71,93 @@ export default async function Feed({
         followingIds = (followRows ?? []).map((r) => r.following_id);
     }
 
-    let rows: FeedRow[] = [];
+    let entries: Entry[] = [];
     let hasMore = false;
     let errorMessage = "";
+    let likedSet = new Set<string>();
+    let likedLists = new Set<string>();
+    const previews = new Map<
+        string,
+        { title: string; image_url: string | null }[]
+    >();
+
     if (active === "everyone" || followingIds.length > 0) {
-        let query = supabase
+        let logQuery = supabase
             .from("logs")
             .select(
                 "user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count)"
             )
             .order("logged_at", { ascending: false })
             .limit(limit + 1);
+        let listQuery = supabase
+            .from("lists")
+            .select(
+                "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username), list_items(count), list_likes(count), list_comments(count)"
+            )
+            .order("created_at", { ascending: false })
+            .limit(limit + 1);
         if (active === "following") {
-            query = query.in("user_id", followingIds);
+            logQuery = logQuery.in("user_id", followingIds);
+            listQuery = listQuery.in("user_id", followingIds);
         }
-        const { data, error } = await query;
-        if (error) errorMessage = error.message;
-        rows = (data ?? []) as unknown as FeedRow[];
-        hasMore = rows.length > limit;
-        rows = rows.slice(0, limit);
-    }
 
-    const likedSet = await getLikedSet(supabase, viewerId, rows);
+        const [logsRes, listsRes] = await Promise.all([logQuery, listQuery]);
+        if (logsRes.error) errorMessage = logsRes.error.message;
+        else if (listsRes.error) errorMessage = listsRes.error.message;
+
+        const logs = (logsRes.data ?? []) as unknown as LogRow[];
+        // Empty lists stay out of the feed until they have something in them
+        const lists = ((listsRes.data ?? []) as unknown as ListRow[]).filter(
+            (l) => (l.list_items?.[0]?.count ?? 0) > 0
+        );
+
+        // The newest `limit` of the combined list always sit within the newest
+        // `limit` of each, so merging and trimming is exact
+        const merged: Entry[] = [
+            ...logs.map((log): Entry => ({ kind: "log", date: log.logged_at, log })),
+            ...lists.map(
+                (list): Entry => ({ kind: "list", date: list.created_at, list })
+            ),
+        ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        hasMore = merged.length > limit;
+        entries = merged.slice(0, limit);
+
+        const shownLogs = entries.flatMap((e) => (e.kind === "log" ? [e.log] : []));
+        const shownLists = entries.flatMap((e) =>
+            e.kind === "list" ? [e.list] : []
+        );
+
+        likedSet = await getLikedSet(supabase, viewerId, shownLogs);
+
+        if (shownLists.length > 0) {
+            const ids = shownLists.map((l) => l.id);
+
+            const { data: previewData } = await supabase
+                .from("list_items")
+                .select("list_id, position, items(title, image_url)")
+                .in("list_id", ids)
+                .lte("position", 4)
+                .order("position");
+            for (const row of (previewData ?? []) as unknown as PreviewRow[]) {
+                const arr = previews.get(row.list_id) ?? [];
+                arr.push({
+                    title: row.items?.title ?? "Unknown item",
+                    image_url: row.items?.image_url ?? null,
+                });
+                previews.set(row.list_id, arr);
+            }
+
+            if (viewerId) {
+                const { data: likedRows } = await supabase
+                    .from("list_likes")
+                    .select("list_id")
+                    .eq("user_id", viewerId)
+                    .in("list_id", ids);
+                likedLists = new Set((likedRows ?? []).map((r) => r.list_id));
+            }
+        }
+    }
 
     const needsSignIn = active === "following" && !viewerId;
     const noFollows =
@@ -84,8 +172,8 @@ export default async function Feed({
                         href={`/?tab=${t}`}
                         scroll={false}
                         className={`-mb-px flex-1 border-b-2 px-4 py-3 text-center text-sm font-semibold ${active === t
-                                ? "border-accent text-foreground"
-                                : "border-transparent text-muted"
+                            ? "border-accent text-foreground"
+                            : "border-transparent text-muted"
                             }`}
                     >
                         {t === "following" ? "Following" : "Everyone"}
@@ -117,7 +205,7 @@ export default async function Feed({
             {!needsSignIn &&
                 !noFollows &&
                 !errorMessage &&
-                rows.length === 0 && (
+                entries.length === 0 && (
                     <p className="text-muted">
                         {active === "following"
                             ? "Nothing from the people you follow yet."
@@ -125,7 +213,75 @@ export default async function Feed({
                     </p>
                 )}
 
-            {rows.map((row) => {
+            {entries.map((entry) => {
+                if (entry.kind === "list") {
+                    const l = entry.list;
+                    const author = l.profiles?.username;
+                    const preview = previews.get(l.id) ?? [];
+                    const itemCount = l.list_items?.[0]?.count ?? 0;
+
+                    return (
+                        <div
+                            key={`list-${l.id}`}
+                            className="card relative flex flex-col gap-2 p-3 hover:border-accent/60"
+                        >
+                            <Link
+                                href={`/list/${l.id}`}
+                                aria-label={`Open the list ${l.title}`}
+                                className="absolute inset-0 rounded-[inherit]"
+                            />
+                            <span className="text-sm text-muted">
+                                {author ? (
+                                    <Link
+                                        href={`/u/${encodeURIComponent(author)}`}
+                                        className="relative z-10 underline"
+                                    >
+                                        {author}
+                                    </Link>
+                                ) : (
+                                    "Someone"
+                                )}{" "}
+                                made a {l.ranked ? "ranked " : ""}list
+                            </span>
+                            <span className="font-semibold">{l.title}</span>
+                            {preview.length > 0 && (
+                                <div className="flex gap-1">
+                                    {preview.map((p, i) => (
+                                        <ItemImage
+                                            key={i}
+                                            src={p.image_url}
+                                            alt={p.title}
+                                            className="h-14 w-14 rounded"
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+                                <span>
+                                    {new Date(l.created_at).toLocaleDateString()} · {itemCount}{" "}
+                                    {itemCount === 1 ? "item" : "items"}
+                                </span>
+                                <span className="relative z-10">
+                                    <ListLikeButton
+                                        viewerId={viewerId ?? null}
+                                        listId={l.id}
+                                        ownerId={l.user_id}
+                                        initialCount={l.list_likes?.[0]?.count ?? 0}
+                                        initiallyLiked={likedLists.has(l.id)}
+                                    />
+                                </span>
+                                <Link
+                                    href={`/list/${l.id}#comments`}
+                                    className="relative z-10 underline"
+                                >
+                                    {commentLabel(l.list_comments?.[0]?.count ?? 0)}
+                                </Link>
+                            </div>
+                        </div>
+                    );
+                }
+
+                const row = entry.log;
                 const title = row.items?.title ?? "Unknown item";
                 const author = row.profiles?.username;
                 const reviewHref = author
@@ -134,7 +290,7 @@ export default async function Feed({
 
                 return (
                     <div
-                        key={`${row.user_id}-${row.item_id}`}
+                        key={`log-${row.user_id}-${row.item_id}`}
                         className="card relative flex gap-4 p-3 hover:border-accent/60"
                     >
                         {reviewHref && (
@@ -192,10 +348,7 @@ export default async function Feed({
                                     </span>
                                 )}
                                 {reviewHref && (
-                                    <Link
-                                        href={reviewHref}
-                                        className="relative z-10 underline"
-                                    >
+                                    <Link href={reviewHref} className="relative z-10 underline">
                                         {commentLabel(row.comments?.[0]?.count ?? 0)}
                                     </Link>
                                 )}

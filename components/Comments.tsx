@@ -20,13 +20,21 @@ export type CommentItem = {
 export default function Comments({
   comments,
   viewerId,
-  logUserId,
-  logItemId,
+  table,
+  scope,
+  ownerId,
+  likeable = false,
 }: {
   comments: CommentItem[];
   viewerId: string | null;
-  logUserId: string;
-  logItemId: string;
+  // "comments" for reviews, "list_comments" for lists
+  table: "comments" | "list_comments";
+  // The columns that tie a comment to what it's on
+  scope: Record<string, string>;
+  // The owner of the review or list can delete any comment on it
+  ownerId: string;
+  // Only review comments can be liked
+  likeable?: boolean;
 }) {
   const [topText, setTopText] = useState<string>("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -48,13 +56,14 @@ export default function Comments({
 
     setBusy(true);
     setError("");
-    const { error } = await createClient().from("comments").insert({
-      log_user_id: logUserId,
-      log_item_id: logItemId,
-      user_id: viewerId,
-      parent_id: parentId,
-      body: trimmed,
-    });
+    const { error } = await createClient()
+      .from(table)
+      .insert({
+        ...scope,
+        user_id: viewerId,
+        parent_id: parentId,
+        body: trimmed,
+      });
     setBusy(false);
 
     if (error) {
@@ -87,10 +96,7 @@ export default function Comments({
 
     setBusy(true);
     setError("");
-    const { error } = await createClient()
-      .from("comments")
-      .delete()
-      .eq("id", c.id);
+    const { error } = await createClient().from(table).delete().eq("id", c.id);
     setBusy(false);
     if (error) {
       setError(error.message);
@@ -100,7 +106,7 @@ export default function Comments({
   }
 
   function renderComment(c: CommentItem, rootId: string) {
-    const canDelete = viewerId === c.authorId || viewerId === logUserId;
+    const canDelete = viewerId === c.authorId || viewerId === ownerId;
     return (
       <div key={c.id} className="flex flex-col gap-1">
         <div className="flex items-center gap-2 text-sm">
@@ -113,14 +119,16 @@ export default function Comments({
           <span className="text-xs text-muted">{c.date}</span>
         </div>
         <p className="whitespace-pre-wrap text-sm">{c.body}</p>
-        <CommentLikeButton
-          viewerId={viewerId}
-          commentId={c.id}
-          authorId={c.authorId}
-          initialCount={c.likeCount}
-          initiallyLiked={c.liked}
-        />
         <div className="flex gap-3 text-xs text-muted">
+          {likeable && (
+            <CommentLikeButton
+              viewerId={viewerId}
+              commentId={c.id}
+              authorId={c.authorId}
+              initialCount={c.likeCount}
+              initiallyLiked={c.liked}
+            />
+          )}
           {viewerId && (
             <button
               type="button"
@@ -153,7 +161,7 @@ export default function Comments({
     "w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-foreground";
 
   return (
-    <section className="flex flex-col gap-4">
+    <section id="comments" className="flex flex-col gap-4">
       <h2 className="text-xl font-bold">
         {comments.length === 0
           ? "No comments yet"
