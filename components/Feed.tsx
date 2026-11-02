@@ -330,7 +330,7 @@ export default async function Feed({
     return (
         <section className="flex flex-col gap-4">
             {needsSignIn && (
-                <p className="text-muted">
+                <p className="text-muted text-center">
                     <Link href="/login" className="underline">
                         Sign in
                     </Link>{" "}
@@ -339,7 +339,7 @@ export default async function Feed({
             )}
 
             {noFollows && (
-                <p className="text-muted">
+                <p className="text-muted text-center">
                     You&apos;re not following anyone yet. Find people on the{" "}
                     <Link href="/search" className="underline">
                         Search page
@@ -354,7 +354,7 @@ export default async function Feed({
                 !noFollows &&
                 !errorMessage &&
                 entries.length === 0 && (
-                    <p className="text-muted">
+                    <p className="text-muted text-center">
                         {mode === "following"
                             ? "Nothing from the people you follow yet."
                             : "Nothing here yet."}

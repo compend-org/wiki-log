@@ -27,8 +27,8 @@ export default async function Home({
     tab === "following" || tab === "everyone"
       ? tab
       : signedIn
-      ? "following"
-      : "everyone";
+        ? "following"
+        : "everyone";
   const feedLimit = parseLimit(limit);
 
   const loading = <p className="text-muted">Loading…</p>;
@@ -37,29 +37,21 @@ export default async function Home({
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 p-4 sm:p-8">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
         {!signedIn && (
-          <section className="flex flex-col gap-2 border border-line bg-surface p-4">
-            <p className="text-2xl font-bold">{SITE_NAME}</p>
-            <p>
-              {SITE_TAGLINE} A fruit, a film, a place, an idea. Follow people
-              and see what they think.
-            </p>
-            <p className="text-sm">
-              <Link
-                href="/login"
-                className="text-accent underline hover:no-underline"
-              >
-                Create an account
-              </Link>{" "}
-              or{" "}
-              <Link
-                href="/search"
-                className="text-accent underline hover:no-underline"
-              >
-                browse
-              </Link>
-              .
-            </p>
-          </section>
+          <p className="text-center text-sm">
+            <Link
+              href="/login"
+              className="text-accent underline hover:no-underline"
+            >
+              Create an account
+            </Link>{" "}
+            or{" "}
+            <Link
+              href="/search"
+              className="text-accent underline hover:no-underline"
+            >
+              browse
+            </Link>
+          </p>
         )}
 
         <ItemSearch />
