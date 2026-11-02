@@ -5,8 +5,8 @@ import { useState, type ReactNode } from "react";
 type Tab = "following" | "everyone";
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "following", label: "Following" },
   { id: "everyone", label: "Everyone" },
+  { id: "following", label: "Following" },
 ];
 
 export default function FeedTabs({
@@ -44,11 +44,10 @@ export default function FeedTabs({
             aria-selected={active === t.id}
             aria-controls={`feed-panel-${t.id}`}
             onClick={() => choose(t.id)}
-            className={`-mb-px flex-1 border-b-2 px-4 py-2 text-center ${
-              active === t.id
+            className={`-mb-px flex-1 border-b-2 px-4 py-2 text-center ${active === t.id
                 ? "border-accent text-foreground"
                 : "border-transparent text-muted"
-            }`}
+              }`}
           >
             {t.label}
           </button>
