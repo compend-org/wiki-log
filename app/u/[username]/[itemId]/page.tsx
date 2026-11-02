@@ -28,6 +28,7 @@ type CommentQueryRow = {
   created_at: string;
   user_id: string;
   profiles: { username: string } | null;
+  comment_likes: { count: number }[];
 };
 
 export default async function ReviewPage({
@@ -41,7 +42,7 @@ export default async function ReviewPage({
   let name = rawName;
   try {
     name = decodeURIComponent(rawName);
-  } catch {}
+  } catch { }
   if (!isValidName(name) || !/^Q\d+$/.test(itemId)) notFound();
 
   const supabase = await createClient();
@@ -70,21 +71,34 @@ export default async function ReviewPage({
   const { data: commentData } = await supabase
     .from("comments")
     .select(
-      "id, parent_id, body, created_at, user_id, profiles!comments_user_id_profiles_fkey(username)"
+      "id, parent_id, body, created_at, user_id, profiles!comments_user_id_profiles_fkey(username), comment_likes(count)"
     )
     .eq("log_user_id", profile.id)
     .eq("log_item_id", itemId)
     .order("created_at", { ascending: true });
 
-  const comments: CommentItem[] = (
-    (commentData ?? []) as unknown as CommentQueryRow[]
-  ).map((c) => ({
+  const commentRows = (commentData ?? []) as unknown as CommentQueryRow[];
+
+  // Which of these comments has the viewer already liked?
+  let likedCommentIds = new Set<string>();
+  if (viewerId && commentRows.length > 0) {
+    const { data: likedRows } = await supabase
+      .from("comment_likes")
+      .select("comment_id")
+      .eq("user_id", viewerId)
+      .in("comment_id", commentRows.map((c) => c.id));
+    likedCommentIds = new Set((likedRows ?? []).map((r) => r.comment_id));
+  }
+
+  const comments: CommentItem[] = commentRows.map((c) => ({
     id: c.id,
     parentId: c.parent_id,
     body: c.body,
     date: c.created_at.slice(0, 10),
     authorId: c.user_id,
     authorName: c.profiles?.username ?? "Someone",
+    likeCount: c.comment_likes?.[0]?.count ?? 0,
+    liked: likedCommentIds.has(c.id),
   }));
 
   const likedSet = await getLikedSet(supabase, viewerId, [log]);

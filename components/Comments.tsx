@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import CommentLikeButton from "@/components/CommentLikeButton";
 
 export type CommentItem = {
   id: string;
@@ -12,6 +13,8 @@ export type CommentItem = {
   date: string;
   authorId: string;
   authorName: string;
+  likeCount: number;
+  liked: boolean;
 };
 
 export default function Comments({
@@ -110,6 +113,13 @@ export default function Comments({
           <span className="text-xs text-muted">{c.date}</span>
         </div>
         <p className="whitespace-pre-wrap text-sm">{c.body}</p>
+        <CommentLikeButton
+          viewerId={viewerId}
+          commentId={c.id}
+          authorId={c.authorId}
+          initialCount={c.likeCount}
+          initiallyLiked={c.liked}
+        />
         <div className="flex gap-3 text-xs text-muted">
           {viewerId && (
             <button
