@@ -11,7 +11,7 @@ export default function Stars({
     <span
       role="img"
       aria-label={`${rating} out of 5 stars`}
-      className={`relative inline-block leading-none tracking-[0.05em] ${className}`}
+      className={`relative inline-block w-fit leading-none tracking-[0.05em] ${className}`}
     >
       <span className="text-muted/60" aria-hidden="true">
         ★★★★★
@@ -20,7 +20,6 @@ export default function Stars({
         aria-hidden="true"
         className="stars absolute inset-0 whitespace-nowrap text-accent"
         style={{
-          // Clip the right side; the negative insets keep the glow from being cut off
           clipPath: `inset(-0.5em ${(1 - fraction) * 100}% -0.5em -0.5em)`,
         }}
       >
