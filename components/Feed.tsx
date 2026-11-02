@@ -339,12 +339,10 @@ export default async function Feed({
             )}
 
             {noFollows && (
-                <p className="text-muted text-center">
-                    You&apos;re not following anyone yet. Find people on the{" "}
-                    <Link href="/search" className="underline">
-                        Search page
-                    </Link>{" "}
-                    and follow them to fill this feed, or switch to Everyone.
+                <p className="text-center text-muted">
+                    You&apos;re not following anyone yet. Use the search icon at the top
+                    to find people and follow them to fill this feed, or switch to
+                    Everyone.
                 </p>
             )}
 

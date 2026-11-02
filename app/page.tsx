@@ -46,7 +46,7 @@ export default async function Home({
             </Link>{" "}
             or{" "}
             <Link
-              href="/search"
+               href="/?tab=everyone"
               className="text-accent underline hover:no-underline"
             >
               browse

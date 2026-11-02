@@ -7,8 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { SITE_NAME } from "@/lib/site";
 import Avatar from "@/components/Avatar";
-import SettingsIcon from "./SettingsIcon";
-import SearchIcon from "./SearchIcon";
 import DiaryIcon from "./DiaryIcon";
 import NotificationIcon from "./NotificationIcon";
 import SignOutButton from "./SignOutButton";
@@ -16,6 +14,7 @@ import SignInButton from "./SignInButton";
 import CraftIcon from "./CraftIcon";
 import { useLoginHref } from "@/lib/useLoginHref";
 import { FEATURES } from "@/lib/features";
+import PeopleSearch from "./PeopleSearch";
 
 export default function Nav() {
   const loginHref = useLoginHref();
@@ -65,7 +64,7 @@ export default function Nav() {
       : "text-accent hover:text-foreground";
 
   return (
-    <nav className="flex flex-nowrap items-center justify-between gap-x-3 border-b border-line bg-surface px-4 py-2 text-sm sm:flex-wrap sm:justify-start sm:gap-x-5 sm:gap-y-1 sm:px-8">      <Link
+    <nav className="flex relative flex-nowrap items-center justify-between gap-x-3 border-b border-line bg-surface px-4 py-2 text-sm sm:flex-wrap sm:justify-start sm:gap-x-5 sm:gap-y-1 sm:px-8">      <Link
       href="/"
       className="sm:mr-2 flex items-center gap-2 text-xl font-bold text-foreground no-underline"
     >
@@ -97,14 +96,7 @@ export default function Nav() {
         <DiaryIcon />
       </Link>
 
-      <Link
-        href="/search"
-        aria-label="Search"
-        title="Search"
-        className={`flex ${tone("/search")}`}
-      >
-        <SearchIcon />
-      </Link>
+      <PeopleSearch />
       {FEATURES.compounds && (
         <Link
           href="/craft"
