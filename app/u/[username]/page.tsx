@@ -28,6 +28,19 @@ type FavRow = {
   items: ItemInfo;
 };
 
+type ListRow = {
+  id: string;
+  title: string;
+  ranked: boolean;
+  list_items: { count: number }[];
+};
+
+type PreviewRow = {
+  list_id: string;
+  position: number;
+  items: ItemInfo;
+};
+
 export default async function ProfilePage({
   params,
 }: {
@@ -54,7 +67,7 @@ export default async function ProfilePage({
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
-  const [logsRes, followersRes, followingRes, isFollowingRes, favRes] =
+  const [logsRes, followersRes, followingRes, isFollowingRes, favRes, listsRes] =
     await Promise.all([
       supabase
         .from("logs")
@@ -83,6 +96,11 @@ export default async function ProfilePage({
         .from("favourites")
         .select("position, item_id, items(title, image_url)")
         .eq("user_id", profile.id),
+      supabase
+        .from("lists")
+        .select("id, title, ranked, list_items(count)")
+        .eq("user_id", profile.id)
+        .order("created_at", { ascending: false }),
     ]);
 
   const logs = (logsRes.data ?? []) as unknown as LogRow[];
@@ -101,6 +119,26 @@ export default async function ProfilePage({
         }
       : null;
   });
+
+  // The first four items of each list, for the preview thumbnails
+  const lists = (listsRes.data ?? []) as unknown as ListRow[];
+  const previews = new Map<string, { title: string; image_url: string | null }[]>();
+  if (lists.length > 0) {
+    const { data: previewData } = await supabase
+      .from("list_items")
+      .select("list_id, position, items(title, image_url)")
+      .in("list_id", lists.map((l) => l.id))
+      .lte("position", 4)
+      .order("position");
+    for (const row of (previewData ?? []) as unknown as PreviewRow[]) {
+      const entries = previews.get(row.list_id) ?? [];
+      entries.push({
+        title: row.items?.title ?? "Unknown item",
+        image_url: row.items?.image_url ?? null,
+      });
+      previews.set(row.list_id, entries);
+    }
+  }
 
   const isOwner = viewerId === profile.id;
   const profileHref = `/u/${encodeURIComponent(profile.username)}`;
@@ -134,6 +172,61 @@ export default async function ProfilePage({
 
       {(isOwner || slots.some(Boolean)) && (
         <Favourites slots={slots} isOwner={isOwner} />
+      )}
+
+      {(isOwner || lists.length > 0) && (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+              Lists
+            </h2>
+            {isOwner && (
+              <Link href="/list/new" className="text-sm underline">
+                New list
+              </Link>
+            )}
+          </div>
+          {lists.length === 0 && (
+            <p className="text-sm text-muted">No lists yet.</p>
+          )}
+          {lists.map((l) => {
+            const count = l.list_items?.[0]?.count ?? 0;
+            const preview = previews.get(l.id) ?? [];
+            return (
+              <Link
+                key={l.id}
+                href={`/list/${l.id}`}
+                className="card flex flex-col gap-2 p-3"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-semibold">{l.title}</span>
+                  <span className="shrink-0 text-xs text-muted">
+                    {l.ranked ? "Ranked · " : ""}
+                    {count} {count === 1 ? "item" : "items"}
+                  </span>
+                </div>
+                {preview.length > 0 && (
+                  <div className="flex gap-1">
+                    {preview.map((p, i) => (
+                      <ItemImage
+                        key={i}
+                        src={p.image_url}
+                        alt={p.title}
+                        className="h-14 w-14 rounded"
+                      />
+                    ))}
+                  </div>
+                )}
+              </Link>
+            );
+          })}
+        </section>
+      )}
+
+      {logs.length > 0 && (
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+          Reviews
+        </h2>
       )}
 
       {logs.length === 0 && <p className="text-muted">Nothing logged yet.</p>}

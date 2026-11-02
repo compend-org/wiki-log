@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getItemById } from "@/lib/wikipedia";
 import { cleanName, escapeLike, isValidName } from "@/lib/username";
 import { MAX_AGE_MS } from "@/lib/items";
+import { isUuid } from "@/lib/ids";
 
 const ITEM_ID = /^Q\d+$/;
 
@@ -176,4 +177,67 @@ export async function removeFavourite(
     .eq("user_id", userId)
     .eq("position", position);
   return error ? { error: error.message } : {};
+}
+
+export async function addToList(input: {
+  listId: string;
+  itemId: string;
+}): Promise<{
+  error?: string;
+  item?: { itemId: string; title: string; imageUrl: string | null };
+}> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { error: "You need to sign in." };
+
+  if (!isUuid(input.listId)) return { error: "Invalid list." };
+  if (!ITEM_ID.test(input.itemId)) return { error: "Invalid item." };
+
+  const { data: list } = await supabase
+    .from("lists")
+    .select("id")
+    .eq("id", input.listId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!list) return { error: "That list isn't yours." };
+
+  const itemError = await ensureItem(input.itemId);
+  if (itemError) return { error: itemError };
+
+  const { data: last } = await supabase
+    .from("list_items")
+    .select("position")
+    .eq("list_id", input.listId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { error } = await supabase.from("list_items").insert({
+    list_id: input.listId,
+    item_id: input.itemId,
+    position: (last?.position ?? 0) + 1,
+  });
+  if (error) {
+    return {
+      error:
+        error.code === "23505"
+          ? "That item is already in this list."
+          : error.message,
+    };
+  }
+
+  const { data: item } = await supabase
+    .from("items")
+    .select("title, image_url")
+    .eq("id", input.itemId)
+    .maybeSingle();
+
+  return {
+    item: {
+      itemId: input.itemId,
+      title: item?.title ?? "Unknown item",
+      imageUrl: item?.image_url ?? null,
+    },
+  };
 }
