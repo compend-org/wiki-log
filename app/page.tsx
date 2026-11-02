@@ -26,8 +26,8 @@ export default async function Home({
     tab === "following" || tab === "everyone"
       ? tab
       : signedIn
-      ? "following"
-      : "everyone";
+        ? "following"
+        : "everyone";
   const feedLimit = parseLimit(limit);
 
   // Centred, with some room above and below so it sits in the middle of the feed
@@ -43,13 +43,6 @@ export default async function Home({
               className="text-accent underline hover:no-underline"
             >
               Create an account
-            </Link>{" "}
-            or{" "}
-            <Link
-              href="/?tab=everyone"
-              className="text-accent underline hover:no-underline"
-            >
-              browse
             </Link>
           </p>
         )}
