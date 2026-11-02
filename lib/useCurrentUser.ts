@@ -4,28 +4,48 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export function useCurrentUser() {
+  // False until the server has confirmed whether anyone is signed in
+  const [ready, setReady] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [avatarPath, setAvatarPath] = useState<string | null>(null);
 
-  // Who is signed in, kept up to date on sign-in and sign-out
   useEffect(() => {
     const supabase = createClient();
+    let cancelled = false;
 
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-      setEmail(data.user?.email ?? null);
+    // The authority: asks the server whether this account really exists
+    supabase.auth.getUser().then(async ({ data, error }) => {
+      if (cancelled) return;
+      if (error || !data.user) {
+        // No session, or one for an account that no longer exists: forget it
+        await supabase.auth.signOut({ scope: "local" });
+        if (cancelled) return;
+        setUserId(null);
+        setEmail(null);
+      } else {
+        setUserId(data.user.id);
+        setEmail(data.user.email ?? null);
+      }
+      setReady(true);
     });
 
+    // Later changes (signing in or out, token refreshes). The very first event
+    // only repeats what the browser has stored, so it is ignored.
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        if (event === "INITIAL_SESSION") return;
         setUserId(session?.user?.id ?? null);
         setEmail(session?.user?.email ?? null);
+        setReady(true);
       }
     );
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   // Their name and picture, refetched when they change them in Settings
@@ -53,6 +73,7 @@ export function useCurrentUser() {
   }, [userId]);
 
   return {
+    ready,
     userId,
     email,
     username: userId ? username : null,

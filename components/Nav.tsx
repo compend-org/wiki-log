@@ -18,7 +18,7 @@ import PeopleSearch from "./PeopleSearch";
 
 export default function Nav() {
   const loginHref = useLoginHref();
-  const { userId, username, avatarPath } = useCurrentUser();
+  const { userId, username, avatarPath, ready } = useCurrentUser();
   const [unread, setUnread] = useState<number>(0);
   const router = useRouter();
   const pathname = usePathname();
@@ -125,7 +125,11 @@ export default function Nav() {
       )}
 
       <div className="contents sm:ml-auto sm:flex sm:items-center sm:gap-4">
-        {userId ? (
+        {!ready ? (
+          // Reserves the space while we find out who is signed in, so neither
+          // the login nor the logout button flashes up
+          <div className="h-5 w-5 sm:w-24" aria-hidden="true" />
+        ) : userId ? (
           <>
             {username && (
               <Link
