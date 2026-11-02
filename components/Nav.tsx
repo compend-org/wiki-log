@@ -154,22 +154,15 @@ export default function Nav() {
               <SettingsIcon />
             </Link>
             <SignOutButton
-                className="hidden sm:inline-flex"
-                labelClassName="hidden sm:inline"
-              />
-          </>
-        ) : (
-          <Link
-            href={loginHref}
-            aria-label="Sign in"
-            title="Sign in"
-            className={`flex ${tone("/login")}`}
-          >
-            <SignInButton
-              className="inline-flex"
+              className="hidden sm:inline-flex"
               labelClassName="hidden sm:inline"
             />
-          </Link>
+          </>
+        ) : (
+          <SignInButton
+            className="inline-flex"
+            labelClassName="hidden sm:inline"
+          />
         )}
       </div>
     </nav>
