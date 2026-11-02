@@ -50,7 +50,7 @@ export default function RatingInput({
         onClick={(e) => onChange(valueAt(e.currentTarget, e.clientX))}
         onKeyDown={handleKeyDown}
       >
-        <Stars rating={shown} />
+        <Stars rating={shown} track />
       </div>
     </div>
   );
