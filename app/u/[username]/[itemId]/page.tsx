@@ -4,7 +4,9 @@ import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { escapeLike, isValidName } from "@/lib/username";
 import { getLikedSet, likeKey } from "@/lib/likes";
+import { getAlsoLiked } from "@/lib/alsoLiked";
 import LikeButton from "@/components/LikeButton";
+import AlsoLiked from "@/components/AlsoLiked";
 import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
@@ -42,7 +44,7 @@ export default async function ReviewPage({
   let name = rawName;
   try {
     name = decodeURIComponent(rawName);
-  } catch { }
+  } catch {}
   if (!isValidName(name) || !/^Q\d+$/.test(itemId)) notFound();
 
   const supabase = await createClient();
@@ -86,7 +88,10 @@ export default async function ReviewPage({
       .from("comment_likes")
       .select("comment_id")
       .eq("user_id", viewerId)
-      .in("comment_id", commentRows.map((c) => c.id));
+      .in(
+        "comment_id",
+        commentRows.map((c) => c.id)
+      );
     likedCommentIds = new Set((likedRows ?? []).map((r) => r.comment_id));
   }
 
@@ -102,6 +107,7 @@ export default async function ReviewPage({
   }));
 
   const likedSet = await getLikedSet(supabase, viewerId, [log]);
+  const alsoLiked = await getAlsoLiked(supabase, [log]);
   const title = log.items?.title ?? "Unknown item";
 
   return (
@@ -145,6 +151,11 @@ export default async function ReviewPage({
           </div>
         )}
       </article>
+
+      <AlsoLiked
+        likes={alsoLiked.get(likeKey(log.user_id, log.item_id)) ?? []}
+        itemId={itemId}
+      />
 
       <Comments
         comments={comments}
