@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { logItem } from "@/app/actions";
 import RatingInput from "@/components/RatingInput";
+import { useLoginHref } from "@/lib/useLoginHref";
 
 export default function LogForm({
   id,
@@ -14,6 +15,7 @@ export default function LogForm({
   id: string;
   alreadyLogged?: boolean;
 }) {
+  const loginHref = useLoginHref();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [rating, setRating] = useState<number>(0);
   const [review, setReview] = useState<string>("");
@@ -55,7 +57,7 @@ export default function LogForm({
 
   if (!signedIn) {
     return (
-      <Link href="/login" className="underline">
+      <Link href={loginHref} className="underline">
         Sign in to review this
       </Link>
     );

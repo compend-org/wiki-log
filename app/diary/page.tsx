@@ -6,8 +6,10 @@ import { createClient } from "@/lib/supabase/client";
 import { readLogs, deleteLog, type Log } from "@/lib/logs";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
+import { useLoginHref } from "@/lib/useLoginHref";
 
 export default function DiaryPage() {
+  const loginHref = useLoginHref();
   const [logs, setLogs] = useState<Log[]>([]);
   const [loaded, setLoaded] = useState<boolean>(false);
   const [signedIn, setSignedIn] = useState<boolean>(false);
@@ -55,7 +57,7 @@ export default function DiaryPage() {
       <h1 className="text-3xl font-bold">Diary</h1>
 
       {loaded && !signedIn && (
-        <Link href="/login" className="underline">
+        <Link href={loginHref} className="underline">
           Sign in to see your diary
         </Link>
       )}

@@ -10,6 +10,7 @@ import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
 import Avatar from "@/components/Avatar";
 import SignOutButton from "@/components/SignOutButton";
+import { loginHref } from "@/lib/redirect";
 
 export const instant = false;
 
@@ -158,7 +159,7 @@ export default async function ProfilePage({
         </p>
         <div className="mt-2">
           {!viewerId ? (
-            <Link href="/login" className="underline">
+            <Link href={loginHref(profileHref)} className="underline">
               Sign in to follow
             </Link>
           ) : isOwner ? (

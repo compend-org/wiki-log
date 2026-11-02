@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/ids";
 import ListEditor, { type ListEntry } from "@/components/ListEditor";
+import { loginHref } from "@/lib/redirect";
 
 export const instant = false;
 
@@ -32,7 +33,7 @@ export default async function EditListPage({
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
-  if (!viewerId) redirect("/login");
+  if (!viewerId) redirect(loginHref(`/list/${id}/edit`));
 
   const { data } = await supabase
     .from("lists")

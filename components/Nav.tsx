@@ -13,8 +13,10 @@ import DiaryIcon from "./DiaryIcon";
 import NotificationIcon from "./NotificationIcon";
 import SignInIcon from "./SignInIcon";
 import SignOutButton from "./SignOutButton";
+import { useLoginHref } from "@/lib/useLoginHref";
 
 export default function Nav() {
+  const loginHref = useLoginHref();
   const { userId, username, avatarPath } = useCurrentUser();
   const [unread, setUnread] = useState<number>(0);
   const router = useRouter();
@@ -143,7 +145,7 @@ export default function Nav() {
           </>
         ) : (
           <Link
-            href="/login"
+            href={loginHref}
             aria-label="Sign in"
             title="Sign in"
             className={`flex ${tone("/login")}`}

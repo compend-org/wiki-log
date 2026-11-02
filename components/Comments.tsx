@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import CommentLikeButton from "@/components/CommentLikeButton";
+import { useLoginHref } from "@/lib/useLoginHref";
 
 export type CommentItem = {
   id: string;
@@ -36,6 +37,7 @@ export default function Comments({
   // Only review comments can be liked
   likeable?: boolean;
 }) {
+  const loginHref = useLoginHref();
   const [topText, setTopText] = useState<string>("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<string>("");
@@ -237,7 +239,7 @@ export default function Comments({
         </form>
       ) : (
         <p className="text-sm text-muted">
-          <Link href="/login" className="underline">
+          <Link href={loginHref} className="underline">
             Sign in
           </Link>{" "}
           to comment.

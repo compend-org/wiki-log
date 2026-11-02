@@ -7,8 +7,10 @@ import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
 import DeleteAccount from "@/components/DeleteAccount";
 import AvatarUpload from "@/components/AvatarUpload";
 import ThemeSetting from "@/components/ThemeSetting";
+import { useLoginHref } from "@/lib/useLoginHref";
 
 export default function SettingsPage() {
+  const loginHref = useLoginHref();
   const [loaded, setLoaded] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [username, setUsername] = useState<string>("");
@@ -71,7 +73,7 @@ export default function SettingsPage() {
   if (!userId) {
     return (
       <main className="p-8">
-        <Link href="/login" className="underline">
+        <Link href={loginHref} className="underline">
           Sign in to edit your profile
         </Link>
       </main>

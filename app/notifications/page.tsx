@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useLoginHref } from "@/lib/useLoginHref";
 
 type NotificationRow = {
   id: string;
@@ -24,6 +25,7 @@ type NotificationRow = {
 type LogInfo = { owner: string; item: string };
 
 export default function NotificationsPage() {
+  const loginHref = useLoginHref();
   const [loaded, setLoaded] = useState<boolean>(false);
   const [signedIn, setSignedIn] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -177,7 +179,7 @@ export default function NotificationsPage() {
       {!loaded && <p className="text-muted">Loading…</p>}
 
       {loaded && !signedIn && (
-        <Link href="/login" className="underline">
+        <Link href={loginHref} className="underline">
           Sign in to see your notifications
         </Link>
       )}

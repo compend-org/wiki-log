@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import HeartIcon from "@/components/HeartIcon";
+import { useLoginHref } from "@/lib/useLoginHref";
 
 export default function LikeButton({
   viewerId,
@@ -18,6 +19,7 @@ export default function LikeButton({
   initialCount: number;
   initiallyLiked: boolean;
 }) {
+  const loginHref = useLoginHref();
   const [liked, setLiked] = useState<boolean>(initiallyLiked);
   const [count, setCount] = useState<number>(initialCount);
   const [busy, setBusy] = useState<boolean>(false);
@@ -27,7 +29,7 @@ export default function LikeButton({
 
   async function toggle() {
     if (!viewerId) {
-      router.push("/login");
+      router.push(loginHref);
       return;
     }
     if (own || busy) return;
