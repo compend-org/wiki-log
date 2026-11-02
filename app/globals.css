@@ -12,6 +12,7 @@
   /* link blue */
   --color-danger: #b00000;
   --color-star: #c98a00;
+  --color-like: #c8102e;
   /* a gold that reads on white */
 }
 
@@ -37,6 +38,7 @@
   --color-accent: #e8e5e5;
   --color-danger: #ff5a6a;
   --color-star: #f0a23b;
+  --color-like: #ff5a6a;
 }
 
 html {

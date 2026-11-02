@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import HeartIcon from "@/components/HeartIcon";
 
 export default function LikeButton({
   viewerId,
@@ -66,10 +67,10 @@ export default function LikeButton({
       aria-pressed={liked}
       aria-label={liked ? "Unlike this review" : "Like this review"}
       className={`inline-flex items-center gap-1 text-sm disabled:cursor-default ${
-        liked ? "text-accent" : "text-muted"
+        liked ? "text-like" : "text-muted enabled:hover:text-like"
       }`}
     >
-      <span aria-hidden="true">{liked ? "♥" : "♡"}</span>
+      <HeartIcon filled={liked} className="h-4 w-4" />
       {count > 0 && <span>{count}</span>}
     </button>
   );

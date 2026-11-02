@@ -46,7 +46,7 @@ export default async function ReviewPage({
   let name = rawName;
   try {
     name = decodeURIComponent(rawName);
-  } catch {}
+  } catch { }
   if (!isValidName(name)) notFound();
 
   const supabase = await createClient();
@@ -157,19 +157,19 @@ export default async function ReviewPage({
           </div>
         </div>
         {log.review && <p className="whitespace-pre-wrap">{log.review}</p>}
-        {log.review && (
-          <div>
-            <LikeButton
-              viewerId={viewerId ?? null}
-              authorId={log.user_id}
-              logId={log.id}
-              initialCount={log.likes?.[0]?.count ?? 0}
-              initiallyLiked={likedSet.has(log.id)}
-            />
-          </div>
-        )}
-      </article>
 
+      </article>
+      {log.review && (
+        <div>
+          <LikeButton
+            viewerId={viewerId ?? null}
+            authorId={log.user_id}
+            logId={log.id}
+            initialCount={log.likes?.[0]?.count ?? 0}
+            initiallyLiked={likedSet.has(log.id)}
+          />
+        </div>
+      )}
       <AlsoLiked
         likes={alsoLiked.get(likeKey(log.user_id, log.item_id)) ?? []}
       />

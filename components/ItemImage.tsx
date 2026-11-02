@@ -1,51 +1,102 @@
 import { shortLabel } from "@/lib/format";
 
-// Picks a font size, in % of the box's width, so the name fills most of the
-// box: short names get big text, long ones get smaller text. The size also
-// keeps the longest word within the width of the box.
-function labelSize(label: string): number {
-  const length = Math.max(1, Array.from(label).length);
-  const longestWord = Math.max(
-    1,
-    ...label.split(/\s+/).map((word) => Array.from(word).length)
-  );
-  return Math.min(52, 110 / Math.sqrt(length), 180 / longestWord);
+const CHAR_WIDTH = 0.66; // average width of a bold character, in em (a little generous)
+const LINE_HEIGHT = 1.15;
+const PAD = 6; // padding inside the box, in the box's own 0–100 units
+const MIN_SIZE = 3;
+
+// Breaks the words into lines of at most maxChars characters, only at spaces.
+// A word is never split, so a line can be longer than maxChars only when one
+// word alone is.
+function wrap(words: string[], maxChars: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+
+  for (const word of words) {
+    if (!line) {
+      line = word;
+    } else if (Array.from(line).length + 1 + Array.from(word).length <= maxChars) {
+      line = `${line} ${word}`;
+    } else {
+      lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// The largest font size at which the name fits the box without breaking a word
+function layout(label: string, width: number, height: number) {
+  const words = label.split(/\s+/).filter(Boolean);
+  const longest = Math.max(1, ...words.map((w) => Array.from(w).length));
+
+  const innerW = width - PAD * 2;
+  const innerH = height - PAD * 2;
+
+  // Never bigger than what lets the longest word fit on one line
+  const widest = innerW / (longest * CHAR_WIDTH);
+  const start = Math.min(innerH * 0.6, 56, widest);
+
+  for (let size = start; size >= MIN_SIZE; size -= 0.5) {
+    const maxChars = Math.max(
+      longest,
+      Math.floor(innerW / (size * CHAR_WIDTH))
+    );
+    const lines = wrap(words, maxChars);
+    if (lines.length * size * LINE_HEIGHT <= innerH) return { size, lines };
+  }
+
+  return {
+    size: MIN_SIZE,
+    lines: wrap(words, Math.max(longest, Math.floor(innerW / (MIN_SIZE * CHAR_WIDTH)))),
+  };
 }
 
 export default function ItemImage({
   src,
   alt,
   className = "",
+  ratio = 1,
 }: {
   src: string | null | undefined;
   alt: string;
   className?: string;
+  // Width divided by height of the box, for boxes that aren't square
+  ratio?: number;
 }) {
   if (!src) {
-    const label = shortLabel(alt);
-    const size = labelSize(label).toFixed(1);
+    const width = 100 * ratio;
+    const height = 100;
+    const { size, lines } = layout(shortLabel(alt), width, height);
+    const lineHeight = size * LINE_HEIGHT;
+    const top = (height - lines.length * lineHeight) / 2;
 
     return (
-      <div
+      <svg
         role="img"
         aria-label={alt}
-        // Lets the text size itself from the width of this box
-        style={{ containerType: "inline-size", padding: "4px" }}
-        className={`flex items-center justify-center overflow-hidden border border-line bg-surface text-center text-muted ${className}`}
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="xMidYMid meet"
+        className={`block border border-line bg-surface text-muted ${className}`}
       >
-        <span
-          style={{
-            display: "block",
-            maxWidth: "100%",
-            fontWeight: 700,
-            fontSize: `clamp(8px, ${size}cqw, 72px)`,
-            lineHeight: 1.15,
-            overflowWrap: "anywhere",
-          }}
+        <text
+          textAnchor="middle"
+          fill="currentColor"
+          fontWeight="bold"
+          fontSize={size}
         >
-          {label}
-        </span>
-      </div>
+          {lines.map((line, i) => (
+            <tspan
+              key={i}
+              x={width / 2}
+              y={top + i * lineHeight + lineHeight / 2 + size * 0.33}
+            >
+              {line}
+            </tspan>
+          ))}
+        </text>
+      </svg>
     );
   }
 

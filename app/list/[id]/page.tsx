@@ -6,6 +6,7 @@ import { isUuid } from "@/lib/ids";
 import ItemImage from "@/components/ItemImage";
 import ListLikeButton from "@/components/ListLikeButton";
 import Comments, { type CommentItem } from "@/components/Comments";
+import Stars from "@/components/Stars";
 
 export const instant = false;
 
@@ -32,6 +33,33 @@ type CommentQueryRow = {
   user_id: string;
   profiles: { username: string } | null;
 };
+
+type OwnerLog = {
+  id: string;
+  item_id: string;
+  rating: number | null;
+  review: string;
+  logged_at: string;
+};
+
+// Keeps the tooltip on screen: the first column's opens to the right, the last
+// column's to the left, and the rest are centred. The grid has 3 columns on
+// phones and 4 from the sm breakpoint up.
+function tooltipPosition(index: number): string {
+  const base =
+    index % 3 === 0
+      ? "left-0"
+      : index % 3 === 2
+        ? "right-0"
+        : "left-1/2 -translate-x-1/2";
+  const wide =
+    index % 4 === 0
+      ? "sm:left-0 sm:right-auto sm:translate-x-0"
+      : index % 4 === 3
+        ? "sm:left-auto sm:right-0 sm:translate-x-0"
+        : "sm:left-1/2 sm:right-auto sm:-translate-x-1/2";
+  return `${base} ${wide}`;
+}
 
 export default async function ListPage({
   params,
@@ -64,6 +92,24 @@ export default async function ListPage({
     .eq("list_id", id)
     .order("position");
   const entries = (entryData ?? []) as unknown as EntryRow[];
+
+  // The list owner's own logs for the items on this list, newest first, so the
+  // first one we meet for each item is their most recent
+  const itemIds = entries.map((e) => e.item_id);
+  const ownerLatest = new Map<string, { latest: OwnerLog; count: number }>();
+  if (itemIds.length > 0) {
+    const { data: logData } = await supabase
+      .from("logs")
+      .select("id, item_id, rating, review, logged_at")
+      .eq("user_id", list.user_id)
+      .in("item_id", itemIds)
+      .order("logged_at", { ascending: false });
+    for (const l of (logData ?? []) as unknown as OwnerLog[]) {
+      const current = ownerLatest.get(l.item_id);
+      if (current) current.count += 1;
+      else ownerLatest.set(l.item_id, { latest: l, count: 1 });
+    }
+  }
 
   let liked = false;
   if (viewerId) {
@@ -143,8 +189,10 @@ export default async function ListPage({
       <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
         {entries.map((entry, index) => {
           const title = entry.items?.title ?? "Unknown item";
+          const info = ownerLatest.get(entry.item_id);
+
           return (
-            <li key={entry.item_id}>
+            <li key={entry.item_id} className="group relative">
               <Link
                 href={`/item/${entry.item_id}`}
                 className="flex flex-col gap-1"
@@ -163,6 +211,36 @@ export default async function ListPage({
                 </div>
                 <span className="truncate text-xs">{title}</span>
               </Link>
+
+              {info && (
+                <div
+                  role="tooltip"
+                  className={`card pointer-events-none absolute bottom-full z-30 mb-2 hidden w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 p-3 text-left group-hover:flex group-focus-within:flex ${tooltipPosition(
+                    index
+                  )}`}
+                >
+                  <span className="text-xs text-muted">
+                    {owner ? `${owner}'s latest` : "Latest"} ·{" "}
+                    {info.latest.logged_at.slice(0, 10)}
+                  </span>
+                  <Stars rating={info.latest.rating} />
+                  {info.latest.review && (
+                    <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
+                      {info.latest.review}
+                    </p>
+                  )}
+                  {info.latest.rating === null && !info.latest.review && (
+                    <p className="text-sm text-muted">
+                      Logged, with no rating or review.
+                    </p>
+                  )}
+                  {info.count > 1 && (
+                    <span className="text-xs text-muted">
+                      {info.count} entries
+                    </span>
+                  )}
+                </div>
+              )}
             </li>
           );
         })}
