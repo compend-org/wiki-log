@@ -167,7 +167,7 @@ export default async function ProfilePage({
               <Link href="/settings" className="underline">
                 Edit profile
               </Link>
-              <SignOutButton className="sm:hidden" />
+              <SignOutButton className="inline-flex sm:hidden" />
             </div>
           ) : (
             <FollowButton

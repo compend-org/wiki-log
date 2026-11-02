@@ -153,7 +153,10 @@ export default function Nav() {
             >
               <SettingsIcon />
             </Link>
-            <SignOutButton className="hidden text-accent hover:text-foreground sm:flex" />
+            <SignOutButton
+                className="hidden sm:inline-flex"
+                labelClassName="hidden sm:inline"
+              />
           </>
         ) : (
           <Link
@@ -162,7 +165,10 @@ export default function Nav() {
             title="Sign in"
             className={`flex ${tone("/login")}`}
           >
-            <SignInButton />
+            <SignInButton
+              className="inline-flex"
+              labelClassName="hidden sm:inline"
+            />
           </Link>
         )}
       </div>
