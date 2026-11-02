@@ -149,8 +149,42 @@ export async function setFavourite(input: {
   }
   if (!ITEM_ID.test(input.itemId)) return { error: "Invalid item." };
 
-  const itemError = await ensureItem(input.itemId);
-  if (itemError) return { error: itemError };
+  // Looks the item up on Wikipedia and Wikidata and caches it
+  // (users can't write to `items` themselves)
+  async function ensureItem(itemId: string): Promise<string | null> {
+    const admin = createAdminClient();
+
+    const { data: existing } = await admin
+      .from("items")
+      .select("fetched_at, image_hidden")
+      .eq("id", itemId)
+      .maybeSingle();
+    if (
+      existing &&
+      Date.now() - new Date(existing.fetched_at).getTime() < MAX_AGE_MS
+    ) {
+      return null;
+    }
+
+    const result = await getItemById(itemId);
+    if ("error" in result) return result.error;
+    const { item } = result;
+
+    // A hidden image stays hidden
+    const hidden = existing?.image_hidden === true;
+
+    const { error } = await admin.from("items").upsert({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      image_url: hidden ? null : item.imageUrl,
+      image_non_free: hidden ? false : item.imageNonFree,
+      image_page_url: hidden ? null : item.imageFilePage,
+      page_url: item.pageUrl,
+      fetched_at: new Date().toISOString(),
+    });
+    return error ? error.message : null;
+  }
 
   const { error } = await supabase
     .from("favourites")

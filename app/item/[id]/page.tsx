@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getItemForPage } from "@/lib/items";
 import { parseLimit } from "@/lib/paging";
+import { CONTACT_EMAIL } from "@/lib/site";
 import AddToList from "@/components/AddToList";
 import ItemImage from "@/components/ItemImage";
 import LogForm from "@/components/LogForm";
@@ -47,16 +48,60 @@ export default async function ItemPage({
     }));
   }
 
+  const removalLink = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
+    `Image removal request: ${item.title} (${item.id})`
+  )}`;
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-col gap-3">
         {item.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.imageUrl}
-            alt={item.title}
-            className="max-h-96 w-full object-contain"
-          />
+          <figure className="flex flex-col gap-1">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={item.imageUrl}
+              alt={item.title}
+              className={
+                item.imageNonFree
+                  ? "max-h-72 w-auto max-w-[330px] self-start object-contain"
+                  : "max-h-96 w-full object-contain"
+              }
+            />
+            <figcaption className="text-xs text-muted">
+              {item.imageNonFree ? (
+                <>
+                  Non-free image from Wikipedia, shown at low resolution for
+                  review and commentary
+                  {item.imageFilePage && (
+                    <>
+                      {" "}
+                      (
+                      <a href={item.imageFilePage} className="underline">
+                        source and rights
+                      </a>
+                      )
+                    </>
+                  )}
+                  . Rights holder?{" "}
+                  <a href={removalLink} className="underline">
+                    Request removal
+                  </a>
+                  .
+                </>
+              ) : (
+                <>
+                  Image:{" "}
+                  {item.imageFilePage ? (
+                    <a href={item.imageFilePage} className="underline">
+                      Wikimedia Commons
+                    </a>
+                  ) : (
+                    "Wikimedia Commons"
+                  )}
+                </>
+              )}
+            </figcaption>
+          </figure>
         ) : (
           <ItemImage
             src={null}

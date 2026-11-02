@@ -10,16 +10,22 @@ type ItemRow = {
   title: string;
   description: string | null;
   image_url: string | null;
+  image_non_free: boolean;
+  image_page_url: string | null;
+  image_hidden: boolean;
   page_url: string;
   fetched_at: string;
 };
 
 function toItem(row: ItemRow): ItemData {
+  const hidden = row.image_hidden;
   return {
     id: row.id,
     title: row.title,
     description: row.description,
-    imageUrl: row.image_url,
+    imageUrl: hidden ? null : row.image_url,
+    imageNonFree: hidden ? false : row.image_non_free,
+    imageFilePage: hidden ? null : row.image_page_url,
     pageUrl: row.page_url,
   };
 }
@@ -31,7 +37,9 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("items")
-    .select("id, title, description, image_url, page_url, fetched_at")
+    .select(
+      "id, title, description, image_url, image_non_free, image_page_url, image_hidden, page_url, fetched_at"
+    )
     .eq("id", id)
     .maybeSingle();
   const cached = data as ItemRow | null;
@@ -50,18 +58,26 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
     return cached ? { item: toItem(cached) } : fresh;
   }
 
+  // A hidden image stays hidden, however often the item is refreshed
+  const hidden = cached?.image_hidden === true;
+  const item: ItemData = hidden
+    ? { ...fresh.item, imageUrl: null, imageNonFree: false, imageFilePage: null }
+    : fresh.item;
+
   if (cached) {
     await createAdminClient()
       .from("items")
       .update({
-        title: fresh.item.title,
-        description: fresh.item.description,
-        image_url: fresh.item.imageUrl,
-        page_url: fresh.item.pageUrl,
+        title: item.title,
+        description: item.description,
+        image_url: item.imageUrl,
+        image_non_free: item.imageNonFree,
+        image_page_url: item.imageFilePage,
+        page_url: item.pageUrl,
         fetched_at: new Date().toISOString(),
       })
       .eq("id", id);
   }
 
-  return fresh;
+  return { item };
 }
