@@ -3,7 +3,7 @@ import { DEFAULT_LANG, LANGUAGES, type LangCode } from "@/lib/languages";
 
 // Wikimedia asks every client to identify itself, with a way to reach you
 const CONTACT = process.env.WIKI_CONTACT ?? "no contact set";
-const USER_AGENT = `WikiLog/0.1 (${CONTACT})`;
+const USER_AGENT = `compend/0.1 (https://compend.org; ${CONTACT})`;
 
 // Articles about real people are blocked unless this is true
 export const ALLOW_PEOPLE = true;
