@@ -33,7 +33,7 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
   async function save(id: string) {
     setBusy(true);
     setError("");
-    const message = await updateLog(id, rating, review);
+    const message = await updateLog(id, rating > 0 ? rating : null, review);
     setBusy(false);
     if (message) {
       setError(message);
@@ -79,7 +79,7 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
                 <button
                   type="button"
                   onClick={() => save(e.id)}
-                  disabled={busy || rating === 0}
+                  disabled={busy}
                   className="bg-accent px-3 py-1.5 text-sm text-background disabled:opacity-40"
                 >
                   {busy ? "Saving…" : "Save"}

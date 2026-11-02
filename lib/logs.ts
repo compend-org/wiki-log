@@ -5,7 +5,7 @@ export type Log = {
   itemId: string;
   title: string;
   imageUrl: string | null;
-  rating: number;
+  rating: number | null;
   review: string;
   loggedAt: string;
 };
@@ -13,7 +13,7 @@ export type Log = {
 type Row = {
   id: string;
   item_id: string;
-  rating: number;
+  rating: number | null;
   review: string;
   logged_at: string;
   items: { title: string; image_url: string | null } | null;
@@ -50,7 +50,7 @@ export async function deleteLog(logId: string): Promise<string | null> {
 
 export async function updateLog(
   logId: string,
-  rating: number,
+  rating: number | null,
   review: string
 ): Promise<string | null> {
   const { error } = await createClient()

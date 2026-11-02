@@ -41,7 +41,7 @@ export default async function ItemPage({
       .order("logged_at", { ascending: false });
     myEntries = (data ?? []).map((r) => ({
       id: r.id,
-      rating: Number(r.rating),
+      rating: Number(r.rating ?? 0),
       review: r.review,
       loggedAt: r.logged_at,
     }));

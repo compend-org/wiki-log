@@ -40,7 +40,7 @@ async function ensureItem(itemId: string): Promise<string | null> {
 
 export async function logItem(input: {
   itemId: string;
-  rating: number;
+  rating: number | null;
   review: string;
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -50,10 +50,11 @@ export async function logItem(input: {
 
   if (!ITEM_ID.test(input.itemId)) return { error: "Invalid item." };
   if (
-    !Number.isFinite(input.rating) ||
-    input.rating < 0.5 ||
-    input.rating > 5 ||
-    (input.rating * 2) % 1 !== 0
+    input.rating !== null &&
+    (!Number.isFinite(input.rating) ||
+      input.rating < 0.5 ||
+      input.rating > 5 ||
+      (input.rating * 2) % 1 !== 0)
   ) {
     return { error: "Invalid rating." };
   }

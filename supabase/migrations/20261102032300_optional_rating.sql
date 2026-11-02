@@ -1,0 +1,1 @@
+alter table public.logs alter column rating drop not null;

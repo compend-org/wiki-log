@@ -32,7 +32,11 @@ export default function LogForm({
     setBusy(true);
     setError("");
     setDone(false);
-    const result = await logItem({ itemId: id, rating, review });
+    const result = await logItem({
+      itemId: id,
+      rating: rating > 0 ? rating : null,
+      review,
+    });
     setBusy(false);
     if (result.error) {
       setError(result.error);
@@ -79,16 +83,10 @@ export default function LogForm({
       <button
         type="button"
         onClick={handleSave}
-        disabled={rating === 0 || busy}
+        disabled={busy}
         className="self-start bg-accent px-4 py-2 text-background disabled:opacity-40"
       >
-        {busy
-          ? "Saving…"
-          : rating === 0
-          ? "Pick a rating first"
-          : alreadyLogged
-          ? "Log it again"
-          : "Log it"}
+        {busy ? "Saving…" : alreadyLogged ? "Log it again" : "Log it"}
       </button>
       {done && <p className="text-sm text-accent">Entry added.</p>}
       {error && <p className="text-danger">{error}</p>}

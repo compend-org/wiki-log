@@ -10,6 +10,7 @@ function valueAt(el: HTMLElement, clientX: number): number {
   return Math.max(1, Math.ceil(fraction * 10)) / 2;
 }
 
+// 0 means "no rating"
 export default function RatingInput({
   value,
   onChange,
@@ -27,6 +28,9 @@ export default function RatingInput({
     } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
       e.preventDefault();
       onChange(Math.max(0.5, value - 0.5));
+    } else if (e.key === "Backspace" || e.key === "Delete") {
+      e.preventDefault();
+      onChange(0);
     }
   }
 
@@ -35,7 +39,7 @@ export default function RatingInput({
       <div
         role="slider"
         tabIndex={0}
-        aria-label="Rating"
+        aria-label="Rating (optional)"
         aria-valuemin={0.5}
         aria-valuemax={5}
         aria-valuenow={value > 0 ? value : undefined}
@@ -52,6 +56,18 @@ export default function RatingInput({
       >
         <Stars rating={shown} track />
       </div>
+      <span className="min-w-8 text-sm text-muted">
+        {shown > 0 ? shown : "optional"}
+      </span>
+      {value > 0 && (
+        <button
+          type="button"
+          onClick={() => onChange(0)}
+          className="text-xs text-accent underline"
+        >
+          clear
+        </button>
+      )}
     </div>
   );
 }
