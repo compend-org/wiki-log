@@ -11,8 +11,8 @@ import SettingsIcon from "./SettingsIcon";
 import SearchIcon from "./SearchIcon";
 import DiaryIcon from "./DiaryIcon";
 import NotificationIcon from "./NotificationIcon";
-import SignInIcon from "./SignInIcon";
 import SignOutButton from "./SignOutButton";
+import SignInButton from "./SignInButton";
 import CraftIcon from "./CraftIcon";
 import { useLoginHref } from "@/lib/useLoginHref";
 import { FEATURES } from "@/lib/features";
@@ -162,7 +162,7 @@ export default function Nav() {
             title="Sign in"
             className={`flex ${tone("/login")}`}
           >
-            <SignInIcon />
+            <SignInButton />
           </Link>
         )}
       </div>

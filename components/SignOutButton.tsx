@@ -4,7 +4,17 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import SignOutIcon from "@/components/SignOutIcon";
 
-export default function SignOutButton({ className = "" }: { className?: string }) {
+// The caller chooses the display (for example "inline-flex" or
+// "hidden sm:inline-flex") and whether the words show at every size.
+export default function SignOutButton({
+  className = "",
+  labelClassName = "",
+  label = "Log out",
+}: {
+  className?: string;
+  labelClassName?: string;
+  label?: string;
+}) {
   const router = useRouter();
 
   async function handleSignOut() {
@@ -17,9 +27,12 @@ export default function SignOutButton({ className = "" }: { className?: string }
     <button
       type="button"
       onClick={handleSignOut}
-      className={`inline-flex items-center gap-1.5 text-accent underline hover:no-underline ${className}`}
+      aria-label={label}
+      title={label}
+      className={`items-center gap-1.5 text-accent hover:text-foreground ${className}`}
     >
       <SignOutIcon className="h-5 w-5" />
+      <span className={labelClassName}>{label}</span>
     </button>
   );
 }
