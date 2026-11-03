@@ -1,75 +1,53 @@
-"use client";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { TRENDING_LABEL } from "@/lib/site";
 
-import { useState, type ReactNode } from "react";
-
-type Tab = "following" | "everyone";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "everyone", label: "Everyone" },
-  { id: "following", label: "Following" },
-];
+type Tab = "following" | "everyone" | "trending";
 
 export default function FeedTabs({
-  initial,
-  following,
-  everyone,
+  active,
+  showTrending,
+  children,
 }: {
-  initial: Tab;
-  following: ReactNode;
-  everyone: ReactNode;
+  active: Tab;
+  showTrending: boolean;
+  // The feed for the active tab
+  children: ReactNode;
 }) {
-  const [active, setActive] = useState<Tab>(initial);
-
-  function choose(tab: Tab) {
-    setActive(tab);
-    // Keep the address in step without navigating anywhere
-    const url = new URL(window.location.href);
-    url.searchParams.set("tab", tab);
-    window.history.replaceState(null, "", url);
-  }
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "everyone", label: "Everyone" },
+    { id: "following", label: "Following" },
+    ...(showTrending
+      ? [{ id: "trending" as Tab, label: TRENDING_LABEL }]
+      : []),
+  ];
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 lg:max-w-none">
       <div
         role="tablist"
         aria-label="Feed"
-        className="flex border-b border-line lg:mx-auto lg:w-[calc(50%-0.75rem)]"
+        className="flex gap-2 lg:mx-auto lg:w-[calc(50%-0.75rem)]"
       >
-        {TABS.map((t) => (
-          <button
+        {tabs.map((t) => (
+          <Link
             key={t.id}
-            type="button"
+            href={`/?tab=${t.id}`}
+            replace
+            scroll={false}
             role="tab"
-            id={`feed-tab-${t.id}`}
             aria-selected={active === t.id}
-            aria-controls={`feed-panel-${t.id}`}
-            onClick={() => choose(t.id)}
-            className={`-mb-px flex-1 border-b-2 px-4 py-2 text-center ${active === t.id
-                ? "border-accent text-foreground"
-                : "border-transparent text-muted"
+            className={`flex-1 border-2 px-4 py-2 text-center no-underline hover:no-underline ${active === t.id
+                ? "border-dashed border-accent text-foreground"
+                : "border-transparent text-muted hover:border-line"
               }`}
           >
             {t.label}
-          </button>
+          </Link>
         ))}
       </div>
 
-      <div
-        role="tabpanel"
-        id="feed-panel-following"
-        aria-labelledby="feed-tab-following"
-        hidden={active !== "following"}
-      >
-        {following}
-      </div>
-      <div
-        role="tabpanel"
-        id="feed-panel-everyone"
-        aria-labelledby="feed-tab-everyone"
-        hidden={active !== "everyone"}
-      >
-        {everyone}
-      </div>
+      <div role="tabpanel">{children}</div>
     </div>
   );
 }

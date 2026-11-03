@@ -12,6 +12,8 @@ import { parseLimit } from "@/lib/paging";
 
 export const instant = false;
 
+type Tab = "following" | "everyone" | "trending";
+
 export default async function Home({
   searchParams,
 }: {
@@ -27,12 +29,14 @@ export default async function Home({
   const picks = FEATURES.dailyPicks ? await getDailyPicks() : null;
 
   // Signed-in visitors start on Following, signed-out ones on Everyone
-  const initialTab: "following" | "everyone" =
+  const active: Tab =
     tab === "following" || tab === "everyone"
       ? tab
+      : tab === "trending" && FEATURES.trending
+      ? "trending"
       : signedIn
-        ? "following"
-        : "everyone";
+      ? "following"
+      : "everyone";
   const feedLimit = parseLimit(limit);
 
   const loading = <p className="py-12 text-center text-muted">Loading…</p>;
@@ -43,12 +47,12 @@ export default async function Home({
           the search is between them. Below that, they form a row above it. */}
       <div className="grid grid-cols-2 items-start gap-4 xl:grid-cols-[1fr_minmax(0,42rem)_1fr] xl:gap-8">
         {picks && (
-          <div className=" xl:self-center order-1 w-full justify-self-start">
-            <PickSquare heading="Popular Today" pick={picks.popular} />
+          <div className="order-1 w-full justify-self-start">
+            <PickSquare heading="Popular · 24h" pick={picks.popular} />
           </div>
         )}
 
-        <div className="order-3 xl:self-center col-span-2 flex flex-col gap-8 xl:order-2 xl:col-span-1 xl:col-start-2">
+        <div className="order-3 col-span-2 flex flex-col gap-8 xl:order-2 xl:col-span-1 xl:col-start-2 xl:self-center">
           {!signedIn && (
             <p className="text-center text-sm">
               <Link
@@ -71,25 +75,19 @@ export default async function Home({
         </div>
 
         {picks && (
-          <div className=" xl:self-center order-2 flex w-full justify-end xl:order-3">
-            <PickSquare heading="Unpopular Today" pick={picks.unpopular} />
+          <div className="order-2 flex w-full justify-end xl:order-3">
+            <PickSquare heading="Unpopular · 24h" pick={picks.unpopular} />
           </div>
         )}
       </div>
 
-      <FeedTabs
-        initial={initialTab}
-        following={
-          <Suspense fallback={loading}>
-            <Feed mode="following" limit={feedLimit} />
-          </Suspense>
-        }
-        everyone={
-          <Suspense fallback={loading}>
-            <Feed mode="everyone" limit={feedLimit} />
-          </Suspense>
-        }
-      />
+      <FeedTabs active={active} showTrending={FEATURES.trending}>
+        {/* Only the tab being viewed is loaded. The key makes the loading
+            message appear straight away when you switch tabs. */}
+        <Suspense key={active} fallback={loading}>
+          <Feed mode={active} limit={feedLimit} />
+        </Suspense>
+      </FeedTabs>
     </main>
   );
 }

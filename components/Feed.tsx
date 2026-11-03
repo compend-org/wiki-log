@@ -4,8 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getLikedSet } from "@/lib/likes";
 import { commentLabel } from "@/lib/format";
 import { PAGE_SIZE } from "@/lib/paging";
+import { TRENDING_HOURS } from "@/lib/site";
 import {
     getPublicFeed,
+    getTrendingFeed,
     type ListRow,
     type LogRow,
     type Thumb,
@@ -18,7 +20,7 @@ import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
 import ListPreview from "@/components/ListPreview";
 
-type Mode = "following" | "everyone";
+type Mode = "following" | "everyone" | "trending";
 
 type PreviewRow = {
     list_id: string;
@@ -64,22 +66,14 @@ export default async function Feed({
     let errorMessage = "";
     let likedSet = new Set<string>();
     let likedLists = new Set<string>();
+    let scores: Record<string, number> = {};
     const previews = new Map<string, Thumb[]>();
 
-    if (mode === "everyone" || authorIds.length > 0) {
+    if (mode !== "following" || authorIds.length > 0) {
         let logs: LogRow[] = [];
         let lists: ListRow[] = [];
 
-        if (mode === "everyone") {
-            // The same for every visitor, so it is cached and shared
-            const pub = await getPublicFeed(limit);
-            logs = pub.logs;
-            lists = pub.lists;
-            errorMessage = pub.error;
-            for (const [id, thumbs] of Object.entries(pub.previews)) {
-                previews.set(id, thumbs);
-            }
-        } else {
+        if (mode === "following") {
             const [logsRes, listsRes] = await Promise.all([
                 supabase
                     .from("logs")
@@ -106,22 +100,44 @@ export default async function Feed({
             lists = ((listsRes.data ?? []) as unknown as ListRow[]).filter(
                 (l) => (l.list_items?.[0]?.count ?? 0) > 0
             );
+        } else {
+            // Everyone and Trending are the same for every visitor, so they are
+            // cached and shared. The viewer's own hearts are looked up below.
+            const pub =
+                mode === "trending"
+                    ? await getTrendingFeed(limit)
+                    : await getPublicFeed(limit);
+            logs = pub.logs;
+            lists = pub.lists;
+            scores = pub.scores;
+            errorMessage = pub.error;
+            for (const [id, thumbs] of Object.entries(pub.previews)) {
+                previews.set(id, thumbs);
+            }
         }
 
         // The newest `limit` of the combined list always sit within the newest
-        // `limit` of each, so merging and trimming is exact
+        // `limit` of each, so merging and trimming is exact. Trending goes by
+        // likes instead of by date.
+        const entryId = (e: Entry) => (e.kind === "log" ? e.log.id : e.list.id);
         const merged: Entry[] = [
             ...logs.map((log): Entry => ({ kind: "log", date: log.logged_at, log })),
             ...lists.map(
                 (list): Entry => ({ kind: "list", date: list.created_at, list })
             ),
-        ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        ].sort((a, b) => {
+            const byDate =
+                new Date(b.date).getTime() - new Date(a.date).getTime();
+            return mode === "trending"
+                ? (scores[entryId(b)] ?? 0) - (scores[entryId(a)] ?? 0) || byDate
+                : byDate;
+        });
 
         hasMore = merged.length > limit;
         entries = merged.slice(0, limit);
 
-        // The wide layout has a column for each kind, so each gets its own
-        // newest `limit`. A busy stream of reviews can't push every list out.
+        // The wide layout has a column for each kind, so each gets its own top
+        // `limit`. A busy stream of reviews can't push every list out.
         const shownLogs = logs.slice(0, limit);
         const shownLists = lists.slice(0, limit);
         reviewEntries = shownLogs.map(
@@ -138,7 +154,7 @@ export default async function Feed({
         if (shownLists.length > 0) {
             const ids = shownLists.map((l) => l.id);
 
-            // Everyone's previews came with the cached data
+            // Everyone's and Trending's previews came with the cached data
             if (mode === "following") {
                 const { data: previewData } = await supabase
                     .from("list_items")
@@ -353,13 +369,15 @@ export default async function Feed({
                     <p className="text-center text-muted">
                         {mode === "following"
                             ? "Nothing here yet. Log something, or follow people to see what they log."
+                            : mode === "trending"
+                            ? `Nothing has been liked in the last ${TRENDING_HOURS} hours.`
                             : "Nothing here yet."}
                     </p>
                 )}
 
             {entries.length > 0 && (
                 <>
-                    {/* Narrow screens: one column, reviews and lists in date order */}
+                    {/* Narrow screens: one column, reviews and lists together */}
                     <div className="@container flex flex-col gap-4 lg:hidden">
                         {entries.map(renderEntry)}
                     </div>

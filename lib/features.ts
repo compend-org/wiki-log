@@ -16,4 +16,6 @@ export const FEATURES = {
   compounds: flag(process.env.NEXT_PUBLIC_FEATURE_COMPOUNDS, false),
   // The "Popular" and "Unpopular" squares on the home page
   dailyPicks: flag(process.env.NEXT_PUBLIC_FEATURE_DAILY_PICKS, true),
+  // The Trending tab on the home page
+  trending: flag(process.env.NEXT_PUBLIC_FEATURE_TRENDING, true),
 };
