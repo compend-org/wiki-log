@@ -4,6 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import { getLikedSet } from "@/lib/likes";
 import { commentLabel } from "@/lib/format";
 import { PAGE_SIZE } from "@/lib/paging";
+import {
+    getPublicFeed,
+    type ListRow,
+    type LogRow,
+    type Thumb,
+} from "@/lib/feedData";
 import Avatar from "@/components/Avatar";
 import LikeButton from "@/components/LikeButton";
 import ListLikeButton from "@/components/ListLikeButton";
@@ -14,35 +20,10 @@ import ListPreview from "@/components/ListPreview";
 
 type Mode = "following" | "everyone";
 
-type LogRow = {
-    id: string;
-    user_id: string;
-    item_id: string;
-    rating: number | null;
-    review: string;
-    logged_at: string;
-    items: { title: string; image_url: string | null } | null;
-    profiles: { username: string; avatar_path: string | null } | null;
-    likes: { count: number }[];
-    comments: { count: number }[];
-};
-
-type ListRow = {
-    id: string;
-    user_id: string;
-    title: string;
-    ranked: boolean;
-    created_at: string;
-    profiles: { username: string; avatar_path: string | null } | null;
-    list_items: { count: number }[];
-    list_likes: { count: number }[];
-    list_comments: { count: number }[];
-};
-
 type PreviewRow = {
     list_id: string;
     position: number;
-    items: { title: string; image_url: string | null } | null;
+    items: Thumb | null;
 };
 
 type Entry =
@@ -83,40 +64,49 @@ export default async function Feed({
     let errorMessage = "";
     let likedSet = new Set<string>();
     let likedLists = new Set<string>();
-    const previews = new Map<
-        string,
-        { title: string; image_url: string | null }[]
-    >();
+    const previews = new Map<string, Thumb[]>();
 
     if (mode === "everyone" || authorIds.length > 0) {
-        let logQuery = supabase
-            .from("logs")
-            .select(
-                "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count)"
-            )
-            .order("logged_at", { ascending: false })
-            .limit(limit + 1);
-        let listQuery = supabase
-            .from("lists")
-            .select(
-                "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count)"
-            )
-            .order("created_at", { ascending: false })
-            .limit(limit + 1);
-        if (mode === "following") {
-            logQuery = logQuery.in("user_id", authorIds);
-            listQuery = listQuery.in("user_id", authorIds);
+        let logs: LogRow[] = [];
+        let lists: ListRow[] = [];
+
+        if (mode === "everyone") {
+            // The same for every visitor, so it is cached and shared
+            const pub = await getPublicFeed(limit);
+            logs = pub.logs;
+            lists = pub.lists;
+            errorMessage = pub.error;
+            for (const [id, thumbs] of Object.entries(pub.previews)) {
+                previews.set(id, thumbs);
+            }
+        } else {
+            const [logsRes, listsRes] = await Promise.all([
+                supabase
+                    .from("logs")
+                    .select(
+                        "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count)"
+                    )
+                    .in("user_id", authorIds)
+                    .order("logged_at", { ascending: false })
+                    .limit(limit + 1),
+                supabase
+                    .from("lists")
+                    .select(
+                        "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count)"
+                    )
+                    .in("user_id", authorIds)
+                    .order("created_at", { ascending: false })
+                    .limit(limit + 1),
+            ]);
+            if (logsRes.error) errorMessage = logsRes.error.message;
+            else if (listsRes.error) errorMessage = listsRes.error.message;
+
+            logs = (logsRes.data ?? []) as unknown as LogRow[];
+            // Empty lists stay out of the feed until they have something in them
+            lists = ((listsRes.data ?? []) as unknown as ListRow[]).filter(
+                (l) => (l.list_items?.[0]?.count ?? 0) > 0
+            );
         }
-
-        const [logsRes, listsRes] = await Promise.all([logQuery, listQuery]);
-        if (logsRes.error) errorMessage = logsRes.error.message;
-        else if (listsRes.error) errorMessage = listsRes.error.message;
-
-        const logs = (logsRes.data ?? []) as unknown as LogRow[];
-        // Empty lists stay out of the feed until they have something in them
-        const lists = ((listsRes.data ?? []) as unknown as ListRow[]).filter(
-            (l) => (l.list_items?.[0]?.count ?? 0) > 0
-        );
 
         // The newest `limit` of the combined list always sit within the newest
         // `limit` of each, so merging and trimming is exact
@@ -141,24 +131,29 @@ export default async function Feed({
             (list): Entry => ({ kind: "list", date: list.created_at, list })
         );
 
+        // Which of these the viewer has liked: different for each person, so
+        // never cached
         likedSet = await getLikedSet(supabase, viewerId, shownLogs);
 
         if (shownLists.length > 0) {
             const ids = shownLists.map((l) => l.id);
 
-            const { data: previewData } = await supabase
-                .from("list_items")
-                .select("list_id, position, items(title, image_url)")
-                .in("list_id", ids)
-                .lte("position", 12)
-                .order("position");
-            for (const row of (previewData ?? []) as unknown as PreviewRow[]) {
-                const arr = previews.get(row.list_id) ?? [];
-                arr.push({
-                    title: row.items?.title ?? "Unknown item",
-                    image_url: row.items?.image_url ?? null,
-                });
-                previews.set(row.list_id, arr);
+            // Everyone's previews came with the cached data
+            if (mode === "following") {
+                const { data: previewData } = await supabase
+                    .from("list_items")
+                    .select("list_id, position, items(title, image_url)")
+                    .in("list_id", ids)
+                    .lte("position", 12)
+                    .order("position");
+                for (const row of (previewData ?? []) as unknown as PreviewRow[]) {
+                    const arr = previews.get(row.list_id) ?? [];
+                    arr.push({
+                        title: row.items?.title ?? "Unknown item",
+                        image_url: row.items?.image_url ?? null,
+                    });
+                    previews.set(row.list_id, arr);
+                }
             }
 
             if (viewerId) {
