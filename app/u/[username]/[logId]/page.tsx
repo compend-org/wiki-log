@@ -159,17 +159,17 @@ export default async function ReviewPage({
         {log.review && <p className="whitespace-pre-wrap">{log.review}</p>}
 
       </article>
-      {log.review && (
-        <div>
-          <LikeButton
-            viewerId={viewerId ?? null}
-            authorId={log.user_id}
-            logId={log.id}
-            initialCount={log.likes?.[0]?.count ?? 0}
-            initiallyLiked={likedSet.has(log.id)}
-          />
-        </div>
-      )}
+
+      <div>
+        <LikeButton
+          viewerId={viewerId ?? null}
+          authorId={log.user_id}
+          logId={log.id}
+          initialCount={log.likes?.[0]?.count ?? 0}
+          initiallyLiked={likedSet.has(log.id)}
+        />
+      </div>
+
       <AlsoLiked
         likes={alsoLiked.get(likeKey(log.user_id, log.item_id)) ?? []}
       />

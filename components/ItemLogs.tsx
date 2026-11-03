@@ -54,7 +54,7 @@ export default async function ItemLogs({
   // The most-liked reviews: written ones with at least one like, most likes
   // first, newer first when tied
   const popular = rows
-    .filter((r) => r.review.trim() !== "" && likeCount(r) > 0)
+    .filter((r) => likeCount(r) > 0)
     .sort(
       (a, b) =>
         likeCount(b) - likeCount(a) ||
