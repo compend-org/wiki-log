@@ -150,3 +150,9 @@ body {
 :root[data-theme="dark"] .avi-dark {
   display: inline-block;
 }
+
+/* Pictures with transparent backgrounds are hard to see on a dark page, so
+   in dark mode they sit on a light panel */
+:root[data-theme="dark"] .item-img {
+  background-color: var(--color-foreground);
+}

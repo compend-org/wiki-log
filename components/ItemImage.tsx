@@ -106,7 +106,6 @@ export default function ItemImage({
       src={thumbUrl(src)}
       alt={alt}
       draggable={false}
-      className={`object-cover ${className}`}
-    />
+      className={`item-img object-cover [[data-theme=dark]_&]:bg-foreground ${className}`} />
   );
 }

@@ -203,7 +203,7 @@ export default function ItemPicker({
                                             <img
                                                 src={hit.imageUrl}
                                                 alt=""
-                                                className="h-10 w-10 shrink-0 object-cover"
+                                                className="item-img h-10 w-10 shrink-0 object-cover [[data-theme=dark]_&]:bg-foreground"
                                             />
                                         ) : (
                                             <div className="h-10 w-10 shrink-0 bg-line/50" />
