@@ -62,7 +62,7 @@ export default async function ProfilePage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, avatar_path")
+    .select("id, username, avatar_path, bio")
     .ilike("username", escapeLike(name))
     .maybeSingle();
   if (!profile) notFound();
@@ -157,6 +157,10 @@ export default async function ProfilePage({
           {followers} {followers === 1 ? "follower" : "followers"} · {following}{" "}
           following · {logs.length} {logs.length === 1 ? "log" : "logs"}
         </p>
+        {profile.bio && (
+          <p className="mt-2 max-w-prose whitespace-pre-wrap break-words">
+            {profile.bio}
+          </p>)}
         <div className="mt-2">
           {!viewerId ? (
             <Link href={loginHref(profileHref)} className="underline">
@@ -189,14 +193,14 @@ export default async function ProfilePage({
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
               Lists
             </h2>
-            {isOwner && (
+            {/* {isOwner && (
               <Link href="/list/new" className="text-sm underline">
                 New list
               </Link>
-            )}
+            )} */}
           </div>
           {lists.length === 0 && (
-            <p className="text-sm text-muted">No lists yet.</p>
+            <p className="text-muted">No lists yet.</p>
           )}
           {lists.map((l) => {
             const count = l.list_items?.[0]?.count ?? 0;
@@ -231,7 +235,9 @@ export default async function ProfilePage({
           })}
         </section>
       )}
-
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+        Reviews
+      </h2>
       {logs.length > 0 && (
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
           Reviews

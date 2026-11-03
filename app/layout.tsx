@@ -5,6 +5,7 @@ import Nav from "@/components/Nav";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 import { themeInitScript } from "@/lib/theme";
 import "flag-icons/css/flag-icons.min.css";
+import Footer from "@/components/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,7 +41,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <Nav />
         {children}
+        <Footer />
       </body>
-    </html>
+
+
+    </html >
   );
 }
