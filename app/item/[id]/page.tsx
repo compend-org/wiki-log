@@ -130,7 +130,7 @@ export default async function ItemPage({
             <img
               src={item.imageUrl}
               alt={item.title}
-              className="item-img h-auto w-auto max-w-full [[data-theme=dark]_&]:bg-foreground"
+              className="item-img h-auto w-auto max-w-full border-2 border-dashed border-line bg-clip-padding [[data-theme=dark]_&]:bg-foreground"
             />
             <figcaption className="text-center text-xs text-muted">
               {item.imageNonFree ? (

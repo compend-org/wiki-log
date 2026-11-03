@@ -61,13 +61,16 @@ export default async function Feed({
     const { data: claimsData } = await supabase.auth.getClaims();
     const viewerId: string | undefined = claimsData?.claims?.sub;
 
-    let followingIds: string[] = [];
+    let followedCount = 0;
+    let authorIds: string[] = [];
     if (mode === "following" && viewerId) {
         const { data: followRows } = await supabase
             .from("follows")
             .select("following_id")
             .eq("follower_id", viewerId);
-        followingIds = (followRows ?? []).map((r) => r.following_id);
+        const followed = (followRows ?? []).map((r) => r.following_id as string);
+        followedCount = followed.length;
+        authorIds = [...new Set([...followed, viewerId])];
     }
 
     let entries: Entry[] = [];
@@ -80,7 +83,7 @@ export default async function Feed({
         { title: string; image_url: string | null }[]
     >();
 
-    if (mode === "everyone" || followingIds.length > 0) {
+    if (mode === "everyone" || authorIds.length > 0) {
         let logQuery = supabase
             .from("logs")
             .select(
@@ -96,10 +99,9 @@ export default async function Feed({
             .order("created_at", { ascending: false })
             .limit(limit + 1);
         if (mode === "following") {
-            logQuery = logQuery.in("user_id", followingIds);
-            listQuery = listQuery.in("user_id", followingIds);
+            logQuery = logQuery.in("user_id", authorIds);
+            listQuery = listQuery.in("user_id", authorIds);
         }
-
         const [logsRes, listsRes] = await Promise.all([logQuery, listQuery]);
         if (logsRes.error) errorMessage = logsRes.error.message;
         else if (listsRes.error) errorMessage = listsRes.error.message;
@@ -160,7 +162,7 @@ export default async function Feed({
 
     const needsSignIn = mode === "following" && !viewerId;
     const noFollows =
-        mode === "following" && Boolean(viewerId) && followingIds.length === 0;
+        mode === "following" && Boolean(viewerId) && followedCount === 0;
 
     // The two kinds of card. Their layout follows the width of the column they
     // sit in (the "@xl:" variants), not the width of the screen.
@@ -338,12 +340,11 @@ export default async function Feed({
                 </p>
             )}
 
-            {noFollows && (
-                <p className="text-center text-muted">
-                    You&apos;re not following anyone yet. Use the people icon at the top
-                    of the screen to search users.
-                </p>
-            )}
+            <p className="text-center text-muted">
+                {mode === "following"
+                    ? "Nothing here yet. Log something, or follow people to see what they log."
+                    : "Nothing here yet."}
+            </p>
 
             {errorMessage && <p className="text-danger">{errorMessage}</p>}
 
