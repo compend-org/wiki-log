@@ -221,7 +221,11 @@ export default async function Feed({
                 </span>
                 <span className="font-semibold">{l.title}</span>
                 {preview.length > 0 && (
-                    <ListPreview thumbs={preview} total={itemCount} />
+                    <ListPreview
+                        thumbs={preview}
+                        total={itemCount}
+                        href={`/list/${l.id}`}
+                    />
                 )}
                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
                     <span>
