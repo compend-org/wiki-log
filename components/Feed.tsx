@@ -77,6 +77,8 @@ export default async function Feed({
     }
 
     let entries: Entry[] = [];
+    let reviewEntries: Entry[] = [];
+    let listEntries: Entry[] = [];
     let hasMore = false;
     let errorMessage = "";
     let likedSet = new Set<string>();
@@ -128,9 +130,15 @@ export default async function Feed({
         hasMore = merged.length > limit;
         entries = merged.slice(0, limit);
 
-        const shownLogs = entries.flatMap((e) => (e.kind === "log" ? [e.log] : []));
-        const shownLists = entries.flatMap((e) =>
-            e.kind === "list" ? [e.list] : []
+        // The wide layout has a column for each kind, so each gets its own
+        // newest `limit`. A busy stream of reviews can't push every list out.
+        const shownLogs = logs.slice(0, limit);
+        const shownLists = lists.slice(0, limit);
+        reviewEntries = shownLogs.map(
+            (log): Entry => ({ kind: "log", date: log.logged_at, log })
+        );
+        listEntries = shownLists.map(
+            (list): Entry => ({ kind: "list", date: list.created_at, list })
         );
 
         likedSet = await getLikedSet(supabase, viewerId, shownLogs);
@@ -318,9 +326,6 @@ export default async function Feed({
 
     const renderEntry = (entry: Entry) =>
         entry.kind === "log" ? renderLog(entry.log) : renderList(entry.list);
-
-    const reviewEntries = entries.filter((e) => e.kind === "log");
-    const listEntries = entries.filter((e) => e.kind === "list");
 
     return (
         <section className="flex flex-col gap-4">
