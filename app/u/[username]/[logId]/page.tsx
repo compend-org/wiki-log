@@ -13,6 +13,8 @@ import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
 import OwnerControls from "@/components/OwnerControls";
+import { isAdmin } from "@/lib/admin";
+import AdminBadge from "@/components/AdminBadge";
 
 export const instant = false;
 
@@ -159,6 +161,7 @@ export default async function ReviewPage({
             />
             {profile.username}
           </Link>
+          {isAdmin(log.user_id) && <AdminBadge />}
           <span>· {log.logged_at.slice(0, 10)}</span>
 
         </p>

@@ -19,6 +19,8 @@ import LoadMore from "@/components/LoadMore";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
 import ListPreview from "@/components/ListPreview";
+import AdminBadge from "./AdminBadge";
+import { isAdmin } from "@/lib/admin";
 
 type Mode = "following" | "everyone" | "trending";
 
@@ -217,6 +219,7 @@ export default async function Feed({
                     ) : (
                         <span>Someone</span>
                     )}
+                    {isAdmin(l.user_id) && <AdminBadge />}
                     <span>made a {l.ranked ? "ranked " : ""}list</span>
                 </span>
                 <span className="font-semibold">{l.title}</span>
@@ -300,6 +303,7 @@ export default async function Feed({
                         ) : (
                             <span>Someone</span>
                         )}
+                        {isAdmin(row.user_id) && <AdminBadge />}
                         <span>logged</span>
                     </span>
                     <Link

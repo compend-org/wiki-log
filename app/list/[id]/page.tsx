@@ -7,6 +7,8 @@ import ItemImage from "@/components/ItemImage";
 import ListLikeButton from "@/components/ListLikeButton";
 import Comments, { type CommentItem } from "@/components/Comments";
 import Stars from "@/components/Stars";
+import AdminBadge from "@/components/AdminBadge";
+import { isAdmin } from "@/lib/admin";
 
 export const instant = false;
 
@@ -150,7 +152,12 @@ export default async function ListPage({
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold">{list.title}</h1>
         <p className="text-sm text-muted">
-          A {list.ranked ? "ranked " : ""}list by{" "}
+          A {list.ranked ? "ranked " : ""}list by {isAdmin(list.user_id) && (
+            <>
+              {" "}
+              <AdminBadge />
+            </>
+          )}{" "}
           {owner ? (
             <Link
               href={`/u/${encodeURIComponent(owner)}`}
