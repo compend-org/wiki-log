@@ -27,8 +27,7 @@ export default function GuidePage() {
                 4,000 times over the course of a decade. The Diarist, holidaying in
                 Italy, crouches over a Lenovo Trackpad to give Italy 3-and-a-half
                 stars. Perhaps a meandering journal entry is written. One could imagine
-                the Diarist recursively shortening a moment, attempting to ‘log’
-                everything in it and never quite getting it all.
+                the Diarist combing through a recursively shortened moment, never quite managing to log everything in it.
             </p>
 
             <p>
