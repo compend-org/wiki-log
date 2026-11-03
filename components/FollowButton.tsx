@@ -52,7 +52,7 @@ export default function FollowButton({
                         : "rounded-lg bg-accent px-4 py-2 text-background disabled:opacity-40"
                 }
             >
-                {following ? "Following ✓" : "Follow"}
+                {following ? "Following " : "Follow"}
             </button>
             {error && <p className="text-sm text-danger">{error}</p>}
         </div>

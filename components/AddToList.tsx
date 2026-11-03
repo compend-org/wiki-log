@@ -329,10 +329,9 @@ export default function AddToList({
                   <span className="font-semibold">{l.title}</span>
                   <span className="shrink-0 text-xs text-muted">
                     {l.has
-                      ? "✓ In this list"
-                      : `${l.ranked ? "Ranked · " : ""}${l.count} ${
-                          l.count === 1 ? "item" : "items"
-                        }`}
+                      ? " In this list"
+                      : `${l.ranked ? "Ranked · " : ""}${l.count} ${l.count === 1 ? "item" : "items"
+                      }`}
                   </span>
                 </button>
               ))}
