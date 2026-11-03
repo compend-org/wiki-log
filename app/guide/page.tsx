@@ -16,7 +16,7 @@ export default function GuidePage() {
             <p>
                 That’s about the only gentle suggestion I can think of. This is of
                 little importance to you, but I designed this site with two obsessive
-                user-archetypes in mind, namely that of the Diarist and of the
+                user-archetypes in mind, namely those of the Diarist and of the
                 Codifier.
             </p>
 
