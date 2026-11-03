@@ -28,6 +28,13 @@ export function shortLabel(title: string, max = 32): string {
   return `${base.trimEnd()}…`;
 }
 
+// The first letter or digit of a title, capitalised. A title with neither is
+// returned without its parentheticals.
+export function firstLetter(title: string): string {
+  const text = cleanTitle(title);
+  return text.match(/[\p{L}\p{N}]/u)?.[0].toUpperCase() ?? text;
+}
+
 // A smaller version of a Wikimedia thumbnail address, for small boxes. Other
 // addresses are returned unchanged.
 export function thumbUrl(url: string, width = 330): string {
