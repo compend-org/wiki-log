@@ -234,7 +234,9 @@ export default async function ItemPage({
       )}
 
       <AddToList itemId={id} title={item.title} imageUrl={item.imageUrl} />
-      <LogForm id={id} alreadyLogged={myEntries.length > 0} />
+      <div id="log" className="scroll-mt-4">
+        <LogForm id={id} alreadyLogged={myEntries.length > 0} />
+      </div>
       <MyEntries entries={myEntries} />
       <ItemLogs itemId={id} limit={parseLimit(limit)} />
     </main>

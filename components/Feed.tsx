@@ -209,7 +209,7 @@ export default async function Feed({
                     {author ? (
                         <Link
                             href={`/u/${encodeURIComponent(author)}`}
-                            className="relative z-10 inline-flex items-center gap-1.5 underline"
+                            className="relative z-10 inline-flex items-center gap-1.5 hover:underline"
                         >
                             <Avatar name={author} path={avatarPath} size={16} />
                             {author}
@@ -243,7 +243,7 @@ export default async function Feed({
                     </span>
                     <Link
                         href={`/list/${l.id}#comments`}
-                        className="relative z-10 underline"
+                        className="relative z-10 hover:underline"
                     >
                         {commentLabel(l.list_comments?.[0]?.count ?? 0)}
                     </Link>
@@ -292,7 +292,7 @@ export default async function Feed({
                         {author ? (
                             <Link
                                 href={`/u/${encodeURIComponent(author)}`}
-                                className="relative z-10 inline-flex items-center gap-1.5 underline"
+                                className="relative z-10 inline-flex items-center gap-1.5 hover:underline"
                             >
                                 <Avatar name={author} path={avatarPath} size={16} />
                                 {author}
@@ -323,10 +323,17 @@ export default async function Feed({
                         </span>
 
                         {reviewHref && (
-                            <Link href={reviewHref} className="relative z-10 underline">
+                            <Link href={reviewHref} className="relative z-10 hover:underline">
                                 {commentLabel(row.comments?.[0]?.count ?? 0)}
                             </Link>
                         )}
+
+                        <Link
+                            href={`/item/${row.item_id}#log`}
+                            className="relative z-10 hover:underline"
+                        >
+                            Log
+                        </Link>
                     </div>
                 </div>
 
@@ -374,8 +381,8 @@ export default async function Feed({
                         {mode === "following"
                             ? "Nothing here yet. Log something, or follow people to see what they log."
                             : mode === "trending"
-                            ? `Nothing has been liked in the last ${TRENDING_HOURS} hours.`
-                            : "Nothing here yet."}
+                                ? `Nothing has been liked in the last ${TRENDING_HOURS} hours.`
+                                : "Nothing here yet."}
                     </p>
                 )}
 
