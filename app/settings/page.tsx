@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
-import DeleteAccount from "@/components/DeleteAccount";
-import AvatarUpload from "@/components/AvatarUpload";
-import ThemeSetting from "@/components/ThemeSetting";
 import { useLoginHref } from "@/lib/useLoginHref";
+import AvatarUpload from "@/components/AvatarUpload";
 import BioEditor from "@/components/BioEditor";
+import ThemeSetting from "@/components/ThemeSetting";
+import DeleteAccount from "@/components/DeleteAccount";
 
 export default function SettingsPage() {
   const loginHref = useLoginHref();
@@ -46,7 +46,7 @@ export default function SettingsPage() {
 
     const name = cleanName(username);
     if (!isValidName(name)) {
-      setMessage(`Names are ${NAME_RULES}.`);
+      setMessage(`Usernames are ${NAME_RULES}.`);
       return;
     }
 
@@ -60,13 +60,15 @@ export default function SettingsPage() {
 
     if (error) {
       setMessage(
-        error.code === "23505" ? "That name is taken." : error.message
+        error.code === "23505" ? "That username is taken." : error.message
       );
       return;
     }
     setUsername(name);
     setSavedUsername(name);
     setMessage("Saved.");
+    // Tells the top bar to pick up the new username
+    window.dispatchEvent(new Event("profile-updated"));
   }
 
   if (!loaded) return <main className="p-8 text-muted">Loading…</main>;
@@ -82,29 +84,31 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-sm flex-1 flex-col gap-4 p-4 sm:p-8">
+    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-4 p-4 sm:p-8">
       <h1 className="text-3xl font-bold">Profile settings</h1>
+      <p className="text-sm text-muted">
+        Your username, bio, picture and logs are public. You can also sign in
+        with your username.
+      </p>
+
       <AvatarUpload />
       <BioEditor />
-      <ThemeSetting />
-      <p className="text-sm text-muted">
-        Your name and logs are public. You can also sign in with your name.
-      </p>
+
       <form onSubmit={handleSave} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1 text-sm">
-          Name
+          Username
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"
+            className="border border-line bg-surface px-4 py-2 text-foreground"
           />
         </label>
         <button
           type="submit"
           disabled={busy}
-          className="rounded-lg bg-accent px-4 py-2 text-background disabled:opacity-40"
+          className="bg-accent px-4 py-2 text-background disabled:opacity-40"
         >
-          {busy ? "Saving…" : "Save"}
+          {busy ? "Saving…" : "Save username"}
         </button>
       </form>
       {message && <p className="text-sm">{message}</p>}
@@ -116,6 +120,9 @@ export default function SettingsPage() {
           View your public profile
         </Link>
       )}
+
+      <ThemeSetting />
+
       {savedUsername && <DeleteAccount username={savedUsername} />}
     </main>
   );
