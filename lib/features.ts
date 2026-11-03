@@ -13,7 +13,7 @@ function flag(value: string | undefined, fallback: boolean): boolean {
 
 export const FEATURES = {
   // Crafting compounds (the Craft page and its search results)
-  compounds: flag(process.env.NEXT_PUBLIC_FEATURE_COMPOUNDS, true),
+  compounds: flag(process.env.NEXT_PUBLIC_FEATURE_COMPOUNDS, false),
   // The "Popular" and "Unpopular" squares on the home page
   dailyPicks: flag(process.env.NEXT_PUBLIC_FEATURE_DAILY_PICKS, true),
 };
