@@ -3,98 +3,334 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { readLogs, deleteLog, type Log } from "@/lib/logs";
+import { useLoginHref } from "@/lib/useLoginHref";
+import { PAGE_SIZE } from "@/lib/paging";
+import DeleteIcon from "@/components/DeleteIcon";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
-import { useLoginHref } from "@/lib/useLoginHref";
-import DeleteIcon from "@/components/DeleteIcon";
+
+type Thumb = { title: string; imageUrl: string | null };
+
+type LogEntry = {
+  kind: "log";
+  id: string;
+  date: string;
+  itemId: string;
+  title: string;
+  imageUrl: string | null;
+  rating: number | null;
+  review: string;
+};
+
+type ListEntry = {
+  kind: "list";
+  id: string;
+  date: string;
+  title: string;
+  ranked: boolean;
+  count: number;
+  previews: Thumb[];
+};
+
+type Entry = LogEntry | ListEntry;
+
+type LogRow = {
+  id: string;
+  item_id: string;
+  rating: number | null;
+  review: string;
+  logged_at: string;
+  items: { title: string; image_url: string | null } | null;
+};
+
+type ListRow = {
+  id: string;
+  title: string;
+  ranked: boolean;
+  created_at: string;
+  list_items: { count: number }[];
+};
+
+type PreviewRow = {
+  list_id: string;
+  position: number;
+  items: { title: string; image_url: string | null } | null;
+};
 
 export default function DiaryPage() {
   const loginHref = useLoginHref();
-  const [logs, setLogs] = useState<Log[]>([]);
+  const [ready, setReady] = useState<boolean>(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const [limit, setLimit] = useState<number>(PAGE_SIZE);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [hasMore, setHasMore] = useState<boolean>(false);
   const [loaded, setLoaded] = useState<boolean>(false);
-  const [signedIn, setSignedIn] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
 
+  // Who is signed in, and their username (for links to their entries)
   useEffect(() => {
-    async function load() {
-      const { data } = await createClient().auth.getUser();
+    async function loadUser() {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
       if (data.user) {
-        setSignedIn(true);
-        setLogs(await readLogs(data.user.id));
-      } else {
-        setSignedIn(false);
-        setLogs([]);
+        setUserId(data.user.id);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", data.user.id)
+          .maybeSingle();
+        setUsername(profile?.username ?? null);
       }
+      setReady(true);
+    }
+    loadUser();
+  }, []);
+
+  // Their logs and lists, newest first
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+
+    async function load() {
+      const supabase = createClient();
+
+      const [logsRes, listsRes] = await Promise.all([
+        supabase
+          .from("logs")
+          .select(
+            "id, item_id, rating, review, logged_at, items(title, image_url)"
+          )
+          .eq("user_id", userId)
+          .order("logged_at", { ascending: false })
+          .limit(limit + 1),
+        supabase
+          .from("lists")
+          .select("id, title, ranked, created_at, list_items(count)")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(limit + 1),
+      ]);
+      if (cancelled) return;
+
+      if (logsRes.error || listsRes.error) {
+        setError(logsRes.error?.message ?? listsRes.error?.message ?? "");
+        setLoaded(true);
+        return;
+      }
+
+      const logs = (logsRes.data ?? []) as unknown as LogRow[];
+      const lists = (listsRes.data ?? []) as unknown as ListRow[];
+
+      const logEntries: LogEntry[] = logs.map((l) => ({
+        kind: "log",
+        id: l.id,
+        date: l.logged_at,
+        itemId: l.item_id,
+        title: l.items?.title ?? "Unknown item",
+        imageUrl: l.items?.image_url ?? null,
+        rating: l.rating === null ? null : Number(l.rating),
+        review: l.review,
+      }));
+
+      const listEntries: ListEntry[] = lists.map((l) => ({
+        kind: "list",
+        id: l.id,
+        date: l.created_at,
+        title: l.title,
+        ranked: l.ranked,
+        count: l.list_items?.[0]?.count ?? 0,
+        previews: [],
+      }));
+
+      // The newest `limit` of the combined list always sit within the newest
+      // `limit` of each, so merging and trimming is exact
+      const merged: Entry[] = [...logEntries, ...listEntries].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      const shown = merged.slice(0, limit);
+
+      // A few pictures from each list that is on screen
+      const shownLists = shown.filter(
+        (e): e is ListEntry => e.kind === "list"
+      );
+      if (shownLists.length > 0) {
+        const { data: previewData } = await supabase
+          .from("list_items")
+          .select("list_id, position, items(title, image_url)")
+          .in(
+            "list_id",
+            shownLists.map((l) => l.id)
+          )
+          .lte("position", 4)
+          .order("position");
+        if (cancelled) return;
+
+        const byList = new Map<string, Thumb[]>();
+        for (const row of (previewData ?? []) as unknown as PreviewRow[]) {
+          const arr = byList.get(row.list_id) ?? [];
+          arr.push({
+            title: row.items?.title ?? "Unknown item",
+            imageUrl: row.items?.image_url ?? null,
+          });
+          byList.set(row.list_id, arr);
+        }
+        for (const l of shownLists) {
+          l.previews = (byList.get(l.id) ?? []).slice(0, 4);
+        }
+      }
+
+      setEntries(shown);
+      setHasMore(merged.length > limit);
       setLoaded(true);
     }
 
     load();
-
-    function handleVisible() {
-      if (document.visibilityState === "visible") load();
-    }
-    document.addEventListener("visibilitychange", handleVisible);
-    window.addEventListener("focus", load);
     return () => {
-      document.removeEventListener("visibilitychange", handleVisible);
-      window.removeEventListener("focus", load);
+      cancelled = true;
     };
-  }, []);
+  }, [userId, limit]);
 
   async function handleDelete(id: string) {
-    if (!window.confirm("Delete this entry, with its likes and comments?")) {
-      return;
-    }
-    const error = await deleteLog(id);
+    if (!window.confirm("Delete this entry?")) return;
+    const { error } = await createClient().from("logs").delete().eq("id", id);
     if (error) {
-      window.alert(error);
+      setError(error.message);
       return;
     }
-    setLogs((prev) => prev.filter((log) => log.id !== id));
+    setEntries((prev) => prev.filter((e) => !(e.kind === "log" && e.id === id)));
+  }
+
+  if (!ready) {
+    return <main className="p-8 text-center text-muted">Loading…</main>;
+  }
+
+  if (!userId) {
+    return (
+      <main className="p-8 text-center">
+        <Link href={loginHref} className="underline">
+          Sign in to see your diary
+        </Link>
+      </main>
+    );
   }
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
       <h1 className="text-3xl font-bold">Diary</h1>
 
-      {loaded && !signedIn && (
-        <Link href={loginHref} className="underline">
-          Sign in to see your diary
-        </Link>
+      {error && <p className="text-danger">{error}</p>}
+
+      {!loaded && <p className="py-8 text-center text-muted">Loading…</p>}
+
+      {loaded && !error && entries.length === 0 && (
+        <p className="py-8 text-center text-muted">
+          Nothing here yet. Log something, or make a list.
+        </p>
       )}
 
-      {loaded && signedIn && logs.length === 0 && (
-        <p className="text-muted">Nothing logged yet.</p>
-      )}
+      <ul className="flex flex-col gap-3">
+        {entries.map((e) => {
+          const date = new Date(e.date).toLocaleDateString();
 
-      {logs.map((log) => (
-        <div key={log.id} className="card flex items-start gap-2 p-3">
-          <Link href={`/item/${log.itemId}`} className="flex flex-1 gap-4">
-            <ItemImage
-              src={log.imageUrl}
-              alt={log.title}
-              className="h-20 w-20 shrink-0 rounded"
-            />
-            <div className="flex min-w-0 flex-col gap-1">
-              <span className="font-semibold">{log.title}</span>
-              <Stars rating={log.rating} />
-              {log.review && <p className="text-sm">{log.review}</p>}
-              <span className="text-xs text-muted">
-                {new Date(log.loggedAt).toLocaleDateString()}
-              </span>
-            </div>
-          </Link>
-          <button
-            type="button"
-            onClick={() => handleDelete(log.id)}
-            aria-label="Delete this entry"
-            title="Delete this entry"
-            className="flex shrink-0 p-1 text-danger hover:opacity-70"
-          >
-            <DeleteIcon />
-          </button>
-        </div>
-      ))}
+          if (e.kind === "list") {
+            return (
+              <li
+                key={`list-${e.id}`}
+                className="card flex flex-col gap-2 p-3"
+              >
+                <div className="flex items-baseline justify-between gap-3 text-xs text-muted">
+                  <span>
+                    {date} · You made a {e.ranked ? "ranked " : ""}list
+                  </span>
+                  <Link href={`/list/${e.id}/edit`} className="underline">
+                    Edit
+                  </Link>
+                </div>
+                <Link
+                  href={`/list/${e.id}`}
+                  className="w-fit font-semibold underline"
+                >
+                  {e.title}
+                </Link>
+                {e.previews.length > 0 && (
+                  <div className="flex gap-1">
+                    {e.previews.map((p, i) => (
+                      <ItemImage
+                        key={i}
+                        src={p.imageUrl}
+                        alt={p.title}
+                        className="h-14 w-14 rounded"
+                      />
+                    ))}
+                  </div>
+                )}
+                <span className="text-xs text-muted">
+                  {e.count} {e.count === 1 ? "item" : "items"}
+                </span>
+              </li>
+            );
+          }
+
+          const entryHref = username
+            ? `/u/${encodeURIComponent(username)}/${e.id}`
+            : null;
+
+          return (
+            <li key={`log-${e.id}`} className="card flex items-center gap-3 p-3">
+              <Link href={`/item/${e.itemId}`} className="shrink-0">
+                <ItemImage
+                  src={e.imageUrl}
+                  alt={e.title}
+                  className="h-16 w-16 rounded"
+                />
+              </Link>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="text-xs text-muted">
+                  {entryHref ? (
+                    <Link href={entryHref} className="underline">
+                      {date}
+                    </Link>
+                  ) : (
+                    date
+                  )}
+                </span>
+                <Link
+                  href={`/item/${e.itemId}`}
+                  className="w-fit font-semibold"
+                >
+                  {e.title}
+                </Link>
+                <Stars rating={e.rating} />
+                {e.review && (
+                  <p className="line-clamp-2 whitespace-pre-wrap break-words text-sm">
+                    {e.review}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => handleDelete(e.id)}
+                aria-label="Delete this entry"
+                title="Delete this entry"
+                className="flex shrink-0 p-1 text-danger hover:opacity-70"
+              >
+                <DeleteIcon />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setLimit((l) => l + PAGE_SIZE)}
+          className="self-center border border-line px-4 py-2 text-sm text-accent hover:border-accent"
+        >
+          Load more
+        </button>
+      )}
     </main>
   );
 }
