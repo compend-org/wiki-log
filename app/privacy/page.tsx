@@ -7,7 +7,7 @@ export default function PrivacyPage() {
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
       <h1 className="text-3xl font-bold">Privacy</h1>
       <p className="leading-relaxed">
-        {SITE_NAME} stores your email address and a hashed password so you can
+        <strong>{SITE_NAME}</strong> stores your email address and a hashed password so you can
         sign in, plus what you choose to post: your username, bio, profile
         picture, ratings, reviews, comments, likes, follows, lists and
         compounds. Your username, bio, picture and everything you post are

@@ -1,3 +1,5 @@
+import { SITE_NAME } from "@/lib/site";
+
 export const metadata = { title: "Style Guide" };
 
 export default function GuidePage() {
@@ -6,7 +8,7 @@ export default function GuidePage() {
             <h1 className="text-3xl font-bold">“Style Guide”</h1>
 
             <p>
-                Welcome to <strong>compend</strong>. On here, you can review anything
+                Welcome to <strong>{SITE_NAME}</strong>. On here, you can review anything
                 that has a Wikipedia article. The articles themselves aren’t displayed,
                 so I suggest (gently) that you review the concepts themselves, rather
                 than their associated Wikipedia pages. You can also make ranked or

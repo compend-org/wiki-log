@@ -158,6 +158,8 @@ export async function setFavourite(input: {
     return { error: "Invalid slot." };
   }
   if (!ITEM_ID.test(input.itemId)) return { error: "Invalid item." };
+  const itemError = await ensureItem(input.itemId);
+  if (itemError) return { error: itemError };
 
   // Looks the item up on Wikipedia and Wikidata and caches it
   // (users can't write to `items` themselves)
