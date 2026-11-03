@@ -3,7 +3,7 @@ import { DEFAULT_LANG, LANGUAGES, type LangCode } from "@/lib/languages";
 
 // Wikimedia asks every client to identify itself, with a way to reach you
 const CONTACT = process.env.WIKI_CONTACT ?? "no contact set";
-const USER_AGENT = `Compend/0.1 (https://compend.org; ${CONTACT})`;
+const USER_AGENT = `Compend/0.1${process.env.NODE_ENV === "production" ? "" : "-dev"} (https://compend.org; ${CONTACT})`;
 
 // Articles about real people are blocked unless this is true
 export const ALLOW_PEOPLE = true;
@@ -53,7 +53,7 @@ export async function searchTitles(
     const q = query.trim();
     if (q.length < 2) return [];
 
-    const res = await fetch(
+    const res = await wikiFetch(
         `https://${lang}.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(q)}&limit=8`,
         { headers: HEADERS }
     );
@@ -93,7 +93,7 @@ async function getClaimValues(
     property: string
 ): Promise<unknown[] | null> {
     try {
-        const res = await fetch(
+        const res = await wikiFetch(
             `https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=${qid}&property=${property}&format=json`,
             { headers: HEADERS }
         );
@@ -180,7 +180,7 @@ async function wikidataImage(
             | undefined;
         if (!file) return null;
 
-        const res = await fetch(
+        const res = await wikiFetch(
             `https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&prop=imageinfo&iiprop=url|size|mime&iiurlwidth=960&titles=${encodeURIComponent(`File:${file}`)}`,
             { headers: HEADERS }
         );
@@ -201,7 +201,7 @@ async function pageImages(
     title: string
 ): Promise<ImageCandidate[]> {
     try {
-        const res = await fetch(
+        const res = await wikiFetch(
             `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&generator=images&gimlimit=50&prop=imageinfo|categories&iiprop=url|size|mime&iiurlwidth=960&clcategories=${encodeURIComponent("Category:All free media")}&cllimit=max&titles=${encodeURIComponent(title)}`,
             { headers: HEADERS }
         );
@@ -319,10 +319,13 @@ export async function getItemByKey(
     lang: LangCode = DEFAULT_LANG,
     originalimage?: { source: string; width: number },
 ): Promise<LookupResult> {
-    const res = await fetch(
+    const res = await wikiFetch(
         `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(key)}`,
         { headers: HEADERS }
     );
+    if (res.status === 429 || res.status >= 500) {
+        return { error: "Wikipedia is busy right now. Try again in a minute." };
+    }
     if (!res.ok) return { error: "Couldn't find that article." };
 
     const data: {
@@ -386,7 +389,7 @@ export async function getItemById(qid: string): Promise<LookupResult> {
     if (!/^Q\d+$/.test(qid)) return { error: "Invalid item." };
 
     const sites = LANGUAGES.map((l) => `${l.code}wiki`).join("|");
-    const res = await fetch(
+    const res = await wikiFetch(
         `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${qid}&props=sitelinks&sitefilter=${encodeURIComponent(sites)}&format=json`,
         { headers: HEADERS }
     );
@@ -408,4 +411,15 @@ export async function getItemById(qid: string): Promise<LookupResult> {
     }
 
     return { error: "That item has no article in a supported language." };
+}
+
+async function wikiFetch(url: string, _init?: RequestInit): Promise<Response> {
+    let res = await globalThis.fetch(url, { headers: HEADERS });
+    if (res.status === 429 || res.status === 503) {
+        const wait = Math.min(Number(res.headers.get("retry-after")) || 1, 3);
+        await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+        res = await globalThis.fetch(url, { headers: HEADERS });
+    }
+    if (!res.ok) console.warn("Wikimedia", res.status, url.slice(0, 120));
+    return res;
 }

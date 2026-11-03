@@ -15,7 +15,7 @@ export default function ItemSearch({ signedIn }: { signedIn: boolean }) {
         <section className="flex flex-col gap-3">
             <h1 className="text-3xl font-bold">Log.</h1>
             <p className="text-sm text-muted">
-                Search for anything.
+                Search, or paste a Wikipedia article URL:
             </p>
             <ItemPicker onPick={(id) => router.push(`/item/${id}`)} />
             <p className="text-right text-sm text-muted">
