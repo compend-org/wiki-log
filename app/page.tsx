@@ -48,7 +48,7 @@ export default async function Home({
           </div>
         )}
 
-        <div className="order-3 col-span-2 flex flex-col gap-8 xl:order-2 xl:col-span-1 xl:col-start-2">
+        <div className="order-3 xl:self-center col-span-2 flex flex-col gap-8 xl:order-2 xl:col-span-1 xl:col-start-2">
           {!signedIn && (
             <p className="text-center text-sm">
               <Link
