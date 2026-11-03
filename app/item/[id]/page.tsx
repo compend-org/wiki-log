@@ -125,14 +125,14 @@ export default async function ItemPage({
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="flex flex-col gap-3">
         {item.imageUrl ? (
-          <figure className="flex flex-col gap-1">
+          <figure className="flex flex-col items-center gap-1">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={item.imageUrl}
               alt={item.title}
-              className="item-img h-auto max-h-96 w-auto max-w-full self-cente [[data-theme=dark]_&]:bg-foreground"
+              className="item-img h-auto w-auto max-w-full [[data-theme=dark]_&]:bg-foreground"
             />
-            <figcaption className="text-xs text-muted">
+            <figcaption className="text-center text-xs text-muted">
               {item.imageNonFree ? (
                 <a href={removalLink} className="underline">
                   Request removal
