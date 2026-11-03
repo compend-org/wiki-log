@@ -29,7 +29,7 @@ export default async function Home({
   const picks = FEATURES.dailyPicks ? await getDailyPicks() : null;
 
   // Signed-in visitors start on Following, signed-out ones on Everyone
-  const active: Tab =
+  const initialTab: Tab =
     tab === "following" || tab === "everyone"
       ? tab
       : tab === "trending" && FEATURES.trending
@@ -81,13 +81,26 @@ export default async function Home({
         )}
       </div>
 
-      <FeedTabs active={active} showTrending={FEATURES.trending}>
-        {/* Only the tab being viewed is loaded. The key makes the loading
-            message appear straight away when you switch tabs. */}
-        <Suspense key={active} fallback={loading}>
-          <Feed mode={active} limit={feedLimit} />
-        </Suspense>
-      </FeedTabs>
+      <FeedTabs
+        initial={initialTab}
+        following={
+          <Suspense fallback={loading}>
+            <Feed mode="following" limit={feedLimit} />
+          </Suspense>
+        }
+        everyone={
+          <Suspense fallback={loading}>
+            <Feed mode="everyone" limit={feedLimit} />
+          </Suspense>
+        }
+        trending={
+          FEATURES.trending ? (
+            <Suspense fallback={loading}>
+              <Feed mode="trending" limit={feedLimit} />
+            </Suspense>
+          ) : undefined
+        }
+      />
     </main>
   );
 }

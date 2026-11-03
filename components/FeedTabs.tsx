@@ -1,26 +1,40 @@
-import Link from "next/link";
-import type { ReactNode } from "react";
+"use client";
+
+import { useState, type ReactNode } from "react";
 import { TRENDING_LABEL } from "@/lib/site";
 
 type Tab = "following" | "everyone" | "trending";
 
 export default function FeedTabs({
-  active,
-  showTrending,
-  children,
+  initial,
+  following,
+  everyone,
+  trending,
 }: {
-  active: Tab;
-  showTrending: boolean;
-  // The feed for the active tab
-  children: ReactNode;
+  initial: Tab;
+  following: ReactNode;
+  everyone: ReactNode;
+  // Left out when the feature is switched off
+  trending?: ReactNode;
 }) {
   const tabs: { id: Tab; label: string }[] = [
     { id: "everyone", label: "Everyone" },
     { id: "following", label: "Following" },
-    ...(showTrending
-      ? [{ id: "trending" as Tab, label: TRENDING_LABEL }]
-      : []),
+    ...(trending ? [{ id: "trending" as Tab, label: TRENDING_LABEL }] : []),
   ];
+  const panels: Record<Tab, ReactNode> = { following, everyone, trending };
+
+  const [active, setActive] = useState<Tab>(
+    tabs.some((t) => t.id === initial) ? initial : "everyone"
+  );
+
+  function choose(tab: Tab) {
+    setActive(tab);
+    // Keep the address in step without navigating anywhere
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", tab);
+    window.history.replaceState(null, "", url);
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 lg:max-w-none">
@@ -30,24 +44,36 @@ export default function FeedTabs({
         className="flex gap-2 lg:mx-auto lg:w-[calc(50%-0.75rem)]"
       >
         {tabs.map((t) => (
-          <Link
+          <button
             key={t.id}
-            href={`/?tab=${t.id}`}
-            replace
-            scroll={false}
+            type="button"
             role="tab"
+            id={`feed-tab-${t.id}`}
             aria-selected={active === t.id}
-            className={`flex-1 border-2 px-4 py-2 text-center no-underline hover:no-underline ${active === t.id
+            aria-controls={`feed-panel-${t.id}`}
+            onClick={() => choose(t.id)}
+            className={`flex-1 border-2 px-4 py-2 text-center ${
+              active === t.id
                 ? "border-dashed border-accent text-foreground"
                 : "border-transparent text-muted hover:border-line"
-              }`}
+            }`}
           >
             {t.label}
-          </Link>
+          </button>
         ))}
       </div>
 
-      <div role="tabpanel">{children}</div>
+      {tabs.map((t) => (
+        <div
+          key={t.id}
+          role="tabpanel"
+          id={`feed-panel-${t.id}`}
+          aria-labelledby={`feed-tab-${t.id}`}
+          hidden={active !== t.id}
+        >
+          {panels[t.id]}
+        </div>
+      ))}
     </div>
   );
 }
