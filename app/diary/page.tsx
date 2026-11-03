@@ -6,9 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 import { PAGE_SIZE } from "@/lib/paging";
 import DeleteIcon from "@/components/DeleteIcon";
+import EditEntryForm from "@/components/EditEntryForm";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
-import EditEntry from "@/components/EditEntry";
 
 type Thumb = { title: string; imageUrl: string | null };
 
@@ -58,6 +58,9 @@ type PreviewRow = {
   items: { title: string; image_url: string | null } | null;
 };
 
+// The same small controls sit at the top right of every card
+const actionClass = "text-xs text-accent underline hover:no-underline";
+
 export default function DiaryPage() {
   const loginHref = useLoginHref();
   const [ready, setReady] = useState<boolean>(false);
@@ -68,6 +71,8 @@ export default function DiaryPage() {
   const [hasMore, setHasMore] = useState<boolean>(false);
   const [loaded, setLoaded] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  // The log whose edit form is open
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Who is signed in, and their username (for links to their entries)
   useEffect(() => {
@@ -199,7 +204,36 @@ export default function DiaryPage() {
       setError(error.message);
       return;
     }
-    setEntries((prev) => prev.filter((e) => !(e.kind === "log" && e.id === id)));
+    setEntries((prev) =>
+      prev.filter((e) => !(e.kind === "log" && e.id === id))
+    );
+  }
+
+  async function handleDeleteList(id: string) {
+    if (
+      !window.confirm(
+        "Delete this list? Its likes and comments are deleted with it, and this can't be undone."
+      )
+    ) {
+      return;
+    }
+    const { data, error } = await createClient()
+      .from("lists")
+      .delete()
+      .eq("id", id)
+      .select("id");
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    // Row-level security refuses silently when the list isn't yours
+    if (!data || data.length === 0) {
+      setError("Couldn't delete that list.");
+      return;
+    }
+    setEntries((prev) =>
+      prev.filter((e) => !(e.kind === "list" && e.id === id))
+    );
   }
 
   if (!ready) {
@@ -240,13 +274,24 @@ export default function DiaryPage() {
                 key={`list-${e.id}`}
                 className="card flex flex-col gap-2 p-3"
               >
-                <div className="flex items-baseline justify-between gap-3 text-xs text-muted">
+                <div className="flex items-center justify-between gap-3 text-xs text-muted">
                   <span>
                     {date} · You made a {e.ranked ? "ranked " : ""}list
                   </span>
-                  <Link href={`/list/${e.id}/edit`} className="underline">
-                    Edit
-                  </Link>
+                  <span className="flex items-center gap-3">
+                    <Link href={`/list/${e.id}/edit`} className={actionClass}>
+                      Edit
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteList(e.id)}
+                      aria-label="Delete this list"
+                      title="Delete this list"
+                      className="flex text-danger hover:opacity-70"
+                    >
+                      <DeleteIcon className="h-4 w-4" />
+                    </button>
+                  </span>
                 </div>
                 <Link
                   href={`/list/${e.id}`}
@@ -278,16 +323,9 @@ export default function DiaryPage() {
             : null;
 
           return (
-            <li key={`log-${e.id}`} className="card flex items-center gap-3 p-3">
-              <Link href={`/item/${e.itemId}`} className="shrink-0">
-                <ItemImage
-                  src={e.imageUrl}
-                  alt={e.title}
-                  className="h-16 w-16 rounded"
-                />
-              </Link>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="text-xs text-muted">
+            <li key={`log-${e.id}`} className="card flex flex-col gap-2 p-3">
+              <div className="flex items-center justify-between gap-3 text-xs text-muted">
+                <span>
                   {entryHref ? (
                     <Link href={entryHref} className="underline">
                       {date}
@@ -295,44 +333,70 @@ export default function DiaryPage() {
                   ) : (
                     date
                   )}
+                  {" · You logged"}
                 </span>
-                <Link
-                  href={`/item/${e.itemId}`}
-                  className="w-fit font-semibold"
-                >
-                  {e.title}
-                </Link>
-                <Stars rating={e.rating} />
-                {e.review && (
-                  <p className="line-clamp-2 whitespace-pre-wrap break-words text-sm">
-                    {e.review}
-                  </p>
-                )}
-                <EditEntry
+                <span className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(e.id)}
+                    className={actionClass}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(e.id)}
+                    aria-label="Delete this entry"
+                    title="Delete this entry"
+                    className="flex text-danger hover:opacity-70"
+                  >
+                    <DeleteIcon className="h-4 w-4" />
+                  </button>
+                </span>
+              </div>
+
+              {editingId === e.id ? (
+                <EditEntryForm
                   logId={e.id}
                   initialRating={e.rating}
                   initialReview={e.review}
-                  className="w-fit text-xs"
-                  onSaved={(rating, review) =>
+                  onCancel={() => setEditingId(null)}
+                  onSaved={(rating, review) => {
                     setEntries((prev) =>
                       prev.map((x) =>
                         x.kind === "log" && x.id === e.id
                           ? { ...x, rating, review }
                           : x
                       )
-                    )
-                  }
+                    );
+                    setEditingId(null);
+                  }}
                 />
-              </div>
-              <button
-                type="button"
-                onClick={() => handleDelete(e.id)}
-                aria-label="Delete this entry"
-                title="Delete this entry"
-                className="flex shrink-0 p-1 text-danger hover:opacity-70"
-              >
-                <DeleteIcon />
-              </button>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <Link href={`/item/${e.itemId}`} className="shrink-0">
+                    <ItemImage
+                      src={e.imageUrl}
+                      alt={e.title}
+                      className="h-16 w-16 rounded"
+                    />
+                  </Link>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <Link
+                      href={`/item/${e.itemId}`}
+                      className="w-fit font-semibold"
+                    >
+                      {e.title}
+                    </Link>
+                    <Stars rating={e.rating} />
+                    {e.review && (
+                      <p className="line-clamp-2 whitespace-pre-wrap break-words text-sm">
+                        {e.review}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </li>
           );
         })}
