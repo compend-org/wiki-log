@@ -11,7 +11,7 @@ import AlsoLiked from "@/components/AlsoLiked";
 import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
-import EditEntry from "@/components/EditEntry";
+import OwnerControls from "@/components/OwnerControls";
 
 export const instant = false;
 
@@ -19,7 +19,7 @@ type LogRow = {
   id: string;
   user_id: string;
   item_id: string;
-  rating: number;
+  rating: number | null;
   review: string;
   logged_at: string;
   items: { title: string; image_url: string | null } | null;
@@ -128,44 +128,63 @@ export default async function ReviewPage({
   const likedSet = await getLikedSet(supabase, viewerId, [log]);
   const alsoLiked = await getAlsoLiked(supabase, [log]);
   const title = log.items?.title ?? "Unknown item";
+  const isOwner = viewerId === log.user_id;
+
+  // The part of the card that stays put, with room on the right for the
+  // owner's Edit and Delete controls
+  const header = (
+    <div className="flex gap-4">
+      <Link href={`/item/${log.item_id}`} className="shrink-0">
+        <ItemImage
+          src={log.items?.image_url}
+          alt={title}
+          className="h-28 w-28 rounded"
+        />
+      </Link>
+      <div className={`flex min-w-0 flex-col gap-1 ${isOwner ? "pr-16" : ""}`}>
+        <Link href={`/item/${log.item_id}`} className="text-xl font-bold">
+          {title}
+        </Link>
+        <p className="text-sm text-muted">
+          Review by{" "}
+          <Link
+            href={`/u/${encodeURIComponent(profile.username)}`}
+            className="underline"
+          >
+            {profile.username}
+          </Link>{" "}
+          · {log.logged_at.slice(0, 10)}
+        </p>
+        <Stars rating={log.rating} />
+      </div>
+    </div>
+  );
+
+  // The part the owner can edit
+  const body = (
+    <>
+      {log.review && <p className="whitespace-pre-wrap">{log.review}</p>}
+    </>
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <article className="card flex flex-col gap-3 p-4">
-        <div className="flex gap-4">
-          <Link href={`/item/${log.item_id}`} className="shrink-0">
-            <ItemImage
-              src={log.items?.image_url}
-              alt={title}
-              className="h-28 w-28 rounded"
-            />
-          </Link>
-          <div className="flex min-w-0 flex-col gap-1">
-            <Link href={`/item/${log.item_id}`} className="text-xl font-bold">
-              {title}
-            </Link>
-            <p className="text-sm text-muted">
-              Review by{" "}
-              <Link
-                href={`/u/${encodeURIComponent(profile.username)}`}
-                className="underline"
-              >
-                {profile.username}
-              </Link>{" "}
-              · {log.logged_at.slice(0, 10)}
-            </p>
-            <Stars rating={log.rating} />
-          </div>
-        </div>
-        {log.review && <p className="whitespace-pre-wrap">{log.review}</p>}
-        {viewerId === log.user_id && (
-          <EditEntry
+        {isOwner ? (
+          <OwnerControls
             logId={log.id}
-            initialRating={log.rating === null ? null : Number(log.rating)}
-            initialReview={log.review}
+            rating={log.rating === null ? null : Number(log.rating)}
+            review={log.review}
+            profileHref={`/u/${encodeURIComponent(profile.username)}`}
+            header={header}
+            body={body}
           />
+        ) : (
+          <>
+            {header}
+            {body}
+          </>
         )}
-
       </article>
 
       <div>
