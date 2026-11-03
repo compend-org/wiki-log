@@ -6,7 +6,7 @@ import HeartIcon from "./HeartIcon";
 
 const MAX = 3;
 
-export default function AlsoLiked({ likes }: { likes: AlsoLikedEntry[] }) {
+export default function AlsoLiked({ likes, username }: { likes: AlsoLikedEntry[], username: string }) {
     if (likes.length === 0) return null;
 
     const shown = likes.slice(0, MAX);
@@ -18,8 +18,7 @@ export default function AlsoLiked({ likes }: { likes: AlsoLikedEntry[] }) {
                 title="Liked these reviews of the same item"
                 className="inline-flex items-center gap-1"
             >
-                <HeartIcon filled className="h-3.5 w-3.5 text-like" />
-                liked
+                {username} liked:
             </span>
             {shown.map((p) => (
                 <Link

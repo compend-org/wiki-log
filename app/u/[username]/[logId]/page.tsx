@@ -205,6 +205,7 @@ export default async function ReviewPage({
       </div>
 
       <AlsoLiked
+        username = {profile.username}
         likes={alsoLiked.get(likeKey(log.user_id, log.item_id)) ?? []}
       />
 
