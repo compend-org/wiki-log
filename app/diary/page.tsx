@@ -8,6 +8,7 @@ import { PAGE_SIZE } from "@/lib/paging";
 import DeleteIcon from "@/components/DeleteIcon";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
+import EditEntry from "@/components/EditEntry";
 
 type Thumb = { title: string; imageUrl: string | null };
 
@@ -307,6 +308,21 @@ export default function DiaryPage() {
                     {e.review}
                   </p>
                 )}
+                <EditEntry
+                  logId={e.id}
+                  initialRating={e.rating}
+                  initialReview={e.review}
+                  className="w-fit text-xs"
+                  onSaved={(rating, review) =>
+                    setEntries((prev) =>
+                      prev.map((x) =>
+                        x.kind === "log" && x.id === e.id
+                          ? { ...x, rating, review }
+                          : x
+                      )
+                    )
+                  }
+                />
               </div>
               <button
                 type="button"

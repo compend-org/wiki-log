@@ -11,6 +11,7 @@ import AlsoLiked from "@/components/AlsoLiked";
 import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
+import EditEntry from "@/components/EditEntry";
 
 export const instant = false;
 
@@ -157,6 +158,13 @@ export default async function ReviewPage({
           </div>
         </div>
         {log.review && <p className="whitespace-pre-wrap">{log.review}</p>}
+        {viewerId === log.user_id && (
+          <EditEntry
+            logId={log.id}
+            initialRating={log.rating === null ? null : Number(log.rating)}
+            initialReview={log.review}
+          />
+        )}
 
       </article>
 

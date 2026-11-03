@@ -10,6 +10,7 @@ import ListLikeButton from "@/components/ListLikeButton";
 import LoadMore from "@/components/LoadMore";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
+import ListPreview from "@/components/ListPreview";
 
 type Mode = "following" | "everyone";
 
@@ -141,7 +142,7 @@ export default async function Feed({
                 .from("list_items")
                 .select("list_id, position, items(title, image_url)")
                 .in("list_id", ids)
-                .lte("position", 4)
+                .lte("position", 12)
                 .order("position");
             for (const row of (previewData ?? []) as unknown as PreviewRow[]) {
                 const arr = previews.get(row.list_id) ?? [];
@@ -201,16 +202,7 @@ export default async function Feed({
                 </span>
                 <span className="font-semibold">{l.title}</span>
                 {preview.length > 0 && (
-                    <div className="flex gap-1">
-                        {preview.map((p, i) => (
-                            <ItemImage
-                                key={i}
-                                src={p.image_url}
-                                alt={p.title}
-                                className="h-14 w-14 rounded"
-                            />
-                        ))}
-                    </div>
+                    <ListPreview thumbs={preview} total={itemCount} />
                 )}
                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
                     <span>
@@ -249,8 +241,8 @@ export default async function Feed({
             <div
                 key={`log-${row.id}`}
                 className={`card relative grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-3 p-3 hover:border-accent/60 ${row.review
-                        ? "@xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.2fr)]"
-                        : ""
+                    ? "@xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.2fr)]"
+                    : ""
                     }`}
             >
                 {reviewHref && (
