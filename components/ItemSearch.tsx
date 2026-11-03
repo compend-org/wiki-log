@@ -1,18 +1,33 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ItemPicker from "@/components/ItemPicker";
+import { loginHref } from "@/lib/redirect";
 
-export default function ItemSearch() {
-    const router = useRouter();
+export default function ItemSearch({ signedIn }: { signedIn: boolean }) {
+  const router = useRouter();
 
-    return (
-        <section className="flex flex-col gap-3">
-            <h1 className="text-3xl font-bold">Log it</h1>
-            <p className="text-sm text-muted">
-                You'll find most things.
-            </p>
-            <ItemPicker onPick={(id) => router.push(`/item/${id}`)} />
-        </section>
-    );
+  // Signed-out visitors sign in first, then land on the list creator
+  const newListHref = signedIn ? "/list/new" : loginHref("/list/new");
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h1 className="text-3xl font-bold">Review anything</h1>
+      <p className="text-sm text-muted">
+        Search for anything with a Wikipedia article: a fruit, a film, a place,
+        an idea.
+      </p>
+      <ItemPicker onPick={(id) => router.push(`/item/${id}`)} />
+      <p className="text-right text-sm text-muted">
+        or{" "}
+        <Link
+          href={newListHref}
+          className="text-accent underline hover:no-underline"
+        >
+          start a list
+        </Link>
+      </p>
+    </section>
+  );
 }

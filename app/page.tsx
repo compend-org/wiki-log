@@ -47,7 +47,7 @@ export default async function Home({
           </p>
         )}
 
-        <ItemSearch />
+        <ItemSearch signedIn={signedIn} />
       </div>
 
       <FeedTabs
