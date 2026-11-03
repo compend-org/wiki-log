@@ -89,7 +89,11 @@ export default function LoginForm({ next }: { next: string }) {
     });
     setBusy(false);
     if (error) {
-      setMessage(error.message);
+      setMessage(
+        /rate limit|too many/i.test(error.message)
+          ? "A lot of people are signing up right now. Please try again in a few minutes."
+          : error.message
+      );
       return;
     }
     if (data.session) {

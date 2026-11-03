@@ -1,66 +1,31 @@
+import { CONTACT_EMAIL, SITE_NAME } from "@/lib/site";
+
+export const metadata = { title: "Privacy" };
+
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto flex max-w-xl flex-col gap-4 p-8">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
       <h1 className="text-3xl font-bold">Privacy</h1>
-
-      <h2 className="text-xl font-bold">What we store</h2>
-      <p>
-        Your email address and a hashed (unreadable) password, so you can sign
-        in. Your username, the items you log with
-        your ratings and reviews, and who you follow.
-      </p>
-
-      <h2 className="text-xl font-bold">What is public</h2>
-      <p>
-        Your username, logs, ratings, reviews and follows are
-        public: anyone can see them, including people who aren&apos;t signed
-        in. Your email address is never shown to other users.
-      </p>
-
-      <h2 className="text-xl font-bold">Cookies</h2>
-      <p>
-        We only use cookies needed to keep you signed in. No advertising or
-        tracking cookies.
-      </p>
-
-      <h2 className="text-xl font-bold">Where data is kept</h2>
-      <p>
-        Your data is stored with our database provider, Supabase. Video titles
-        and thumbnails come from YouTube.
-      </p>
-
-      <h2 className="text-xl font-bold">Deleting your data</h2>
-      <p>
-        You can delete your account and all of your data at any time from your
-        profile settings. For anything else, contact{" "}
-        <a href="mailto:your-email@example.com" className="underline">
-          your-email@example.com
+      <p className="leading-relaxed">
+        {SITE_NAME} stores your email address and a hashed password so you can
+        sign in, plus what you choose to post: your username, bio, profile
+        picture, ratings, reviews, comments, likes, follows, lists and
+        compounds. Your username, bio, picture and everything you post are
+        public, visible to anyone whether or not they are signed in, while
+        your email address is never shown to other users. We use only the
+        cookies needed to keep you signed in, your theme and search language
+        are saved in your browser, and there are no ads or tracking. Your data
+        is processed by Supabase (database and storage), Vercel (hosting) and
+        Resend (sign-up and password-reset emails), and item titles,
+        descriptions and pictures come from Wikipedia and Wikimedia Commons,
+        which are contacted when an item is looked up. You can delete your
+        account and everything you have posted at any time from Settings, and
+        for anything else, including requests to see or correct your data,
+        write to{" "}
+        <a href={`mailto:${CONTACT_EMAIL}`} className="underline">
+          {CONTACT_EMAIL}
         </a>
         .
-      </p>
-
-      <h2 className="text-xl font-bold">YouTube</h2>
-      <p>
-        This app uses YouTube services. By using it you agree to be bound by
-        the{" "}
-        <a
-          href="https://www.youtube.com/t/terms"
-          className="underline"
-          target="_blank"
-          rel="noreferrer"
-        >
-          YouTube Terms of Service
-        </a>
-        , and Google&apos;s{" "}
-        <a
-          href="https://policies.google.com/privacy"
-          className="underline"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Privacy Policy
-        </a>{" "}
-        applies.
       </p>
     </main>
   );
