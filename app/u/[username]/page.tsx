@@ -235,9 +235,6 @@ export default async function ProfilePage({
           })}
         </section>
       )}
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-        Reviews
-      </h2>
       {logs.length > 0 && (
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
           Reviews
