@@ -43,7 +43,7 @@ export default function GuidePage() {
 
             <p>
                 Neither of these people exist, and even these brief descriptions
-                overlap, somewhat. I just like websites that I can lose myself to
+                overlap somewhat. I just like websites that I can lose myself to
                 completely for no reason, and it’s fun to imagine characters
                 undertaking Borgesian tasks on mine. Have your fun.
             </p>
