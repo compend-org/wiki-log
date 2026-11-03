@@ -205,7 +205,7 @@ export default async function Feed({
                     aria-label={`Open the list ${l.title}`}
                     className="absolute inset-0 rounded-[inherit]"
                 />
-                <span className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
+                <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
                     {author ? (
                         <Link
                             href={`/u/${encodeURIComponent(author)}`}
@@ -288,7 +288,7 @@ export default async function Feed({
                 </Link>
 
                 <div className="flex min-w-0 flex-col gap-1">
-                    <span className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
+                    <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
                         {author ? (
                             <Link
                                 href={`/u/${encodeURIComponent(author)}`}
