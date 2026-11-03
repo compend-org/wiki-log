@@ -44,7 +44,7 @@ export default async function Home({
       <div className="grid grid-cols-2 items-start gap-4 xl:grid-cols-[1fr_minmax(0,42rem)_1fr] xl:gap-8">
         {picks && (
           <div className=" xl:self-center order-1 w-full justify-self-start">
-            <PickSquare heading="Popular · 24h" pick={picks.popular} />
+            <PickSquare heading="Popular Today" pick={picks.popular} />
           </div>
         )}
 
@@ -72,7 +72,7 @@ export default async function Home({
 
         {picks && (
           <div className=" xl:self-center order-2 flex w-full justify-end xl:order-3">
-            <PickSquare heading="Unpopular · 24h" pick={picks.unpopular} />
+            <PickSquare heading="Unpopular Today" pick={picks.unpopular} />
           </div>
         )}
       </div>
