@@ -24,7 +24,7 @@ export default async function Home({
   const { data } = await supabase.auth.getClaims();
   const signedIn = Boolean(data?.claims?.sub);
 
-  const picks = FEATURES.dailyPicks ? await getDailyPicks(supabase) : null;
+  const picks = FEATURES.dailyPicks ? await getDailyPicks() : null;
 
   // Signed-in visitors start on Following, signed-out ones on Everyone
   const initialTab: "following" | "everyone" =
