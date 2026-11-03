@@ -6,6 +6,7 @@ import { escapeLike, isValidName } from "@/lib/username";
 import { isUuid } from "@/lib/ids";
 import { getLikedSet, likeKey } from "@/lib/likes";
 import { getAlsoLiked } from "@/lib/alsoLiked";
+import Avatar from "@/components/Avatar";
 import LikeButton from "@/components/LikeButton";
 import AlsoLiked from "@/components/AlsoLiked";
 import Comments, { type CommentItem } from "@/components/Comments";
@@ -54,7 +55,7 @@ export default async function ReviewPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username")
+    .select("id, username, avatar_path")
     .ilike("username", escapeLike(name))
     .maybeSingle();
   if (!profile) notFound();
@@ -145,15 +146,21 @@ export default async function ReviewPage({
         <Link href={`/item/${log.item_id}`} className="text-xl font-bold">
           {title}
         </Link>
-        <p className="text-sm text-muted">
-          Review by{" "}
+        <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
+          <span>Review by</span>
           <Link
             href={`/u/${encodeURIComponent(profile.username)}`}
-            className="underline"
+            className="inline-flex items-center gap-1.5 underline"
           >
+            <Avatar
+              name={profile.username}
+              path={profile.avatar_path}
+              size={20}
+            />
             {profile.username}
-          </Link>{" "}
-          · {log.logged_at.slice(0, 10)}
+          </Link>
+          <span>· {log.logged_at.slice(0, 10)}</span>
+
         </p>
         <Stars rating={log.rating} />
       </div>
