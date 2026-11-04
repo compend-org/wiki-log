@@ -13,10 +13,12 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
+          // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback's return value is unused
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
           supabaseResponse = NextResponse.next({ request });
+          // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback's return value is unused
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
           );

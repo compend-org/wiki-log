@@ -88,6 +88,7 @@ export default function ListPreview({
       <div ref={row} className="flex h-14 flex-wrap gap-1 overflow-hidden">
         {visible.map((p, i) => (
           <Link
+            // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
             key={i}
             href={href}
             aria-label={p.title}

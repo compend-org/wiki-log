@@ -97,6 +97,7 @@ export default function ItemImage({
         >
           {lines.map((line, i) => (
             <tspan
+              // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
               key={i}
               x={width / 2}
               y={top + i * lineHeight + lineHeight / 2 + size * 0.33}

@@ -40,6 +40,7 @@ export default function LanguagePicker({
   const current = LANGUAGES.find((l) => l.code === value) ?? LANGUAGES[0];
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: closes the menu on events from the controls inside it
     <div
       className="relative flex"
       onBlur={(e) => {

@@ -14,6 +14,7 @@ export async function createClient() {
         },
         setAll(cookiesToSet) {
           try {
+            // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback's return value is unused
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options),
             );

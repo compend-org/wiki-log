@@ -101,6 +101,7 @@ export default function PeopleSearch() {
             }}
             placeholder="Find people by username"
             autoComplete="off"
+            // biome-ignore lint/a11y/noAutofocus: this input takes focus on purpose
             autoFocus
             className="w-full border border-line bg-surface px-3 py-2 text-sm text-foreground"
           />

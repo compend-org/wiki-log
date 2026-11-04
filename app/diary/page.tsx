@@ -298,6 +298,7 @@ export default function DiaryPage() {
                   <div className="flex gap-1">
                     {e.previews.map((p, i) => (
                       <ItemImage
+                        // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
                         key={i}
                         src={p.imageUrl}
                         alt={p.title}

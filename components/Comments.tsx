@@ -189,6 +189,7 @@ export default function Comments({
                   onChange={(e) => setReplyText(e.target.value)}
                   rows={2}
                   maxLength={1000}
+                  // biome-ignore lint/a11y/noAutofocus: this input takes focus on purpose
                   autoFocus
                   placeholder="Write a reply"
                   className={inputClass}

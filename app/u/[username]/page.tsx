@@ -237,6 +237,7 @@ export default async function ProfilePage({
                   <div className="flex gap-1">
                     {preview.map((p, i) => (
                       <ItemImage
+                        // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
                         key={i}
                         src={p.image_url}
                         alt={p.title}

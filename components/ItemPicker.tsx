@@ -184,6 +184,7 @@ export default function ItemPicker({
 
   return (
     <div className="flex flex-col gap-2">
+      {/** biome-ignore lint/a11y/noStaticElementInteractions: closes the menu on events from the controls inside it */}
       <div
         className="relative"
         onBlur={(e) => {
@@ -203,6 +204,7 @@ export default function ItemPicker({
               active >= 0 ? `${listId}-${active}` : undefined
             }
             autoComplete="off"
+            // biome-ignore lint/a11y/noAutofocus: this input takes focus on purpose
             autoFocus={autoFocus}
             value={query}
             onChange={(e) => {
@@ -221,6 +223,7 @@ export default function ItemPicker({
         {listOpen && (
           <ul
             id={listId}
+            // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: combobox popup: focus stays in the input
             role="listbox"
             // Keeps focus in the input while you click an option
             onMouseDown={(e) => e.preventDefault()}
@@ -242,9 +245,11 @@ export default function ItemPicker({
             {!unsupported &&
               ready &&
               shownHits.map((hit, i) => (
+                // biome-ignore lint/a11y/useFocusableInteractive: combobox option: focus stays in the input
                 <li
                   key={hit.key}
                   id={`${listId}-${i}`}
+                  // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: combobox popup: focus stays in the input
                   role="option"
                   aria-selected={i === active}
                 >

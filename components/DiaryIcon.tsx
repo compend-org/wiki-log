@@ -1,5 +1,6 @@
 export default function DiaryIcon({ className }: { className?: string }) {
   return (
+    // biome-ignore lint/a11y/noSvgWithoutTitle: the link around this icon carries its label
     <svg
       xmlns="http://w3.org"
       viewBox="0 0 24 24"

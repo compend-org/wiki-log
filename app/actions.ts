@@ -330,6 +330,7 @@ export async function createCompound(input: {
   if (title.length < 1 || title.length > 80) {
     return { error: "Names are 1–80 characters." };
   }
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting control characters is the purpose of this check
   if (/[\u0000-\u001f]/.test(title)) {
     return { error: "That name has invalid characters." };
   }

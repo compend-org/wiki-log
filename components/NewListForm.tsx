@@ -57,6 +57,7 @@ export default function NewListForm() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={80}
+          // biome-ignore lint/a11y/noAutofocus: this input takes focus on purpose
           autoFocus
           placeholder="e.g. Fruits, ranked"
           className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"

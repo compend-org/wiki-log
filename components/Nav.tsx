@@ -24,6 +24,7 @@ export default function Nav() {
   const pathname = usePathname();
 
   // Refresh the unread count when you sign in or move to another page
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname refreshes the unread count on navigation
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
