@@ -1,3 +1,5 @@
+// ABOUTME: Reads items from the database cache and refreshes stale ones from Wikipedia.
+// ABOUTME: Holds the rules for how a Wikipedia lookup becomes an `items` row.
 import { ITEM_ID_PATTERN, isCompoundId } from "@/lib/ids";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -28,6 +30,26 @@ function toItem(row: ItemRow): ItemData {
     imageNonFree: hidden ? false : row.image_non_free,
     imageFilePage: hidden ? null : row.image_page_url,
     pageUrl: row.page_url,
+  };
+}
+
+// An item from Wikipedia, without its image if that image is hidden
+export function applyImageHidden(item: ItemData, hidden: boolean): ItemData {
+  return hidden
+    ? { ...item, imageUrl: null, imageNonFree: false, imageFilePage: null }
+    : item;
+}
+
+// The `items` columns written when an item is saved or refreshed from Wikipedia
+export function itemColumns(item: ItemData) {
+  return {
+    title: item.title,
+    description: item.description,
+    image_url: item.imageUrl,
+    image_non_free: item.imageNonFree,
+    image_page_url: item.imageFilePage,
+    page_url: item.pageUrl,
+    fetched_at: new Date().toISOString(),
   };
 }
 
@@ -65,28 +87,12 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
   }
 
   // A hidden image stays hidden, however often the item is refreshed
-  const hidden = cached?.image_hidden === true;
-  const item: ItemData = hidden
-    ? {
-        ...fresh.item,
-        imageUrl: null,
-        imageNonFree: false,
-        imageFilePage: null,
-      }
-    : fresh.item;
+  const item = applyImageHidden(fresh.item, cached?.image_hidden === true);
 
   if (cached) {
     await createAdminClient()
       .from("items")
-      .update({
-        title: item.title,
-        description: item.description,
-        image_url: item.imageUrl,
-        image_non_free: item.imageNonFree,
-        image_page_url: item.imageFilePage,
-        page_url: item.pageUrl,
-        fetched_at: new Date().toISOString(),
-      })
+      .update(itemColumns(item))
       .eq("id", id);
   }
 
