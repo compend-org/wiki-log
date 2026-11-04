@@ -58,17 +58,20 @@ export default function ItemImage({
   alt,
   className = "",
   ratio = 1,
+  placeholder = alt,
 }: {
   src: string | null | undefined;
   alt: string;
   className?: string;
   // Width divided by height of the box, for boxes that aren't square
   ratio?: number;
+  // The text shown in the box when there is no image
+  placeholder?: string;
 }) {
   if (!src) {
     const width = 100 * ratio;
     const height = 100;
-    const { size, lines } = layout(shortLabel(alt), width, height);
+    const { size, lines } = layout(shortLabel(placeholder), width, height);
     const lineHeight = size * LINE_HEIGHT;
     const top = (height - lines.length * lineHeight) / 2;
 

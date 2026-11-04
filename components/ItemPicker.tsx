@@ -10,9 +10,41 @@ type Hit = {
     title: string;
     description: string | null;
     imageUrl: string | null;
+    lang?: LangCode; // set for pasted links, which carry their own language
 };
 
 const LANG_KEY = "search-lang";
+
+// A pasted Wikipedia address: which wiki, and which article
+function parseWikipediaUrl(
+    input: string
+): { lang: string; key: string; title: string } | null {
+    let url: URL;
+    try {
+        url = new URL(input.trim());
+    } catch {
+        return null;
+    }
+
+    const host = /^([a-z-]+)(?:\.m)?\.wikipedia\.org$/i.exec(url.hostname);
+    if (!host) return null;
+
+    let key = "";
+    if (url.pathname.startsWith("/wiki/")) key = url.pathname.slice(6);
+    else if (url.pathname === "/w/index.php") {
+        key = url.searchParams.get("title") ?? "";
+    }
+    if (!key) return null;
+
+    try {
+        key = decodeURIComponent(key);
+    } catch {
+        return null;
+    }
+    key = key.replace(/ /g, "_");
+
+    return { lang: host[1].toLowerCase(), key, title: key.replace(/_/g, " ") };
+}
 
 export default function ItemPicker({
     onPick,
@@ -39,7 +71,23 @@ export default function ItemPicker({
     const term = query.trim();
     const searchKey = `${lang}:${term}`;
     const listOpen = open && term.length >= 2;
-    const ready = hitsFor === searchKey;
+
+    // A pasted link replaces searching: it is the one result
+    const pasted = parseWikipediaUrl(term);
+    const unsupported = pasted !== null && !isLang(pasted.lang);
+    const shownHits: Hit[] =
+        pasted && !unsupported
+            ? [
+                {
+                    key: pasted.key,
+                    title: pasted.title,
+                    description: `From ${pasted.lang}.wikipedia.org. Press Enter to fetch it.`,
+                    imageUrl: null,
+                    lang: pasted.lang as LangCode,
+                },
+            ]
+            : hits;
+    const ready = pasted ? true : hitsFor === searchKey;
 
     // Remember the chosen language between visits
     useEffect(() => {
@@ -63,7 +111,7 @@ export default function ItemPicker({
     }
 
     useEffect(() => {
-        if (term.length < 2) return;
+        if (term.length < 2 || parseWikipediaUrl(term)) return;
 
         const controller = new AbortController();
         const timer = setTimeout(async () => {
@@ -94,8 +142,10 @@ export default function ItemPicker({
         try {
             let id = hit.itemId;
             if (!id) {
+                // Pasted links carry their own language, searches use the picker's
+                const useLang = hit.lang ?? lang;
                 const res = await fetch(
-                    `/api/resolve?key=${encodeURIComponent(hit.key)}&lang=${lang}`
+                    `/api/resolve?key=${encodeURIComponent(hit.key)}&lang=${useLang}`
                 );
                 const data: { id?: string; error?: string } = await res.json();
                 if (!res.ok || !data.id) {
@@ -118,14 +168,14 @@ export default function ItemPicker({
         if (e.key === "ArrowDown") {
             e.preventDefault();
             setOpen(true);
-            setActive((i) => Math.min(i + 1, hits.length - 1));
+            setActive((i) => Math.min(i + 1, shownHits.length - 1));
         } else if (e.key === "ArrowUp") {
             e.preventDefault();
             setActive((i) => Math.max(i - 1, 0));
         } else if (e.key === "Enter") {
-            if (listOpen && ready && hits.length > 0 && !busy) {
+            if (listOpen && ready && shownHits.length > 0 && !busy) {
                 e.preventDefault();
-                choose(hits[active >= 0 ? active : 0]);
+                choose(shownHits[active >= 0 ? active : 0]);
             }
         } else if (e.key === "Escape") {
             setOpen(false);
@@ -176,14 +226,22 @@ export default function ItemPicker({
                         onMouseDown={(e) => e.preventDefault()}
                         className="absolute z-[15] mt-1 max-h-96 w-full overflow-auto border border-line bg-background"
                     >
-                        {!ready && (
+                        {unsupported && (
+                            <li className="px-4 py-3 text-sm text-muted">
+                                That Wikipedia&apos;s language isn&apos;t supported yet.
+                            </li>
+                        )}
+                        {!unsupported && !ready && (
                             <li className="px-4 py-3 text-sm text-muted">Searching…</li>
                         )}
-                        {ready && hits.length === 0 && (
-                            <li className="px-4 py-3 text-sm text-muted">No results.</li>
+                        {!unsupported && ready && shownHits.length === 0 && (
+                            <li className="px-4 py-3 text-sm text-muted">
+                                No results. You can also paste a Wikipedia link.
+                            </li>
                         )}
-                        {ready &&
-                            hits.map((hit, i) => (
+                        {!unsupported &&
+                            ready &&
+                            shownHits.map((hit, i) => (
                                 <li
                                     key={hit.key}
                                     id={`${listId}-${i}`}
@@ -203,7 +261,7 @@ export default function ItemPicker({
                                             <img
                                                 src={hit.imageUrl}
                                                 alt=""
-                                                className="item-img h-10 w-10 shrink-0 object-cover [[data-theme=dark]_&]:bg-foreground"
+                                                className="h-10 w-10 shrink-0 object-cover"
                                             />
                                         ) : (
                                             <div className="h-10 w-10 shrink-0 bg-line/50" />

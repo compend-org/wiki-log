@@ -7,6 +7,8 @@ import { PAGE_SIZE } from "@/lib/paging";
 import LikeButton from "@/components/LikeButton";
 import LoadMore from "@/components/LoadMore";
 import Stars from "@/components/Stars";
+import AdminBadge from "./AdminBadge";
+import { isAdmin } from "@/lib/admin";
 
 // How many of the most-liked reviews to show on top
 const MOST_LIKED = 3;
@@ -115,6 +117,7 @@ export default async function ItemLogs({
           ) : (
             <span>Someone</span>
           )}
+          {isAdmin(row.user_id) && <AdminBadge />}
           <Stars rating={row.rating} />
           <span className="ml-auto text-xs text-muted">
             {new Date(row.logged_at).toLocaleDateString()}
