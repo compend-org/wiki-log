@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { TRENDING_LABEL } from "@/lib/site";
 
 type Tab = "following" | "everyone" | "trending";
@@ -25,7 +25,7 @@ export default function FeedTabs({
   const panels: Record<Tab, ReactNode> = { following, everyone, trending };
 
   const [active, setActive] = useState<Tab>(
-    tabs.some((t) => t.id === initial) ? initial : "everyone"
+    tabs.some((t) => t.id === initial) ? initial : "everyone",
   );
 
   function choose(tab: Tab) {

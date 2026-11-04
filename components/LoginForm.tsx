@@ -1,15 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { useState } from "react";
 import { signIn } from "@/app/actions";
-import {
-  cleanName,
-  isValidName,
-  escapeLike,
-  NAME_RULES,
-} from "@/lib/username";
+import { createClient } from "@/lib/supabase/client";
+import { cleanName, escapeLike, isValidName, NAME_RULES } from "@/lib/username";
 
 export default function LoginForm({ next }: { next: string }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -39,11 +34,11 @@ export default function LoginForm({ next }: { next: string }) {
           setPendingEmail(identifier.trim());
           setMessage("");
           setNotice(
-            "Your email address hasn't been confirmed yet. Check your inbox for the link, or send it again."
+            "Your email address hasn't been confirmed yet. Check your inbox for the link, or send it again.",
           );
         } else {
           setMessage(
-            "Your email address hasn't been confirmed yet. Check your inbox, or sign in with your email address to have it sent again."
+            "Your email address hasn't been confirmed yet. Check your inbox, or sign in with your email address to have it sent again.",
           );
         }
         return;
@@ -92,7 +87,7 @@ export default function LoginForm({ next }: { next: string }) {
       setMessage(
         /rate limit|too many/i.test(error.message)
           ? "A lot of people are signing up right now. Please try again in a few minutes."
-          : error.message
+          : error.message,
       );
       return;
     }
@@ -101,7 +96,7 @@ export default function LoginForm({ next }: { next: string }) {
     } else {
       setPendingEmail(email.trim());
       setNotice(
-        "Check your email for a confirmation link. It can take a minute, and it may land in spam."
+        "Check your email for a confirmation link. It can take a minute, and it may land in spam.",
       );
     }
   }
@@ -119,7 +114,7 @@ export default function LoginForm({ next }: { next: string }) {
       setMessage(
         /rate|seconds|too many/i.test(error.message)
           ? "Please wait a minute before asking again."
-          : error.message
+          : error.message,
       );
       return;
     }

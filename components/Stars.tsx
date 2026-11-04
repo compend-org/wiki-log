@@ -51,6 +51,7 @@ export default function Stars({
     >
       {Array.from({ length: full }, (_, i) => (
         <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
           key={i}
           aria-hidden="true"
           className="inline-block w-[1.1em] text-center"

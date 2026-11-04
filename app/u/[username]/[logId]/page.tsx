@@ -1,23 +1,23 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { escapeLike, isValidName } from "@/lib/username";
-import { isUuid } from "@/lib/ids";
-import { getLikedSet, likeKey } from "@/lib/likes";
-import { getAlsoLiked } from "@/lib/alsoLiked";
-import Avatar from "@/components/Avatar";
-import LikeButton from "@/components/LikeButton";
+import AdminBadge from "@/components/AdminBadge";
 import AlsoLiked from "@/components/AlsoLiked";
+import Avatar from "@/components/Avatar";
 import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
-import Stars from "@/components/Stars";
+import LikeButton from "@/components/LikeButton";
 import OwnerControls from "@/components/OwnerControls";
-import { isAdmin } from "@/lib/admin";
-import AdminBadge from "@/components/AdminBadge";
-import ShareButton from "@/components/ShareButton";
-import { getSharedSet } from "@/lib/shares";
 import ReviewText from "@/components/ReviewText";
+import ShareButton from "@/components/ShareButton";
+import Stars from "@/components/Stars";
+import { isAdmin } from "@/lib/admin";
+import { getAlsoLiked } from "@/lib/alsoLiked";
+import { isUuid } from "@/lib/ids";
+import { getLikedSet, likeKey } from "@/lib/likes";
+import { getSharedSet } from "@/lib/shares";
+import { createClient } from "@/lib/supabase/server";
+import { escapeLike, isValidName } from "@/lib/username";
 
 export const instant = false;
 
@@ -54,7 +54,7 @@ export default async function ReviewPage({
   let name = rawName;
   try {
     name = decodeURIComponent(rawName);
-  } catch { }
+  } catch {}
   if (!isValidName(name)) notFound();
 
   const supabase = await createClient();
@@ -89,7 +89,7 @@ export default async function ReviewPage({
   const { data: logData } = await supabase
     .from("logs")
     .select(
-      "id, user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count), shares(count)"
+      "id, user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count), shares(count)",
     )
     .eq("id", logId)
     .eq("user_id", profile.id)
@@ -100,7 +100,7 @@ export default async function ReviewPage({
   const { data: commentData } = await supabase
     .from("comments")
     .select(
-      "id, parent_id, body, created_at, user_id, profiles!comments_user_id_profiles_fkey(username), comment_likes(count)"
+      "id, parent_id, body, created_at, user_id, profiles!comments_user_id_profiles_fkey(username), comment_likes(count)",
     )
     .eq("log_id", log.id)
     .order("created_at", { ascending: true });
@@ -116,7 +116,7 @@ export default async function ReviewPage({
       .eq("user_id", viewerId)
       .in(
         "comment_id",
-        commentRows.map((c) => c.id)
+        commentRows.map((c) => c.id),
       );
     likedCommentIds = new Set((likedRows ?? []).map((r) => r.comment_id));
   }
@@ -169,7 +169,6 @@ export default async function ReviewPage({
           </Link>
           {isAdmin(log.user_id) && <AdminBadge />}
           <span>· {log.logged_at.slice(0, 10)}</span>
-
         </p>
         <Stars rating={log.rating} />
       </div>

@@ -1,9 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { loginHref } from "@/lib/redirect";
-import { FEATURES } from "@/lib/features";
 import CompoundCreator from "@/components/CompoundCreator";
+import { FEATURES } from "@/lib/features";
+import { loginHref } from "@/lib/redirect";
+import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
 

@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { safeNext } from "@/lib/redirect";
 import LoginForm from "@/components/LoginForm";
+import { safeNext } from "@/lib/redirect";
+import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
 

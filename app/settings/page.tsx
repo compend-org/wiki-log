@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
-import { useLoginHref } from "@/lib/useLoginHref";
+import { useEffect, useState } from "react";
 import AvatarUpload from "@/components/AvatarUpload";
 import BioEditor from "@/components/BioEditor";
-import ThemeSetting from "@/components/ThemeSetting";
 import DeleteAccount from "@/components/DeleteAccount";
+import ThemeSetting from "@/components/ThemeSetting";
+import { createClient } from "@/lib/supabase/client";
+import { useLoginHref } from "@/lib/useLoginHref";
+import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
 
 export default function SettingsPage() {
   const loginHref = useLoginHref();
@@ -60,7 +60,7 @@ export default function SettingsPage() {
 
     if (error) {
       setMessage(
-        error.code === "23505" ? "That username is taken." : error.message
+        error.code === "23505" ? "That username is taken." : error.message,
       );
       return;
     }

@@ -40,6 +40,7 @@ export default function LanguagePicker({
   const current = LANGUAGES.find((l) => l.code === value) ?? LANGUAGES[0];
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: closes the menu on events from the controls inside it
     <div
       className="relative flex"
       onBlur={(e) => {
@@ -78,7 +79,9 @@ export default function LanguagePicker({
               aria-label={l.label}
               title={l.label}
               className={`flex items-center justify-center p-1.5 hover:bg-surface ${
-                l.code === value ? "bg-surface outline outline-1 outline-accent" : ""
+                l.code === value
+                  ? "bg-surface outline outline-1 outline-accent"
+                  : ""
               }`}
             >
               <span className={`fi fi-${FLAGS[l.code]} text-xl`} />

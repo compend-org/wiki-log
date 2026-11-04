@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "flag-icons/css/flag-icons.min.css";
-import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import Nav from "@/components/Nav";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 import { themeInitScript } from "@/lib/theme";
 
@@ -36,6 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
+        {/** biome-ignore lint/security/noDangerouslySetInnerHtml: injects the app's own constant theme script */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-full flex flex-col">

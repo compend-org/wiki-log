@@ -1,12 +1,14 @@
+// ABOUTME: Server actions for accounts, logs, favourites, lists and compounds.
+// ABOUTME: Caches items looked up from Wikipedia before anything refers to them.
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { getItemById } from "@/lib/wikipedia";
-import { cleanName, escapeLike, isValidName } from "@/lib/username";
-import { MAX_AGE_MS } from "@/lib/items";
-import { isUuid, ITEM_ID_PATTERN, isCompoundId } from "@/lib/ids";
 import { FEATURES } from "@/lib/features";
+import { ITEM_ID_PATTERN, isCompoundId, isUuid } from "@/lib/ids";
+import { applyImageHidden, itemColumns, MAX_AGE_MS } from "@/lib/items";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { cleanName, escapeLike, isValidName } from "@/lib/username";
+import { getItemById } from "@/lib/wikipedia";
 
 const ITEM_ID = ITEM_ID_PATTERN;
 
@@ -24,7 +26,7 @@ async function ensureItem(itemId: string): Promise<string | null> {
   }
   const { data: existing } = await createAdminClient()
     .from("items")
-    .select("fetched_at")
+    .select("fetched_at, image_hidden")
     .eq("id", itemId)
     .maybeSingle();
   if (
@@ -35,16 +37,13 @@ async function ensureItem(itemId: string): Promise<string | null> {
   }
   const result = await getItemById(itemId);
   if ("error" in result) return result.error;
-  const { item } = result;
 
-  const { error } = await createAdminClient().from("items").upsert({
-    id: item.id,
-    title: item.title,
-    description: item.description,
-    image_url: item.imageUrl,
-    page_url: item.pageUrl,
-    fetched_at: new Date().toISOString(),
-  });
+  // A hidden image stays hidden
+  const item = applyImageHidden(result.item, existing?.image_hidden === true);
+
+  const { error } = await createAdminClient()
+    .from("items")
+    .upsert({ id: item.id, ...itemColumns(item) });
   return error ? error.message : null;
 }
 
@@ -111,7 +110,7 @@ export async function signIn(input: {
   identifier: string;
   password: string;
 }): Promise<{ error?: string }> {
-  const generic = "Invalid login credentials";
+  const generic = "Invalid sign-in credentials";
   let email = input.identifier.trim();
 
   // No "@" means it's a name: look up the email on the server only
@@ -137,7 +136,11 @@ export async function signIn(input: {
     email,
     password: input.password,
   });
-  if (error) return { error: error.message };
+  if (error) {
+    return {
+      error: error.code === "invalid_credentials" ? generic : error.message,
+    };
+  }
   return {};
 }
 
@@ -161,48 +164,11 @@ export async function setFavourite(input: {
   const itemError = await ensureItem(input.itemId);
   if (itemError) return { error: itemError };
 
-  // Looks the item up on Wikipedia and Wikidata and caches it
-  // (users can't write to `items` themselves)
-  async function ensureItem(itemId: string): Promise<string | null> {
-    const admin = createAdminClient();
-
-    const { data: existing } = await admin
-      .from("items")
-      .select("fetched_at, image_hidden")
-      .eq("id", itemId)
-      .maybeSingle();
-    if (
-      existing &&
-      Date.now() - new Date(existing.fetched_at).getTime() < MAX_AGE_MS
-    ) {
-      return null;
-    }
-
-    const result = await getItemById(itemId);
-    if ("error" in result) return result.error;
-    const { item } = result;
-
-    // A hidden image stays hidden
-    const hidden = existing?.image_hidden === true;
-
-    const { error } = await admin.from("items").upsert({
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      image_url: hidden ? null : item.imageUrl,
-      image_non_free: hidden ? false : item.imageNonFree,
-      image_page_url: hidden ? null : item.imageFilePage,
-      page_url: item.pageUrl,
-      fetched_at: new Date().toISOString(),
-    });
-    return error ? error.message : null;
-  }
-
   const { error } = await supabase
     .from("favourites")
     .upsert(
       { user_id: userId, position: input.position, item_id: input.itemId },
-      { onConflict: "user_id,position" }
+      { onConflict: "user_id,position" },
     );
   if (error) {
     return {
@@ -216,7 +182,7 @@ export async function setFavourite(input: {
 }
 
 export async function removeFavourite(
-  position: number
+  position: number,
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -330,6 +296,7 @@ export async function createCompound(input: {
   if (title.length < 1 || title.length > 80) {
     return { error: "Names are 1–80 characters." };
   }
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting control characters is the purpose of this check
   if (/[\u0000-\u001f]/.test(title)) {
     return { error: "That name has invalid characters." };
   }
@@ -360,12 +327,10 @@ export async function createCompound(input: {
       p_title: title,
       p_description: description,
       p_parts: parts,
-    }
+    },
   );
   if (error) return { error: error.message };
 
   const r = result as { id: string; title: string; existing: boolean };
-  return r.existing
-    ? { existing: { id: r.id, title: r.title } }
-    : { id: r.id };
+  return r.existing ? { existing: { id: r.id, title: r.title } } : { id: r.id };
 }

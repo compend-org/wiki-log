@@ -1,17 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { isUuid } from "@/lib/ids";
+import AdminBadge from "@/components/AdminBadge";
+import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
 import ListLikeButton from "@/components/ListLikeButton";
-import Comments, { type CommentItem } from "@/components/Comments";
-import Stars from "@/components/Stars";
-import AdminBadge from "@/components/AdminBadge";
-import { isAdmin } from "@/lib/admin";
-import ShareButton from "@/components/ShareButton";
-import { getSharedSet } from "@/lib/shares";
 import ReviewText from "@/components/ReviewText";
+import ShareButton from "@/components/ShareButton";
+import Stars from "@/components/Stars";
+import { isAdmin } from "@/lib/admin";
+import { isUuid } from "@/lib/ids";
+import { getSharedSet } from "@/lib/shares";
+import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
 
@@ -81,7 +81,7 @@ export default async function ListPage({
   const { data } = await supabase
     .from("lists")
     .select(
-      "id, user_id, title, description, ranked, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count)"
+      "id, user_id, title, description, ranked, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -132,7 +132,7 @@ export default async function ListPage({
   const { data: commentData } = await supabase
     .from("list_comments")
     .select(
-      "id, parent_id, body, created_at, user_id, profiles!list_comments_user_id_profiles_fkey(username)"
+      "id, parent_id, body, created_at, user_id, profiles!list_comments_user_id_profiles_fkey(username)",
     )
     .eq("list_id", id)
     .order("created_at", { ascending: true });
@@ -158,7 +158,8 @@ export default async function ListPage({
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold">{list.title}</h1>
         <p className="text-sm text-muted">
-          A {list.ranked ? "ranked " : ""}list by {isAdmin(list.user_id) && (
+          A {list.ranked ? "ranked " : ""}list by{" "}
+          {isAdmin(list.user_id) && (
             <>
               {" "}
               <AdminBadge />
@@ -237,7 +238,7 @@ export default async function ListPage({
                 <div
                   role="tooltip"
                   className={`card pointer-events-none absolute bottom-full z-30 mb-2 hidden w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 p-3 text-left group-hover:flex group-focus-within:flex ${tooltipPosition(
-                    index
+                    index,
                   )}`}
                 >
                   <span className="text-xs text-muted">

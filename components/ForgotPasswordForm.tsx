@@ -14,7 +14,7 @@ export default function ForgotPasswordForm() {
     setBusy(true);
     setError("");
     const { error } = await createClient().auth.resetPasswordForEmail(
-      email.trim()
+      email.trim(),
     );
     setBusy(false);
     if (error && /rate|seconds|too many/i.test(error.message)) {
@@ -30,8 +30,7 @@ export default function ForgotPasswordForm() {
     return (
       <p>
         If there&apos;s an account for that address, we&apos;ve sent it a link
-        to choose a new password. It can take a minute, and it may land in
-        spam.
+        to choose a new password. It can take a minute, and it may land in spam.
       </p>
     );
   }

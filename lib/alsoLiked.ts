@@ -24,7 +24,7 @@ type Row = {
 
 export async function getAlsoLiked(
   supabase: SupabaseClient,
-  rows: { user_id: string; item_id: string }[]
+  rows: { user_id: string; item_id: string }[],
 ): Promise<AlsoLikedMap> {
   const result: AlsoLikedMap = new Map();
   if (rows.length === 0) return result;
@@ -37,7 +37,7 @@ export async function getAlsoLiked(
   const { data } = await supabase
     .from("logs")
     .select(
-      "id, user_id, item_id, rating, logged_at, likes!inner(user_id, created_at)"
+      "id, user_id, item_id, rating, logged_at, likes!inner(user_id, created_at)",
     )
     .in("item_id", itemIds)
     .in("likes.user_id", reviewerIds);

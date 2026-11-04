@@ -5,7 +5,7 @@ export async function getSharedSet(
   supabase: SupabaseClient,
   viewerId: string | undefined,
   kind: "log" | "list",
-  ids: string[]
+  ids: string[],
 ): Promise<Set<string>> {
   if (!viewerId || ids.length === 0) return new Set();
 
@@ -17,6 +17,6 @@ export async function getSharedSet(
     .in(column, ids);
 
   return new Set(
-    ((data ?? []) as unknown as Record<string, string>[]).map((r) => r[column])
+    ((data ?? []) as unknown as Record<string, string>[]).map((r) => r[column]),
   );
 }

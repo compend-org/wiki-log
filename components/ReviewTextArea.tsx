@@ -8,8 +8,11 @@ const TRIGGER = "::link";
 // What gets stored in the review text for a link to an item
 function linkToken(id: string, title: string): string {
   const clean =
-    title.replace(/[[\]|]/g, " ").replace(/\s+/g, " ").trim().slice(0, 200) ||
-    "item";
+    title
+      .replace(/[[\]|]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 200) || "item";
   return `[[${id}|${clean}]]`;
 }
 
@@ -82,11 +85,13 @@ export default function ReviewTextarea({
         onChange={handleChange}
         maxLength={maxLength}
         rows={rows}
+        // biome-ignore lint/a11y/noAutofocus: callers ask for focus when the box opens on purpose
         autoFocus={autoFocus}
         placeholder={placeholder}
         className={className}
       />
       {picking && (
+        // biome-ignore lint/a11y/noStaticElementInteractions: Escape from the picker inside closes it
         <div
           onKeyDown={(e) => {
             if (e.key === "Escape") close();

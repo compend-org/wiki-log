@@ -1,0 +1,26 @@
+# ABOUTME: Runs the typecheck, lint and format checks on every pull request.
+# ABOUTME: Route types are generated first because the code depends on them.
+name: Checks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Generate route types
+        run: npx next typegen
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint and format
+        run: npx biome ci --max-diagnostics=none .
