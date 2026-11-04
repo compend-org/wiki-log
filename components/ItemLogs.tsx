@@ -180,7 +180,7 @@ export default async function ItemLogs({
         {rows.length === 0 ? "No logs yet" : "Logs"}
       </h2>
 
-      {rows.length > 0 && (
+      {people < 10 && (
         <p className="text-muted">
           {people > 0 && (
             <>
