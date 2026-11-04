@@ -13,6 +13,7 @@ export type LogRow = {
     profiles: { username: string; avatar_path: string | null } | null;
     likes: { count: number }[];
     comments: { count: number }[];
+    shares: { count: number }[];
 };
 
 export type ListRow = {
@@ -25,6 +26,7 @@ export type ListRow = {
     list_items: { count: number }[];
     list_likes: { count: number }[];
     list_comments: { count: number }[];
+    shares: { count: number }[];
 };
 
 export type Thumb = { title: string; image_url: string | null };
@@ -48,10 +50,10 @@ type PreviewRow = {
 type RankRow = { row_id: string; recent_likes: number | string };
 
 const LOG_SELECT =
-    "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count)";
+    "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
 const LIST_SELECT =
-    "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count)";
-
+    "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count)";
+    
 function publicClient(): SupabaseClient {
     return createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,

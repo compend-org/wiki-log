@@ -8,13 +8,15 @@ import { useLoginHref } from "@/lib/useLoginHref";
 type NotificationRow = {
   id: string;
   type:
-    | "like"
-    | "comment"
-    | "reply"
-    | "follow"
-    | "list_like"
-    | "list_comment"
-    | "list_reply";
+  | "like"
+  | "comment"
+  | "reply"
+  | "follow"
+  | "list_like"
+  | "list_comment"
+  | "list_reply"
+  | "share"
+  | "list_share";
   read: boolean;
   created_at: string;
   log_id: string | null;
@@ -74,9 +76,9 @@ export default function NotificationsPage() {
 
       const logRes = logIds.length
         ? await supabase
-            .from("logs")
-            .select("id, user_id, item_id")
-            .in("id", logIds)
+          .from("logs")
+          .select("id, user_id, item_id")
+          .in("id", logIds)
         : { data: [] as { id: string; user_id: string; item_id: string }[] };
       const logRows = logRes.data ?? [];
 
@@ -154,6 +156,13 @@ export default function NotificationsPage() {
             ? `/u/${encodeURIComponent(n.profiles.username)}`
             : "/",
         };
+      case "share":
+        return { text: `${actor} shared your review of ${title}`, href: reviewHref };
+      case "list_share":
+        return {
+          text: `${actor} shared your list “${listTitle}”`,
+          href: n.list_id ? `/list/${n.list_id}` : "/",
+        };
       case "list_like":
         return {
           text: `${actor} liked your list “${listTitle}”`,
@@ -188,7 +197,7 @@ export default function NotificationsPage() {
 
       {loaded && signedIn && !error && rows.length === 0 && (
         <p className="text-muted">
-          Nothing yet. You&apos;ll see likes, comments, replies and new
+          Nothing yet. You&apos;ll see likes, shares, comments, replies and new
           followers here.
         </p>
       )}
@@ -199,9 +208,8 @@ export default function NotificationsPage() {
           <Link
             key={n.id}
             href={href}
-            className={`flex flex-col gap-1 border p-3 ${
-              n.read ? "border-line" : "border-accent bg-surface"
-            }`}
+            className={`flex flex-col gap-1 border p-3 ${n.read ? "border-line" : "border-accent bg-surface"
+              }`}
           >
             <span className="text-sm">{text}</span>
             <span className="text-xs text-muted">
