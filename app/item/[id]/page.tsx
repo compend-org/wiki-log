@@ -126,7 +126,7 @@ export default async function ItemPage({
       <div className="flex flex-col gap-3">
         {item.imageUrl ? (
           <figure className="flex flex-col items-center gap-1">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
             <img
               src={item.imageUrl}
               alt={item.title}

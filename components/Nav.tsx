@@ -68,7 +68,7 @@ export default function Nav() {
       href="/"
       className="sm:mr-2 flex items-center gap-2 text-xl font-bold text-foreground no-underline"
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
       <img
         src="/logo-light.png"
         alt=""
@@ -76,7 +76,7 @@ export default function Nav() {
         height={35}
         className="logo-light border-0"
       />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
       <img
         src="/logo-dark.png"
         alt=""

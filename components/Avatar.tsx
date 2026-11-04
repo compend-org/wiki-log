@@ -18,7 +18,7 @@ export default function Avatar({
     if (!url) {
         return (
             <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
                 <img
                     src="/default-avi-light.png"
                     alt=""
@@ -28,7 +28,7 @@ export default function Avatar({
                     style={style}
                     className={`${base} [[data-theme=dark]_&]:hidden`}
                 />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
                 <img
                     src="/default-avi-dark.png"
                     alt=""
@@ -43,7 +43,7 @@ export default function Avatar({
     }
 
     return (
-        // eslint-disable-next-line @next/next/no-img-element
+        // biome-ignore lint/performance/noImgElement: a plain img is intended
         <img
             src={url}
             alt=""

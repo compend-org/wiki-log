@@ -104,7 +104,7 @@ export default function ItemImage({
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
+    // biome-ignore lint/performance/noImgElement: a plain img is intended
     <img
       src={thumbUrl(src)}
       alt={alt}

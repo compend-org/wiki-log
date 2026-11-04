@@ -257,7 +257,7 @@ export default function ItemPicker({
                                             }`}
                                     >
                                         {hit.imageUrl ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
+                                            // biome-ignore lint/performance/noImgElement: a plain img is intended
                                             <img
                                                 src={hit.imageUrl}
                                                 alt=""
