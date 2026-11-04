@@ -61,13 +61,30 @@ async function mightBeHuman(qid: string): Promise<boolean> {
 // ----------------------------------------------------------------- images
 
 type ImagePage = {
+  title: string;
   imagerepository?: string; // "shared" = Wikimedia Commons, "local" = this wiki
   imageinfo?: {
     thumburl?: string;
+    url?: string;
+    width?: number;
+    height?: number;
+    mime?: string;
     descriptionurl?: string;
   }[];
   categories?: { title: string }[];
 };
+
+// These checks exclude page furniture, not establish semantic relevance.
+const PAGE_FURNITURE =
+  /(logo|icon|symbol|ambox|question[ _]book|commons-|wikimedia|wikipedia|wikidata|edit-clear|stub|portal|disambig|folder|nuvola|crystal|padlock|speaker|loudspeaker|red[ _]pencil|checkmark|ooui|ui-)/i;
+const PICTURE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+function fileIsFree(page: ImagePage | undefined): boolean {
+  return (
+    page?.imagerepository === "shared" ||
+    (page?.categories ?? []).some((c) => c.title === "Category:All free media")
+  );
+}
 
 // The file's name, read from an upload.wikimedia.org address
 function fileNameFromUrl(url: string): string | null {
@@ -132,14 +149,9 @@ async function leadImage(lang: LangCode, url: string): Promise<ItemImage> {
     if (!res.ok) return fallback;
     const data: { query?: { pages?: ImagePage[] } } = await res.json();
     const page = data.query?.pages?.[0];
-    const free =
-      page?.imagerepository === "shared" ||
-      (page?.categories ?? []).some(
-        (c) => c.title === "Category:All free media",
-      );
     return {
       url,
-      nonFree: !free,
+      nonFree: !fileIsFree(page),
       filePage: page?.imageinfo?.[0]?.descriptionurl ?? fallback.filePage,
     };
   } catch {
@@ -147,18 +159,99 @@ async function leadImage(lang: LangCode, url: string): Promise<ItemImage> {
   }
 }
 
-// The article's lead image represents the topic, regardless of its licence.
-// Without one, use Wikidata's curated image; arbitrary body images can depict
-// something else entirely, so leave the image empty if neither exists.
+// The summary can omit a thumbnail even when PageImages has selected one.
+// Ask for any licence: the default free-only choice may depict a related topic.
+async function representativeImage(
+  lang: LangCode,
+  title: string,
+): Promise<ItemImage | null> {
+  try {
+    const res = await wikiFetch(
+      `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&prop=pageimages&piprop=thumbnail&pithumbsize=960&pilicense=any&titles=${encodeURIComponent(title)}`,
+      { headers: HEADERS },
+    );
+    if (!res.ok) return null;
+    const data: {
+      query?: { pages?: { thumbnail?: { source: string } }[] };
+    } = await res.json();
+    const source = data.query?.pages?.[0]?.thumbnail?.source;
+    return source ? leadImage(lang, absolute(source)) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Without a representative image, a sole usable article image is a fallback.
+// Multiple candidates are ambiguous: API file order and licence don't tell us
+// which depicts the topic. Never treat a partial response as a sole candidate.
+async function soleArticleImage(
+  lang: LangCode,
+  title: string,
+): Promise<ItemImage | null> {
+  try {
+    const res = await wikiFetch(
+      `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&generator=images&gimlimit=50&prop=imageinfo|categories&iiprop=url|size|mime&iiurlwidth=960&clcategories=${encodeURIComponent("Category:All free media")}&cllimit=max&titles=${encodeURIComponent(title)}`,
+      { headers: HEADERS },
+    );
+    if (!res.ok) return null;
+    const data: {
+      continue?: Record<string, unknown>;
+      query?: { pages?: ImagePage[] };
+    } = await res.json();
+    if (data.continue) return null;
+
+    const candidates = (data.query?.pages ?? []).filter((page) => {
+      const info = page.imageinfo?.[0];
+      const width = info?.width ?? 0;
+      const height = info?.height ?? 0;
+      const ratio = height > 0 ? width / height : 0;
+      return (
+        !!(info?.thumburl ?? info?.url) &&
+        !!info?.mime &&
+        PICTURE_TYPES.has(info.mime) &&
+        width >= 200 &&
+        height >= 150 &&
+        ratio >= 0.5 &&
+        ratio <= 2.2 &&
+        !PAGE_FURNITURE.test(page.title)
+      );
+    });
+    if (candidates.length !== 1) return null;
+
+    const page = candidates[0];
+    const info = page.imageinfo?.[0];
+    const source = info?.thumburl ?? info?.url;
+    if (!source) return null;
+    const url = absolute(source);
+    return {
+      url,
+      nonFree: !fileIsFree(page),
+      filePage:
+        info?.descriptionurl ??
+        filePageFor(lang, url, page.title.replace(/^[^:]+:/, "")),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Relevance comes before licence: use Wikipedia's representative image, then
+// Wikidata's curated image, then a sole suitable article image. A free body
+// image never replaces a lead.
 async function chooseImage(
   lang: LangCode,
   qid: string,
+  title: string,
   leadSource: string | undefined,
 ): Promise<ItemImage | null> {
   if (leadSource) return leadImage(lang, absolute(leadSource));
 
+  const representative = await representativeImage(lang, title);
+  if (representative) return representative;
+
   const fromWikidata = await wikidataImage(qid);
-  return fromWikidata ? { ...fromWikidata, nonFree: false } : null;
+  if (fromWikidata) return { ...fromWikidata, nonFree: false };
+  return soleArticleImage(lang, title);
 }
 
 // ---------------------------------------------------------------- lookups
@@ -213,7 +306,12 @@ export async function getItemByKey(
         : original.source;
   }
 
-  const image = await chooseImage(lang, data.wikibase_item, leadSource);
+  const image = await chooseImage(
+    lang,
+    data.wikibase_item,
+    data.title,
+    leadSource,
+  );
 
   return {
     item: {
