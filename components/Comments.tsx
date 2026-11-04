@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useState } from "react";
 import CommentLikeButton from "@/components/CommentLikeButton";
-import { useLoginHref } from "@/lib/useLoginHref";
 import ReviewText from "@/components/ReviewText";
-import ReviewTextarea from "./ReviewTextArea";
+import { createClient } from "@/lib/supabase/client";
+import { useLoginHref } from "@/lib/useLoginHref";
 import AdminBadge from "./AdminBadge";
+import ReviewTextarea from "./ReviewTextArea";
 
 export type CommentItem = {
   id: string;

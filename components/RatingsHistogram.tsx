@@ -14,7 +14,7 @@ export default function RatingHistogram({
   if (ratings.length < 10) return null;
 
   const counts = STEPS.map(
-    (step) => ratings.filter((r) => Math.round(r * 2) / 2 === step).length
+    (step) => ratings.filter((r) => Math.round(r * 2) / 2 === step).length,
   );
   const tallest = Math.max(...counts, 1);
   const average = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
@@ -39,7 +39,8 @@ export default function RatingHistogram({
 
       <div className="flex h-20 items-end gap-1" aria-hidden="true">
         {STEPS.map((step, i) => {
-          const picked = highlight !== null && Math.round(highlight * 2) / 2 === step;
+          const picked =
+            highlight !== null && Math.round(highlight * 2) / 2 === step;
           const count = counts[i];
           return (
             <div
@@ -52,7 +53,10 @@ export default function RatingHistogram({
                   picked ? "bg-star" : count > 0 ? "bg-muted/50" : "bg-line/60"
                 }`}
                 style={{
-                  height: count > 0 ? `${Math.max(8, (count / tallest) * 100)}%` : "2px",
+                  height:
+                    count > 0
+                      ? `${Math.max(8, (count / tallest) * 100)}%`
+                      : "2px",
                 }}
               />
             </div>

@@ -1,15 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import SignOutIcon from "@/components/SignOutIcon";
+import { createClient } from "@/lib/supabase/client";
 
 // The caller chooses the display (for example "inline-flex" or
 // "hidden sm:inline-flex") and whether the words show at every size.
 export default function SignOutButton({
   className = "",
   labelClassName = "",
-  label = "Log out",
+  label = "Sign out",
 }: {
   className?: string;
   labelClassName?: string;

@@ -3,18 +3,18 @@ import { CONTACT_EMAIL, SITE_NAME } from "@/lib/site";
 export const metadata = { title: "Contact" };
 
 export default function ContactPage() {
-    return (
-        <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
-            <h1 className="text-3xl font-bold">Contact</h1>
-            <p>
-                You can reach me at{" "}
-                <a href={`mailto:${CONTACT_EMAIL}`} className="underline">
-                    {CONTACT_EMAIL}
-                </a>
-                .
-            </p>
+  return (
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
+      <h1 className="text-3xl font-bold">Contact</h1>
+      <p>
+        You can reach me at{" "}
+        <a href={`mailto:${CONTACT_EMAIL}`} className="underline">
+          {CONTACT_EMAIL}
+        </a>
+        .
+      </p>
 
-            {/* <section className="flex flex-col gap-1">
+      {/* <section className="flex flex-col gap-1">
                 <h2 className="text-xl font-bold">What to write about</h2>
                 <ul className="list-disc pl-5">
                     <li>Questions, bug reports and suggestions.</li>
@@ -35,10 +35,10 @@ export default function ContactPage() {
                 </ul>
             </section> */}
 
-            <p className="text-sm text-muted">
-                {SITE_NAME} is not affiliated with Wikipedia or the Wikimedia
-                Foundation.
-            </p>
-        </main>
-    );
+      <p className="text-sm text-muted">
+        {SITE_NAME} is not affiliated with Wikipedia or the Wikimedia
+        Foundation.
+      </p>
+    </main>
+  );
 }

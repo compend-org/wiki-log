@@ -1,7 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { getItemById, type ItemData, type LookupResult } from "@/lib/wikipedia";
+// ABOUTME: Reads items from the database cache and refreshes stale ones from Wikipedia.
+// ABOUTME: Holds the rules for how a Wikipedia lookup becomes an `items` row.
 import { ITEM_ID_PATTERN, isCompoundId } from "@/lib/ids";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { getItemById, type ItemData, type LookupResult } from "@/lib/wikipedia";
 
 // A cached item is trusted for a week, then refreshed from Wikipedia
 export const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -31,6 +33,26 @@ function toItem(row: ItemRow): ItemData {
   };
 }
 
+// An item from Wikipedia, without its image if that image is hidden
+export function applyImageHidden(item: ItemData, hidden: boolean): ItemData {
+  return hidden
+    ? { ...item, imageUrl: null, imageNonFree: false, imageFilePage: null }
+    : item;
+}
+
+// The `items` columns written when an item is saved or refreshed from Wikipedia
+export function itemColumns(item: ItemData) {
+  return {
+    title: item.title,
+    description: item.description,
+    image_url: item.imageUrl,
+    image_non_free: item.imageNonFree,
+    image_page_url: item.imageFilePage,
+    page_url: item.pageUrl,
+    fetched_at: new Date().toISOString(),
+  };
+}
+
 // For item pages. Call after `await connection()`, since it reads the clock.
 export async function getItemForPage(id: string): Promise<LookupResult> {
   if (!ITEM_ID_PATTERN.test(id)) return { error: "Invalid item." };
@@ -39,7 +61,7 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
   const { data } = await supabase
     .from("items")
     .select(
-      "id, title, description, image_url, image_non_free, image_page_url, image_hidden, page_url, fetched_at"
+      "id, title, description, image_url, image_non_free, image_page_url, image_hidden, page_url, fetched_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -65,23 +87,12 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
   }
 
   // A hidden image stays hidden, however often the item is refreshed
-  const hidden = cached?.image_hidden === true;
-  const item: ItemData = hidden
-    ? { ...fresh.item, imageUrl: null, imageNonFree: false, imageFilePage: null }
-    : fresh.item;
+  const item = applyImageHidden(fresh.item, cached?.image_hidden === true);
 
   if (cached) {
     await createAdminClient()
       .from("items")
-      .update({
-        title: item.title,
-        description: item.description,
-        image_url: item.imageUrl,
-        image_non_free: item.imageNonFree,
-        image_page_url: item.imageFilePage,
-        page_url: item.pageUrl,
-        fetched_at: new Date().toISOString(),
-      })
+      .update(itemColumns(item))
       .eq("id", id);
   }
 

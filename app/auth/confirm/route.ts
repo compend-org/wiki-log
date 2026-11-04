@@ -1,7 +1,7 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
-import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { safeNext } from "@/lib/redirect";
+import { createClient } from "@/lib/supabase/server";
 
 // The link in the email may carry a full address (the page to return to) or a
 // plain path. Either way, only paths on this site are followed.

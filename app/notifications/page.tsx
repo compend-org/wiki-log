@@ -1,22 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 
 type NotificationRow = {
   id: string;
   type:
-  | "like"
-  | "comment"
-  | "reply"
-  | "follow"
-  | "list_like"
-  | "list_comment"
-  | "list_reply"
-  | "share"
-  | "list_share";
+    | "like"
+    | "comment"
+    | "reply"
+    | "follow"
+    | "list_like"
+    | "list_comment"
+    | "list_reply"
+    | "share"
+    | "list_share";
   read: boolean;
   created_at: string;
   log_id: string | null;
@@ -53,7 +53,7 @@ export default function NotificationsPage() {
       const { data, error } = await supabase
         .from("notifications")
         .select(
-          "id, type, read, created_at, log_id, list_id, profiles!notifications_actor_fkey(username)"
+          "id, type, read, created_at, log_id, list_id, profiles!notifications_actor_fkey(username)",
         )
         .eq("recipient_id", userId)
         .order("created_at", { ascending: false })
@@ -76,9 +76,9 @@ export default function NotificationsPage() {
 
       const logRes = logIds.length
         ? await supabase
-          .from("logs")
-          .select("id, user_id, item_id")
-          .in("id", logIds)
+            .from("logs")
+            .select("id, user_id, item_id")
+            .in("id", logIds)
         : { data: [] as { id: string; user_id: string; item_id: string }[] };
       const logRows = logRes.data ?? [];
 
@@ -99,14 +99,18 @@ export default function NotificationsPage() {
 
       setLogs(
         Object.fromEntries(
-          logRows.map((l) => [l.id, { owner: l.user_id, item: l.item_id }])
-        )
+          logRows.map((l) => [l.id, { owner: l.user_id, item: l.item_id }]),
+        ),
       );
-      setTitles(Object.fromEntries((items.data ?? []).map((v) => [v.id, v.title])));
+      setTitles(
+        Object.fromEntries((items.data ?? []).map((v) => [v.id, v.title])),
+      );
       setListTitles(
-        Object.fromEntries((lists.data ?? []).map((v) => [v.id, v.title]))
+        Object.fromEntries((lists.data ?? []).map((v) => [v.id, v.title])),
       );
-      setOwners(Object.fromEntries((profs.data ?? []).map((p) => [p.id, p.username])));
+      setOwners(
+        Object.fromEntries((profs.data ?? []).map((p) => [p.id, p.username])),
+      );
       setLoaded(true);
 
       // Opening the page marks everything as read
@@ -125,25 +129,29 @@ export default function NotificationsPage() {
   function describe(n: NotificationRow): { text: string; href: string } {
     const actor = n.profiles?.username ?? "Someone";
     const entry = n.log_id ? logs[n.log_id] : undefined;
-    const title = entry ? titles[entry.item] ?? "an item" : "an item";
+    const title = entry ? (titles[entry.item] ?? "an item") : "an item";
     const ownerName = entry ? owners[entry.owner] : undefined;
     const reviewHref =
       ownerName && n.log_id
         ? `/u/${encodeURIComponent(ownerName)}/${n.log_id}`
         : "/";
-    const listTitle = n.list_id ? listTitles[n.list_id] ?? "a list" : "";
+    const listTitle = n.list_id ? (listTitles[n.list_id] ?? "a list") : "";
     const listHref = n.list_id ? `/list/${n.list_id}#comments` : "/";
 
     switch (n.type) {
       case "like":
-        return { text: `${actor} liked your review of ${title}`, href: reviewHref };
+        return {
+          text: `${actor} liked your review of ${title}`,
+          href: reviewHref,
+        };
       case "comment":
         return {
           text: `${actor} commented on your review of ${title}`,
           href: reviewHref,
         };
       case "reply": {
-        const whose = entry?.owner === myId ? "your" : `${ownerName ?? "someone"}'s`;
+        const whose =
+          entry?.owner === myId ? "your" : `${ownerName ?? "someone"}'s`;
         return {
           text: `${actor} replied to your comment on ${whose} review of ${title}`,
           href: reviewHref,
@@ -157,7 +165,10 @@ export default function NotificationsPage() {
             : "/",
         };
       case "share":
-        return { text: `${actor} shared your review of ${title}`, href: reviewHref };
+        return {
+          text: `${actor} shared your review of ${title}`,
+          href: reviewHref,
+        };
       case "list_share":
         return {
           text: `${actor} shared your list “${listTitle}”`,
@@ -208,8 +219,9 @@ export default function NotificationsPage() {
           <Link
             key={n.id}
             href={href}
-            className={`flex flex-col gap-1 border p-3 ${n.read ? "border-line" : "border-accent bg-surface"
-              }`}
+            className={`flex flex-col gap-1 border p-3 ${
+              n.read ? "border-line" : "border-accent bg-surface"
+            }`}
           >
             <span className="text-sm">{text}</span>
             <span className="text-xs text-muted">

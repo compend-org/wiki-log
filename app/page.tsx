@@ -1,14 +1,14 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
-import ItemSearch from "@/components/ItemSearch";
+import { Suspense } from "react";
 import Feed from "@/components/Feed";
 import FeedTabs from "@/components/FeedTabs";
+import ItemSearch from "@/components/ItemSearch";
 import PickSquare from "@/components/PickSquare";
-import { createClient } from "@/lib/supabase/server";
 import { getDailyPicks } from "@/lib/dailyPicks";
 import { FEATURES } from "@/lib/features";
 import { parseLimit } from "@/lib/paging";
+import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
 
@@ -33,10 +33,10 @@ export default async function Home({
     tab === "following" || tab === "everyone"
       ? tab
       : tab === "trending" && FEATURES.trending
-      ? "trending"
-      : signedIn
-      ? "following"
-      : "everyone";
+        ? "trending"
+        : signedIn
+          ? "following"
+          : "everyone";
   const feedLimit = parseLimit(limit);
 
   const loading = <p className="py-12 text-center text-muted">Loading…</p>;

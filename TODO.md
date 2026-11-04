@@ -2,8 +2,6 @@
 
 - People shouldn't be able to log the same thing twice in the exact same way, I think. But open to this being fine.
 
-- Search function frequently returns nothing, likely because of wiki api 
+- Search function frequently returns nothing, likely because of wiki api
 
-- WikiData integration? Would likely require filtering of less useful responses. 
-
-- On an thing page, you should be able to see the lists that include that thing
+- WikiData integration? Would likely require filtering of less useful responses.

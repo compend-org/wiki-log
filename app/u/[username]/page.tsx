@@ -1,17 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import Avatar from "@/components/Avatar";
+import Favourites, { type Slot } from "@/components/Favourites";
+import FollowButton from "@/components/FollowButton";
+import ItemImage from "@/components/ItemImage";
+import ReviewText from "@/components/ReviewText";
+import SignOutButton from "@/components/SignOutButton";
+import Stars from "@/components/Stars";
+import { commentLabel } from "@/lib/format";
+import { loginHref } from "@/lib/redirect";
 import { createClient } from "@/lib/supabase/server";
 import { escapeLike, isValidName } from "@/lib/username";
-import { commentLabel } from "@/lib/format";
-import FollowButton from "@/components/FollowButton";
-import Favourites, { type Slot } from "@/components/Favourites";
-import ItemImage from "@/components/ItemImage";
-import Stars from "@/components/Stars";
-import Avatar from "@/components/Avatar";
-import SignOutButton from "@/components/SignOutButton";
-import { loginHref } from "@/lib/redirect";
-import ReviewText from "@/components/ReviewText";
 
 export const instant = false;
 
@@ -56,7 +56,7 @@ export default async function ProfilePage({
   let name = rawName;
   try {
     name = decodeURIComponent(rawName);
-  } catch { }
+  } catch {}
   if (!isValidName(name)) notFound();
 
   const supabase = await createClient();
@@ -71,41 +71,47 @@ export default async function ProfilePage({
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
-  const [logsRes, followersRes, followingRes, isFollowingRes, favRes, listsRes] =
-    await Promise.all([
-      supabase
-        .from("logs")
-        .select(
-          "item_id, rating, review, logged_at, items(title, image_url), comments(count)"
-        )
-        .eq("user_id", profile.id)
-        .order("logged_at", { ascending: false }),
-      supabase
-        .from("follows")
-        .select("*", { count: "exact", head: true })
-        .eq("following_id", profile.id),
-      supabase
-        .from("follows")
-        .select("*", { count: "exact", head: true })
-        .eq("follower_id", profile.id),
-      viewerId
-        ? supabase
+  const [
+    logsRes,
+    followersRes,
+    followingRes,
+    isFollowingRes,
+    favRes,
+    listsRes,
+  ] = await Promise.all([
+    supabase
+      .from("logs")
+      .select(
+        "item_id, rating, review, logged_at, items(title, image_url), comments(count)",
+      )
+      .eq("user_id", profile.id)
+      .order("logged_at", { ascending: false }),
+    supabase
+      .from("follows")
+      .select("*", { count: "exact", head: true })
+      .eq("following_id", profile.id),
+    supabase
+      .from("follows")
+      .select("*", { count: "exact", head: true })
+      .eq("follower_id", profile.id),
+    viewerId
+      ? supabase
           .from("follows")
           .select("follower_id")
           .eq("follower_id", viewerId)
           .eq("following_id", profile.id)
           .maybeSingle()
-        : Promise.resolve({ data: null }),
-      supabase
-        .from("favourites")
-        .select("position, item_id, items(title, image_url)")
-        .eq("user_id", profile.id),
-      supabase
-        .from("lists")
-        .select("id, title, ranked, list_items(count)")
-        .eq("user_id", profile.id)
-        .order("created_at", { ascending: false }),
-    ]);
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("favourites")
+      .select("position, item_id, items(title, image_url)")
+      .eq("user_id", profile.id),
+    supabase
+      .from("lists")
+      .select("id, title, ranked, list_items(count)")
+      .eq("user_id", profile.id)
+      .order("created_at", { ascending: false }),
+  ]);
 
   const logs = (logsRes.data ?? []) as unknown as LogRow[];
   const followers = followersRes.count ?? 0;
@@ -117,21 +123,27 @@ export default async function ProfilePage({
     const row = favRows.find((r) => r.position === pos);
     return row
       ? {
-        itemId: row.item_id,
-        title: row.items?.title ?? "Unknown item",
-        imageUrl: row.items?.image_url ?? null,
-      }
+          itemId: row.item_id,
+          title: row.items?.title ?? "Unknown item",
+          imageUrl: row.items?.image_url ?? null,
+        }
       : null;
   });
 
   // The first four items of each list, for the preview thumbnails
   const lists = (listsRes.data ?? []) as unknown as ListRow[];
-  const previews = new Map<string, { title: string; image_url: string | null }[]>();
+  const previews = new Map<
+    string,
+    { title: string; image_url: string | null }[]
+  >();
   if (lists.length > 0) {
     const { data: previewData } = await supabase
       .from("list_items")
       .select("list_id, position, items(title, image_url)")
-      .in("list_id", lists.map((l) => l.id))
+      .in(
+        "list_id",
+        lists.map((l) => l.id),
+      )
       .lte("position", 4)
       .order("position");
     for (const row of (previewData ?? []) as unknown as PreviewRow[]) {
@@ -151,7 +163,11 @@ export default async function ProfilePage({
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <header className="flex flex-col gap-1">
         <div className="flex items-center gap-4">
-          <Avatar name={profile.username} path={profile.avatar_path} size={72} />
+          <Avatar
+            name={profile.username}
+            path={profile.avatar_path}
+            size={72}
+          />
           <h1 className="text-3xl font-bold">{profile.username}</h1>
         </div>
         <p className="text-sm text-muted">
@@ -161,7 +177,8 @@ export default async function ProfilePage({
         {profile.bio && (
           <p className="mt-2 max-w-prose whitespace-pre-wrap break-words">
             {profile.bio}
-          </p>)}
+          </p>
+        )}
         <div className="mt-2">
           {!viewerId ? (
             <Link href={loginHref(profileHref)} className="underline">
@@ -200,9 +217,7 @@ export default async function ProfilePage({
               </Link>
             )} */}
           </div>
-          {lists.length === 0 && (
-            <p className="text-muted">No lists yet.</p>
-          )}
+          {lists.length === 0 && <p className="text-muted">No lists yet.</p>}
           {lists.map((l) => {
             const count = l.list_items?.[0]?.count ?? 0;
             const preview = previews.get(l.id) ?? [];
@@ -223,6 +238,7 @@ export default async function ProfilePage({
                   <div className="flex gap-1">
                     {preview.map((p, i) => (
                       <ItemImage
+                        // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
                         key={i}
                         src={p.image_url}
                         alt={p.title}

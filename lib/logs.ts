@@ -51,7 +51,7 @@ export async function deleteLog(logId: string): Promise<string | null> {
 export async function updateLog(
   logId: string,
   rating: number | null,
-  review: string
+  review: string,
 ): Promise<string | null> {
   const { error } = await createClient()
     .from("logs")

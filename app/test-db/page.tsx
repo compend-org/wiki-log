@@ -1,7 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
-import SignOutButton from "@/components/SignOutButton";
 import Link from "next/link";
 import { connection } from "next/server";
+import SignOutButton from "@/components/SignOutButton";
+import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
 
@@ -23,7 +23,7 @@ export default async function TestDb() {
         <SignOutButton />
       ) : (
         <Link href="/login" className="underline">
-          Go to login
+          Go to sign in
         </Link>
       )}
     </main>

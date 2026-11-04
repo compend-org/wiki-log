@@ -2,10 +2,11 @@
 // and "//elsewhere.com" no.
 export function safeNext(
   value: string | null | undefined,
-  fallback = "/"
+  fallback = "/",
 ): string {
   if (!value) return fallback;
   if (!value.startsWith("/") || value.startsWith("//")) return fallback;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting control characters is the purpose of this check
   if (value.includes("\\") || /[\u0000-\u001f]/.test(value)) return fallback;
   return value;
 }

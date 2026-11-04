@@ -21,7 +21,10 @@ export default function ReviewText({
     if (start > last) parts.push(text.slice(last, start));
     parts.push(
       plain ? (
-        <span key={start} className="text-[#1a5fd0] [[data-theme=dark]_&]:text-[#6ea8ff]">
+        <span
+          key={start}
+          className="text-[#1a5fd0] [[data-theme=dark]_&]:text-[#6ea8ff]"
+        >
           {m[2]}
         </span>
       ) : (
@@ -32,7 +35,7 @@ export default function ReviewText({
         >
           {m[2]}
         </Link>
-      )
+      ),
     );
     last = start + m[0].length;
   }

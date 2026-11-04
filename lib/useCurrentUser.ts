@@ -39,7 +39,7 @@ export function useCurrentUser() {
         setUserId(session?.user?.id ?? null);
         setEmail(session?.user?.email ?? null);
         setReady(true);
-      }
+      },
     );
 
     return () => {

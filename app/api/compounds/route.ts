@@ -1,9 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { searchTitles } from "@/lib/wikipedia";
-import { DEFAULT_LANG, isLang } from "@/lib/languages";
-import { escapeLike } from "@/lib/username";
+import { NextRequest, NextResponse } from "next/server";
 import { FEATURES } from "@/lib/features";
+import { escapeLike } from "@/lib/username";
 
 type Hit = {
   key: string;
@@ -18,7 +16,7 @@ async function findCompounds(q: string): Promise<Hit[]> {
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     );
     const { data } = await supabase
       .from("items")
@@ -41,25 +39,18 @@ async function findCompounds(q: string): Promise<Hit[]> {
 
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q") ?? "";
-  const langParam = request.nextUrl.searchParams.get("lang") ?? DEFAULT_LANG;
-  const lang = isLang(langParam) ? langParam : DEFAULT_LANG;
 
-  if (q.trim().length < 2 || q.length > 100) {
+  if (!FEATURES.compounds || q.trim().length < 2 || q.length > 100) {
     return NextResponse.json({ results: [] });
   }
 
-  const [compounds, wiki] = await Promise.all([
-    FEATURES.compounds ? findCompounds(q.trim()) : Promise.resolve([]),
-    searchTitles(q, lang),
-  ]);
-
   return NextResponse.json(
-    { results: [...compounds, ...wiki] },
+    { results: await findCompounds(q.trim()) },
     {
       headers: {
         // Short, so a newly crafted compound shows up quickly
         "Cache-Control": "public, s-maxage=60, stale-while-revalidate=600",
       },
-    }
+    },
   );
 }

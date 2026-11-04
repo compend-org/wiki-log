@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getLikedSet } from "@/lib/likes";
-import { commentLabel } from "@/lib/format";
-import { PAGE_SIZE } from "@/lib/paging";
 import LikeButton from "@/components/LikeButton";
 import LoadMore from "@/components/LoadMore";
-import Stars from "@/components/Stars";
-import AdminBadge from "./AdminBadge";
-import { isAdmin } from "@/lib/admin";
 import ShareButton from "@/components/ShareButton";
+import Stars from "@/components/Stars";
+import { isAdmin } from "@/lib/admin";
+import { commentLabel } from "@/lib/format";
+import { getLikedSet } from "@/lib/likes";
+import { PAGE_SIZE } from "@/lib/paging";
 import { getSharedSet } from "@/lib/shares";
+import { createClient } from "@/lib/supabase/server";
+import AdminBadge from "./AdminBadge";
 import ReviewText from "./ReviewText";
 
 // How many of the most-liked reviews to show on top
@@ -45,7 +45,7 @@ export default async function ItemLogs({
   const { data, error } = await supabase
     .from("logs")
     .select(
-      "id, user_id, item_id, rating, review, logged_at, profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count), shares(count)"
+      "id, user_id, item_id, rating, review, logged_at, profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count), shares(count)",
     )
     .eq("item_id", itemId)
     .order("logged_at", { ascending: false });
@@ -64,7 +64,7 @@ export default async function ItemLogs({
     .sort(
       (a, b) =>
         likeCount(b) - likeCount(a) ||
-        new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()
+        new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime(),
     )
     .slice(0, MOST_LIKED);
 
@@ -82,7 +82,7 @@ export default async function ItemLogs({
     supabase,
     viewerId,
     "log",
-    [...popular, ...recent].map((r) => r.id)
+    [...popular, ...recent].map((r) => r.id),
   );
 
   // The average counts each person's latest rating once, skipping entries
@@ -171,8 +171,7 @@ export default async function ItemLogs({
     );
   };
 
-  const label =
-    "text-sm font-semibold uppercase tracking-wide text-muted";
+  const label = "text-sm font-semibold uppercase tracking-wide text-muted";
 
   return (
     <section className="flex w-full flex-col gap-3">

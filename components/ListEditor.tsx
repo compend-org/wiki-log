@@ -1,30 +1,30 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
+  closestCenter,
   DndContext,
+  type DragEndEvent,
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
-  closestCenter,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  SortableContext,
   arrayMove,
   rectSortingStrategy,
+  SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { addToList } from "@/app/actions";
-import ItemPicker from "@/components/ItemPicker";
 import ItemImage from "@/components/ItemImage";
+import ItemPicker from "@/components/ItemPicker";
+import { createClient } from "@/lib/supabase/client";
 
 export type ListEntry = {
   itemId: string;
@@ -106,7 +106,9 @@ export default function ListEditor({
 }) {
   const [items, setItems] = useState<ListEntry[]>(initialItems);
   const [title, setTitle] = useState<string>(list.title);
-  const [description, setDescription] = useState<string>(list.description ?? "");
+  const [description, setDescription] = useState<string>(
+    list.description ?? "",
+  );
   const [ranked, setRanked] = useState<boolean>(list.ranked);
   const [adding, setAdding] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
@@ -123,7 +125,7 @@ export default function ListEditor({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   async function handleDragEnd(event: DragEndEvent) {
@@ -158,7 +160,7 @@ export default function ListEditor({
     }
     const added = result.item;
     setItems((prev) =>
-      prev.some((i) => i.itemId === added.itemId) ? prev : [...prev, added]
+      prev.some((i) => i.itemId === added.itemId) ? prev : [...prev, added],
     );
     setAdding(false);
   }
@@ -258,7 +260,6 @@ export default function ListEditor({
           />
           Ranked list (items are numbered)
         </label>
-
       </form>
 
       <section className="flex flex-col gap-3">
@@ -294,10 +295,11 @@ export default function ListEditor({
                     setError("");
                   }}
                   aria-label="Add an item"
-                  className={`flex aspect-square w-full items-center justify-center rounded-lg border-2 border-dashed text-5xl transition-colors hover:border-accent hover:text-accent ${adding
-                    ? "border-accent text-accent"
-                    : "border-line text-muted"
-                    }`}
+                  className={`flex aspect-square w-full items-center justify-center rounded-lg border-2 border-dashed text-5xl transition-colors hover:border-accent hover:text-accent ${
+                    adding
+                      ? "border-accent text-accent"
+                      : "border-line text-muted"
+                  }`}
                 >
                   +
                 </button>
