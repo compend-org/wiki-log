@@ -3,3 +3,4 @@ export const SITE_TAGLINE = ""
 export const CONTACT_EMAIL = "leo@compend.org"
 export const TRENDING_LABEL = "Trending";
 export const TRENDING_HOURS = 48;
+export const KOFI_URL = "https://ko-fi.com/leocompend";
