@@ -9,6 +9,8 @@ import LoadMore from "@/components/LoadMore";
 import Stars from "@/components/Stars";
 import AdminBadge from "./AdminBadge";
 import { isAdmin } from "@/lib/admin";
+import ShareButton from "@/components/ShareButton";
+import { getSharedSet } from "@/lib/shares";
 
 // How many of the most-liked reviews to show on top
 const MOST_LIKED = 3;
@@ -23,6 +25,7 @@ type Row = {
   profiles: { username: string } | null;
   likes: { count: number }[];
   comments: { count: number }[];
+  shares: { count: number }[];
 };
 
 export default async function ItemLogs({
@@ -41,7 +44,7 @@ export default async function ItemLogs({
   const { data, error } = await supabase
     .from("logs")
     .select(
-      "id, user_id, item_id, rating, review, logged_at, profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count)"
+      "id, user_id, item_id, rating, review, logged_at, profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count), shares(count)"
     )
     .eq("item_id", itemId)
     .order("logged_at", { ascending: false });
@@ -73,6 +76,13 @@ export default async function ItemLogs({
     ...popular,
     ...recent,
   ]);
+
+  const sharedSet = await getSharedSet(
+    supabase,
+    viewerId,
+    "log",
+    [...popular, ...recent].map((r) => r.id)
+  );
 
   // The average counts each person's latest rating once, skipping entries
   // that have none
@@ -136,6 +146,16 @@ export default async function ItemLogs({
               />
             </span>
           )}
+          <span className="relative z-10">
+            <ShareButton
+              viewerId={viewerId ?? null}
+              ownerId={row.user_id}
+              kind="log"
+              targetId={row.id}
+              initialCount={row.shares?.[0]?.count ?? 0}
+              initiallyShared={sharedSet.has(row.id)}
+            />
+          </span>
           {reviewHref && (
             <Link href={reviewHref} className="relative z-10 underline">
               {commentLabel(row.comments?.[0]?.count ?? 0)}

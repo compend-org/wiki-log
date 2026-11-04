@@ -9,6 +9,8 @@ import Comments, { type CommentItem } from "@/components/Comments";
 import Stars from "@/components/Stars";
 import AdminBadge from "@/components/AdminBadge";
 import { isAdmin } from "@/lib/admin";
+import ShareButton from "@/components/ShareButton";
+import { getSharedSet } from "@/lib/shares";
 
 export const instant = false;
 
@@ -20,6 +22,7 @@ type ListRow = {
   ranked: boolean;
   profiles: { username: string } | null;
   list_likes: { count: number }[];
+  shares: { count: number }[];
 };
 
 type EntryRow = {
@@ -77,7 +80,7 @@ export default async function ListPage({
   const { data } = await supabase
     .from("lists")
     .select(
-      "id, user_id, title, description, ranked, profiles!lists_user_id_profiles_fkey(username), list_likes(count)"
+      "id, user_id, title, description, ranked, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -124,6 +127,7 @@ export default async function ListPage({
     liked = Boolean(likeRow);
   }
 
+  const sharedSet = await getSharedSet(supabase, viewerId, "list", [id]);
   const { data: commentData } = await supabase
     .from("list_comments")
     .select(
@@ -180,6 +184,14 @@ export default async function ListPage({
             ownerId={list.user_id}
             initialCount={list.list_likes?.[0]?.count ?? 0}
             initiallyLiked={liked}
+          />
+          <ShareButton
+            viewerId={viewerId ?? null}
+            ownerId={list.user_id}
+            kind="list"
+            targetId={id}
+            initialCount={list.shares?.[0]?.count ?? 0}
+            initiallyShared={sharedSet.has(id)}
           />
           {isOwner && (
             <Link href={`/list/${id}/edit`} className="text-sm underline">

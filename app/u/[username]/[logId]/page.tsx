@@ -15,6 +15,8 @@ import Stars from "@/components/Stars";
 import OwnerControls from "@/components/OwnerControls";
 import { isAdmin } from "@/lib/admin";
 import AdminBadge from "@/components/AdminBadge";
+import ShareButton from "@/components/ShareButton";
+import { getSharedSet } from "@/lib/shares";
 
 export const instant = false;
 
@@ -27,6 +29,7 @@ type LogRow = {
   logged_at: string;
   items: { title: string; image_url: string | null } | null;
   likes: { count: number }[];
+  shares: { count: number }[];
 };
 
 type CommentQueryRow = {
@@ -85,7 +88,7 @@ export default async function ReviewPage({
   const { data: logData } = await supabase
     .from("logs")
     .select(
-      "id, user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count)"
+      "id, user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count), shares(count)"
     )
     .eq("id", logId)
     .eq("user_id", profile.id)
@@ -129,6 +132,7 @@ export default async function ReviewPage({
   }));
 
   const likedSet = await getLikedSet(supabase, viewerId, [log]);
+  const sharedSet = await getSharedSet(supabase, viewerId, "log", [log.id]);
   const alsoLiked = await getAlsoLiked(supabase, [log]);
   const title = log.items?.title ?? "Unknown item";
   const isOwner = viewerId === log.user_id;
@@ -197,7 +201,7 @@ export default async function ReviewPage({
         )}
       </article>
 
-      <div>
+      <div className="flex items-center gap-4">
         <LikeButton
           viewerId={viewerId ?? null}
           authorId={log.user_id}
@@ -205,10 +209,18 @@ export default async function ReviewPage({
           initialCount={log.likes?.[0]?.count ?? 0}
           initiallyLiked={likedSet.has(log.id)}
         />
+        <ShareButton
+          viewerId={viewerId ?? null}
+          ownerId={log.user_id}
+          kind="log"
+          targetId={log.id}
+          initialCount={log.shares?.[0]?.count ?? 0}
+          initiallyShared={sharedSet.has(log.id)}
+        />
       </div>
 
       <AlsoLiked
-        username = {profile.username}
+        username={profile.username}
         likes={alsoLiked.get(likeKey(log.user_id, log.item_id)) ?? []}
       />
 
