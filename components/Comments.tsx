@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useState } from "react";
 import CommentLikeButton from "@/components/CommentLikeButton";
+import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 
 export type CommentItem = {

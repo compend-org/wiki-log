@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { searchTitles } from "@/lib/wikipedia";
+import { NextRequest, NextResponse } from "next/server";
+import { FEATURES } from "@/lib/features";
 import { DEFAULT_LANG, isLang } from "@/lib/languages";
 import { escapeLike } from "@/lib/username";
-import { FEATURES } from "@/lib/features";
+import { searchTitles } from "@/lib/wikipedia";
 
 type Hit = {
   key: string;
@@ -18,7 +18,7 @@ async function findCompounds(q: string): Promise<Hit[]> {
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     );
     const { data } = await supabase
       .from("items")
@@ -60,6 +60,6 @@ export async function GET(request: NextRequest) {
         // Short, so a newly crafted compound shows up quickly
         "Cache-Control": "public, s-maxage=60, stale-while-revalidate=600",
       },
-    }
+    },
   );
 }

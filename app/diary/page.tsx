@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import { useLoginHref } from "@/lib/useLoginHref";
-import { PAGE_SIZE } from "@/lib/paging";
+import { useEffect, useState } from "react";
 import DeleteIcon from "@/components/DeleteIcon";
 import EditEntryForm from "@/components/EditEntryForm";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
+import { PAGE_SIZE } from "@/lib/paging";
+import { createClient } from "@/lib/supabase/client";
+import { useLoginHref } from "@/lib/useLoginHref";
 
 type Thumb = { title: string; imageUrl: string | null };
 
@@ -105,7 +105,7 @@ export default function DiaryPage() {
         supabase
           .from("logs")
           .select(
-            "id, item_id, rating, review, logged_at, items(title, image_url)"
+            "id, item_id, rating, review, logged_at, items(title, image_url)",
           )
           .eq("user_id", userId)
           .order("logged_at", { ascending: false })
@@ -152,21 +152,19 @@ export default function DiaryPage() {
       // The newest `limit` of the combined list always sit within the newest
       // `limit` of each, so merging and trimming is exact
       const merged: Entry[] = [...logEntries, ...listEntries].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       );
       const shown = merged.slice(0, limit);
 
       // A few pictures from each list that is on screen
-      const shownLists = shown.filter(
-        (e): e is ListEntry => e.kind === "list"
-      );
+      const shownLists = shown.filter((e): e is ListEntry => e.kind === "list");
       if (shownLists.length > 0) {
         const { data: previewData } = await supabase
           .from("list_items")
           .select("list_id, position, items(title, image_url)")
           .in(
             "list_id",
-            shownLists.map((l) => l.id)
+            shownLists.map((l) => l.id),
           )
           .lte("position", 4)
           .order("position");
@@ -205,14 +203,14 @@ export default function DiaryPage() {
       return;
     }
     setEntries((prev) =>
-      prev.filter((e) => !(e.kind === "log" && e.id === id))
+      prev.filter((e) => !(e.kind === "log" && e.id === id)),
     );
   }
 
   async function handleDeleteList(id: string) {
     if (
       !window.confirm(
-        "Delete this list? Its likes and comments are deleted with it, and this can't be undone."
+        "Delete this list? Its likes and comments are deleted with it, and this can't be undone.",
       )
     ) {
       return;
@@ -232,7 +230,7 @@ export default function DiaryPage() {
       return;
     }
     setEntries((prev) =>
-      prev.filter((e) => !(e.kind === "list" && e.id === id))
+      prev.filter((e) => !(e.kind === "list" && e.id === id)),
     );
   }
 
@@ -270,10 +268,7 @@ export default function DiaryPage() {
 
           if (e.kind === "list") {
             return (
-              <li
-                key={`list-${e.id}`}
-                className="card flex flex-col gap-2 p-3"
-              >
+              <li key={`list-${e.id}`} className="card flex flex-col gap-2 p-3">
                 <div className="flex items-center justify-between gap-3 text-xs text-muted">
                   <span>
                     {date} · You made a {e.ranked ? "ranked " : ""}list
@@ -366,8 +361,8 @@ export default function DiaryPage() {
                       prev.map((x) =>
                         x.kind === "log" && x.id === e.id
                           ? { ...x, rating, review }
-                          : x
-                      )
+                          : x,
+                      ),
                     );
                     setEditingId(null);
                   }}

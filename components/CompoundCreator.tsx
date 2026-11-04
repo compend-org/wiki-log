@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import ItemPicker from "@/components/ItemPicker";
-import ItemImage from "@/components/ItemImage";
+import { useState } from "react";
 import { createCompound } from "@/app/actions";
+import ItemImage from "@/components/ItemImage";
+import ItemPicker from "@/components/ItemPicker";
 
 type Part = { id: string; title: string; imageUrl: string | null };
 
@@ -17,14 +17,15 @@ export default function CompoundCreator() {
   const [parts, setParts] = useState<Part[]>([]);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-  const [existing, setExisting] = useState<{ id: string; title: string } | null>(
-    null
-  );
+  const [existing, setExisting] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
   const router = useRouter();
 
   function addPart(
     id: string,
-    hit: { title: string; imageUrl: string | null }
+    hit: { title: string; imageUrl: string | null },
   ) {
     setExisting(null);
     setError("");
@@ -162,7 +163,10 @@ export default function CompoundCreator() {
       {existing && (
         <p className="border border-line bg-surface p-3 text-sm">
           That combination already exists:{" "}
-          <Link href={`/item/${existing.id}`} className="font-semibold underline">
+          <Link
+            href={`/item/${existing.id}`}
+            className="font-semibold underline"
+          >
             {existing.title}
           </Link>
           .

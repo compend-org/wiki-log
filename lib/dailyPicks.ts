@@ -39,7 +39,7 @@ export async function getDailyPicks(): Promise<DailyPicks> {
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
   );
 
   const { data, error } = await supabase.rpc("popular_picks");
@@ -51,7 +51,7 @@ export async function getDailyPicks(): Promise<DailyPicks> {
     .select("id, title, image_url, image_hidden")
     .in(
       "id",
-      rows.map((r) => r.item_id)
+      rows.map((r) => r.item_id),
     );
   const items = new Map(((itemData ?? []) as ItemRow[]).map((i) => [i.id, i]));
 

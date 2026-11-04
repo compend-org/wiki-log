@@ -1,17 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getItemForPage } from "@/lib/items";
-import { isCompoundId } from "@/lib/ids";
-import { parseLimit } from "@/lib/paging";
-import { CONTACT_EMAIL } from "@/lib/site";
 import AddToList from "@/components/AddToList";
 import ItemImage from "@/components/ItemImage";
+import ItemLogs from "@/components/ItemLogs";
 import LogForm from "@/components/LogForm";
 import MyEntries, { type MyEntry } from "@/components/MyEntries";
-import ItemLogs from "@/components/ItemLogs";
 import { FEATURES } from "@/lib/features";
+import { isCompoundId } from "@/lib/ids";
+import { getItemForPage } from "@/lib/items";
+import { parseLimit } from "@/lib/paging";
+import { CONTACT_EMAIL } from "@/lib/site";
+import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
 
@@ -83,9 +83,7 @@ export default async function ItemPage({
       const byId = new Map((partItems ?? []).map((i) => [i.id as string, i]));
       madeFrom = partIds.flatMap((pid) => {
         const it = byId.get(pid);
-        return it
-          ? [{ id: pid, title: it.title, imageUrl: it.image_url }]
-          : [];
+        return it ? [{ id: pid, title: it.title, imageUrl: it.image_url }] : [];
       });
     }
 
@@ -102,10 +100,10 @@ export default async function ItemPage({
   // Compounds that use this item as an ingredient
   const { data: usedRows } = FEATURES.compounds
     ? await supabase
-      .from("compound_parts")
-      .select("compound_id")
-      .eq("part_id", id)
-      .limit(12)
+        .from("compound_parts")
+        .select("compound_id")
+        .eq("part_id", id)
+        .limit(12)
     : { data: null };
   const usedIds = (usedRows ?? []).map((r) => r.compound_id as string);
   let usedIn: { id: string; title: string }[] = [];
@@ -118,7 +116,7 @@ export default async function ItemPage({
   }
 
   const removalLink = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
-    `Image removal request: ${item.title} (${item.id})`
+    `Image removal request: ${item.title} (${item.id})`,
   )}`;
 
   return (

@@ -1,20 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import Avatar from "@/components/Avatar";
+import { FEATURES } from "@/lib/features";
+import { SITE_NAME } from "@/lib/site";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/lib/useCurrentUser";
-import { SITE_NAME } from "@/lib/site";
-import Avatar from "@/components/Avatar";
+import { useLoginHref } from "@/lib/useLoginHref";
+import CraftIcon from "./CraftIcon";
 import DiaryIcon from "./DiaryIcon";
 import NotificationIcon from "./NotificationIcon";
-import SignOutButton from "./SignOutButton";
-import SignInButton from "./SignInButton";
-import CraftIcon from "./CraftIcon";
-import { useLoginHref } from "@/lib/useLoginHref";
-import { FEATURES } from "@/lib/features";
 import PeopleSearch from "./PeopleSearch";
+import SignInButton from "./SignInButton";
+import SignOutButton from "./SignOutButton";
 
 export default function Nav() {
   const loginHref = useLoginHref();
@@ -64,29 +64,30 @@ export default function Nav() {
       : "text-accent hover:text-foreground";
 
   return (
-    <nav className="flex relative flex-nowrap items-center justify-between gap-x-3 border-b border-line bg-surface px-4 py-2 text-sm sm:flex-wrap sm:justify-start sm:gap-x-5 sm:gap-y-1 sm:px-8">      <Link
-      href="/"
-      className="sm:mr-2 flex items-center gap-2 text-xl font-bold text-foreground no-underline"
-    >
-      {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
-      <img
-        src="/logo-light.png"
-        alt=""
-        width={35}
-        height={35}
-        className="logo-light border-0"
-      />
-      {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
-      <img
-        src="/logo-dark.png"
-        alt=""
-        width={35}
-        height={35}
-        className="logo-dark border-0"
-      />
-      <span className="hidden sm:inline">{SITE_NAME}</span>
-    </Link>
-
+    <nav className="flex relative flex-nowrap items-center justify-between gap-x-3 border-b border-line bg-surface px-4 py-2 text-sm sm:flex-wrap sm:justify-start sm:gap-x-5 sm:gap-y-1 sm:px-8">
+      {" "}
+      <Link
+        href="/"
+        className="sm:mr-2 flex items-center gap-2 text-xl font-bold text-foreground no-underline"
+      >
+        {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
+        <img
+          src="/logo-light.png"
+          alt=""
+          width={35}
+          height={35}
+          className="logo-light border-0"
+        />
+        {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
+        <img
+          src="/logo-dark.png"
+          alt=""
+          width={35}
+          height={35}
+          className="logo-dark border-0"
+        />
+        <span className="hidden sm:inline">{SITE_NAME}</span>
+      </Link>
       <Link
         href="/diary"
         aria-label="Diary"
@@ -95,7 +96,6 @@ export default function Nav() {
       >
         <DiaryIcon />
       </Link>
-
       <PeopleSearch />
       {FEATURES.compounds && (
         <Link
@@ -107,7 +107,6 @@ export default function Nav() {
           <CraftIcon />
         </Link>
       )}
-
       {userId && (
         <Link
           href="/notifications"
@@ -123,7 +122,6 @@ export default function Nav() {
           )}
         </Link>
       )}
-
       <div className="contents sm:ml-auto sm:flex sm:items-center sm:gap-4">
         {!ready ? (
           // Reserves the space while we find out who is signed in, so neither
@@ -138,7 +136,9 @@ export default function Nav() {
                 className="flex items-center gap-2 text-accent underline hover:no-underline"
               >
                 <Avatar name={username} path={avatarPath} size={40} />
-                <span className="hidden max-w-[8rem] truncate sm:inline">{username}</span>
+                <span className="hidden max-w-[8rem] truncate sm:inline">
+                  {username}
+                </span>
               </Link>
             )}
             {/* <Link

@@ -1,12 +1,12 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { getItemById } from "@/lib/wikipedia";
-import { cleanName, escapeLike, isValidName } from "@/lib/username";
-import { MAX_AGE_MS } from "@/lib/items";
-import { isUuid, ITEM_ID_PATTERN, isCompoundId } from "@/lib/ids";
 import { FEATURES } from "@/lib/features";
+import { ITEM_ID_PATTERN, isCompoundId, isUuid } from "@/lib/ids";
+import { MAX_AGE_MS } from "@/lib/items";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { cleanName, escapeLike, isValidName } from "@/lib/username";
+import { getItemById } from "@/lib/wikipedia";
 
 const ITEM_ID = ITEM_ID_PATTERN;
 
@@ -202,7 +202,7 @@ export async function setFavourite(input: {
     .from("favourites")
     .upsert(
       { user_id: userId, position: input.position, item_id: input.itemId },
-      { onConflict: "user_id,position" }
+      { onConflict: "user_id,position" },
     );
   if (error) {
     return {
@@ -216,7 +216,7 @@ export async function setFavourite(input: {
 }
 
 export async function removeFavourite(
-  position: number
+  position: number,
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -360,12 +360,10 @@ export async function createCompound(input: {
       p_title: title,
       p_description: description,
       p_parts: parts,
-    }
+    },
   );
   if (error) return { error: error.message };
 
   const r = result as { id: string; title: string; existing: boolean };
-  return r.existing
-    ? { existing: { id: r.id, title: r.title } }
-    : { id: r.id };
+  return r.existing ? { existing: { id: r.id, title: r.title } } : { id: r.id };
 }

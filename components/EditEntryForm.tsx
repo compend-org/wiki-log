@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import RatingInput from "@/components/RatingInput";
+import { createClient } from "@/lib/supabase/client";
 
 const MAX = 5000;
 

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { type ReactNode, useState } from "react";
 import DeleteIcon from "@/components/DeleteIcon";
 import EditEntryForm from "@/components/EditEntryForm";
+import { createClient } from "@/lib/supabase/client";
 
 export default function OwnerControls({
   logId,
@@ -31,7 +31,7 @@ export default function OwnerControls({
   async function handleDelete() {
     if (
       !window.confirm(
-        "Delete this entry? Its likes and comments are deleted with it, and this can't be undone."
+        "Delete this entry? Its likes and comments are deleted with it, and this can't be undone.",
       )
     ) {
       return;

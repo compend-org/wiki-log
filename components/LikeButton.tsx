@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useState } from "react";
 import HeartIcon from "@/components/HeartIcon";
+import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 
 export default function LikeButton({

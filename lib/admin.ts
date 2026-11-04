@@ -3,7 +3,7 @@ const ids = new Set(
   (process.env.ADMIN_USER_IDS ?? "")
     .split(",")
     .map((s) => s.trim())
-    .filter(Boolean)
+    .filter(Boolean),
 );
 
 // For server components only: this variable doesn't exist in the browser

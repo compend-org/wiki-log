@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import Avatar from "@/components/Avatar";
+import { createClient } from "@/lib/supabase/client";
 
 const SIZE = 256;
 
@@ -29,8 +29,8 @@ async function toSquareJpeg(file: File): Promise<Blob> {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error("Encoding failed"))),
       "image/jpeg",
-      0.85
-    )
+      0.85,
+    ),
   );
 }
 

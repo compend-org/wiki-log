@@ -1,9 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { isUuid } from "@/lib/ids";
 import ListEditor, { type ListEntry } from "@/components/ListEditor";
+import { isUuid } from "@/lib/ids";
 import { loginHref } from "@/lib/redirect";
+import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
 
@@ -38,7 +38,7 @@ export default async function EditListPage({
   const { data } = await supabase
     .from("lists")
     .select(
-      "id, user_id, title, description, ranked, profiles!lists_user_id_profiles_fkey(username)"
+      "id, user_id, title, description, ranked, profiles!lists_user_id_profiles_fkey(username)",
     )
     .eq("id", id)
     .maybeSingle();

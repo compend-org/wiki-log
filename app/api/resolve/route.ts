@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getItemByKey } from "@/lib/wikipedia";
 import { DEFAULT_LANG, isLang } from "@/lib/languages";
+import { getItemByKey } from "@/lib/wikipedia";
 
 export async function GET(request: NextRequest) {
   const key = request.nextUrl.searchParams.get("key") ?? "";

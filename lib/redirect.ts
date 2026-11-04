@@ -2,7 +2,7 @@
 // and "//elsewhere.com" no.
 export function safeNext(
   value: string | null | undefined,
-  fallback = "/"
+  fallback = "/",
 ): string {
   if (!value) return fallback;
   if (!value.startsWith("/") || value.startsWith("//")) return fallback;

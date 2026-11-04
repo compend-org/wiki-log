@@ -1,28 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
+  closestCenter,
   DndContext,
+  type DragEndEvent,
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
-  closestCenter,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  SortableContext,
   arrayMove,
   rectSortingStrategy,
+  SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { addToList } from "@/app/actions";
 import ItemImage from "@/components/ItemImage";
+import { createClient } from "@/lib/supabase/client";
 
 type ListOption = {
   id: string;
@@ -65,7 +65,9 @@ function PlaceTile({
       {...listeners}
       className="flex cursor-grab select-none flex-col gap-1 active:cursor-grabbing"
     >
-      <div className={`relative rounded-lg ${isNew ? "ring-2 ring-accent" : ""}`}>
+      <div
+        className={`relative rounded-lg ${isNew ? "ring-2 ring-accent" : ""}`}
+      >
         <ItemImage
           src={tile.imageUrl}
           alt={tile.title}
@@ -111,7 +113,7 @@ export default function AddToList({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   useEffect(() => {
@@ -146,7 +148,10 @@ export default function AddToList({
         .from("list_items")
         .select("list_id")
         .eq("item_id", itemId)
-        .in("list_id", rows.map((r) => r.id));
+        .in(
+          "list_id",
+          rows.map((r) => r.id),
+        );
       has = new Set((inRows ?? []).map((r) => r.list_id));
     }
 
@@ -157,7 +162,7 @@ export default function AddToList({
         ranked: r.ranked,
         count: r.list_items?.[0]?.count ?? 0,
         has: has.has(r.id),
-      }))
+      })),
     );
   }
 
@@ -182,8 +187,8 @@ export default function AddToList({
     setLists(
       (prev) =>
         prev?.map((l) =>
-          l.id === list.id ? { ...l, has: true, count: l.count + 1 } : l
-        ) ?? prev
+          l.id === list.id ? { ...l, has: true, count: l.count + 1 } : l,
+        ) ?? prev,
     );
     setMessage(`Added to “${list.title}”.`);
     return true;
@@ -238,7 +243,7 @@ export default function AddToList({
     if (!placing) return;
     const ok = await add(
       placing.list,
-      placing.tiles.map((t) => t.itemId)
+      placing.tiles.map((t) => t.itemId),
     );
     if (ok) setPlacing(null);
   }
@@ -330,8 +335,9 @@ export default function AddToList({
                   <span className="shrink-0 text-xs text-muted">
                     {l.has
                       ? " In this list"
-                      : `${l.ranked ? "Ranked · " : ""}${l.count} ${l.count === 1 ? "item" : "items"
-                      }`}
+                      : `${l.ranked ? "Ranked · " : ""}${l.count} ${
+                          l.count === 1 ? "item" : "items"
+                        }`}
                   </span>
                 </button>
               ))}

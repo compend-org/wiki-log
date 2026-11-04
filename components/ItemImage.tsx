@@ -15,7 +15,10 @@ function wrap(words: string[], maxChars: number): string[] {
   for (const word of words) {
     if (!line) {
       line = word;
-    } else if (Array.from(line).length + 1 + Array.from(word).length <= maxChars) {
+    } else if (
+      Array.from(line).length + 1 + Array.from(word).length <=
+      maxChars
+    ) {
       line = `${line} ${word}`;
     } else {
       lines.push(line);
@@ -41,7 +44,7 @@ function layout(label: string, width: number, height: number) {
   for (let size = start; size >= MIN_SIZE; size -= 0.5) {
     const maxChars = Math.max(
       longest,
-      Math.floor(innerW / (size * CHAR_WIDTH))
+      Math.floor(innerW / (size * CHAR_WIDTH)),
     );
     const lines = wrap(words, maxChars);
     if (lines.length * size * LINE_HEIGHT <= innerH) return { size, lines };
@@ -49,7 +52,10 @@ function layout(label: string, width: number, height: number) {
 
   return {
     size: MIN_SIZE,
-    lines: wrap(words, Math.max(longest, Math.floor(innerW / (MIN_SIZE * CHAR_WIDTH)))),
+    lines: wrap(
+      words,
+      Math.max(longest, Math.floor(innerW / (MIN_SIZE * CHAR_WIDTH))),
+    ),
   };
 }
 
@@ -109,6 +115,7 @@ export default function ItemImage({
       src={thumbUrl(src)}
       alt={alt}
       draggable={false}
-      className={`item-img object-cover [[data-theme=dark]_&]:bg-foreground ${className}`} />
+      className={`item-img object-cover [[data-theme=dark]_&]:bg-foreground ${className}`}
+    />
   );
 }

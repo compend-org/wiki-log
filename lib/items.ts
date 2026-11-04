@@ -1,7 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { getItemById, type ItemData, type LookupResult } from "@/lib/wikipedia";
 import { ITEM_ID_PATTERN, isCompoundId } from "@/lib/ids";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { getItemById, type ItemData, type LookupResult } from "@/lib/wikipedia";
 
 // A cached item is trusted for a week, then refreshed from Wikipedia
 export const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -39,7 +39,7 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
   const { data } = await supabase
     .from("items")
     .select(
-      "id, title, description, image_url, image_non_free, image_page_url, image_hidden, page_url, fetched_at"
+      "id, title, description, image_url, image_non_free, image_page_url, image_hidden, page_url, fetched_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -67,7 +67,12 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
   // A hidden image stays hidden, however often the item is refreshed
   const hidden = cached?.image_hidden === true;
   const item: ItemData = hidden
-    ? { ...fresh.item, imageUrl: null, imageNonFree: false, imageFilePage: null }
+    ? {
+        ...fresh.item,
+        imageUrl: null,
+        imageNonFree: false,
+        imageFilePage: null,
+      }
     : fresh.item;
 
   if (cached) {

@@ -55,7 +55,6 @@ body {
 }
 
 @layer base {
-
   h1,
   h2 {
     font-family: var(--font-display-src);

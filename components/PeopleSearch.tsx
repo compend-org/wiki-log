@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useId, useRef, useState } from "react";
+import Avatar from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/client";
 import { escapeLike } from "@/lib/username";
-import Avatar from "@/components/Avatar";
 import SearchIcon from "./SearchIcon";
 
 type Person = { username: string; avatar_path: string | null };
