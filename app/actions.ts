@@ -111,7 +111,7 @@ export async function signIn(input: {
   identifier: string;
   password: string;
 }): Promise<{ error?: string }> {
-  const generic = "Invalid login credentials";
+  const generic = "Invalid sign-in credentials";
   let email = input.identifier.trim();
 
   // No "@" means it's a name: look up the email on the server only
@@ -137,7 +137,11 @@ export async function signIn(input: {
     email,
     password: input.password,
   });
-  if (error) return { error: error.message };
+  if (error) {
+    return {
+      error: error.code === "invalid_credentials" ? generic : error.message,
+    };
+  }
   return {};
 }
 

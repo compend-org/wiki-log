@@ -23,7 +23,7 @@ export default async function TestDb() {
         <SignOutButton />
       ) : (
         <Link href="/login" className="underline">
-          Go to login
+          Go to sign in
         </Link>
       )}
     </main>
