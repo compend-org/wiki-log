@@ -7,7 +7,7 @@ import { useLoginHref } from "@/lib/useLoginHref";
 export default function SignInButton({
   className = "",
   labelClassName = "",
-  label = "Log in",
+  label = "Sign in",
 }: {
   className?: string;
   labelClassName?: string;

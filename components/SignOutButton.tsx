@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 export default function SignOutButton({
   className = "",
   labelClassName = "",
-  label = "Log out",
+  label = "Sign out",
 }: {
   className?: string;
   labelClassName?: string;
