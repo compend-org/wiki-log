@@ -11,6 +11,7 @@ import AdminBadge from "./AdminBadge";
 import { isAdmin } from "@/lib/admin";
 import ShareButton from "@/components/ShareButton";
 import { getSharedSet } from "@/lib/shares";
+import ReviewText from "./ReviewText";
 
 // How many of the most-liked reviews to show on top
 const MOST_LIKED = 3;
@@ -133,7 +134,11 @@ export default async function ItemLogs({
             {new Date(row.logged_at).toLocaleDateString()}
           </span>
         </div>
-        {row.review && <p className="text-sm">{row.review}</p>}
+        {row.review && (
+          <p className="text-sm">
+            <ReviewText text={row.review} />
+          </p>
+        )}
         <div className="flex items-center gap-3 text-xs text-muted">
           {row.review && (
             <span className="relative z-10">

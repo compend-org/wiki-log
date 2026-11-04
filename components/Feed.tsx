@@ -23,6 +23,7 @@ import Stars from "@/components/Stars";
 import ListPreview from "@/components/ListPreview";
 import AdminBadge from "./AdminBadge";
 import { isAdmin } from "@/lib/admin";
+import ReviewText from "./ReviewText";
 
 type Mode = "following" | "everyone" | "trending";
 
@@ -522,7 +523,7 @@ export default async function Feed({
 
                 {row.review && (
                     <p className="col-span-2 line-clamp-6 whitespace-pre-wrap break-words text-sm @xl:col-span-1 @xl:border-l @xl:border-dashed @xl:border-line @xl:pl-4">
-                        {row.review}
+                        {<ReviewText text={row.review} />}
                     </p>
                 )}
             </div>

@@ -17,6 +17,7 @@ import { isAdmin } from "@/lib/admin";
 import AdminBadge from "@/components/AdminBadge";
 import ShareButton from "@/components/ShareButton";
 import { getSharedSet } from "@/lib/shares";
+import ReviewText from "@/components/ReviewText";
 
 export const instant = false;
 
@@ -177,7 +178,11 @@ export default async function ReviewPage({
   // The part the owner can edit
   const body = (
     <>
-      {log.review && <p className="whitespace-pre-wrap">{log.review}</p>}
+      {log.review && (
+        <p className="whitespace-pre-wrap">
+          <ReviewText text={log.review} />
+        </p>
+      )}
     </>
   );
 

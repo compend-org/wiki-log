@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { logItem } from "@/app/actions";
 import RatingInput from "@/components/RatingInput";
 import { useLoginHref } from "@/lib/useLoginHref";
+import ReviewTextarea from "./ReviewTextArea";
 
 export default function LogForm({
   id,
@@ -72,10 +73,10 @@ export default function LogForm({
           setDone(false);
         }}
       />
-      <textarea
+      <ReviewTextarea
         value={review}
-        onChange={(e) => {
-          setReview(e.target.value);
+        onChange={(v) => {
+          setReview(v);
           setDone(false);
         }}
         placeholder="Add a review (optional)"

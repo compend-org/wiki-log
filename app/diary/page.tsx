@@ -9,6 +9,7 @@ import DeleteIcon from "@/components/DeleteIcon";
 import EditEntryForm from "@/components/EditEntryForm";
 import ItemImage from "@/components/ItemImage";
 import Stars from "@/components/Stars";
+import ReviewText from "@/components/ReviewText";
 
 type Thumb = { title: string; imageUrl: string | null };
 
@@ -391,7 +392,7 @@ export default function DiaryPage() {
                     <Stars rating={e.rating} />
                     {e.review && (
                       <p className="line-clamp-2 whitespace-pre-wrap break-words text-sm">
-                        {e.review}
+                        {<ReviewText text={e.review} />}
                       </p>
                     )}
                   </div>

@@ -6,6 +6,8 @@ import { deleteLog, updateLog } from "@/lib/logs";
 import RatingInput from "@/components/RatingInput";
 import Stars from "@/components/Stars";
 import DeleteIcon from "./DeleteIcon";
+import ReviewTextarea from "./ReviewTextArea";
+import ReviewText from "./ReviewText";
 
 export type MyEntry = {
     id: string;
@@ -70,12 +72,9 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
                     {editing === e.id ? (
                         <>
                             <RatingInput value={rating} onChange={setRating} />
-                            <textarea
+                            <ReviewTextarea
                                 value={review}
-                                onChange={(ev) => setReview(ev.target.value)}
-                                rows={3}
-                                className="border border-line bg-surface px-3 py-2 text-sm text-foreground"
-                            />
+                                onChange={setReview} />
                             <div className="flex gap-2">
                                 <button
                                     type="button"
@@ -103,7 +102,9 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
                                 </span>
                             </div>
                             {e.review && (
-                                <p className="whitespace-pre-wrap text-sm">{e.review}</p>
+                                <p className="whitespace-pre-wrap text-sm">
+                                    <ReviewText text={e.review} />
+                                </p>
                             )}
                             <div className="flex gap-3 text-xs">
                                 <button

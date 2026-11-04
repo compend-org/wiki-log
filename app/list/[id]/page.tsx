@@ -11,6 +11,7 @@ import AdminBadge from "@/components/AdminBadge";
 import { isAdmin } from "@/lib/admin";
 import ShareButton from "@/components/ShareButton";
 import { getSharedSet } from "@/lib/shares";
+import ReviewText from "@/components/ReviewText";
 
 export const instant = false;
 
@@ -245,7 +246,7 @@ export default async function ListPage({
                   <Stars rating={info.latest.rating} />
                   {info.latest.review && (
                     <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
-                      {info.latest.review}
+                      {<ReviewText text={info.latest.review} plain />}
                     </p>
                   )}
                   {info.latest.rating === null && !info.latest.review && (
