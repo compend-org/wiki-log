@@ -26,30 +26,52 @@ type NotificationRow = {
 
 type LogInfo = { owner: string; item: string };
 
+type NotificationsState = {
+  loaded: boolean;
+  signedIn: boolean;
+  error: string;
+  rows: NotificationRow[];
+  logs: Record<string, LogInfo>;
+  titles: Record<string, string>;
+  listTitles: Record<string, string>;
+  owners: Record<string, string>;
+  myId: string;
+};
+
 export default function NotificationsPage() {
   const loginHref = useLoginHref();
-  const [loaded, setLoaded] = useState<boolean>(false);
-  const [signedIn, setSignedIn] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
-  const [rows, setRows] = useState<NotificationRow[]>([]);
-  const [logs, setLogs] = useState<Record<string, LogInfo>>({});
-  const [titles, setTitles] = useState<Record<string, string>>({});
-  const [listTitles, setListTitles] = useState<Record<string, string>>({});
-  const [owners, setOwners] = useState<Record<string, string>>({});
-  const [myId, setMyId] = useState<string>("");
+  const [state, setState] = useState<NotificationsState>({
+    loaded: false,
+    signedIn: false,
+    error: "",
+    rows: [],
+    logs: {},
+    titles: {},
+    listTitles: {},
+    owners: {},
+    myId: "",
+  });
+  const {
+    loaded,
+    signedIn,
+    error,
+    rows,
+    logs,
+    titles,
+    listTitles,
+    owners,
+    myId,
+  } = state;
 
   useEffect(() => {
     async function load() {
       const supabase = createClient();
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) {
-        setLoaded(true);
+        setState((previous) => ({ ...previous, loaded: true }));
         return;
       }
       const userId = userData.user.id;
-      setSignedIn(true);
-      setMyId(userId);
-
       const { data, error } = await supabase
         .from("notifications")
         .select(
@@ -59,13 +81,15 @@ export default function NotificationsPage() {
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) {
-        setError(error.message);
-        setLoaded(true);
+        setState((previous) => ({
+          ...previous,
+          loaded: true,
+          signedIn: true,
+          error: error.message,
+        }));
         return;
       }
       const list = (data ?? []) as unknown as NotificationRow[];
-      setRows(list);
-
       // The entries these refer to, then their items and owners
       const logIds = [
         ...new Set(list.map((n) => n.log_id).filter((v): v is string => !!v)),
@@ -97,21 +121,26 @@ export default function NotificationsPage() {
           : Promise.resolve({ data: [] as { id: string; username: string }[] }),
       ]);
 
-      setLogs(
-        Object.fromEntries(
+      // Publish the notifications and all their display data together.
+      setState({
+        loaded: true,
+        signedIn: true,
+        error: "",
+        rows: list,
+        logs: Object.fromEntries(
           logRows.map((l) => [l.id, { owner: l.user_id, item: l.item_id }]),
         ),
-      );
-      setTitles(
-        Object.fromEntries((items.data ?? []).map((v) => [v.id, v.title])),
-      );
-      setListTitles(
-        Object.fromEntries((lists.data ?? []).map((v) => [v.id, v.title])),
-      );
-      setOwners(
-        Object.fromEntries((profs.data ?? []).map((p) => [p.id, p.username])),
-      );
-      setLoaded(true);
+        titles: Object.fromEntries(
+          (items.data ?? []).map((v) => [v.id, v.title]),
+        ),
+        listTitles: Object.fromEntries(
+          (lists.data ?? []).map((v) => [v.id, v.title]),
+        ),
+        owners: Object.fromEntries(
+          (profs.data ?? []).map((p) => [p.id, p.username]),
+        ),
+        myId: userId,
+      });
 
       // Opening the page marks everything as read
       if (list.some((n) => !n.read)) {
