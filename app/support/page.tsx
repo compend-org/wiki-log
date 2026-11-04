@@ -5,7 +5,7 @@ export const metadata = { title: "Support" };
 export default function SupportPage() {
     return (
         <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
-            <h1 className="text-3xl font-bold">Support</h1>
+            <h1 className="text-3xl font-bold">Donate</h1>
             <p>
                 I don't want to put ads on here.
             </p>
