@@ -17,7 +17,7 @@ export default function Footer() {
                     Contact
                 </Link>
                 <Link href="/support" className="hover:text-foreground hover:underline">
-                    Support
+                    Donate
                 </Link>
             </nav>
         </footer>
