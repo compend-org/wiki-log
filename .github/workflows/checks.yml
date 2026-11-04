@@ -1,11 +1,9 @@
-# ABOUTME: Runs the typecheck, lint and format checks on every pull request and push to main.
+# ABOUTME: Runs the typecheck, lint and format checks on every pull request.
 # ABOUTME: Route types are generated first because the code depends on them.
 name: Checks
 
 on:
   pull_request:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
