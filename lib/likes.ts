@@ -24,3 +24,23 @@ export async function getLikedSet(
 
   return new Set((data ?? []).map((r) => r.log_id as string));
 }
+
+// Which of these lists has the viewer liked? Returns the list ids.
+export async function getLikedListSet(
+  supabase: SupabaseClient,
+  viewerId: string | undefined,
+  lists: { id: string }[],
+): Promise<Set<string>> {
+  if (!viewerId || lists.length === 0) return new Set();
+
+  const { data } = await supabase
+    .from("list_likes")
+    .select("list_id")
+    .eq("user_id", viewerId)
+    .in(
+      "list_id",
+      lists.map((l) => l.id),
+    );
+
+  return new Set((data ?? []).map((r) => r.list_id as string));
+}

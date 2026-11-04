@@ -3,8 +3,7 @@ import { connection } from "next/server";
 import Avatar from "@/components/Avatar";
 import ItemImage from "@/components/ItemImage";
 import LikeButton from "@/components/LikeButton";
-import ListLikeButton from "@/components/ListLikeButton";
-import ListPreview from "@/components/ListPreview";
+import ListCard from "@/components/ListCard";
 import LoadMore from "@/components/LoadMore";
 import Stars from "@/components/Stars";
 import { isAdmin } from "@/lib/admin";
@@ -16,7 +15,7 @@ import {
   type Thumb,
 } from "@/lib/feedData";
 import { commentLabel } from "@/lib/format";
-import { getLikedSet } from "@/lib/likes";
+import { getLikedListSet, getLikedSet } from "@/lib/likes";
 import { PAGE_SIZE } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
@@ -173,14 +172,7 @@ export default async function Feed({
         }
       }
 
-      if (viewerId) {
-        const { data: likedRows } = await supabase
-          .from("list_likes")
-          .select("list_id")
-          .eq("user_id", viewerId)
-          .in("list_id", ids);
-        likedLists = new Set((likedRows ?? []).map((r) => r.list_id));
-      }
+      likedLists = await getLikedListSet(supabase, viewerId, shownLists);
     }
   }
 
@@ -190,69 +182,15 @@ export default async function Feed({
 
   // The two kinds of card. Their layout follows the width of the column they
   // sit in (the "@xl:" variants), not the width of the screen.
-  const renderList = (l: ListRow) => {
-    const author = l.profiles?.username;
-    const avatarPath = l.profiles?.avatar_path ?? null;
-    const preview = previews.get(l.id) ?? [];
-    const itemCount = l.list_items?.[0]?.count ?? 0;
-
-    return (
-      <div
-        key={`list-${l.id}`}
-        className="card relative flex flex-col gap-2 p-3 hover:border-accent/60"
-      >
-        <Link
-          href={`/list/${l.id}`}
-          aria-label={`Open the list ${l.title}`}
-          className="absolute inset-0 rounded-[inherit]"
-        />
-        <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
-          {author ? (
-            <Link
-              href={`/u/${encodeURIComponent(author)}`}
-              className="relative z-10 inline-flex items-center gap-1.5 hover:underline"
-            >
-              <Avatar name={author} path={avatarPath} size={16} />
-              {author}
-            </Link>
-          ) : (
-            <span>Someone</span>
-          )}
-          {isAdmin(l.user_id) && <AdminBadge />}
-          <span>made a {l.ranked ? "ranked " : ""}list</span>
-        </span>
-        <span className="font-semibold">{l.title}</span>
-        {preview.length > 0 && (
-          <ListPreview
-            thumbs={preview}
-            total={itemCount}
-            href={`/list/${l.id}`}
-          />
-        )}
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
-          <span>
-            {new Date(l.created_at).toLocaleDateString()} · {itemCount}{" "}
-            {itemCount === 1 ? "item" : "items"}
-          </span>
-          <span className="relative z-10">
-            <ListLikeButton
-              viewerId={viewerId ?? null}
-              listId={l.id}
-              ownerId={l.user_id}
-              initialCount={l.list_likes?.[0]?.count ?? 0}
-              initiallyLiked={likedLists.has(l.id)}
-            />
-          </span>
-          <Link
-            href={`/list/${l.id}#comments`}
-            className="relative z-10 hover:underline"
-          >
-            {commentLabel(l.list_comments?.[0]?.count ?? 0)}
-          </Link>
-        </div>
-      </div>
-    );
-  };
+  const renderList = (l: ListRow) => (
+    <ListCard
+      key={`list-${l.id}`}
+      list={l}
+      thumbs={previews.get(l.id) ?? []}
+      viewerId={viewerId}
+      liked={likedLists.has(l.id)}
+    />
+  );
 
   const renderLog = (row: LogRow) => {
     const title = row.items?.title ?? "Unknown item";

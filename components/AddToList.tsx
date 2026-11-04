@@ -19,6 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { addToList } from "@/app/actions";
 import ItemImage from "@/components/ItemImage";
@@ -95,6 +96,7 @@ export default function AddToList({
   title: string;
   imageUrl: string | null;
 }) {
+  const router = useRouter();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [open, setOpen] = useState<boolean>(false);
   const [lists, setLists] = useState<ListOption[] | null>(null);
@@ -191,6 +193,7 @@ export default function AddToList({
         ) ?? prev,
     );
     setMessage(`Added to “${list.title}”.`);
+    router.refresh(); // updates the lists shown on the page
     return true;
   }
 
