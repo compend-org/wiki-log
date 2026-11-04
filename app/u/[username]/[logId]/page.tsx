@@ -8,9 +8,9 @@ import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
 import LikeButton from "@/components/LikeButton";
 import OwnerControls from "@/components/OwnerControls";
+import ReportButton from "@/components/ReportButton";
 import ReviewText from "@/components/ReviewText";
 import ShareButton from "@/components/ShareButton";
-import ReportButton from "@/components/ReportButton";
 import Stars from "@/components/Stars";
 import { isAdmin } from "@/lib/admin";
 import { getAlsoLiked } from "@/lib/alsoLiked";
@@ -55,7 +55,7 @@ export default async function ReviewPage({
   let name = rawName;
   try {
     name = decodeURIComponent(rawName);
-  } catch { }
+  } catch {}
   if (!isValidName(name)) notFound();
 
   const supabase = await createClient();
