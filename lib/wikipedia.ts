@@ -61,37 +61,13 @@ async function mightBeHuman(qid: string): Promise<boolean> {
 // ----------------------------------------------------------------- images
 
 type ImagePage = {
-  title: string;
   imagerepository?: string; // "shared" = Wikimedia Commons, "local" = this wiki
   imageinfo?: {
     thumburl?: string;
     descriptionurl?: string;
-    width?: number;
-    height?: number;
-    mime?: string;
   }[];
   categories?: { title: string }[];
 };
-
-type ImageCandidate = {
-  fileName: string;
-  url: string;
-  filePage: string | null;
-  free: boolean;
-  suitable: boolean;
-};
-
-// File names that are almost always page furniture, not a picture of the topic
-const JUNK =
-  /(logo|icon|symbol|ambox|question[ _]book|commons-|wikimedia|wikipedia|wikidata|edit-clear|stub|portal|disambig|folder|nuvola|crystal|padlock|speaker|loudspeaker|red[ _]pencil|checkmark|ooui|ui-)/i;
-
-const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-
-// "Joni_DJRD.jpg" and "Joni DJRD.jpg" are the same file
-function sameFile(a: string | null, b: string | null): boolean {
-  if (!a || !b) return false;
-  return a.replace(/_/g, " ") === b.replace(/_/g, " ");
-}
 
 // The file's name, read from an upload.wikimedia.org address
 function fileNameFromUrl(url: string): string | null {
@@ -137,122 +113,52 @@ async function wikidataImage(
   }
 }
 
-// Every picture used on the article, with whether each is free and whether it
-// looks like a real picture of the topic (not an icon or a banner)
-async function pageImages(
-  lang: LangCode,
-  title: string,
-): Promise<ImageCandidate[]> {
+// Check the rights of the selected lead file itself. Other images in the
+// article may depict its author, setting, or another related topic.
+async function leadImage(lang: LangCode, url: string): Promise<ItemImage> {
+  const fileName = fileNameFromUrl(url);
+  const fallback: ItemImage = {
+    url,
+    nonFree: !url.includes("/wikipedia/commons/"),
+    filePage: fileName ? filePageFor(lang, url, fileName) : null,
+  };
+  if (!fallback.nonFree || !fileName) return fallback;
+
   try {
     const res = await wikiFetch(
-      `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&generator=images&gimlimit=50&prop=imageinfo|categories&iiprop=url|size|mime&iiurlwidth=960&clcategories=${encodeURIComponent("Category:All free media")}&cllimit=max&titles=${encodeURIComponent(title)}`,
+      `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&prop=imageinfo|categories&iiprop=url&clcategories=${encodeURIComponent("Category:All free media")}&titles=${encodeURIComponent(`File:${fileName}`)}`,
       { headers: HEADERS },
     );
-    if (!res.ok) return [];
+    if (!res.ok) return fallback;
     const data: { query?: { pages?: ImagePage[] } } = await res.json();
-
-    return (data.query?.pages ?? []).flatMap((p): ImageCandidate[] => {
-      const info = p.imageinfo?.[0];
-      if (!info?.thumburl) return [];
-
-      const fileName = p.title.replace(/^[^:]+:/, "");
-      // Commons files are free. Files stored only on this wiki count as free
-      // only if Wikipedia says so, and are treated as non-free otherwise.
-      const free =
-        p.imagerepository === "shared" ||
-        (p.categories ?? []).some((c) => c.title === "Category:All free media");
-
-      const w = info.width ?? 0;
-      const h = info.height ?? 0;
-      const ratio = h > 0 ? w / h : 0;
-      const suitable =
-        !!info.mime &&
-        PHOTO_TYPES.has(info.mime) &&
-        w >= 200 &&
-        h >= 150 &&
-        ratio >= 0.5 &&
-        ratio <= 2.2 &&
-        !JUNK.test(fileName);
-
-      return [
-        {
-          fileName,
-          url: absolute(info.thumburl),
-          filePage: info.descriptionurl ?? null,
-          free,
-          suitable,
-        },
-      ];
-    });
+    const page = data.query?.pages?.[0];
+    const free =
+      page?.imagerepository === "shared" ||
+      (page?.categories ?? []).some(
+        (c) => c.title === "Category:All free media",
+      );
+    return {
+      url,
+      nonFree: !free,
+      filePage: page?.imageinfo?.[0]?.descriptionurl ?? fallback.filePage,
+    };
   } catch {
-    return [];
+    return fallback;
   }
 }
 
-// Picks the picture for an item. Free pictures always win: a free lead image,
-// then Wikidata's image, then a free picture from the article. A non-free
-// picture is used only when nothing free exists.
+// The article's lead image represents the topic, regardless of its licence.
+// Without one, use Wikidata's curated image; arbitrary body images can depict
+// something else entirely, so leave the image empty if neither exists.
 async function chooseImage(
   lang: LangCode,
   qid: string,
-  title: string,
   leadSource: string | undefined,
 ): Promise<ItemImage | null> {
-  const lead = leadSource ? absolute(leadSource) : null;
-  const leadFile = lead ? fileNameFromUrl(lead) : null;
+  if (leadSource) return leadImage(lang, absolute(leadSource));
 
-  // 1. A lead image on Commons is free
-  if (lead && lead.includes("/wikipedia/commons/")) {
-    return {
-      url: lead,
-      nonFree: false,
-      filePage: leadFile ? filePageFor(lang, lead, leadFile) : null,
-    };
-  }
-
-  let candidates: ImageCandidate[] | null = null;
-  const getCandidates = async () =>
-    (candidates ??= await pageImages(lang, title));
-
-  // 2. A lead image stored only on this wiki can still be marked free
-  const leadMatch = lead
-    ? (await getCandidates()).find((c) => sameFile(c.fileName, leadFile))
-    : undefined;
-  if (lead && leadMatch?.free) {
-    return { url: lead, nonFree: false, filePage: leadMatch.filePage };
-  }
-
-  // 3. Wikidata's picture of the thing itself
   const fromWikidata = await wikidataImage(qid);
-  if (fromWikidata) return { ...fromWikidata, nonFree: false };
-
-  // 4. A free picture from the article's text
-  const body = (await getCandidates()).filter((c) => c.suitable);
-  const freeBody = body.find((c) => c.free);
-  if (freeBody) {
-    return { url: freeBody.url, nonFree: false, filePage: freeBody.filePage };
-  }
-
-  // 5. Only non-free pictures are left: the lead image, else one from the text
-  if (lead) {
-    return {
-      url: lead,
-      nonFree: true,
-      filePage:
-        leadMatch?.filePage ??
-        (leadFile ? filePageFor(lang, lead, leadFile) : null),
-    };
-  }
-  const nonFreeBody = body.find((c) => !c.free);
-  if (nonFreeBody) {
-    return {
-      url: nonFreeBody.url,
-      nonFree: true,
-      filePage: nonFreeBody.filePage,
-    };
-  }
-
-  return null;
+  return fromWikidata ? { ...fromWikidata, nonFree: false } : null;
 }
 
 // ---------------------------------------------------------------- lookups
@@ -307,12 +213,7 @@ export async function getItemByKey(
         : original.source;
   }
 
-  const image = await chooseImage(
-    lang,
-    data.wikibase_item,
-    data.title,
-    leadSource,
-  );
+  const image = await chooseImage(lang, data.wikibase_item, leadSource);
 
   return {
     item: {
