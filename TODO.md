@@ -5,3 +5,5 @@
 - Search function frequently returns nothing, likely because of wiki api 
 
 - WikiData integration? Would likely require filtering of less useful responses. 
+
+- On an thing page, you should be able to see the lists that include that thing
