@@ -8,6 +8,7 @@ import CommentLikeButton from "@/components/CommentLikeButton";
 import { useLoginHref } from "@/lib/useLoginHref";
 import ReviewText from "@/components/ReviewText";
 import ReviewTextarea from "./ReviewTextArea";
+import AdminBadge from "./AdminBadge";
 
 export type CommentItem = {
   id: string;
@@ -18,6 +19,7 @@ export type CommentItem = {
   authorName: string;
   likeCount: number;
   liked: boolean;
+  authorIsAdmin?: boolean;
 };
 
 export default function Comments({
@@ -120,6 +122,7 @@ export default function Comments({
           >
             {c.authorName}
           </Link>
+          {c.authorIsAdmin && <AdminBadge />}
           <span className="text-xs text-muted">{c.date}</span>
         </div>
         <p className="whitespace-pre-wrap text-sm">

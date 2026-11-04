@@ -146,6 +146,7 @@ export default async function ListPage({
     date: c.created_at.slice(0, 10),
     authorId: c.user_id,
     authorName: c.profiles?.username ?? "Someone",
+    authorIsAdmin: isAdmin(c.user_id),
     likeCount: 0,
     liked: false,
   }));

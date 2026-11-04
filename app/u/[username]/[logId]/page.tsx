@@ -128,6 +128,7 @@ export default async function ReviewPage({
     date: c.created_at.slice(0, 10),
     authorId: c.user_id,
     authorName: c.profiles?.username ?? "Someone",
+    authorIsAdmin: isAdmin(c.user_id),
     likeCount: c.comment_likes?.[0]?.count ?? 0,
     liked: likedCommentIds.has(c.id),
   }));
