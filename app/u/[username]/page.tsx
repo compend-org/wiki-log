@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import AdminBadge from "@/components/AdminBadge";
 import Avatar from "@/components/Avatar";
 import Favourites, { type Slot } from "@/components/Favourites";
 import FollowButton from "@/components/FollowButton";
@@ -8,6 +9,7 @@ import ItemImage from "@/components/ItemImage";
 import ReviewText from "@/components/ReviewText";
 import SignOutButton from "@/components/SignOutButton";
 import Stars from "@/components/Stars";
+import { isAdmin } from "@/lib/admin";
 import { commentLabel } from "@/lib/format";
 import { loginHref } from "@/lib/redirect";
 import { createClient } from "@/lib/supabase/server";
@@ -168,7 +170,12 @@ export default async function ProfilePage({
             path={profile.avatar_path}
             size={72}
           />
-          <h1 className="text-3xl font-bold">{profile.username}</h1>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <h1 className="break-words text-3xl font-bold">
+              {profile.username}
+            </h1>
+            {isAdmin(profile.id) && <AdminBadge />}
+          </div>
         </div>
         <p className="text-sm text-muted">
           {followers} {followers === 1 ? "follower" : "followers"} · {following}{" "}
