@@ -25,4 +25,4 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Lint
-        run: npm run lint
+        run: npx biome lint --max-diagnostics=none .
