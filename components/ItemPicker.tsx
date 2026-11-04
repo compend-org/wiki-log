@@ -2,7 +2,9 @@
 
 import { useEffect, useId, useState } from "react";
 import LanguagePicker from "@/components/LanguagePicker";
+import { FEATURES } from "@/lib/features";
 import { DEFAULT_LANG, isLang, type LangCode } from "@/lib/languages";
+import { searchTitles } from "@/lib/titleSearch";
 
 type Hit = {
   key: string;
@@ -14,6 +16,21 @@ type Hit = {
 };
 
 const LANG_KEY = "search-lang";
+
+// Matching compounds. A failure here leaves the Wikipedia results to show alone.
+async function searchCompounds(q: string, signal: AbortSignal): Promise<Hit[]> {
+  if (!FEATURES.compounds) return [];
+  try {
+    const res = await fetch(`/api/compounds?q=${encodeURIComponent(q)}`, {
+      signal,
+    });
+    if (!res.ok) return [];
+    const data: { results: Hit[] } = await res.json();
+    return data.results;
+  } catch {
+    return [];
+  }
+}
 
 // A pasted Wikipedia address: which wiki, and which article
 function parseWikipediaUrl(
@@ -62,6 +79,7 @@ export default function ItemPicker({
   const [lang, setLang] = useState<LangCode>(DEFAULT_LANG);
   const [hits, setHits] = useState<Hit[]>([]);
   const [hitsFor, setHitsFor] = useState<string>("");
+  const [failedFor, setFailedFor] = useState<string>("");
   const [open, setOpen] = useState<boolean>(false);
   const [active, setActive] = useState<number>(-1);
   const [busy, setBusy] = useState<boolean>(false);
@@ -88,6 +106,7 @@ export default function ItemPicker({
         ]
       : hits;
   const ready = pasted ? true : hitsFor === searchKey;
+  const failed = !ready && failedFor === searchKey;
 
   // Remember the chosen language between visits
   useEffect(() => {
@@ -116,17 +135,16 @@ export default function ItemPicker({
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `/api/search?q=${encodeURIComponent(term)}&lang=${lang}`,
-          { signal: controller.signal },
-        );
-        if (!res.ok) return;
-        const data: { results: Hit[] } = await res.json();
-        setHits(data.results);
+        const [compounds, titles] = await Promise.all([
+          searchCompounds(term, controller.signal),
+          searchTitles(term, lang, controller.signal),
+        ]);
+        setHits([...compounds, ...titles]);
         setHitsFor(`${lang}:${term}`);
         setActive(-1);
       } catch {
-        // Cancelled by a newer keystroke, or the network failed
+        // A newer keystroke cancels this search, which isn't a failure
+        if (!controller.signal.aborted) setFailedFor(`${lang}:${term}`);
       }
     }, 300);
 
@@ -234,8 +252,14 @@ export default function ItemPicker({
                 That Wikipedia&apos;s language isn&apos;t supported yet.
               </li>
             )}
-            {!unsupported && !ready && (
+            {!unsupported && !ready && !failed && (
               <li className="px-4 py-3 text-sm text-muted">Searching…</li>
+            )}
+            {!unsupported && failed && (
+              <li className="px-4 py-3 text-sm text-muted">
+                Wikipedia is busy right now. Try again in a minute, or paste a
+                Wikipedia link.
+              </li>
             )}
             {!unsupported && ready && shownHits.length === 0 && (
               <li className="px-4 py-3 text-sm text-muted">
