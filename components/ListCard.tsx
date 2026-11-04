@@ -5,21 +5,28 @@ import AdminBadge from "@/components/AdminBadge";
 import Avatar from "@/components/Avatar";
 import ListLikeButton from "@/components/ListLikeButton";
 import ListPreview from "@/components/ListPreview";
+import ShareButton from "@/components/ShareButton";
+import ShareIcon from "@/components/ShareIcon";
 import { isAdmin } from "@/lib/admin";
 import type { ListRow, Thumb } from "@/lib/feedData";
-import { commentLabel } from "@/lib/format";
+import { commentLabel, sharedLabel } from "@/lib/format";
 
 export default function ListCard({
   list: l,
   thumbs: preview,
   viewerId,
   liked,
+  shared,
+  sharers = [],
   showActivity = true,
 }: {
   list: ListRow;
   thumbs: Thumb[];
   viewerId: string | undefined;
   liked: boolean;
+  shared: boolean;
+  // The people to credit for sharing this list, newest first
+  sharers?: string[];
   // Whether to say "made a list" after the author, as an activity feed does
   showActivity?: boolean;
 }) {
@@ -34,6 +41,12 @@ export default function ListCard({
         aria-label={`Open the list ${l.title}`}
         className="absolute inset-0 rounded-[inherit]"
       />
+      {sharers.length > 0 && (
+        <span className="flex items-center gap-1 text-xs text-muted">
+          <ShareIcon className="h-3.5 w-3.5" />
+          {sharedLabel(sharers)}
+        </span>
+      )}
       <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
         {author ? (
           <Link
@@ -69,6 +82,16 @@ export default function ListCard({
             ownerId={l.user_id}
             initialCount={l.list_likes?.[0]?.count ?? 0}
             initiallyLiked={liked}
+          />
+        </span>
+        <span className="relative z-10">
+          <ShareButton
+            viewerId={viewerId ?? null}
+            ownerId={l.user_id}
+            kind="list"
+            targetId={l.id}
+            initialCount={l.shares?.[0]?.count ?? 0}
+            initiallyShared={shared}
           />
         </span>
         <Link

@@ -118,7 +118,7 @@ export default function Nav() {
           <NotificationIcon />
           {shownUnread > 0 && (
             <span className="bg-accent px-1.5 text-xs font-bold text-background">
-              {shownUnread > 9 ? "9+" : shownUnread}
+              {shownUnread > 20 ? "20+" : shownUnread}
             </span>
           )}
         </Link>

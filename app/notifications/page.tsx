@@ -14,7 +14,9 @@ type NotificationRow = {
     | "follow"
     | "list_like"
     | "list_comment"
-    | "list_reply";
+    | "list_reply"
+    | "share"
+    | "list_share";
   read: boolean;
   created_at: string;
   log_id: string | null;
@@ -162,6 +164,16 @@ export default function NotificationsPage() {
             ? `/u/${encodeURIComponent(n.profiles.username)}`
             : "/",
         };
+      case "share":
+        return {
+          text: `${actor} shared your review of ${title}`,
+          href: reviewHref,
+        };
+      case "list_share":
+        return {
+          text: `${actor} shared your list “${listTitle}”`,
+          href: n.list_id ? `/list/${n.list_id}` : "/",
+        };
       case "list_like":
         return {
           text: `${actor} liked your list “${listTitle}”`,
@@ -196,7 +208,7 @@ export default function NotificationsPage() {
 
       {loaded && signedIn && !error && rows.length === 0 && (
         <p className="text-muted">
-          Nothing yet. You&apos;ll see likes, comments, replies and new
+          Nothing yet. You&apos;ll see likes, shares, comments, replies and new
           followers here.
         </p>
       )}

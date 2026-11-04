@@ -3,6 +3,7 @@
 import { useState } from "react";
 import RatingInput from "@/components/RatingInput";
 import { createClient } from "@/lib/supabase/client";
+import ReviewTextarea from "./ReviewTextArea";
 
 const MAX = 5000;
 
@@ -53,14 +54,7 @@ export default function EditEntryForm({
   return (
     <form onSubmit={handleSave} className="flex w-full flex-col gap-2">
       <RatingInput value={rating} onChange={setRating} />
-      <textarea
-        value={review}
-        onChange={(e) => setReview(e.target.value)}
-        maxLength={MAX}
-        rows={4}
-        placeholder="Write a review (optional)"
-        className="border border-line bg-surface px-3 py-2 text-sm text-foreground"
-      />
+      <ReviewTextarea value={review} onChange={setReview} maxLength={MAX} />
       <div className="flex items-center gap-3">
         <button
           type="submit"

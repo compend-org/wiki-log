@@ -4,6 +4,7 @@
 import ListCard from "@/components/ListCard";
 import { LIST_SELECT, type ListRow, loadPreviews } from "@/lib/feedData";
 import { getLikedListSet } from "@/lib/likes";
+import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
 
 // How many lists to show for one item
@@ -29,9 +30,15 @@ export default async function ItemLists({ itemId }: { itemId: string }) {
   const lists = (
     (data ?? []) as unknown as { lists: ListRow | null }[]
   ).flatMap((r) => (r.lists ? [r.lists] : []));
-  const [previews, likedLists] = await Promise.all([
+  const [previews, likedLists, sharedLists] = await Promise.all([
     loadPreviews(supabase, lists),
     getLikedListSet(supabase, viewerId, lists),
+    getSharedSet(
+      supabase,
+      viewerId,
+      "list",
+      lists.map((l) => l.id),
+    ),
   ]);
 
   return (
@@ -46,6 +53,7 @@ export default async function ItemLists({ itemId }: { itemId: string }) {
           thumbs={previews[l.id] ?? []}
           viewerId={viewerId}
           liked={likedLists.has(l.id)}
+          shared={sharedLists.has(l.id)}
           showActivity={false}
         />
       ))}

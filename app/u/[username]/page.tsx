@@ -5,6 +5,7 @@ import Avatar from "@/components/Avatar";
 import Favourites, { type Slot } from "@/components/Favourites";
 import FollowButton from "@/components/FollowButton";
 import ItemImage from "@/components/ItemImage";
+import ReviewText from "@/components/ReviewText";
 import SignOutButton from "@/components/SignOutButton";
 import Stars from "@/components/Stars";
 import { commentLabel } from "@/lib/format";
@@ -276,7 +277,11 @@ export default async function ProfilePage({
             <div className="flex min-w-0 flex-col gap-1">
               <span className="font-semibold">{title}</span>
               <Stars rating={log.rating} />
-              {log.review && <p className="text-sm">{log.review}</p>}
+              {log.review && (
+                <p className="text-sm">
+                  <ReviewText text={log.review} />
+                </p>
+              )}
               <span className="text-xs text-muted">
                 {new Date(log.logged_at).toLocaleDateString()}
                 {commentCount > 0 && <> · {commentLabel(commentCount)}</>}

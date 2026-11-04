@@ -4,8 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import CommentLikeButton from "@/components/CommentLikeButton";
+import ReviewText from "@/components/ReviewText";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
+import AdminBadge from "./AdminBadge";
+import ReviewTextarea from "./ReviewTextArea";
 
 export type CommentItem = {
   id: string;
@@ -16,6 +19,7 @@ export type CommentItem = {
   authorName: string;
   likeCount: number;
   liked: boolean;
+  authorIsAdmin?: boolean;
 };
 
 export default function Comments({
@@ -118,9 +122,12 @@ export default function Comments({
           >
             {c.authorName}
           </Link>
+          {c.authorIsAdmin && <AdminBadge />}
           <span className="text-xs text-muted">{c.date}</span>
         </div>
-        <p className="whitespace-pre-wrap text-sm">{c.body}</p>
+        <p className="whitespace-pre-wrap text-sm">
+          <ReviewText text={c.body} />
+        </p>
         <div className="flex gap-3 text-xs text-muted">
           {likeable && (
             <CommentLikeButton
@@ -184,12 +191,11 @@ export default function Comments({
 
             {replyTo === c.id && (
               <form onSubmit={submitReply} className="ml-3 flex flex-col gap-2">
-                <textarea
+                <ReviewTextarea
                   value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
+                  onChange={setReplyText}
                   rows={2}
                   maxLength={1000}
-                  // biome-ignore lint/a11y/noAutofocus: this input takes focus on purpose
                   autoFocus
                   placeholder="Write a reply"
                   className={inputClass}
@@ -222,9 +228,9 @@ export default function Comments({
 
       {viewerId ? (
         <form onSubmit={submitTop} className="flex flex-col gap-2">
-          <textarea
+          <ReviewTextarea
             value={topText}
-            onChange={(e) => setTopText(e.target.value)}
+            onChange={setTopText}
             rows={3}
             maxLength={1000}
             placeholder="Add a comment"

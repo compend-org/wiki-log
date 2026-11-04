@@ -8,11 +8,14 @@ import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
 import LikeButton from "@/components/LikeButton";
 import OwnerControls from "@/components/OwnerControls";
+import ReviewText from "@/components/ReviewText";
+import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
 import { isAdmin } from "@/lib/admin";
 import { getAlsoLiked } from "@/lib/alsoLiked";
 import { isUuid } from "@/lib/ids";
 import { getLikedSet, likeKey } from "@/lib/likes";
+import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
 import { escapeLike, isValidName } from "@/lib/username";
 
@@ -27,6 +30,7 @@ type LogRow = {
   logged_at: string;
   items: { title: string; image_url: string | null } | null;
   likes: { count: number }[];
+  shares: { count: number }[];
 };
 
 type CommentQueryRow = {
@@ -85,7 +89,7 @@ export default async function ReviewPage({
   const { data: logData } = await supabase
     .from("logs")
     .select(
-      "id, user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count)",
+      "id, user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count), shares(count)",
     )
     .eq("id", logId)
     .eq("user_id", profile.id)
@@ -124,11 +128,13 @@ export default async function ReviewPage({
     date: c.created_at.slice(0, 10),
     authorId: c.user_id,
     authorName: c.profiles?.username ?? "Someone",
+    authorIsAdmin: isAdmin(c.user_id),
     likeCount: c.comment_likes?.[0]?.count ?? 0,
     liked: likedCommentIds.has(c.id),
   }));
 
   const likedSet = await getLikedSet(supabase, viewerId, [log]);
+  const sharedSet = await getSharedSet(supabase, viewerId, "log", [log.id]);
   const alsoLiked = await getAlsoLiked(supabase, [log]);
   const title = log.items?.title ?? "Unknown item";
   const isOwner = viewerId === log.user_id;
@@ -171,7 +177,13 @@ export default async function ReviewPage({
 
   // The part the owner can edit
   const body = (
-    <>{log.review && <p className="whitespace-pre-wrap">{log.review}</p>}</>
+    <>
+      {log.review && (
+        <p className="whitespace-pre-wrap">
+          <ReviewText text={log.review} />
+        </p>
+      )}
+    </>
   );
 
   return (
@@ -194,13 +206,21 @@ export default async function ReviewPage({
         )}
       </article>
 
-      <div>
+      <div className="flex items-center gap-4">
         <LikeButton
           viewerId={viewerId ?? null}
           authorId={log.user_id}
           logId={log.id}
           initialCount={log.likes?.[0]?.count ?? 0}
           initiallyLiked={likedSet.has(log.id)}
+        />
+        <ShareButton
+          viewerId={viewerId ?? null}
+          ownerId={log.user_id}
+          kind="log"
+          targetId={log.id}
+          initialCount={log.shares?.[0]?.count ?? 0}
+          initiallyShared={sharedSet.has(log.id)}
         />
       </div>
 

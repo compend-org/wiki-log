@@ -7,6 +7,7 @@ import ItemLists from "@/components/ItemLists";
 import ItemLogs from "@/components/ItemLogs";
 import LogForm from "@/components/LogForm";
 import MyEntries, { type MyEntry } from "@/components/MyEntries";
+import RatingHistogram from "@/components/RatingsHistogram";
 import { FEATURES } from "@/lib/features";
 import { isCompoundId } from "@/lib/ids";
 import { getItemForPage } from "@/lib/items";
@@ -54,6 +55,25 @@ export default async function ItemPage({
       loggedAt: r.logged_at,
     }));
   }
+
+  // Everyone's latest rating of this item, one per person, for the histogram
+  const { data: ratingRows } = await supabase
+    .from("logs")
+    .select("user_id, rating")
+    .eq("item_id", id)
+    .not("rating", "is", null)
+    .order("logged_at", { ascending: false });
+  const latestRating = new Map<string, number>();
+  for (const r of (ratingRows ?? []) as {
+    user_id: string;
+    rating: number | string;
+  }[]) {
+    if (!latestRating.has(r.user_id)) {
+      latestRating.set(r.user_id, Number(r.rating));
+    }
+  }
+  // The viewer's own latest rating (entries are newest first; 0 means none)
+  const myRating = myEntries.find((e) => e.rating > 0)?.rating ?? null;
 
   // For a compound: who made it, and from what
   const compound = isCompoundId(id);
@@ -238,6 +258,10 @@ export default async function ItemPage({
           <LogForm id={id} alreadyLogged={myEntries.length > 0} />
         </div>
         <MyEntries entries={myEntries} />
+        <RatingHistogram
+          ratings={[...latestRating.values()]}
+          highlight={myRating}
+        />
       </div>
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0">

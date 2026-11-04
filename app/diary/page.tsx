@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import DeleteIcon from "@/components/DeleteIcon";
 import EditEntryForm from "@/components/EditEntryForm";
 import ItemImage from "@/components/ItemImage";
+import ReviewText from "@/components/ReviewText";
 import Stars from "@/components/Stars";
 import { PAGE_SIZE } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/client";
@@ -387,7 +388,7 @@ export default function DiaryPage() {
                     <Stars rating={e.rating} />
                     {e.review && (
                       <p className="line-clamp-2 whitespace-pre-wrap break-words text-sm">
-                        {e.review}
+                        {<ReviewText text={e.review} />}
                       </p>
                     )}
                   </div>

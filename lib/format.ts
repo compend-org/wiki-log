@@ -2,6 +2,14 @@ export function commentLabel(n: number): string {
   return n === 0 ? "Comment" : `${n} ${n === 1 ? "comment" : "comments"}`;
 }
 
+// "alex shared", "alex and 2 others shared", "You shared"
+export function sharedLabel(names: string[]): string {
+  if (names.length === 0) return "";
+  if (names.length === 1) return `${names[0]} shared:`;
+  const others = names.length - 1;
+  return `${names[0]} and ${others} ${others === 1 ? "other" : "others"} shared:`;
+}
+
 // "54 (number)" becomes "54". If removing the brackets would leave nothing,
 // the original title is kept.
 export function cleanTitle(title: string): string {
