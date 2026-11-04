@@ -9,7 +9,7 @@ export default function AuthErrorPage() {
         <Link href="/login" className="underline">
           sign in
         </Link>{" "}
-        (we can send a new confirmation email from there), or{" "}
+        (you can ask for a new link in your profile settings), or{" "}
         <Link href="/forgot-password" className="underline">
           reset your password
         </Link>
