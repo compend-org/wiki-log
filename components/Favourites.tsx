@@ -59,7 +59,7 @@ export default function Favourites({
 
           if (slot) {
             return (
-              <div key={position} className="relative">
+              <div key={position} className="relative min-w-0">
                 <Link
                   href={`/item/${slot.itemId}`}
                   title={slot.title}
@@ -83,7 +83,9 @@ export default function Favourites({
                     ×
                   </button>
                 )}
-                <span className="truncate text-xs">{slot.title}</span>
+                <span className="block truncate text-xs" title={slot.title}>
+                  {slot.title}
+                </span>
               </div>
             );
           }
