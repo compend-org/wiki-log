@@ -45,7 +45,7 @@ export default async function Home({
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 p-4 sm:p-8">
       {/* The two squares sit at the far left and far right. On wide screens
           the search is between them. Below that, they form a row above it. */}
-      <div className="grid grid-cols-2 items-start gap-4 xl:grid-cols-[1fr_minmax(0,42rem)_1fr] xl:gap-8">
+      <div className="grid grid-cols-2 items-center gap-4 xl:grid-cols-[1fr_minmax(0,42rem)_1fr] xl:gap-8">
         {picks && (
           <div className="order-1 w-full justify-self-start">
             <PickSquare heading="Popular Today " pick={picks.popular} />
