@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 import AdminBadge from "./AdminBadge";
 import ReviewTextarea from "./ReviewTextArea";
+import ReportButton from "@/components/ReportButton";
 
 export type CommentItem = {
   id: string;
@@ -137,7 +138,15 @@ export default function Comments({
               initialCount={c.likeCount}
               initiallyLiked={c.liked}
             />
+            
           )}
+          <ReportButton
+            viewerId={viewerId}
+            ownerId={c.authorId}
+            kind={table === "comments" ? "comment" : "list_comment"}
+            targetId={c.id}
+            className="underline"
+          />
           {viewerId && (
             <button
               type="button"

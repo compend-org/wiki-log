@@ -7,6 +7,7 @@ import ItemImage from "@/components/ItemImage";
 import ListLikeButton from "@/components/ListLikeButton";
 import ReviewText from "@/components/ReviewText";
 import ShareButton from "@/components/ShareButton";
+import ReportButton from "@/components/ReportButton";
 import Stars from "@/components/Stars";
 import { isAdmin } from "@/lib/admin";
 import { isUuid } from "@/lib/ids";
@@ -195,6 +196,12 @@ export default async function ListPage({
             targetId={id}
             initialCount={list.shares?.[0]?.count ?? 0}
             initiallyShared={sharedSet.has(id)}
+          />
+          <ReportButton
+            viewerId={viewerId ?? null}
+            ownerId={list.user_id}
+            kind="list"
+            targetId={id}
           />
           {isOwner && (
             <Link href={`/list/${id}/edit`} className="text-sm underline">
