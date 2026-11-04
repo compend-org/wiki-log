@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import CommentLikeButton from "@/components/CommentLikeButton";
 import { useLoginHref } from "@/lib/useLoginHref";
+import ReviewText from "@/components/ReviewText";
+import ReviewTextarea from "./ReviewTextArea";
 
 export type CommentItem = {
   id: string;
@@ -120,7 +122,9 @@ export default function Comments({
           </Link>
           <span className="text-xs text-muted">{c.date}</span>
         </div>
-        <p className="whitespace-pre-wrap text-sm">{c.body}</p>
+        <p className="whitespace-pre-wrap text-sm">
+          <ReviewText text={c.body} />
+        </p>
         <div className="flex gap-3 text-xs text-muted">
           {likeable && (
             <CommentLikeButton
@@ -184,9 +188,9 @@ export default function Comments({
 
             {replyTo === c.id && (
               <form onSubmit={submitReply} className="ml-3 flex flex-col gap-2">
-                <textarea
+                <ReviewTextarea
                   value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
+                  onChange={setReplyText}
                   rows={2}
                   maxLength={1000}
                   autoFocus
@@ -221,9 +225,9 @@ export default function Comments({
 
       {viewerId ? (
         <form onSubmit={submitTop} className="flex flex-col gap-2">
-          <textarea
+          <ReviewTextarea
             value={topText}
-            onChange={(e) => setTopText(e.target.value)}
+            onChange={setTopText}
             rows={3}
             maxLength={1000}
             placeholder="Add a comment"

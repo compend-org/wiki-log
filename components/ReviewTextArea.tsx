@@ -21,6 +21,7 @@ export default function ReviewTextarea({
   rows = 3,
   maxLength = 5000,
   className = "",
+  autoFocus = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -28,6 +29,7 @@ export default function ReviewTextarea({
   rows?: number;
   maxLength?: number;
   className?: string;
+  autoFocus?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [picking, setPicking] = useState<boolean>(false);
@@ -80,6 +82,7 @@ export default function ReviewTextarea({
         onChange={handleChange}
         maxLength={maxLength}
         rows={rows}
+        autoFocus={autoFocus}
         placeholder={placeholder}
         className={className}
       />
