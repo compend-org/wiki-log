@@ -49,7 +49,7 @@ type RankRow = { row_id: string; recent_likes: number | string };
 
 const LOG_SELECT =
   "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count)";
-const LIST_SELECT =
+export const LIST_SELECT =
   "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count)";
 
 function publicClient(): SupabaseClient {
@@ -65,7 +65,7 @@ function nonEmpty(lists: ListRow[]): ListRow[] {
 }
 
 // The first few items of each list that can be shown
-async function loadPreviews(
+export async function loadPreviews(
   supabase: SupabaseClient,
   lists: ListRow[],
 ): Promise<Record<string, Thumb[]>> {

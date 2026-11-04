@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import AddToList from "@/components/AddToList";
 import ItemImage from "@/components/ItemImage";
+import ItemLists from "@/components/ItemLists";
 import ItemLogs from "@/components/ItemLogs";
 import LogForm from "@/components/LogForm";
 import MyEntries, { type MyEntry } from "@/components/MyEntries";
@@ -120,123 +121,132 @@ export default async function ItemPage({
   )}`;
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
-      <div className="flex flex-col gap-3">
-        {item.imageUrl ? (
-          <figure className="flex flex-col items-center gap-1">
-            {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
-            <img
-              src={item.imageUrl}
+    <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 sm:p-8">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+        <div className="flex flex-col gap-3">
+          {item.imageUrl ? (
+            <figure className="flex flex-col items-center gap-1">
+              {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
+              <img
+                src={item.imageUrl}
+                alt={item.title}
+                className="item-img h-auto w-auto max-w-full border-2 border-dashed border-line bg-clip-padding [[data-theme=dark]_&]:bg-foreground"
+              />
+              <figcaption className="text-center text-xs text-muted">
+                {item.imageNonFree ? (
+                  <a href={removalLink} className="underline">
+                    Request removal
+                  </a>
+                ) : (
+                  <>
+                    Image:{" "}
+                    {item.imageFilePage ? (
+                      <a href={item.imageFilePage} className="underline">
+                        Wikimedia Commons
+                      </a>
+                    ) : (
+                      "Wikimedia Commons"
+                    )}
+                  </>
+                )}
+              </figcaption>
+            </figure>
+          ) : (
+            <ItemImage
+              src={null}
               alt={item.title}
-              className="item-img h-auto w-auto max-w-full border-2 border-dashed border-line bg-clip-padding [[data-theme=dark]_&]:bg-foreground"
+              className="aspect-video max-h-80 w-full"
             />
-            <figcaption className="text-center text-xs text-muted">
-              {item.imageNonFree ? (
-                <a href={removalLink} className="underline">
-                  Request removal
-                </a>
-              ) : (
+          )}
+
+          <h1 className="text-3xl font-bold">{item.title}</h1>
+          {item.description && <p className="text-muted">{item.description}</p>}
+
+          {compound ? (
+            <p className="text-xs text-muted">
+              A compound
+              {creator && (
                 <>
-                  Image:{" "}
-                  {item.imageFilePage ? (
-                    <a href={item.imageFilePage} className="underline">
-                      Wikimedia Commons
-                    </a>
-                  ) : (
-                    "Wikimedia Commons"
-                  )}
+                  {" "}
+                  crafted by{" "}
+                  <Link
+                    href={`/u/${encodeURIComponent(creator)}`}
+                    className="underline"
+                  >
+                    {creator}
+                  </Link>
                 </>
               )}
-            </figcaption>
-          </figure>
-        ) : (
-          <ItemImage
-            src={null}
-            alt={item.title}
-            className="aspect-video max-h-80 w-full"
-          />
+              {createdAt && <> on {createdAt.slice(0, 10)}</>}.
+            </p>
+          ) : (
+            <p className="text-xs text-muted">
+              From{" "}
+              <a href={item.pageUrl} className="underline">
+                Wikipedia
+              </a>
+              , licensed CC BY-SA 4.0.
+            </p>
+          )}
+        </div>
+
+        {compound && madeFrom.length > 0 && (
+          <section className="flex flex-col gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+              Made from
+            </h2>
+            <ul className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+              {madeFrom.map((p) => (
+                <li key={p.id}>
+                  <Link
+                    href={`/item/${p.id}`}
+                    className="flex flex-col gap-1 no-underline"
+                  >
+                    <ItemImage
+                      src={p.imageUrl}
+                      alt={p.title}
+                      className="aspect-square w-full"
+                    />
+                    <span className="truncate text-xs">{p.title}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
-        <h1 className="text-3xl font-bold">{item.title}</h1>
-        {item.description && <p className="text-muted">{item.description}</p>}
-
-        {compound ? (
-          <p className="text-xs text-muted">
-            A compound
-            {creator && (
-              <>
-                {" "}
-                crafted by{" "}
-                <Link
-                  href={`/u/${encodeURIComponent(creator)}`}
-                  className="underline"
-                >
-                  {creator}
-                </Link>
-              </>
-            )}
-            {createdAt && <> on {createdAt.slice(0, 10)}</>}.
-          </p>
-        ) : (
-          <p className="text-xs text-muted">
-            From{" "}
-            <a href={item.pageUrl} className="underline">
-              Wikipedia
-            </a>
-            , licensed CC BY-SA 4.0.
-          </p>
+        {usedIn.length > 0 && (
+          <section className="flex flex-col gap-1">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+              Used in
+            </h2>
+            <p className="text-sm">
+              {usedIn.map((c, i) => (
+                <span key={c.id}>
+                  {i > 0 && ", "}
+                  <Link href={`/item/${c.id}`} className="underline">
+                    {c.title}
+                  </Link>
+                </span>
+              ))}
+            </p>
+          </section>
         )}
+
+        <AddToList itemId={id} title={item.title} imageUrl={item.imageUrl} />
+        <div id="log" className="scroll-mt-4">
+          <LogForm id={id} alreadyLogged={myEntries.length > 0} />
+        </div>
+        <MyEntries entries={myEntries} />
       </div>
-
-      {compound && madeFrom.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-            Made from
-          </h2>
-          <ul className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-            {madeFrom.map((p) => (
-              <li key={p.id}>
-                <Link
-                  href={`/item/${p.id}`}
-                  className="flex flex-col gap-1 no-underline"
-                >
-                  <ItemImage
-                    src={p.imageUrl}
-                    alt={p.title}
-                    className="aspect-square w-full"
-                  />
-                  <span className="truncate text-xs">{p.title}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {usedIn.length > 0 && (
-        <section className="flex flex-col gap-1">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-            Used in
-          </h2>
-          <p className="text-sm">
-            {usedIn.map((c, i) => (
-              <span key={c.id}>
-                {i > 0 && ", "}
-                <Link href={`/item/${c.id}`} className="underline">
-                  {c.title}
-                </Link>
-              </span>
-            ))}
-          </p>
-        </section>
-      )}
-
-      <AddToList itemId={id} title={item.title} imageUrl={item.imageUrl} />
-      <div id="log" className="scroll-mt-4">
-        <LogForm id={id} alreadyLogged={myEntries.length > 0} />
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="min-w-0">
+          <ItemLogs itemId={id} limit={parseLimit(limit)} />
+        </div>
+        <div className="min-w-0">
+          <ItemLists itemId={id} />
+        </div>
       </div>
-      <MyEntries entries={myEntries} />
-      <ItemLogs itemId={id} limit={parseLimit(limit)} />
     </main>
   );
 }
