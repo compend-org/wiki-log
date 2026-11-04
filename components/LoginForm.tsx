@@ -164,6 +164,22 @@ export default function LoginForm({ next }: { next: string }) {
   return (
     <main className="mx-auto flex max-w-sm flex-1 flex-col justify-center gap-4 p-4 sm:p-8">
       <h1 className="text-3xl font-bold">
+        {mode === "signup" && (
+          <p className="text-sm text-danger">
+            Heads up: confirmation emails to Gmail addresses are currently
+            heavily delayed or not arriving. It&apos;s Google&apos;s fault. You&apos;ll
+            have to use a different domain. If you don&apos;t have another email and
+            don&apos;t want to make one, use a temporary email generator:{" "}
+            <a
+              href="https://mail.tm"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              Mail.tm
+            </a>
+          </p>
+        )}
         {mode === "signin" ? "Sign in" : "Create account"}
       </h1>
 
