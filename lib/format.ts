@@ -42,3 +42,15 @@ export function thumbUrl(url: string, width = 330): string {
   if (!m) return url;
   return Number(m[2]) > width ? `${m[1]}${width}px-${m[3]}` : url;
 }
+
+export function absolute(url: string): string {
+  return url.startsWith("//") ? `https:${url}` : url;
+}
+
+// Search suggestions only ever show images stored on Wikimedia Commons, whose
+// licences allow reuse
+export function freeImage(url: string | undefined | null): string | null {
+  if (!url) return null;
+  const full = absolute(url);
+  return full.includes("/wikipedia/commons/") ? full : null;
+}

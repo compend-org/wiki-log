@@ -1,5 +1,7 @@
-// Everything that talks to Wikipedia and Wikidata. Server-side only.
+// Item lookups on Wikipedia and Wikidata. Server-side only.
+import { absolute, freeImage } from "@/lib/format";
 import { DEFAULT_LANG, LANGUAGES, type LangCode } from "@/lib/languages";
+import { requestedWaitMs } from "@/lib/wikimediaLimits";
 
 // Wikimedia asks every client to identify itself, with a way to reach you
 const CONTACT = process.env.WIKI_CONTACT ?? "no contact set";
@@ -9,13 +11,6 @@ const USER_AGENT = `Compend/0.1${process.env.NODE_ENV === "production" ? "" : "-
 export const ALLOW_PEOPLE = true;
 
 const HEADERS = { "User-Agent": USER_AGENT, "Api-User-Agent": USER_AGENT };
-
-export type SearchHit = {
-  key: string;
-  title: string;
-  description: string | null;
-  imageUrl: string | null;
-};
 
 export type ItemData = {
   id: string; // the Wikidata ID, like Q89
@@ -30,58 +25,6 @@ export type ItemData = {
 export type LookupResult = { item: ItemData } | { error: string };
 
 type ItemImage = { url: string; nonFree: boolean; filePage: string | null };
-
-function absolute(url: string): string {
-  return url.startsWith("//") ? `https:${url}` : url;
-}
-
-// Search suggestions only ever show images stored on Wikimedia Commons, whose
-// licences allow reuse
-function freeImage(url: string | undefined | null): string | null {
-  if (!url) return null;
-  const full = absolute(url);
-  return full.includes("/wikipedia/commons/") ? full : null;
-}
-
-// ---------------------------------------------------------------- search
-
-// Suggestions as you type, from the Wikipedia in the chosen language
-export async function searchTitles(
-  query: string,
-  lang: LangCode = DEFAULT_LANG,
-): Promise<SearchHit[]> {
-  const q = query.trim();
-  if (q.length < 2) return [];
-
-  const res = await wikiFetch(
-    `https://${lang}.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(q)}&limit=8`,
-    { headers: HEADERS },
-  );
-  if (!res.ok) return [];
-
-  const data: {
-    pages?: {
-      key: string;
-      title: string;
-      description?: string | null;
-      thumbnail?: { url: string } | null;
-    }[];
-  } = await res.json();
-
-  return (data.pages ?? [])
-    .map((p) => ({
-      key: p.key,
-      title: p.title,
-      description: p.description ?? null,
-      imageUrl: freeImage(p.thumbnail?.url),
-    }))
-    .filter(
-      (h) =>
-        !/disambiguation|topics referred to by the same term/i.test(
-          `${h.title} ${h.description ?? ""}`,
-        ),
-    );
-}
 
 // -------------------------------------------------------------- wikidata
 
@@ -420,13 +363,28 @@ export async function getItemById(qid: string): Promise<LookupResult> {
   return { error: "That item has no article in a supported language." };
 }
 
+// The longest a visitor's request is held open to retry after a short wait
+const MAX_RETRY_WAIT_MS = 3000;
+
+let pausedUntil = 0;
+
+// Waits out a short requested delay and retries once. After a longer delay it
+// reports the failure, and sends nothing more from this server until it's over.
 async function wikiFetch(url: string, _init?: RequestInit): Promise<Response> {
-  let res = await globalThis.fetch(url, { headers: HEADERS });
-  if (res.status === 429 || res.status === 503) {
-    const wait = Math.min(Number(res.headers.get("retry-after")) || 1, 3);
-    await new Promise((resolve) => setTimeout(resolve, wait * 1000));
-    res = await globalThis.fetch(url, { headers: HEADERS });
+  if (Date.now() < pausedUntil) {
+    console.warn("Wikimedia paused", url.slice(0, 120));
+    return new Response(null, { status: 429 });
   }
+
+  let res = await globalThis.fetch(url, { headers: HEADERS });
+  let wait = requestedWaitMs(res);
+  if (wait > 0 && wait <= MAX_RETRY_WAIT_MS) {
+    await new Promise((resolve) => setTimeout(resolve, wait));
+    res = await globalThis.fetch(url, { headers: HEADERS });
+    wait = requestedWaitMs(res);
+  }
+  pausedUntil = Math.max(pausedUntil, Date.now() + wait);
+
   if (!res.ok) console.warn("Wikimedia", res.status, url.slice(0, 120));
   return res;
 }

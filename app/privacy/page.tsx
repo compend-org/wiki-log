@@ -18,10 +18,12 @@ export default function PrivacyPage() {
         is processed by Supabase (database and storage), Vercel (hosting) and
         Resend (sign-up and password-reset emails), and item titles,
         descriptions and pictures come from Wikipedia and Wikimedia Commons,
-        which are contacted when an item is looked up. You can delete your
-        account and everything you have posted at any time from Settings, and
-        for anything else, including requests to see or correct your data, write
-        to{" "}
+        which are contacted when an item is looked up. What you type into search
+        goes directly from your browser to Wikipedia, so the Wikimedia
+        Foundation receives your search terms and IP address. You can delete
+        your account and everything you have posted at any time from Settings,
+        and for anything else, including requests to see or correct your data,
+        write to{" "}
         <a href={`mailto:${CONTACT_EMAIL}`} className="underline">
           {CONTACT_EMAIL}
         </a>
