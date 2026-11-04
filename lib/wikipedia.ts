@@ -53,6 +53,7 @@ export async function searchTitles(
     const q = query.trim();
     if (q.length < 2) return [];
 
+
     const res = await wikiFetch(
         `https://${lang}.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(q)}&limit=8`,
         { headers: HEADERS }
@@ -411,6 +412,26 @@ export async function getItemById(qid: string): Promise<LookupResult> {
     }
 
     return { error: "That item has no article in a supported language." };
+}
+// A random article from one language's Wikipedia. Tries a few, in case some
+// can't be reviewed (disambiguation pages, no Wikidata entry).
+export async function getRandomItem(
+    lang: LangCode = DEFAULT_LANG
+): Promise<LookupResult> {
+    const res = await wikiFetch(
+        `https://${lang}.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=5&format=json`,
+        { headers: HEADERS }
+    );
+    if (!res.ok) {
+        return { error: "Wikipedia is busy right now. Try again in a minute." };
+    }
+
+    const data: { query?: { random?: { title: string }[] } } = await res.json();
+    for (const page of data.query?.random ?? []) {
+        const result = await getItemByKey(page.title.replace(/ /g, "_"), lang);
+        if ("item" in result) return result;
+    }
+    return { error: "Couldn't find a page this time. Try again." };
 }
 
 async function wikiFetch(url: string, _init?: RequestInit): Promise<Response> {
