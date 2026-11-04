@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import CommentLikeButton from "@/components/CommentLikeButton";
+import ReportButton from "@/components/ReportButton";
 import ReviewText from "@/components/ReviewText";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 import AdminBadge from "./AdminBadge";
 import ReviewTextarea from "./ReviewTextArea";
-import ReportButton from "@/components/ReportButton";
 
 export type CommentItem = {
   id: string;
@@ -138,7 +138,6 @@ export default function Comments({
               initialCount={c.likeCount}
               initiallyLiked={c.liked}
             />
-            
           )}
           <ReportButton
             viewerId={viewerId}
