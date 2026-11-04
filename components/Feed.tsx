@@ -479,8 +479,10 @@ export default async function Feed({
                         {title}
                     </Link>
                     <Stars rating={row.rating} />
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
-                        <span>{new Date(row.logged_at).toLocaleDateString()}</span>
+                    <div className="flex flex-nowrap items-center gap-2.5 whitespace-nowrap text-xs text-muted">
+                        <span className="min-w-0 truncate">
+                            {new Date(row.logged_at).toLocaleDateString()}
+                        </span>
 
                         <span className="relative z-10">
                             <LikeButton
