@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import AvatarUpload from "@/components/AvatarUpload";
 import BioEditor from "@/components/BioEditor";
 import DeleteAccount from "@/components/DeleteAccount";
+import EmailVerification from "@/components/EmailVerification";
 import ThemeSetting from "@/components/ThemeSetting";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
@@ -120,6 +121,8 @@ export default function SettingsPage() {
           View your public profile
         </Link>
       )}
+
+      <EmailVerification />
 
       <ThemeSetting />
 

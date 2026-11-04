@@ -1,6 +1,7 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { safeNext } from "@/lib/redirect";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 // The link in the email may carry a full address (the page to return to) or a
@@ -24,11 +25,18 @@ export async function GET(request: NextRequest) {
 
   if (tokenHash && type) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       type,
       token_hash: tokenHash,
     });
     if (!error) {
+      // Following an emailed link proves the person owns the address
+      if (data.user) {
+        const { error: recordError } = await createAdminClient()
+          .from("email_verifications")
+          .upsert({ user_id: data.user.id }, { ignoreDuplicates: true });
+        if (recordError) console.error(recordError);
+      }
       return NextResponse.redirect(new URL(next, origin));
     }
   }

@@ -7,3 +7,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Before opening a pull request
+
+Run the same checks as CI (`.github/workflows/checks.yml`) and fix any failures:
+
+```sh
+npx next typegen
+npx tsc --noEmit
+npx biome ci --max-diagnostics=none .
+```
