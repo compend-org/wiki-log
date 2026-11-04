@@ -55,7 +55,7 @@ export default function ItemSearch({ signedIn }: { signedIn: boolean }) {
                     disabled={randoming || navigating}
                     className="text-accent underline hover:no-underline disabled:opacity-60"
                 >
-                    {randoming || navigating ? "finding one…" : "random concept"}
+                    {randoming || navigating ? "finding one…" : "go random"}
                 </button>
             </p>
             {error && <p className="text-sm text-danger">{error}</p>}
