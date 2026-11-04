@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { signIn } from "@/app/actions";
+import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 import { createClient } from "@/lib/supabase/client";
 import { cleanName, escapeLike, isValidName, NAME_RULES } from "@/lib/username";
 
@@ -17,6 +18,17 @@ export default function LoginForm({ next }: { next: string }) {
   // An address that has been sent a confirmation link
   const [pendingEmail, setPendingEmail] = useState<string>("");
   const [notice, setNotice] = useState<string>("");
+  // The bot check: a token is good for one request, so after each attempt the
+  // widget is replaced (new key) to get a fresh one
+  const [captcha, setCaptcha] = useState<string>("");
+  const [captchaKey, setCaptchaKey] = useState<number>(0);
+
+  const needsCaptcha = TURNSTILE_SITE_KEY !== "";
+  const cannotSend = busy || (needsCaptcha && !captcha);
+  const resetCaptcha = () => {
+    setCaptcha("");
+    setCaptchaKey((k) => k + 1);
+  };
 
   // Where the confirmation link should bring the person back to
   const returnAddress = () => `${window.location.origin}${next}`;
@@ -26,9 +38,14 @@ export default function LoginForm({ next }: { next: string }) {
     setBusy(true);
     setMessage("");
     setNotice("");
-    const result = await signIn({ identifier, password });
+    const result = await signIn({
+      identifier,
+      password,
+      captchaToken: captcha || undefined,
+    });
     if (result.error) {
       setBusy(false);
+      resetCaptcha();
       if (/not confirmed/i.test(result.error)) {
         if (identifier.includes("@")) {
           setPendingEmail(identifier.trim());
@@ -80,9 +97,11 @@ export default function LoginForm({ next }: { next: string }) {
       options: {
         data: { username: name },
         emailRedirectTo: returnAddress(),
+        captchaToken: captcha || undefined,
       },
     });
     setBusy(false);
+    resetCaptcha();
     if (error) {
       setMessage(
         /rate limit|too many/i.test(error.message)
@@ -107,9 +126,13 @@ export default function LoginForm({ next }: { next: string }) {
     const { error } = await createClient().auth.resend({
       type: "signup",
       email: pendingEmail,
-      options: { emailRedirectTo: returnAddress() },
+      options: {
+        emailRedirectTo: returnAddress(),
+        captchaToken: captcha || undefined,
+      },
     });
     setBusy(false);
+    resetCaptcha();
     if (error) {
       setMessage(
         /rate|seconds|too many/i.test(error.message)
@@ -132,10 +155,11 @@ export default function LoginForm({ next }: { next: string }) {
           <span className="font-semibold">{pendingEmail}</span>.
         </p>
         {notice && <p className="text-sm text-muted">{notice}</p>}
+        <Turnstile key={captchaKey} onToken={setCaptcha} />
         <button
           type="button"
           onClick={handleResend}
-          disabled={busy}
+          disabled={cannotSend}
           className="self-start border border-line px-4 py-2 disabled:opacity-40"
         >
           {busy ? "Sending…" : "Send it again"}
@@ -181,9 +205,10 @@ export default function LoginForm({ next }: { next: string }) {
             required
             className={inputClass}
           />
+          <Turnstile key={captchaKey} onToken={setCaptcha} />
           <button
             type="submit"
-            disabled={busy}
+            disabled={cannotSend}
             className="bg-accent px-4 py-2 text-background disabled:opacity-40"
           >
             {busy ? "Signing in…" : "Sign in"}
@@ -219,9 +244,10 @@ export default function LoginForm({ next }: { next: string }) {
             minLength={8}
             className={inputClass}
           />
+          <Turnstile key={captchaKey} onToken={setCaptcha} />
           <button
             type="submit"
-            disabled={busy}
+            disabled={cannotSend}
             className="bg-accent px-4 py-2 text-background disabled:opacity-40"
           >
             {busy ? "Creating…" : "Create account"}
@@ -243,6 +269,7 @@ export default function LoginForm({ next }: { next: string }) {
           setMode(mode === "signin" ? "signup" : "signin");
           setMessage("");
           setNotice("");
+          resetCaptcha();
         }}
         className="text-sm underline"
       >

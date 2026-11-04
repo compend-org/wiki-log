@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ForgotPasswordForm() {
@@ -8,6 +9,10 @@ export default function ForgotPasswordForm() {
   const [sent, setSent] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const [captcha, setCaptcha] = useState<string>("");
+  const [captchaKey, setCaptchaKey] = useState<number>(0);
+
+  const cannotSend = busy || (TURNSTILE_SITE_KEY !== "" && !captcha);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -15,8 +20,12 @@ export default function ForgotPasswordForm() {
     setError("");
     const { error } = await createClient().auth.resetPasswordForEmail(
       email.trim(),
+      { captchaToken: captcha || undefined },
     );
     setBusy(false);
+    // The token is spent: get a fresh one for the next try
+    setCaptcha("");
+    setCaptchaKey((k) => k + 1);
     if (error && /rate|seconds|too many/i.test(error.message)) {
       setError("Please wait a minute before asking again.");
       return;
@@ -48,9 +57,10 @@ export default function ForgotPasswordForm() {
         required
         className="border border-line bg-surface px-4 py-2 text-foreground"
       />
+      <Turnstile key={captchaKey} onToken={setCaptcha} />
       <button
         type="submit"
-        disabled={busy}
+        disabled={cannotSend}
         className="bg-accent px-4 py-2 text-background disabled:opacity-40"
       >
         {busy ? "Sending…" : "Send reset link"}

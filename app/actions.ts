@@ -109,6 +109,7 @@ export async function deleteAccount(): Promise<{ error?: string }> {
 export async function signIn(input: {
   identifier: string;
   password: string;
+  captchaToken?: string;
 }): Promise<{ error?: string }> {
   const generic = "Invalid sign-in credentials";
   let email = input.identifier.trim();
@@ -135,6 +136,7 @@ export async function signIn(input: {
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password: input.password,
+    options: { captchaToken: input.captchaToken },
   });
   if (error) {
     return {

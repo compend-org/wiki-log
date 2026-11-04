@@ -3,6 +3,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 import { createClient } from "@/lib/supabase/client";
 
 export default function EmailVerification() {
@@ -10,6 +11,10 @@ export default function EmailVerification() {
   const [verified, setVerified] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
+  const [captcha, setCaptcha] = useState<string>("");
+  const [captchaKey, setCaptchaKey] = useState<number>(0);
+
+  const cannotSend = busy || (TURNSTILE_SITE_KEY !== "" && !captcha);
 
   useEffect(() => {
     async function load() {
@@ -35,9 +40,13 @@ export default function EmailVerification() {
       options: {
         shouldCreateUser: false,
         emailRedirectTo: `${window.location.origin}/settings`,
+        captchaToken: captcha || undefined,
       },
     });
     setBusy(false);
+    // The token is spent: get a fresh one for the next try
+    setCaptcha("");
+    setCaptchaKey((k) => k + 1);
     if (error) {
       setMessage(
         /rate|seconds|too many/i.test(error.message)
@@ -60,14 +69,17 @@ export default function EmailVerification() {
         {email} {verified ? "is verified." : "isn't verified yet."}
       </p>
       {!verified && (
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={busy}
-          className="bg-accent px-4 py-2 text-background disabled:opacity-40"
-        >
-          {busy ? "Sending…" : "Verify your email"}
-        </button>
+        <>
+          <Turnstile key={captchaKey} onToken={setCaptcha} />
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={cannotSend}
+            className="bg-accent px-4 py-2 text-background disabled:opacity-40"
+          >
+            {busy ? "Sending…" : "Verify your email"}
+          </button>
+        </>
       )}
       {message && <p className="text-muted">{message}</p>}
     </section>
