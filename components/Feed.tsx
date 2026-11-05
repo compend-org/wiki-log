@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import Avatar from "@/components/Avatar";
 import BalancedColumns from "@/components/BalancedColumns";
 import CardActions from "@/components/CardActions";
 import ItemImage from "@/components/ItemImage";
@@ -10,7 +9,7 @@ import LoadMore from "@/components/LoadMore";
 import ShareButton from "@/components/ShareButton";
 import ShareIcon from "@/components/ShareIcon";
 import Stars from "@/components/Stars";
-import { getAdminIds } from "@/lib/admin";
+import UserName from "@/components/UserName";
 import { getBlockedIds } from "@/lib/blocks";
 import {
   getPublicFeed,
@@ -24,9 +23,8 @@ import { getLikedListSet, getLikedSet } from "@/lib/likes";
 import { PAGE_SIZE, startOfMinute } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
-import AdminBadge from "./AdminBadge";
 import ReviewText from "./ReviewText";
-import SharedLabel from "./SharedLabel";
+import SharedLabel, { type Sharer } from "./SharedLabel";
 
 type Mode = "following" | "everyone" | "trending";
 
@@ -39,8 +37,8 @@ type PreviewRow = {
 // `sharers` are the people you follow (or you) who shared this entry, newest
 // first. It is only filled in on the Following tab.
 type Entry =
-  | { kind: "log"; date: string; log: LogRow; sharers: string[] }
-  | { kind: "list"; date: string; list: ListRow; sharers: string[] };
+  | { kind: "log"; date: string; log: LogRow; sharers: Sharer[] }
+  | { kind: "list"; date: string; list: ListRow; sharers: Sharer[] };
 
 type ShareRow = {
   user_id: string;
@@ -67,7 +65,6 @@ export default async function Feed({
 
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
-  const adminIds = await getAdminIds();
 
   // Following shows the people you follow and you, so your own entries are in
   // it as well
@@ -95,7 +92,7 @@ export default async function Feed({
   let sharedSet = new Set<string>();
   let sharedLists = new Set<string>();
   // Following only: who shared each log or list id, and when most recently
-  const sharedBy = new Map<string, { names: string[]; latest: string }>();
+  const sharedBy = new Map<string, { sharers: Sharer[]; latest: string }>();
   let scores: Record<string, number> = {};
   const previews = new Map<string, Thumb[]>();
 
@@ -149,13 +146,14 @@ export default async function Feed({
       for (const sh of shareRows) {
         const target = sh.log_id ?? sh.list_id;
         if (!target) continue;
-        const name =
-          sh.user_id === viewerId
-            ? "You"
-            : (sh.profiles?.username ?? "Someone");
+        const sharer: Sharer = {
+          id: sh.user_id,
+          name:
+            sh.user_id === viewerId ? "You" : (sh.profiles?.username ?? null),
+        };
         const found = sharedBy.get(target);
-        if (found) found.names.push(name);
-        else sharedBy.set(target, { names: [name], latest: sh.created_at });
+        if (found) found.sharers.push(sharer);
+        else sharedBy.set(target, { sharers: [sharer], latest: sh.created_at });
       }
 
       // Shared things whose author isn't already in the lists above
@@ -238,7 +236,7 @@ export default async function Feed({
         kind: "log",
         date: effective(log.id, log.logged_at),
         log,
-        sharers: sharedBy.get(log.id)?.names ?? [],
+        sharers: sharedBy.get(log.id)?.sharers ?? [],
       }),
     );
     const listEntryAll: Entry[] = lists.map(
@@ -246,7 +244,7 @@ export default async function Feed({
         kind: "list",
         date: effective(list.id, list.created_at),
         list,
-        sharers: sharedBy.get(list.id)?.names ?? [],
+        sharers: sharedBy.get(list.id)?.sharers ?? [],
       }),
     );
     if (mode === "following") {
@@ -342,7 +340,7 @@ export default async function Feed({
 
   // The two kinds of card. Their layout follows the width of the column they
   // sit in (the "@xl:" variants), not the width of the screen.
-  const renderList = (l: ListRow, sharers: string[]) => (
+  const renderList = (l: ListRow, sharers: Sharer[]) => (
     <ListCard
       key={`list-${l.id}`}
       list={l}
@@ -354,7 +352,7 @@ export default async function Feed({
     />
   );
 
-  const renderLog = (row: LogRow, sharers: string[]) => {
+  const renderLog = (row: LogRow, sharers: Sharer[]) => {
     const title = row.items?.title ?? "Unknown item";
     const author = row.profiles?.username;
     const avatarPath = row.profiles?.avatar_path ?? null;
@@ -390,24 +388,17 @@ export default async function Feed({
 
         <div className="flex min-w-0 flex-col gap-1">
           {sharers.length > 0 && (
-            <span className="flex items-center gap-1 text-xs text-muted">
+            <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
               <ShareIcon className="h-3.5 w-3.5" />
-              <SharedLabel names={sharers} />
+              <SharedLabel sharers={sharers} />
             </span>
           )}
           <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
-            {author ? (
-              <Link
-                href={`/u/${encodeURIComponent(author)}`}
-                className="relative z-10 inline-flex items-center gap-1.5 hover:underline"
-              >
-                <Avatar name={author} path={avatarPath} size={16} />
-                {author}
-              </Link>
-            ) : (
-              <span>Someone</span>
-            )}
-            {adminIds.has(row.user_id) && <AdminBadge />}
+            <UserName
+              userId={row.user_id}
+              username={author}
+              avatarPath={avatarPath}
+            />
             <span>logged</span>
             <span className="whitespace-nowrap">
               · {timeAgo(row.logged_at, renderedAt)}
