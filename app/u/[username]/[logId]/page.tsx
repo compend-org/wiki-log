@@ -15,6 +15,7 @@ import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
 import { getAdminIds, isAdmin } from "@/lib/admin";
 import { getAlsoLiked } from "@/lib/alsoLiked";
+import { getBlockedIds, withoutBlockedComments } from "@/lib/blocks";
 import { isUuid } from "@/lib/ids";
 import { getLikedSet, likeKey } from "@/lib/likes";
 import { getSharedSet } from "@/lib/shares";
@@ -125,7 +126,7 @@ export default async function ReviewPage({
 
   const adminIds = await getAdminIds();
   const viewerIsAdmin = await isAdmin(viewerId);
-  const comments: CommentItem[] = commentRows.map((c) => ({
+  const allComments: CommentItem[] = commentRows.map((c) => ({
     id: c.id,
     parentId: c.parent_id,
     body: c.body,
@@ -136,6 +137,12 @@ export default async function ReviewPage({
     likeCount: c.comment_likes?.[0]?.count ?? 0,
     liked: likedCommentIds.has(c.id),
   }));
+
+  // Comments by people the viewer has blocked are left out
+  const comments = withoutBlockedComments(
+    allComments,
+    await getBlockedIds(supabase, viewerId),
+  );
 
   const likedSet = await getLikedSet(supabase, viewerId, [log]);
   const sharedSet = await getSharedSet(supabase, viewerId, "log", [log.id]);

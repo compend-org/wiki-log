@@ -5,6 +5,7 @@ import LoadMore from "@/components/LoadMore";
 import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
+import { getBlockedIds } from "@/lib/blocks";
 import { commentLabel } from "@/lib/format";
 import { getLikedSet } from "@/lib/likes";
 import { PAGE_SIZE } from "@/lib/paging";
@@ -58,9 +59,14 @@ export default async function ItemLogs({
   const rows = (data ?? []) as unknown as Row[];
   const likeCount = (r: Row) => r.likes?.[0]?.count ?? 0;
 
+  // Reviews by people the viewer has blocked aren't shown, though their
+  // ratings still count towards the average
+  const blocked = await getBlockedIds(supabase, viewerId);
+  const visible = rows.filter((r) => !blocked.has(r.user_id));
+
   // The most-liked reviews: written ones with at least one like, most likes
   // first, newer first when tied
-  const popular = rows
+  const popular = visible
     .filter((r) => likeCount(r) > 0)
     .sort(
       (a, b) =>
@@ -71,7 +77,7 @@ export default async function ItemLogs({
 
   // Everything else, newest first. Reviews shown above don't repeat here.
   const popularIds = new Set(popular.map((r) => r.id));
-  const recentAll = rows.filter((r) => !popularIds.has(r.id));
+  const recentAll = visible.filter((r) => !popularIds.has(r.id));
   const recent = recentAll.slice(0, limit);
 
   const likedSet = await getLikedSet(supabase, viewerId, [
