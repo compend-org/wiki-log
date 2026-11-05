@@ -240,7 +240,7 @@ test("a sole Commons body image keeps its free classification", async () => {
   );
 });
 
-test("multiple substantive images stay ambiguous regardless of licence or order", async () => {
+test("multiple substantive images fall back to the first, regardless of licence", async () => {
   const pages = [
     articlePicture("Steel_Ball_Run_1.jpg", cover),
     articlePicture("Hirohiko Araki.jpg", portrait, { free: true }),
@@ -249,9 +249,23 @@ test("multiple substantive images stay ambiguous regardless of licence or order"
     mockWikipedia({ lead: null, wikidataFile: null, bodyPages });
     const result = await getItemByKey("Steel_Ball_Run");
     assert.ok("item" in result);
-    assert.equal(result.item.imageUrl, null);
+    assert.equal(result.item.imageUrl, bodyPages[0].imageinfo[0].thumburl);
     mock.restoreAll();
   }
+});
+
+test("an unusable first image is skipped in favour of the next suitable one", async () => {
+  mockWikipedia({
+    lead: null,
+    wikidataFile: null,
+    bodyPages: [
+      articlePicture("Wikiquote-logo.png", cover),
+      articlePicture("Hirohiko Araki.jpg", portrait, { free: true }),
+    ],
+  });
+  const result = await getItemByKey("Steel_Ball_Run");
+  assert.ok("item" in result);
+  assert.equal(result.item.imageUrl, portrait);
 });
 
 test("small images, banners and unsupported formats are not body candidates", async () => {
@@ -269,7 +283,7 @@ test("small images, banners and unsupported formats are not body candidates", as
   assert.equal(result.item.imageUrl, null);
 });
 
-test("a partial image list is not mistaken for a single-image article", async () => {
+test("a partial image list can still supply the fallback", async () => {
   mockWikipedia({
     lead: null,
     wikidataFile: null,
@@ -278,7 +292,7 @@ test("a partial image list is not mistaken for a single-image article", async ()
   });
   const result = await getItemByKey("Steel_Ball_Run");
   assert.ok("item" in result);
-  assert.equal(result.item.imageUrl, null);
+  assert.equal(result.item.imageUrl, joniImage);
 });
 
 test("a failed article-image lookup leaves the item usable without an image", async () => {
@@ -297,7 +311,7 @@ test("Wikipedia's representative image wins over a related Wikidata image when t
   assert.equal(fetch.mock.callCount(), 3);
 });
 
-test("a failed PageImages request still allows the sole article-image fallback", async () => {
+test("a failed PageImages request still allows the article-image fallback", async () => {
   mockWikipedia({
     lead: null,
     representativeStatus: 404,
