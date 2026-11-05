@@ -8,8 +8,8 @@ import { getItemById, type ItemData, type LookupResult } from "@/lib/wikipedia";
 // A cached item is trusted for a week, then refreshed from Wikipedia
 export const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-// How long an item page waits on Wikipedia when it has a stale copy to show
-const STALE_COPY_WAIT_MS = 3000;
+// How long to wait on Wikipedia when a stale copy can stand in for the item
+export const STALE_COPY_WAIT_MS = 3000;
 
 type ItemRow = {
   id: string;

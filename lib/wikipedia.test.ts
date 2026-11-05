@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, mock, test } from "node:test";
 import { BUSY_ERROR } from "./articleSummary";
-import { getItemByKey } from "./wikipedia";
+import { getItemById, getItemByKey } from "./wikipedia";
 
 const cover =
   "https://upload.wikimedia.org/wikipedia/en/8/87/Steel_Ball_Run_1.jpg";
@@ -362,4 +362,15 @@ test("a wait past the deadline reports Wikipedia as busy", async () => {
   );
   assert.deepEqual(result, { error: BUSY_ERROR });
   assert.equal(fetch.mock.callCount(), 1);
+});
+
+test("a rate-limited Wikidata lookup reports Wikipedia as busy", async () => {
+  mock.method(
+    globalThis,
+    "fetch",
+    async () =>
+      new Response(null, { status: 429, headers: { "Retry-After": "0.02" } }),
+  );
+  const result = await getItemById("Q2738699", Date.now() + 5);
+  assert.deepEqual(result, { error: BUSY_ERROR });
 });

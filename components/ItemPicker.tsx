@@ -244,6 +244,11 @@ export default function ItemPicker({
             onMouseDown={(e) => e.preventDefault()}
             className="absolute z-[15] mt-1 max-h-96 w-full overflow-auto border border-line bg-background"
           >
+            {error && (
+              <li role="alert" className="px-4 py-3 text-sm text-danger">
+                {error}
+              </li>
+            )}
             {busy && (
               <li
                 role="status"
@@ -322,7 +327,8 @@ export default function ItemPicker({
         )}
       </div>
 
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {/* While the results are open, the error shows at the top of them */}
+      {error && !listOpen && <p className="text-sm text-danger">{error}</p>}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import ItemLogs from "@/components/ItemLogs";
 import LogForm from "@/components/LogForm";
 import MyEntries, { type MyEntry } from "@/components/MyEntries";
 import RatingHistogram from "@/components/RatingsHistogram";
+import { BUSY_ERROR } from "@/lib/articleSummary";
 import { FEATURES } from "@/lib/features";
 import { isCompoundId } from "@/lib/ids";
 import { getItemForPage } from "@/lib/items";
@@ -32,7 +33,19 @@ export default async function ItemPage({
 
   const result = await getItemForPage(id);
   if (isCompoundId(id) && !FEATURES.compounds) notFound();
-  if ("error" in result) notFound();
+  if ("error" in result) {
+    if (result.error !== BUSY_ERROR) notFound();
+    // The item may well exist: Wikipedia just didn't answer in time
+    return (
+      <main className="mx-auto flex max-w-md flex-1 flex-col justify-center gap-3 p-4 sm:p-8">
+        <h1 className="text-3xl font-bold">Wikipedia is busy</h1>
+        <p>
+          We couldn&apos;t load this item from Wikipedia just now. Try again in
+          a minute.
+        </p>
+      </main>
+    );
+  }
   const { item } = result;
 
   const supabase = await createClient();

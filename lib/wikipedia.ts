@@ -335,6 +335,7 @@ export async function getItemById(
     `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${qid}&props=sitelinks&sitefilter=${encodeURIComponent(sites)}&format=json`,
     deadline,
   );
+  if (res.status === 429 || res.status >= 500) return { error: BUSY_ERROR };
   if (!res.ok) return { error: "Couldn't reach Wikidata." };
 
   const data: {
@@ -391,7 +392,13 @@ const pause: Pause = { until: 0 };
 // A wait that would end after the deadline is reported as a failure.
 async function wikiFetch(url: string, deadline: number): Promise<Response> {
   const res = await sendWithinDeadline(
-    () => globalThis.fetch(url, { headers: HEADERS }),
+    // Next.js reuses the first response to a repeated GET while rendering a
+    // page, unless the request has its own signal; a retry must really send
+    () =>
+      globalThis.fetch(url, {
+        headers: HEADERS,
+        signal: new AbortController().signal,
+      }),
     pause,
     deadline,
   );

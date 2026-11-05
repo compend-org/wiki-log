@@ -5,7 +5,12 @@
 import { isAdmin } from "@/lib/admin";
 import { FEATURES } from "@/lib/features";
 import { ITEM_ID_PATTERN, isCompoundId, isUuid } from "@/lib/ids";
-import { applyImageHidden, itemColumns, MAX_AGE_MS } from "@/lib/items";
+import {
+  applyImageHidden,
+  itemColumns,
+  MAX_AGE_MS,
+  STALE_COPY_WAIT_MS,
+} from "@/lib/items";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { cleanName, escapeLike, isValidName } from "@/lib/username";
@@ -36,8 +41,13 @@ async function ensureItem(itemId: string): Promise<string | null> {
   ) {
     return null;
   }
-  const result = await getItemById(itemId);
-  if ("error" in result) return result.error;
+  // With a stale copy to fall back on, saving doesn't wait long on Wikipedia
+  const result = await getItemById(
+    itemId,
+    existing ? Date.now() + STALE_COPY_WAIT_MS : undefined,
+  );
+  // An item we already have stays usable when refreshing it fails
+  if ("error" in result) return existing ? null : result.error;
 
   // A hidden image stays hidden
   const item = applyImageHidden(result.item, existing?.image_hidden === true);
