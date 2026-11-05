@@ -8,6 +8,9 @@ import { getItemById, type ItemData, type LookupResult } from "@/lib/wikipedia";
 // A cached item is trusted for a week, then refreshed from Wikipedia
 export const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
+// How long to wait on Wikipedia when a stale copy can stand in for the item
+export const STALE_COPY_WAIT_MS = 3000;
+
 type ItemRow = {
   id: string;
   title: string;
@@ -79,7 +82,11 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
     return { item: toItem(cached) };
   }
 
-  const fresh = await getItemById(id);
+  // With a stale copy to fall back on, the page doesn't wait long on Wikipedia
+  const fresh = await getItemById(
+    id,
+    cached ? Date.now() + STALE_COPY_WAIT_MS : undefined,
+  );
 
   if ("error" in fresh) {
     // Wikipedia is down or the article was removed: a stale copy beats an error

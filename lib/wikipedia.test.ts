@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, mock, test } from "node:test";
-import { getItemByKey } from "./wikipedia";
+import { BUSY_ERROR } from "./articleSummary";
+import { getItemById, getItemByKey } from "./wikipedia";
 
 const cover =
   "https://upload.wikimedia.org/wikipedia/en/8/87/Steel_Ball_Run_1.jpg";
@@ -321,4 +322,63 @@ test("a failed PageImages request still allows the article-image fallback", asyn
   const result = await getItemByKey("Steel_Ball_Run");
   assert.ok("item" in result);
   assert.equal(result.item.imageUrl, joniImage);
+});
+
+// Refuses the first summary request, asking for a wait, then answers normally
+function rateLimitFirstSummary(retryAfterSeconds: number) {
+  mockWikipedia();
+  const answer = globalThis.fetch;
+  let refused = false;
+  return mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request) => {
+      if (!refused && String(input).includes("/page/summary/")) {
+        refused = true;
+        return new Response(null, {
+          status: 429,
+          headers: { "Retry-After": String(retryAfterSeconds) },
+        });
+      }
+      return answer(input);
+    },
+  );
+}
+
+test("a rate-limited summary is retried after the requested wait", async () => {
+  rateLimitFirstSummary(0.02);
+  const result = await getItemByKey("Steel_Ball_Run");
+  assert.ok("item" in result);
+  assert.equal(result.item.title, "Steel Ball Run");
+});
+
+test("a wait past the deadline reports Wikipedia as busy", async () => {
+  const fetch = rateLimitFirstSummary(0.02);
+  const result = await getItemByKey(
+    "Steel_Ball_Run",
+    "en",
+    undefined,
+    Date.now() + 5,
+  );
+  assert.deepEqual(result, { error: BUSY_ERROR });
+  assert.equal(fetch.mock.callCount(), 1);
+});
+
+test("a rate-limited Wikidata lookup reports Wikipedia as busy", async () => {
+  mock.method(
+    globalThis,
+    "fetch",
+    async () =>
+      new Response(null, { status: 429, headers: { "Retry-After": "0.02" } }),
+  );
+  const result = await getItemById("Q2738699", Date.now() + 5);
+  assert.deepEqual(result, { error: BUSY_ERROR });
+});
+
+test("a failed connection to Wikidata reports Wikipedia as busy", async () => {
+  mock.method(globalThis, "fetch", async () => {
+    throw new TypeError("fetch failed");
+  });
+  const result = await getItemById("Q2738699");
+  assert.deepEqual(result, { error: BUSY_ERROR });
 });
