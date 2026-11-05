@@ -374,3 +374,11 @@ test("a rate-limited Wikidata lookup reports Wikipedia as busy", async () => {
   const result = await getItemById("Q2738699", Date.now() + 5);
   assert.deepEqual(result, { error: BUSY_ERROR });
 });
+
+test("a failed connection to Wikidata reports Wikipedia as busy", async () => {
+  mock.method(globalThis, "fetch", async () => {
+    throw new TypeError("fetch failed");
+  });
+  const result = await getItemById("Q2738699");
+  assert.deepEqual(result, { error: BUSY_ERROR });
+});

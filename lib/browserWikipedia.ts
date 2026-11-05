@@ -86,12 +86,14 @@ export async function findItemId(
   lang: LangCode,
 ): Promise<{ id: string } | { error: string }> {
   const res = await sendWithinDeadline(
-    async () => {
+    async (signal) => {
       try {
         return await fetch(summaryUrl(lang, key), {
           headers: { "Api-User-Agent": API_USER_AGENT },
+          signal,
         });
-      } catch {
+      } catch (e) {
+        if (signal.aborted) throw e;
         // A rate limit response without CORS headers also lands here, since
         // the browser hides it from this code
         return new Response(null, { status: 429 });

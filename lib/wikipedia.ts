@@ -389,21 +389,23 @@ export async function getRandomItem(
 const pause: Pause = { until: 0 };
 
 // Waits out each delay Wikimedia asks for and retries, until the deadline.
-// A wait that would end after the deadline is reported as a failure.
+// Running out of time or failing to connect is reported as a busy response.
 async function wikiFetch(url: string, deadline: number): Promise<Response> {
-  const res = await sendWithinDeadline(
-    // Next.js reuses the first response to a repeated GET while rendering a
-    // page, unless the request has its own signal; a retry must really send
-    () =>
-      globalThis.fetch(url, {
-        headers: HEADERS,
-        signal: new AbortController().signal,
-      }),
-    pause,
-    deadline,
-  );
+  let res: Response | null;
+  try {
+    res = await sendWithinDeadline(
+      // The request's own signal also stops Next.js reusing the first
+      // response to a repeated GET while rendering a page, so a retry sends
+      (signal) => globalThis.fetch(url, { headers: HEADERS, signal }),
+      pause,
+      deadline,
+    );
+  } catch (e) {
+    console.warn("Wikimedia unreachable", url.slice(0, 120), e);
+    return new Response(null, { status: 503 });
+  }
   if (!res) {
-    console.warn("Wikimedia paused", url.slice(0, 120));
+    console.warn("Wikimedia out of time", url.slice(0, 120));
     return new Response(null, { status: 429 });
   }
   if (!res.ok) console.warn("Wikimedia", res.status, url.slice(0, 120));

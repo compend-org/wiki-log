@@ -81,3 +81,52 @@ test("waits for a shared pause that ends before the deadline", async () => {
   assert.equal(res?.status, 200);
   assert.ok(Date.now() - start >= 45);
 });
+
+test("sends nothing once the deadline has passed", async () => {
+  const sender = replies(new Response("ok"));
+  const res = await sendWithinDeadline(
+    sender.send,
+    { until: 0 },
+    Date.now() - 100,
+  );
+  assert.equal(res, null);
+  assert.equal(sender.sent, 0);
+});
+
+test("gives up on a request still running at the deadline", async () => {
+  const start = Date.now();
+  const res = await sendWithinDeadline(
+    () =>
+      new Promise((resolve) =>
+        setTimeout(() => resolve(new Response("late")), 1000),
+      ),
+    { until: 0 },
+    Date.now() + 30,
+  );
+  assert.equal(res, null);
+  assert.ok(Date.now() - start < 500);
+});
+
+test("gives up on a response body still arriving at the deadline", async () => {
+  const start = Date.now();
+  const res = await sendWithinDeadline(
+    async () => new Response(new ReadableStream({ start() {} })),
+    { until: 0 },
+    Date.now() + 30,
+  );
+  assert.equal(res, null);
+  assert.ok(Date.now() - start < 500);
+});
+
+test("honours a pause another request extends while it waits", async () => {
+  const sender = replies(new Response("ok"));
+  const pause: Pause = { until: Date.now() + 100 };
+  setTimeout(() => {
+    pause.until = Date.now() + 1000;
+  }, 20);
+  const start = Date.now();
+  const res = await sendWithinDeadline(sender.send, pause, Date.now() + 200);
+  assert.equal(res, null);
+  assert.equal(sender.sent, 0);
+  assert.ok(Date.now() - start < 500);
+});
