@@ -121,10 +121,10 @@ export default async function ItemPage({
   // Compounds that use this item as an ingredient
   const { data: usedRows } = FEATURES.compounds
     ? await supabase
-        .from("compound_parts")
-        .select("compound_id")
-        .eq("part_id", id)
-        .limit(12)
+      .from("compound_parts")
+      .select("compound_id")
+      .eq("part_id", id)
+      .limit(12)
     : { data: null };
   const usedIds = (usedRows ?? []).map((r) => r.compound_id as string);
   let usedIn: { id: string; title: string }[] = [];
@@ -202,7 +202,12 @@ export default async function ItemPage({
           ) : (
             <p className="text-xs text-muted">
               From{" "}
-              <a href={item.pageUrl} className="underline">
+              <a
+                href={item.pageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
                 Wikipedia
               </a>
               , licensed CC BY-SA 4.0.
