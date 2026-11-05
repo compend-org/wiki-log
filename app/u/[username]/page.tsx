@@ -1,11 +1,16 @@
+// ABOUTME: A person's public profile: their details, favourites, lists and reviews.
+// ABOUTME: Also holds the follow, block and ban controls for whoever is viewing it.
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import AdminBadge from "@/components/AdminBadge";
 import Avatar from "@/components/Avatar";
+import BanButton from "@/components/BanButton";
+import BlockButton from "@/components/BlockButton";
 import Favourites, { type Slot } from "@/components/Favourites";
 import FollowButton from "@/components/FollowButton";
 import ItemImage from "@/components/ItemImage";
+import ListPreview from "@/components/ListPreview";
 import ReviewText from "@/components/ReviewText";
 import SignOutButton from "@/components/SignOutButton";
 import Stars from "@/components/Stars";
@@ -20,6 +25,7 @@ export const instant = false;
 type ItemInfo = { title: string; image_url: string | null } | null;
 
 type LogRow = {
+  id: string;
   item_id: string;
   rating: number;
   review: string;
@@ -80,11 +86,12 @@ export default async function ProfilePage({
     isFollowingRes,
     favRes,
     listsRes,
+    isBlockedRes,
   ] = await Promise.all([
     supabase
       .from("logs")
       .select(
-        "item_id, rating, review, logged_at, items(title, image_url), comments(count)",
+        "id, item_id, rating, review, logged_at, items(title, image_url), comments(count)",
       )
       .eq("user_id", profile.id)
       .order("logged_at", { ascending: false }),
@@ -113,12 +120,21 @@ export default async function ProfilePage({
       .select("id, title, ranked, list_items(count)")
       .eq("user_id", profile.id)
       .order("created_at", { ascending: false }),
+    viewerId
+      ? supabase
+          .from("blocks")
+          .select("blocked_id")
+          .eq("blocker_id", viewerId)
+          .eq("blocked_id", profile.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const logs = (logsRes.data ?? []) as unknown as LogRow[];
   const followers = followersRes.count ?? 0;
   const following = followingRes.count ?? 0;
   const isFollowing = Boolean(isFollowingRes.data);
+  const isBlocked = Boolean(isBlockedRes.data);
 
   const favRows = (favRes.data ?? []) as unknown as FavRow[];
   const slots: (Slot | null)[] = [1, 2, 3, 4, 5].map((pos) => {
@@ -159,6 +175,8 @@ export default async function ProfilePage({
   }
 
   const isOwner = viewerId === profile.id;
+  const profileIsAdmin = await isAdmin(profile.id);
+  const viewerIsAdmin = await isAdmin(viewerId);
   const profileHref = `/u/${encodeURIComponent(profile.username)}`;
 
   return (
@@ -174,7 +192,7 @@ export default async function ProfilePage({
             <h1 className="break-words text-3xl font-bold">
               {profile.username}
             </h1>
-            {isAdmin(profile.id) && <AdminBadge />}
+            {profileIsAdmin && <AdminBadge />}
           </div>
         </div>
         <p className="text-sm text-muted">
@@ -186,7 +204,7 @@ export default async function ProfilePage({
             {profile.bio}
           </p>
         )}
-        <div className="mt-2">
+        <div className="mt-2 flex items-center gap-4">
           {!viewerId ? (
             <Link href={loginHref(profileHref)} className="underline">
               Sign in to follow
@@ -199,10 +217,28 @@ export default async function ProfilePage({
               <SignOutButton className="inline-flex sm:hidden" />
             </div>
           ) : (
-            <FollowButton
-              viewerId={viewerId}
-              targetId={profile.id}
-              initiallyFollowing={isFollowing}
+            <div className="flex items-start gap-3">
+              {/* Nobody can follow someone they have blocked */}
+              {!isBlocked && (
+                <FollowButton
+                  viewerId={viewerId}
+                  targetId={profile.id}
+                  initiallyFollowing={isFollowing}
+                />
+              )}
+              <BlockButton
+                viewerId={viewerId}
+                targetId={profile.id}
+                targetName={profile.username}
+                initiallyBlocked={isBlocked}
+              />
+            </div>
+          )}
+          {viewerIsAdmin && !profileIsAdmin && (
+            <BanButton
+              userId={profile.id}
+              username={profile.username}
+              redirectTo="/"
             />
           )}
         </div>
@@ -229,11 +265,15 @@ export default async function ProfilePage({
             const count = l.list_items?.[0]?.count ?? 0;
             const preview = previews.get(l.id) ?? [];
             return (
-              <Link
+              <div
                 key={l.id}
-                href={`/list/${l.id}`}
-                className="card flex flex-col gap-2 p-3"
+                className="card relative flex flex-col gap-2 p-3 hover:bg-surface"
               >
+                <Link
+                  href={`/list/${l.id}`}
+                  aria-label={`Open the list ${l.title}`}
+                  className="absolute inset-0 rounded-[inherit]"
+                />
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="font-semibold">{l.title}</span>
                   <span className="shrink-0 text-xs text-muted">
@@ -242,19 +282,13 @@ export default async function ProfilePage({
                   </span>
                 </div>
                 {preview.length > 0 && (
-                  <div className="flex gap-1">
-                    {preview.map((p, i) => (
-                      <ItemImage
-                        // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
-                        key={i}
-                        src={p.image_url}
-                        alt={p.title}
-                        className="h-14 w-14 rounded"
-                      />
-                    ))}
-                  </div>
+                  <ListPreview
+                    thumbs={preview}
+                    total={count}
+                    href={`/list/${l.id}`}
+                  />
                 )}
-              </Link>
+              </div>
             );
           })}
         </section>
@@ -267,16 +301,16 @@ export default async function ProfilePage({
 
       {logs.length === 0 && <p className="text-muted">Nothing logged yet.</p>}
 
-            {logs.map((log) => {
+      {logs.map((log) => {
         const title = log.items?.title ?? "Unknown item";
         const commentCount = log.comments?.[0]?.count ?? 0;
         return (
           <div
-            key={log.item_id}
+            key={log.id}
             className="card relative flex gap-4 p-3 hover:bg-surface"
           >
             <Link
-              href={`${profileHref}/${log.item_id}`}
+              href={`${profileHref}/${log.id}`}
               aria-label={`Open the review of ${title}`}
               className="absolute inset-0 rounded-[inherit]"
             />

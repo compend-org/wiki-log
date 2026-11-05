@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import Avatar from "@/components/Avatar";
+import BalancedColumns from "@/components/BalancedColumns";
+import CardActions from "@/components/CardActions";
 import ItemImage from "@/components/ItemImage";
 import LikeButton from "@/components/LikeButton";
 import ListCard from "@/components/ListCard";
@@ -8,7 +10,8 @@ import LoadMore from "@/components/LoadMore";
 import ShareButton from "@/components/ShareButton";
 import ShareIcon from "@/components/ShareIcon";
 import Stars from "@/components/Stars";
-import { isAdmin } from "@/lib/admin";
+import { getAdminIds } from "@/lib/admin";
+import { getBlockedIds } from "@/lib/blocks";
 import {
   getPublicFeed,
   getTrendingFeed,
@@ -16,9 +19,9 @@ import {
   type LogRow,
   type Thumb,
 } from "@/lib/feedData";
-import { commentLabel, sharedLabel } from "@/lib/format";
+import { sharedLabel, timeAgo } from "@/lib/format";
 import { getLikedListSet, getLikedSet } from "@/lib/likes";
-import { PAGE_SIZE } from "@/lib/paging";
+import { PAGE_SIZE, startOfMinute } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import AdminBadge from "./AdminBadge";
@@ -49,15 +52,21 @@ type ShareRow = {
 export default async function Feed({
   mode,
   limit = PAGE_SIZE,
+  asOf,
 }: {
   mode: Mode;
   limit?: number;
+  // When this feed was first loaded. Left out on the first page.
+  asOf?: string;
 }) {
   await connection();
+  const snapshot = asOf ?? new Date().toISOString();
+  const renderedAt = Date.now();
   const supabase = await createClient();
 
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
+  const adminIds = await getAdminIds();
 
   // Following shows the people you follow and you, so your own entries are in
   // it as well
@@ -77,6 +86,8 @@ export default async function Feed({
   let reviewEntries: Entry[] = [];
   let listEntries: Entry[] = [];
   let hasMore = false;
+  let reviewsHaveMore = false;
+  let listsHaveMore = false;
   let errorMessage = "";
   let likedSet = new Set<string>();
   let likedLists = new Set<string>();
@@ -99,6 +110,7 @@ export default async function Feed({
             "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)",
           )
           .in("user_id", authorIds)
+          .lte("logged_at", snapshot)
           .order("logged_at", { ascending: false })
           .limit(limit + 1),
         supabase
@@ -107,6 +119,7 @@ export default async function Feed({
             "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count)",
           )
           .in("user_id", authorIds)
+          .lte("created_at", snapshot)
           .order("created_at", { ascending: false })
           .limit(limit + 1),
       ]);
@@ -126,6 +139,7 @@ export default async function Feed({
         .from("shares")
         .select("user_id, log_id, list_id, created_at, profiles(username)")
         .in("user_id", authorIds)
+        .lte("created_at", snapshot)
         .order("created_at", { ascending: false })
         .limit(limit + 1);
       if (shareError) errorMessage = shareError.message;
@@ -191,7 +205,7 @@ export default async function Feed({
       const pub =
         mode === "trending"
           ? await getTrendingFeed(limit)
-          : await getPublicFeed(limit);
+          : await getPublicFeed(limit, startOfMinute(snapshot));
       logs = pub.logs;
       lists = pub.lists;
       scores = pub.scores;
@@ -200,6 +214,12 @@ export default async function Feed({
         previews.set(id, thumbs);
       }
     }
+
+    // Posts by people the viewer has blocked are left out, including ones
+    // shared by people the viewer follows
+    const blocked = await getBlockedIds(supabase, viewerId);
+    logs = logs.filter((l) => !blocked.has(l.user_id));
+    lists = lists.filter((l) => !blocked.has(l.user_id));
 
     // Every entry gets a date to sort by. On Following, something that was
     // shared counts from the moment it was last shared (if that is later
@@ -249,6 +269,8 @@ export default async function Feed({
     // `limit`. A busy stream of reviews can't push every list out.
     reviewEntries = logEntries.slice(0, limit);
     listEntries = listEntryAll.slice(0, limit);
+    reviewsHaveMore = logEntries.length > limit;
+    listsHaveMore = listEntryAll.length > limit;
     const shownLogs = reviewEntries.map((e) => (e as { log: LogRow }).log);
     const shownLists = listEntries.map((e) => (e as { list: ListRow }).list);
 
@@ -384,8 +406,11 @@ export default async function Feed({
             ) : (
               <span>Someone</span>
             )}
-            {isAdmin(row.user_id) && <AdminBadge />}
+            {adminIds.has(row.user_id) && <AdminBadge />}
             <span>logged</span>
+            <span className="whitespace-nowrap">
+              · {timeAgo(row.logged_at, renderedAt)}
+            </span>
           </span>
           <Link
             href={`/item/${row.item_id}`}
@@ -394,12 +419,8 @@ export default async function Feed({
             {title}
           </Link>
           <Stars rating={row.rating} />
-          <div className="flex flex-nowrap items-center gap-2.5 whitespace-nowrap text-xs text-muted">
-            <span className="min-w-0 truncate">
-              {new Date(row.logged_at).toLocaleDateString()}
-            </span>
-
-            <span className="relative z-10">
+          <CardActions
+            like={
               <LikeButton
                 viewerId={viewerId ?? null}
                 authorId={row.user_id}
@@ -407,9 +428,8 @@ export default async function Feed({
                 initialCount={row.likes?.[0]?.count ?? 0}
                 initiallyLiked={likedSet.has(row.id)}
               />
-            </span>
-
-            <span className="relative z-10">
+            }
+            share={
               <ShareButton
                 viewerId={viewerId ?? null}
                 ownerId={row.user_id}
@@ -418,21 +438,11 @@ export default async function Feed({
                 initialCount={row.shares?.[0]?.count ?? 0}
                 initiallyShared={sharedSet.has(row.id)}
               />
-            </span>
-
-            {reviewHref && (
-              <Link href={reviewHref} className="relative z-10 hover:underline">
-                {commentLabel(row.comments?.[0]?.count ?? 0)}
-              </Link>
-            )}
-
-            <Link
-              href={`/item/${row.item_id}#log`}
-              className="relative z-10 hover:underline"
-            >
-              Log
-            </Link>
-          </div>
+            }
+            commentHref={reviewHref}
+            commentCount={row.comments?.[0]?.count ?? 0}
+            logHref={`/item/${row.item_id}#log`}
+          />
         </div>
 
         {row.review && (
@@ -491,33 +501,42 @@ export default async function Feed({
           </div>
 
           {/* Wide screens: reviews on the left, lists on the right */}
-          <div className="hidden gap-6 lg:grid lg:grid-cols-2 lg:items-start">
-            <div className="@container flex min-w-0 flex-col gap-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-                Reviews
-              </h2>
-              {reviewEntries.length === 0 ? (
-                <p className="text-sm text-muted">No reviews yet.</p>
-              ) : (
-                reviewEntries.map(renderEntry)
-              )}
-            </div>
-            <div className="@container flex min-w-0 flex-col gap-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-                Lists
-              </h2>
-              {listEntries.length === 0 ? (
-                <p className="text-sm text-muted">No lists yet.</p>
-              ) : (
-                listEntries.map(renderEntry)
-              )}
-            </div>
-          </div>
+          <BalancedColumns
+            leftHasMore={reviewsHaveMore}
+            rightHasMore={listsHaveMore}
+            left={
+              <>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                  Reviews
+                </h2>
+                {reviewEntries.length === 0 ? (
+                  <p className="text-sm text-muted">No reviews yet.</p>
+                ) : (
+                  reviewEntries.map(renderEntry)
+                )}
+              </>
+            }
+            right={
+              <>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                  Lists
+                </h2>
+                {listEntries.length === 0 ? (
+                  <p className="text-sm text-muted">No lists yet.</p>
+                ) : (
+                  listEntries.map(renderEntry)
+                )}
+              </>
+            }
+          />
         </>
       )}
 
       {hasMore && (
-        <LoadMore href={`/?tab=${mode}&limit=${limit + PAGE_SIZE}`} />
+        <LoadMore
+          key={limit}
+          href={`/?tab=${mode}&limit=${limit + PAGE_SIZE}&asOf=${encodeURIComponent(snapshot)}`}
+        />
       )}
     </section>
   );

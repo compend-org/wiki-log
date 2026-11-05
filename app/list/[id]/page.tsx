@@ -2,14 +2,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import AdminBadge from "@/components/AdminBadge";
+import BanButton from "@/components/BanButton";
 import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
 import ListLikeButton from "@/components/ListLikeButton";
+import ReportButton from "@/components/ReportButton";
 import ReviewText from "@/components/ReviewText";
 import ShareButton from "@/components/ShareButton";
-import ReportButton from "@/components/ReportButton";
 import Stars from "@/components/Stars";
-import { isAdmin } from "@/lib/admin";
+import { getAdminIds, isAdmin } from "@/lib/admin";
+import { getBlockedIds, withoutBlockedComments } from "@/lib/blocks";
 import { isUuid } from "@/lib/ids";
 import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
@@ -138,7 +140,9 @@ export default async function ListPage({
     .eq("list_id", id)
     .order("created_at", { ascending: true });
 
-  const comments: CommentItem[] = (
+  const adminIds = await getAdminIds();
+  const viewerIsAdmin = await isAdmin(viewerId);
+  const allComments: CommentItem[] = (
     (commentData ?? []) as unknown as CommentQueryRow[]
   ).map((c) => ({
     id: c.id,
@@ -147,10 +151,16 @@ export default async function ListPage({
     date: c.created_at.slice(0, 10),
     authorId: c.user_id,
     authorName: c.profiles?.username ?? "Someone",
-    authorIsAdmin: isAdmin(c.user_id),
+    authorIsAdmin: adminIds.has(c.user_id),
     likeCount: 0,
     liked: false,
   }));
+
+  // Comments by people the viewer has blocked are left out
+  const comments = withoutBlockedComments(
+    allComments,
+    await getBlockedIds(supabase, viewerId),
+  );
 
   const owner = list.profiles?.username;
 
@@ -160,7 +170,7 @@ export default async function ListPage({
         <h1 className="text-3xl font-bold">{list.title}</h1>
         <p className="text-sm text-muted">
           A {list.ranked ? "ranked " : ""}list by{" "}
-          {isAdmin(list.user_id) && (
+          {adminIds.has(list.user_id) && (
             <>
               {" "}
               <AdminBadge />
@@ -203,6 +213,13 @@ export default async function ListPage({
             kind="list"
             targetId={id}
           />
+          {viewerIsAdmin && !adminIds.has(list.user_id) && (
+            <BanButton
+              userId={list.user_id}
+              username={owner ?? "this person"}
+              redirectTo="/"
+            />
+          )}
           {isOwner && (
             <Link href={`/list/${id}/edit`} className="text-sm underline">
               Edit list
@@ -281,6 +298,7 @@ export default async function ListPage({
         table="list_comments"
         scope={{ list_id: id }}
         ownerId={list.user_id}
+        viewerIsAdmin={viewerIsAdmin}
       />
     </main>
   );

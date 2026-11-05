@@ -1,9 +1,10 @@
+// ABOUTME: A heart that likes or unlikes one list.
+// ABOUTME: Sends signed-out visitors to log in and shows nothing on your own list until it has likes.
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import HeartIcon from "@/components/HeartIcon";
-import { createClient } from "@/lib/supabase/client";
+import { useLike } from "@/lib/useLike";
 import { useLoginHref } from "@/lib/useLoginHref";
 
 export default function ListLikeButton({
@@ -20,9 +21,18 @@ export default function ListLikeButton({
   initiallyLiked: boolean;
 }) {
   const loginHref = useLoginHref();
-  const [liked, setLiked] = useState<boolean>(initiallyLiked);
-  const [count, setCount] = useState<number>(initialCount);
-  const [busy, setBusy] = useState<boolean>(false);
+  const {
+    liked,
+    count,
+    toggle: toggleLike,
+  } = useLike({
+    viewerId,
+    table: "list_likes",
+    column: "list_id",
+    targetId: listId,
+    initialCount,
+    initiallyLiked,
+  });
   const router = useRouter();
 
   const own = viewerId === ownerId;
@@ -32,30 +42,9 @@ export default function ListLikeButton({
       router.push(loginHref);
       return;
     }
-    if (own || busy) return;
+    if (own) return;
 
-    setBusy(true);
-    const next = !liked;
-    // Update the screen immediately, undo if the database refuses
-    setLiked(next);
-    setCount((c) => c + (next ? 1 : -1));
-
-    const supabase = createClient();
-    const { error } = next
-      ? await supabase
-          .from("list_likes")
-          .insert({ user_id: viewerId, list_id: listId })
-      : await supabase
-          .from("list_likes")
-          .delete()
-          .eq("user_id", viewerId)
-          .eq("list_id", listId);
-
-    if (error) {
-      setLiked(!next);
-      setCount((c) => c + (next ? -1 : 1));
-    }
-    setBusy(false);
+    await toggleLike();
   }
 
   // Nothing to show on your own list until someone likes it
@@ -68,7 +57,7 @@ export default function ListLikeButton({
       disabled={own}
       aria-pressed={liked}
       aria-label={liked ? "Unlike this list" : "Like this list"}
-      className={`inline-flex items-center gap-1 text-sm disabled:cursor-default ${
+      className={`inline-flex h-5 items-center gap-1 text-sm disabled:cursor-default ${
         liked ? "text-like" : "text-muted enabled:hover:text-like"
       }`}
     >
