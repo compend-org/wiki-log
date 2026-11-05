@@ -12,17 +12,10 @@ const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-test("shows tenths of a second under a second", () => {
-  assert.equal(timeAgo(before(0), now), ".1s ago");
-  assert.equal(timeAgo(before(300), now), ".3s ago");
-  assert.equal(timeAgo(before(SECOND - 1), now), ".9s ago");
-});
-
-test("shows rounded seconds under a minute", () => {
-  assert.equal(timeAgo(before(SECOND), now), "1s ago");
-  assert.equal(timeAgo(before(3200), now), "3s ago");
-  assert.equal(timeAgo(before(3500), now), "4s ago");
-  assert.equal(timeAgo(before(MINUTE - 1), now), "59s ago");
+test("shows just now under a minute", () => {
+  assert.equal(timeAgo(before(0), now), "Just now");
+  assert.equal(timeAgo(before(3500), now), "Just now");
+  assert.equal(timeAgo(before(MINUTE - 1), now), "Just now");
 });
 
 test("shows whole minutes under an hour", () => {
@@ -41,5 +34,5 @@ test("shows the date from a day ago onwards", () => {
 });
 
 test("treats a time just ahead of the clock as now", () => {
-  assert.equal(timeAgo(before(-500), now), ".1s ago");
+  assert.equal(timeAgo(before(-500), now), "Just now");
 });
