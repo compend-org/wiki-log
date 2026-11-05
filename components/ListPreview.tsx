@@ -1,3 +1,5 @@
+// ABOUTME: A one-line row of a list's item thumbnails, with "+N" for those that do not fit.
+// ABOUTME: Hovering or focusing a thumbnail shows the item's name in a tooltip.
 "use client";
 
 import Link from "next/link";
@@ -26,6 +28,7 @@ export default function ListPreview({
   // How many tiles fit on one line, or null until measured
   const [fit, setFit] = useState<number | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
+  const tipBox = useRef<HTMLDivElement>(null);
 
   useIsoLayoutEffect(() => {
     const el = row.current;
@@ -59,14 +62,19 @@ export default function ListPreview({
     return () => window.removeEventListener("scroll", hide, true);
   }, [tip]);
 
+  // The tooltip centres on its tile, moving only as far as it must to stay
+  // inside the window
+  useIsoLayoutEffect(() => {
+    const box = tipBox.current;
+    if (!tip || !box) return;
+    const edge = box.offsetWidth / 2 + 8;
+    const x = Math.min(Math.max(tip.x, edge), window.innerWidth - edge);
+    box.style.left = `${x}px`;
+  }, [tip]);
+
   function show(el: HTMLElement, text: string) {
     const r = el.getBoundingClientRect();
-    // Keep the box inside the window (it is at most 16rem, about 256px, wide)
-    const x = Math.min(
-      Math.max(r.left + r.width / 2, 136),
-      window.innerWidth - 136,
-    );
-    setTip({ text, x, y: r.bottom });
+    setTip({ text, x: r.left + r.width / 2, y: r.bottom });
   }
   const hide = () => setTip(null);
 
@@ -132,6 +140,7 @@ export default function ListPreview({
 
       {tip && (
         <div
+          ref={tipBox}
           role="tooltip"
           style={{ left: tip.x, top: tip.y + 8 }}
           className="card pointer-events-none fixed z-50 max-w-[16rem] -translate-x-1/2 px-2 py-1 text-xs"

@@ -1,3 +1,5 @@
+// ABOUTME: A person's public profile: their details, favourites, lists and reviews.
+// ABOUTME: Also holds the follow, block and ban controls for whoever is viewing it.
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -8,6 +10,7 @@ import BlockButton from "@/components/BlockButton";
 import Favourites, { type Slot } from "@/components/Favourites";
 import FollowButton from "@/components/FollowButton";
 import ItemImage from "@/components/ItemImage";
+import ListPreview from "@/components/ListPreview";
 import ReviewText from "@/components/ReviewText";
 import SignOutButton from "@/components/SignOutButton";
 import Stars from "@/components/Stars";
@@ -262,11 +265,15 @@ export default async function ProfilePage({
             const count = l.list_items?.[0]?.count ?? 0;
             const preview = previews.get(l.id) ?? [];
             return (
-              <Link
+              <div
                 key={l.id}
-                href={`/list/${l.id}`}
-                className="card flex flex-col gap-2 p-3"
+                className="card relative flex flex-col gap-2 p-3 hover:bg-surface"
               >
+                <Link
+                  href={`/list/${l.id}`}
+                  aria-label={`Open the list ${l.title}`}
+                  className="absolute inset-0 rounded-[inherit]"
+                />
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="font-semibold">{l.title}</span>
                   <span className="shrink-0 text-xs text-muted">
@@ -275,19 +282,13 @@ export default async function ProfilePage({
                   </span>
                 </div>
                 {preview.length > 0 && (
-                  <div className="flex gap-1">
-                    {preview.map((p, i) => (
-                      <ItemImage
-                        // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
-                        key={i}
-                        src={p.image_url}
-                        alt={p.title}
-                        className="h-14 w-14 rounded"
-                      />
-                    ))}
-                  </div>
+                  <ListPreview
+                    thumbs={preview}
+                    total={count}
+                    href={`/list/${l.id}`}
+                  />
                 )}
-              </Link>
+              </div>
             );
           })}
         </section>
