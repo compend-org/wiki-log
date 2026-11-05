@@ -4,6 +4,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Dialog from "@/components/Dialog";
 import { createClient } from "@/lib/supabase/client";
 
 export default function BlockButton({
@@ -18,19 +19,13 @@ export default function BlockButton({
   initiallyBlocked: boolean;
 }) {
   const [blocked, setBlocked] = useState<boolean>(initiallyBlocked);
+  const [open, setOpen] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const router = useRouter();
 
   async function toggle() {
-    if (
-      !blocked &&
-      !window.confirm(
-        `Block ${targetName}? You won't see their posts or comments, and neither of you will be able to follow, like, share or comment on the other's posts. They won't be told.`,
-      )
-    ) {
-      return;
-    }
+    if (busy) return;
 
     setBusy(true);
     setError("");
@@ -50,6 +45,7 @@ export default function BlockButton({
       return;
     }
     setBlocked(!blocked);
+    setOpen(false);
     router.refresh(); // updates the follow button and follower counts
   }
 
@@ -57,13 +53,49 @@ export default function BlockButton({
     <div className="flex flex-col gap-1">
       <button
         type="button"
-        onClick={toggle}
+        onClick={() => {
+          setError("");
+          // Unblocking happens straight away; blocking asks first
+          if (blocked) toggle();
+          else setOpen(true);
+        }}
         disabled={busy}
         className="rounded-lg border border-line px-4 py-2 text-muted disabled:opacity-40"
       >
         {blocked ? "Unblock" : "Block"}
       </button>
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && !open && <p className="text-sm text-danger">{error}</p>}
+
+      {open && (
+        <Dialog label="Block" onClose={() => setOpen(false)}>
+          <h2 className="text-base font-semibold">Block {targetName}?</h2>
+          <p>
+            You won&apos;t see their posts or comments, and neither of you will
+            be able to follow, like, share or comment on the other&apos;s posts.
+            They won&apos;t be told.
+          </p>
+
+          {error && <p className="text-danger">{error}</p>}
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={toggle}
+              disabled={busy}
+              className="rounded-lg bg-danger px-3 py-1.5 text-background disabled:opacity-40"
+            >
+              {busy ? "Blocking…" : "Block"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-lg border border-line px-3 py-1.5"
+            >
+              Cancel
+            </button>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }
