@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import AvatarUpload from "@/components/AvatarUpload";
 import BioEditor from "@/components/BioEditor";
+import BlockedPeople from "@/components/BlockedPeople";
 import DeleteAccount from "@/components/DeleteAccount";
 import EmailVerification from "@/components/EmailVerification";
 import ThemeSetting from "@/components/ThemeSetting";
@@ -125,6 +126,8 @@ export default function SettingsPage() {
       <EmailVerification />
 
       <ThemeSetting />
+
+      <BlockedPeople />
 
       {savedUsername && <DeleteAccount username={savedUsername} />}
     </main>

@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import AdminBadge from "@/components/AdminBadge";
 import Avatar from "@/components/Avatar";
 import BanButton from "@/components/BanButton";
+import BlockButton from "@/components/BlockButton";
 import Favourites, { type Slot } from "@/components/Favourites";
 import FollowButton from "@/components/FollowButton";
 import ItemImage from "@/components/ItemImage";
@@ -81,6 +82,7 @@ export default async function ProfilePage({
     isFollowingRes,
     favRes,
     listsRes,
+    isBlockedRes,
   ] = await Promise.all([
     supabase
       .from("logs")
@@ -114,12 +116,21 @@ export default async function ProfilePage({
       .select("id, title, ranked, list_items(count)")
       .eq("user_id", profile.id)
       .order("created_at", { ascending: false }),
+    viewerId
+      ? supabase
+          .from("blocks")
+          .select("blocked_id")
+          .eq("blocker_id", viewerId)
+          .eq("blocked_id", profile.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const logs = (logsRes.data ?? []) as unknown as LogRow[];
   const followers = followersRes.count ?? 0;
   const following = followingRes.count ?? 0;
   const isFollowing = Boolean(isFollowingRes.data);
+  const isBlocked = Boolean(isBlockedRes.data);
 
   const favRows = (favRes.data ?? []) as unknown as FavRow[];
   const slots: (Slot | null)[] = [1, 2, 3, 4, 5].map((pos) => {
@@ -202,11 +213,22 @@ export default async function ProfilePage({
               <SignOutButton className="inline-flex sm:hidden" />
             </div>
           ) : (
-            <FollowButton
-              viewerId={viewerId}
-              targetId={profile.id}
-              initiallyFollowing={isFollowing}
-            />
+            <div className="flex items-start gap-3">
+              {/* Nobody can follow someone they have blocked */}
+              {!isBlocked && (
+                <FollowButton
+                  viewerId={viewerId}
+                  targetId={profile.id}
+                  initiallyFollowing={isFollowing}
+                />
+              )}
+              <BlockButton
+                viewerId={viewerId}
+                targetId={profile.id}
+                targetName={profile.username}
+                initiallyBlocked={isBlocked}
+              />
+            </div>
           )}
           {viewerIsAdmin && !profileIsAdmin && (
             <BanButton

@@ -9,6 +9,7 @@ import ShareButton from "@/components/ShareButton";
 import ShareIcon from "@/components/ShareIcon";
 import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
+import { getBlockedIds } from "@/lib/blocks";
 import {
   getPublicFeed,
   getTrendingFeed,
@@ -201,6 +202,12 @@ export default async function Feed({
         previews.set(id, thumbs);
       }
     }
+
+    // Posts by people the viewer has blocked are left out, including ones
+    // shared by people the viewer follows
+    const blocked = await getBlockedIds(supabase, viewerId);
+    logs = logs.filter((l) => !blocked.has(l.user_id));
+    lists = lists.filter((l) => !blocked.has(l.user_id));
 
     // Every entry gets a date to sort by. On Following, something that was
     // shared counts from the moment it was last shared (if that is later

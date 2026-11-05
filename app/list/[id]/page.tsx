@@ -11,6 +11,7 @@ import ReviewText from "@/components/ReviewText";
 import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
 import { getAdminIds, isAdmin } from "@/lib/admin";
+import { getBlockedIds, withoutBlockedComments } from "@/lib/blocks";
 import { isUuid } from "@/lib/ids";
 import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
@@ -141,7 +142,7 @@ export default async function ListPage({
 
   const adminIds = await getAdminIds();
   const viewerIsAdmin = await isAdmin(viewerId);
-  const comments: CommentItem[] = (
+  const allComments: CommentItem[] = (
     (commentData ?? []) as unknown as CommentQueryRow[]
   ).map((c) => ({
     id: c.id,
@@ -154,6 +155,12 @@ export default async function ListPage({
     likeCount: 0,
     liked: false,
   }));
+
+  // Comments by people the viewer has blocked are left out
+  const comments = withoutBlockedComments(
+    allComments,
+    await getBlockedIds(supabase, viewerId),
+  );
 
   const owner = list.profiles?.username;
 
