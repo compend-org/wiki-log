@@ -525,7 +525,10 @@ export default async function Feed({
       )}
 
       {hasMore && (
-        <LoadMore href={`/?tab=${mode}&limit=${limit + PAGE_SIZE}`} />
+        <LoadMore
+          key={limit}
+          href={`/?tab=${mode}&limit=${limit + PAGE_SIZE}`}
+        />
       )}
     </section>
   );

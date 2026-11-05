@@ -213,7 +213,10 @@ export default async function ItemLogs({
       )}
 
       {recentAll.length > limit && (
-        <LoadMore href={`/item/${itemId}?limit=${limit + PAGE_SIZE}`} />
+        <LoadMore
+          key={limit}
+          href={`/item/${itemId}?limit=${limit + PAGE_SIZE}`}
+        />
       )}
     </section>
   );
