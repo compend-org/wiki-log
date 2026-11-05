@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import DeleteIcon from "@/components/DeleteIcon";
 import EditEntryForm from "@/components/EditEntryForm";
 import ItemImage from "@/components/ItemImage";
+import LoadMore from "@/components/LoadMore";
 import ReviewText from "@/components/ReviewText";
 import Stars from "@/components/Stars";
 import { PAGE_SIZE } from "@/lib/paging";
@@ -400,13 +401,10 @@ export default function DiaryPage() {
       </ul>
 
       {hasMore && (
-        <button
-          type="button"
-          onClick={() => setLimit((l) => l + PAGE_SIZE)}
-          className="self-center border border-line px-4 py-2 text-sm text-accent hover:border-accent"
-        >
-          Load more
-        </button>
+        <LoadMore
+          key={entries.length}
+          onLoad={() => setLimit((l) => l + PAGE_SIZE)}
+        />
       )}
     </main>
   );
