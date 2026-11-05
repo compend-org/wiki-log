@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cacheLife } from "next/cache";
+import { inIdOrder } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
 import { createPublicClient } from "@/lib/supabase/public";
 
@@ -88,9 +89,13 @@ export async function loadPreviews(
   return previews;
 }
 
-// The Everyone feed: the same for every visitor, so it is computed once a
-// minute and shared. Each viewer's own hearts are looked up separately.
-export async function getPublicFeed(limit: number): Promise<PublicFeed> {
+// The Everyone feed as it stood at `asOf`: the same for every visitor, so it is
+// computed once a minute and shared. Each viewer's own hearts are looked up
+// separately. Passing the start of a minute lets visitors share the result.
+export async function getPublicFeed(
+  limit: number,
+  asOf: string,
+): Promise<PublicFeed> {
   "use cache";
   cacheLife({ stale: 30, revalidate: 60, expire: 300 });
 
@@ -100,11 +105,13 @@ export async function getPublicFeed(limit: number): Promise<PublicFeed> {
     supabase
       .from("logs")
       .select(LOG_SELECT)
+      .lte("logged_at", asOf)
       .order("logged_at", { ascending: false })
       .limit(limit + 1),
     supabase
       .from("lists")
       .select(LIST_SELECT)
+      .lte("created_at", asOf)
       .order("created_at", { ascending: false })
       .limit(limit + 1),
   ]);
@@ -162,17 +169,12 @@ export async function getTrendingFeed(limit: number): Promise<PublicFeed> {
       ? await supabase.from("lists").select(LIST_SELECT).in("id", listIds)
       : { data: [], error: null };
 
-  const score = (id: string) => scores[id] ?? 0;
-  // Most likes first, and newer first when they are tied
-  const logs = ((logsRes.data ?? []) as unknown as LogRow[]).sort(
-    (a, b) =>
-      score(b.id) - score(a.id) ||
-      new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime(),
-  );
-  const lists = nonEmpty((listsRes.data ?? []) as unknown as ListRow[]).sort(
-    (a, b) =>
-      score(b.id) - score(a.id) ||
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  // Most likes first, and most recently liked first when they are tied. This
+  // is the ranking's own order, so a longer page only adds to the bottom.
+  const logs = inIdOrder((logsRes.data ?? []) as unknown as LogRow[], logIds);
+  const lists = inIdOrder(
+    nonEmpty((listsRes.data ?? []) as unknown as ListRow[]),
+    listIds,
   );
   const previews = await loadPreviews(supabase, lists.slice(0, limit));
 

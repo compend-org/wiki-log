@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { TRENDING_LABEL } from "@/lib/site";
 
 type Tab = "following" | "everyone" | "trending";
@@ -27,6 +27,15 @@ export default function FeedTabs({
   const [active, setActive] = useState<Tab>(
     tabs.some((t) => t.id === initial) ? initial : "everyone",
   );
+
+  // The snapshot time only matters for fetching the next page, so it stays out
+  // of the address. A reload or a shared link starts from what's newest.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("asOf")) return;
+    url.searchParams.delete("asOf");
+    window.history.replaceState(null, "", url);
+  });
 
   function choose(tab: Tab) {
     setActive(tab);

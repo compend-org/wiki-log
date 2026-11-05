@@ -20,7 +20,7 @@ import {
 } from "@/lib/feedData";
 import { commentLabel, sharedLabel } from "@/lib/format";
 import { getLikedListSet, getLikedSet } from "@/lib/likes";
-import { PAGE_SIZE } from "@/lib/paging";
+import { PAGE_SIZE, startOfMinute } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import AdminBadge from "./AdminBadge";
@@ -51,11 +51,15 @@ type ShareRow = {
 export default async function Feed({
   mode,
   limit = PAGE_SIZE,
+  asOf,
 }: {
   mode: Mode;
   limit?: number;
+  // When this feed was first loaded. Left out on the first page.
+  asOf?: string;
 }) {
   await connection();
+  const snapshot = asOf ?? new Date().toISOString();
   const supabase = await createClient();
 
   const { data: claimsData } = await supabase.auth.getClaims();
@@ -104,6 +108,7 @@ export default async function Feed({
             "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)",
           )
           .in("user_id", authorIds)
+          .lte("logged_at", snapshot)
           .order("logged_at", { ascending: false })
           .limit(limit + 1),
         supabase
@@ -112,6 +117,7 @@ export default async function Feed({
             "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count)",
           )
           .in("user_id", authorIds)
+          .lte("created_at", snapshot)
           .order("created_at", { ascending: false })
           .limit(limit + 1),
       ]);
@@ -131,6 +137,7 @@ export default async function Feed({
         .from("shares")
         .select("user_id, log_id, list_id, created_at, profiles(username)")
         .in("user_id", authorIds)
+        .lte("created_at", snapshot)
         .order("created_at", { ascending: false })
         .limit(limit + 1);
       if (shareError) errorMessage = shareError.message;
@@ -196,7 +203,7 @@ export default async function Feed({
       const pub =
         mode === "trending"
           ? await getTrendingFeed(limit)
-          : await getPublicFeed(limit);
+          : await getPublicFeed(limit, startOfMinute(snapshot));
       logs = pub.logs;
       lists = pub.lists;
       scores = pub.scores;
@@ -538,7 +545,7 @@ export default async function Feed({
       {hasMore && (
         <LoadMore
           key={limit}
-          href={`/?tab=${mode}&limit=${limit + PAGE_SIZE}`}
+          href={`/?tab=${mode}&limit=${limit + PAGE_SIZE}&asOf=${encodeURIComponent(snapshot)}`}
         />
       )}
     </section>
