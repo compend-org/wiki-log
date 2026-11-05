@@ -8,15 +8,15 @@ import { useLoginHref } from "@/lib/useLoginHref";
 type NotificationRow = {
   id: string;
   type:
-    | "like"
-    | "comment"
-    | "reply"
-    | "follow"
-    | "list_like"
-    | "list_comment"
-    | "list_reply"
-    | "share"
-    | "list_share";
+  | "like"
+  | "comment"
+  | "reply"
+  | "follow"
+  | "list_like"
+  | "list_comment"
+  | "list_reply"
+  | "share"
+  | "list_share";
   read: boolean;
   created_at: string;
   log_id: string | null;
@@ -100,9 +100,9 @@ export default function NotificationsPage() {
 
       const logRes = logIds.length
         ? await supabase
-            .from("logs")
-            .select("id, user_id, item_id")
-            .in("id", logIds)
+          .from("logs")
+          .select("id, user_id, item_id")
+          .in("id", logIds)
         : { data: [] as { id: string; user_id: string; item_id: string }[] };
       const logRows = logRes.data ?? [];
 
@@ -155,8 +155,8 @@ export default function NotificationsPage() {
     load();
   }, []);
 
-  function describe(n: NotificationRow): { text: string; href: string } {
-    const actor = n.profiles?.username ?? "Someone";
+  // `rest` is everything after the username
+  function describe(n: NotificationRow): { rest: string; href: string } {
     const entry = n.log_id ? logs[n.log_id] : undefined;
     const title = entry ? (titles[entry.item] ?? "an item") : "an item";
     const ownerName = entry ? owners[entry.owner] : undefined;
@@ -170,52 +170,52 @@ export default function NotificationsPage() {
     switch (n.type) {
       case "like":
         return {
-          text: `${actor} liked your review of ${title}`,
+          rest: ` liked your review of ${title}`,
           href: reviewHref,
         };
       case "comment":
         return {
-          text: `${actor} commented on your review of ${title}`,
+          rest: ` commented on your review of ${title}`,
           href: reviewHref,
         };
       case "reply": {
         const whose =
           entry?.owner === myId ? "your" : `${ownerName ?? "someone"}'s`;
         return {
-          text: `${actor} replied to your comment on ${whose} review of ${title}`,
+          rest: ` replied to your comment on ${whose} review of ${title}`,
           href: reviewHref,
         };
       }
       case "follow":
         return {
-          text: `${actor} started following you`,
+          rest: " started following you",
           href: n.profiles
             ? `/u/${encodeURIComponent(n.profiles.username)}`
             : "/",
         };
       case "share":
         return {
-          text: `${actor} shared your review of ${title}`,
+          rest: ` shared your review of ${title}`,
           href: reviewHref,
         };
       case "list_share":
         return {
-          text: `${actor} shared your list “${listTitle}”`,
+          rest: ` shared your list “${listTitle}”`,
           href: n.list_id ? `/list/${n.list_id}` : "/",
         };
       case "list_like":
         return {
-          text: `${actor} liked your list “${listTitle}”`,
+          rest: ` liked your list “${listTitle}”`,
           href: n.list_id ? `/list/${n.list_id}` : "/",
         };
       case "list_comment":
         return {
-          text: `${actor} commented on your list “${listTitle}”`,
+          rest: ` commented on your list “${listTitle}”`,
           href: listHref,
         };
       case "list_reply":
         return {
-          text: `${actor} replied to your comment on the list “${listTitle}”`,
+          rest: ` replied to your comment on the list “${listTitle}”`,
           href: listHref,
         };
     }
@@ -243,20 +243,36 @@ export default function NotificationsPage() {
       )}
 
       {rows.map((n) => {
-        const { text, href } = describe(n);
+        const { rest, href } = describe(n);
+        const actor = n.profiles?.username;
         return (
-          <Link
+          <div
             key={n.id}
-            href={href}
-            className={`flex flex-col gap-1 border p-3 ${
-              n.read ? "border-line" : "border-accent bg-surface"
-            }`}
+            className={`relative flex flex-col gap-1 border p-3 hover:border-accent/60 ${n.read ? "border-line" : "border-accent bg-surface"
+              }`}
           >
-            <span className="text-sm">{text}</span>
+            <Link
+              href={href}
+              aria-label={`${actor ?? "Someone"}${rest}`}
+              className="absolute inset-0"
+            />
+            <span className="text-sm">
+              {actor ? (
+                <Link
+                  href={`/u/${encodeURIComponent(actor)}`}
+                  className="relative z-10 font-semibold hover:underline"
+                >
+                  {actor}
+                </Link>
+              ) : (
+                "Someone"
+              )}
+              {rest}
+            </span>
             <span className="text-xs text-muted">
               {n.created_at.slice(0, 10)}
             </span>
-          </Link>
+          </div>
         );
       })}
     </main>

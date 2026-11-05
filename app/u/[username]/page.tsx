@@ -267,15 +267,19 @@ export default async function ProfilePage({
 
       {logs.length === 0 && <p className="text-muted">Nothing logged yet.</p>}
 
-      {logs.map((log) => {
+            {logs.map((log) => {
         const title = log.items?.title ?? "Unknown item";
         const commentCount = log.comments?.[0]?.count ?? 0;
         return (
-          <Link
+          <div
             key={log.item_id}
-            href={`${profileHref}/${log.item_id}`}
-            className="card flex gap-4 p-3"
+            className="card relative flex gap-4 p-3 hover:bg-surface"
           >
+            <Link
+              href={`${profileHref}/${log.item_id}`}
+              aria-label={`Open the review of ${title}`}
+              className="absolute inset-0 rounded-[inherit]"
+            />
             <ItemImage
               src={log.items?.image_url}
               alt={title}
@@ -294,7 +298,7 @@ export default async function ProfilePage({
                 {commentCount > 0 && <> · {commentLabel(commentCount)}</>}
               </span>
             </div>
-          </Link>
+          </div>
         );
       })}
     </main>
