@@ -1,3 +1,5 @@
+// ABOUTME: Picks the most and least popular items of the last 24 hours.
+// ABOUTME: The result is cached in the shared remote cache for all server instances.
 import { createClient } from "@supabase/supabase-js";
 import { cacheLife } from "next/cache";
 
@@ -30,7 +32,9 @@ type ItemRow = {
 
 // The best- and worst-rated items of the last 24 hours.
 export async function getDailyPicks(): Promise<DailyPicks> {
-  "use cache";
+  // The remote cache is shared by every server instance. A plain "use cache"
+  // lives in one instance's memory, so each new instance would query again.
+  "use cache: remote";
   // Recomputed about every 2 minutes (120 seconds), however many people load
   // the page in between. The numbers must be written out here as plain values.
   cacheLife({ stale: 60, revalidate: 120, expire: 600 });

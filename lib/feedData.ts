@@ -1,3 +1,5 @@
+// ABOUTME: Loads the Everyone and Trending feeds, which are the same for every visitor.
+// ABOUTME: Both are cached in the shared remote cache for all server instances.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cacheLife } from "next/cache";
 import { inIdOrder } from "@/lib/paging";
@@ -96,7 +98,7 @@ export async function getPublicFeed(
   limit: number,
   asOf: string,
 ): Promise<PublicFeed> {
-  "use cache";
+  "use cache: remote";
   cacheLife({ stale: 30, revalidate: 60, expire: 300 });
 
   const supabase = createPublicClient();
@@ -127,7 +129,7 @@ export async function getPublicFeed(
 // The Trending feed: what was liked most in the last TRENDING_HOURS hours.
 // Also the same for every visitor, so also cached for a minute.
 export async function getTrendingFeed(limit: number): Promise<PublicFeed> {
-  "use cache";
+  "use cache: remote";
   cacheLife({ stale: 30, revalidate: 60, expire: 300 });
 
   const supabase = createPublicClient();
