@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import Avatar from "@/components/Avatar";
+import BalancedColumns from "@/components/BalancedColumns";
 import ItemImage from "@/components/ItemImage";
 import LikeButton from "@/components/LikeButton";
 import ListCard from "@/components/ListCard";
@@ -79,6 +80,8 @@ export default async function Feed({
   let reviewEntries: Entry[] = [];
   let listEntries: Entry[] = [];
   let hasMore = false;
+  let reviewsHaveMore = false;
+  let listsHaveMore = false;
   let errorMessage = "";
   let likedSet = new Set<string>();
   let likedLists = new Set<string>();
@@ -257,6 +260,8 @@ export default async function Feed({
     // `limit`. A busy stream of reviews can't push every list out.
     reviewEntries = logEntries.slice(0, limit);
     listEntries = listEntryAll.slice(0, limit);
+    reviewsHaveMore = logEntries.length > limit;
+    listsHaveMore = listEntryAll.length > limit;
     const shownLogs = reviewEntries.map((e) => (e as { log: LogRow }).log);
     const shownLists = listEntries.map((e) => (e as { list: ListRow }).list);
 
@@ -499,28 +504,34 @@ export default async function Feed({
           </div>
 
           {/* Wide screens: reviews on the left, lists on the right */}
-          <div className="hidden gap-6 lg:grid lg:grid-cols-2 lg:items-start">
-            <div className="@container flex min-w-0 flex-col gap-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-                Reviews
-              </h2>
-              {reviewEntries.length === 0 ? (
-                <p className="text-sm text-muted">No reviews yet.</p>
-              ) : (
-                reviewEntries.map(renderEntry)
-              )}
-            </div>
-            <div className="@container flex min-w-0 flex-col gap-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-                Lists
-              </h2>
-              {listEntries.length === 0 ? (
-                <p className="text-sm text-muted">No lists yet.</p>
-              ) : (
-                listEntries.map(renderEntry)
-              )}
-            </div>
-          </div>
+          <BalancedColumns
+            leftHasMore={reviewsHaveMore}
+            rightHasMore={listsHaveMore}
+            left={
+              <>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                  Reviews
+                </h2>
+                {reviewEntries.length === 0 ? (
+                  <p className="text-sm text-muted">No reviews yet.</p>
+                ) : (
+                  reviewEntries.map(renderEntry)
+                )}
+              </>
+            }
+            right={
+              <>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                  Lists
+                </h2>
+                {listEntries.length === 0 ? (
+                  <p className="text-sm text-muted">No lists yet.</p>
+                ) : (
+                  listEntries.map(renderEntry)
+                )}
+              </>
+            }
+          />
         </>
       )}
 
