@@ -4,6 +4,7 @@ import "./globals.css";
 import "flag-icons/css/flag-icons.min.css";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
+import ScrollToTop from "@/components/ScrollToTop";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
 import { themeInitScript } from "@/lib/theme";
 
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Nav />
         {children}
         <Footer />
+        <ScrollToTop />
       </body>
     </html>
   );
