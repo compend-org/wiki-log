@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import Avatar from "@/components/Avatar";
 import LanguagePicker from "@/components/LanguagePicker";
+import { findItemId, searchTitles } from "@/lib/browserWikipedia";
 import { FEATURES } from "@/lib/features";
 import { DEFAULT_LANG, isLang, type LangCode } from "@/lib/languages";
-import { searchTitles } from "@/lib/titleSearch";
 
 type Hit = {
   key: string;
@@ -161,17 +162,13 @@ export default function ItemPicker({
       let id = hit.itemId;
       if (!id) {
         // Pasted links carry their own language, searches use the picker's
-        const useLang = hit.lang ?? lang;
-        const res = await fetch(
-          `/api/resolve?key=${encodeURIComponent(hit.key)}&lang=${useLang}`,
-        );
-        const data: { id?: string; error?: string } = await res.json();
-        if (!res.ok || !data.id) {
-          setError(data.error ?? "Something went wrong.");
+        const found = await findItemId(hit.key, hit.lang ?? lang);
+        if ("error" in found) {
+          setError(found.error);
           setBusy(false);
           return;
         }
-        id = data.id;
+        id = found.id;
       }
       await onPick(id, { title: hit.title, imageUrl: hit.imageUrl });
       setQuery("");
@@ -247,6 +244,15 @@ export default function ItemPicker({
             onMouseDown={(e) => e.preventDefault()}
             className="absolute z-[15] mt-1 max-h-96 w-full overflow-auto border border-line bg-background"
           >
+            {busy && (
+              <li
+                role="status"
+                className="flex items-center gap-2 px-4 py-3 text-sm text-muted"
+              >
+                <Avatar path={null} size={20} className="animate-spin" />
+                Fetching from Wikipedia…
+              </li>
+            )}
             {unsupported && (
               <li className="px-4 py-3 text-sm text-muted">
                 That Wikipedia&apos;s language isn&apos;t supported yet.

@@ -1,7 +1,13 @@
 // Item lookups on Wikipedia and Wikidata. Server-side only.
+
+import { BUSY_ERROR, readSummary, summaryUrl } from "@/lib/articleSummary";
 import { absolute, freeImage } from "@/lib/format";
 import { DEFAULT_LANG, LANGUAGES, type LangCode } from "@/lib/languages";
-import { requestedWaitMs } from "@/lib/wikimediaLimits";
+import {
+  type Pause,
+  sendWithinDeadline,
+  WAIT_BUDGET_MS,
+} from "@/lib/wikimediaLimits";
 
 // Wikimedia asks every client to identify itself, with a way to reach you
 const CONTACT = process.env.WIKI_CONTACT ?? "no contact set";
@@ -34,11 +40,12 @@ type Claim = { mainsnak?: { datavalue?: { value?: unknown } } };
 async function getClaimValues(
   qid: string,
   property: string,
+  deadline: number,
 ): Promise<unknown[] | null> {
   try {
     const res = await wikiFetch(
       `https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=${qid}&property=${property}&format=json`,
-      { headers: HEADERS },
+      deadline,
     );
     if (!res.ok) return null;
     const data: { claims?: Record<string, Claim[]> } = await res.json();
@@ -52,8 +59,8 @@ async function getClaimValues(
 
 // True if Wikidata says the item is a human. If the check fails, we say yes,
 // so a network problem can't let a person's article through.
-async function mightBeHuman(qid: string): Promise<boolean> {
-  const types = await getClaimValues(qid, "P31");
+async function mightBeHuman(qid: string, deadline: number): Promise<boolean> {
+  const types = await getClaimValues(qid, "P31", deadline);
   if (types === null) return true;
   return types.some((v) => (v as { id?: string } | undefined)?.id === "Q5");
 }
@@ -108,9 +115,10 @@ function filePageFor(lang: LangCode, url: string, fileName: string): string {
 // Wikidata's curated "image" property: always a Commons file, so always free
 async function wikidataImage(
   qid: string,
+  deadline: number,
 ): Promise<{ url: string; filePage: string | null } | null> {
   try {
-    const values = await getClaimValues(qid, "P18");
+    const values = await getClaimValues(qid, "P18", deadline);
     const file = values?.find((v) => typeof v === "string") as
       | string
       | undefined;
@@ -118,7 +126,7 @@ async function wikidataImage(
 
     const res = await wikiFetch(
       `https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&prop=imageinfo&iiprop=url|size|mime&iiurlwidth=960&titles=${encodeURIComponent(`File:${file}`)}`,
-      { headers: HEADERS },
+      deadline,
     );
     if (!res.ok) return null;
     const data: { query?: { pages?: ImagePage[] } } = await res.json();
@@ -132,7 +140,11 @@ async function wikidataImage(
 
 // Check the rights of the selected lead file itself. Other images in the
 // article may depict its author, setting, or another related topic.
-async function leadImage(lang: LangCode, url: string): Promise<ItemImage> {
+async function leadImage(
+  lang: LangCode,
+  url: string,
+  deadline: number,
+): Promise<ItemImage> {
   const fileName = fileNameFromUrl(url);
   const fallback: ItemImage = {
     url,
@@ -144,7 +156,7 @@ async function leadImage(lang: LangCode, url: string): Promise<ItemImage> {
   try {
     const res = await wikiFetch(
       `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&prop=imageinfo|categories&iiprop=url&clcategories=${encodeURIComponent("Category:All free media")}&titles=${encodeURIComponent(`File:${fileName}`)}`,
-      { headers: HEADERS },
+      deadline,
     );
     if (!res.ok) return fallback;
     const data: { query?: { pages?: ImagePage[] } } = await res.json();
@@ -164,18 +176,19 @@ async function leadImage(lang: LangCode, url: string): Promise<ItemImage> {
 async function representativeImage(
   lang: LangCode,
   title: string,
+  deadline: number,
 ): Promise<ItemImage | null> {
   try {
     const res = await wikiFetch(
       `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&prop=pageimages&piprop=thumbnail&pithumbsize=960&pilicense=any&titles=${encodeURIComponent(title)}`,
-      { headers: HEADERS },
+      deadline,
     );
     if (!res.ok) return null;
     const data: {
       query?: { pages?: { thumbnail?: { source: string } }[] };
     } = await res.json();
     const source = data.query?.pages?.[0]?.thumbnail?.source;
-    return source ? leadImage(lang, absolute(source)) : null;
+    return source ? leadImage(lang, absolute(source), deadline) : null;
   } catch {
     return null;
   }
@@ -187,11 +200,12 @@ async function representativeImage(
 async function firstArticleImage(
   lang: LangCode,
   title: string,
+  deadline: number,
 ): Promise<ItemImage | null> {
   try {
     const res = await wikiFetch(
       `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&generator=images&gimlimit=50&prop=imageinfo|categories&iiprop=url|size|mime&iiurlwidth=960&clcategories=${encodeURIComponent("Category:All free media")}&cllimit=max&titles=${encodeURIComponent(title)}`,
-      { headers: HEADERS },
+      deadline,
     );
     if (!res.ok) return null;
     const data: {
@@ -240,55 +254,35 @@ async function chooseImage(
   qid: string,
   title: string,
   leadSource: string | undefined,
+  deadline: number,
 ): Promise<ItemImage | null> {
-  if (leadSource) return leadImage(lang, absolute(leadSource));
+  if (leadSource) return leadImage(lang, absolute(leadSource), deadline);
 
-  const representative = await representativeImage(lang, title);
+  const representative = await representativeImage(lang, title, deadline);
   if (representative) return representative;
 
-  const fromWikidata = await wikidataImage(qid);
+  const fromWikidata = await wikidataImage(qid, deadline);
   if (fromWikidata) return { ...fromWikidata, nonFree: false };
-  return firstArticleImage(lang, title);
+  return firstArticleImage(lang, title, deadline);
 }
 
 // ---------------------------------------------------------------- lookups
 
-// An article by its page key on one language's Wikipedia
+// An article by its page key on one language's Wikipedia. While Wikimedia
+// asks us to wait, keeps waiting until the deadline.
 export async function getItemByKey(
   key: string,
   lang: LangCode = DEFAULT_LANG,
   originalimage?: { source: string; width: number },
+  deadline: number = Date.now() + WAIT_BUDGET_MS,
 ): Promise<LookupResult> {
-  const res = await wikiFetch(
-    `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(key)}`,
-    { headers: HEADERS },
+  const read = await readSummary(
+    await wikiFetch(summaryUrl(lang, key), deadline),
   );
-  if (res.status === 429 || res.status >= 500) {
-    return { error: "Wikipedia is busy right now. Try again in a minute." };
-  }
-  if (!res.ok) return { error: "Couldn't find that article." };
+  if ("error" in read) return read;
+  const data = read.summary;
 
-  const data: {
-    type?: string;
-    title: string;
-    description?: string;
-    wikibase_item?: string;
-    thumbnail?: { source: string };
-    content_urls?: { desktop?: { page?: string } };
-  } = await res.json();
-
-  if (data.type === "disambiguation") {
-    return {
-      error: "That's a disambiguation page. Pick a more specific article.",
-    };
-  }
-  if (data.type !== "standard")
-    return { error: "That page can't be reviewed." };
-  if (!data.wikibase_item) {
-    return { error: "That article has no Wikidata entry." };
-  }
-
-  if (!ALLOW_PEOPLE && (await mightBeHuman(data.wikibase_item))) {
+  if (!ALLOW_PEOPLE && (await mightBeHuman(data.wikibase_item, deadline))) {
     return { error: "Articles about real people can't be reviewed." };
   }
 
@@ -308,6 +302,7 @@ export async function getItemByKey(
     data.wikibase_item,
     data.title,
     leadSource,
+    deadline,
   );
 
   return {
@@ -327,14 +322,18 @@ export async function getItemByKey(
 
 // An item by its Wikidata ID, like "Q89". Uses the English article when there
 // is one, so an item looks the same whoever added it, and otherwise the first
-// article in any supported language.
-export async function getItemById(qid: string): Promise<LookupResult> {
+// article in any supported language. While Wikimedia asks us to wait, keeps
+// waiting until the deadline.
+export async function getItemById(
+  qid: string,
+  deadline: number = Date.now() + WAIT_BUDGET_MS,
+): Promise<LookupResult> {
   if (!/^Q\d+$/.test(qid)) return { error: "Invalid item." };
 
   const sites = LANGUAGES.map((l) => `${l.code}wiki`).join("|");
   const res = await wikiFetch(
     `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${qid}&props=sitelinks&sitefilter=${encodeURIComponent(sites)}&format=json`,
-    { headers: HEADERS },
+    deadline,
   );
   if (!res.ok) return { error: "Couldn't reach Wikidata." };
 
@@ -353,7 +352,9 @@ export async function getItemById(qid: string): Promise<LookupResult> {
 
   for (const code of order) {
     const title = links[`${code}wiki`]?.title;
-    if (title) return getItemByKey(title.replace(/ /g, "_"), code);
+    if (title) {
+      return getItemByKey(title.replace(/ /g, "_"), code, undefined, deadline);
+    }
   }
 
   return { error: "That item has no article in a supported language." };
@@ -362,45 +363,42 @@ export async function getItemById(qid: string): Promise<LookupResult> {
 // can't be reviewed (disambiguation pages, no Wikidata entry).
 export async function getRandomItem(
   lang: LangCode = DEFAULT_LANG,
+  deadline: number = Date.now() + WAIT_BUDGET_MS,
 ): Promise<LookupResult> {
   const res = await wikiFetch(
     `https://${lang}.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=5&format=json`,
-    { headers: HEADERS },
+    deadline,
   );
-  if (!res.ok) {
-    return { error: "Wikipedia is busy right now. Try again in a minute." };
-  }
+  if (!res.ok) return { error: BUSY_ERROR };
 
   const data: { query?: { random?: { title: string }[] } } = await res.json();
   for (const page of data.query?.random ?? []) {
-    const result = await getItemByKey(page.title.replace(/ /g, "_"), lang);
+    const result = await getItemByKey(
+      page.title.replace(/ /g, "_"),
+      lang,
+      undefined,
+      deadline,
+    );
     if ("item" in result) return result;
   }
   return { error: "Couldn't find a page this time. Try again." };
 }
 
-// The longest a visitor's request is held open to retry after a short wait
-const MAX_RETRY_WAIT_MS = 3000;
+// Waits Wikimedia has asked of this server, shared by every visitor's requests
+const pause: Pause = { until: 0 };
 
-let pausedUntil = 0;
-
-// Waits out a short requested delay and retries once. After a longer delay it
-// reports the failure, and sends nothing more from this server until it's over.
-async function wikiFetch(url: string, _init?: RequestInit): Promise<Response> {
-  if (Date.now() < pausedUntil) {
+// Waits out each delay Wikimedia asks for and retries, until the deadline.
+// A wait that would end after the deadline is reported as a failure.
+async function wikiFetch(url: string, deadline: number): Promise<Response> {
+  const res = await sendWithinDeadline(
+    () => globalThis.fetch(url, { headers: HEADERS }),
+    pause,
+    deadline,
+  );
+  if (!res) {
     console.warn("Wikimedia paused", url.slice(0, 120));
     return new Response(null, { status: 429 });
   }
-
-  let res = await globalThis.fetch(url, { headers: HEADERS });
-  let wait = requestedWaitMs(res);
-  if (wait > 0 && wait <= MAX_RETRY_WAIT_MS) {
-    await new Promise((resolve) => setTimeout(resolve, wait));
-    res = await globalThis.fetch(url, { headers: HEADERS });
-    wait = requestedWaitMs(res);
-  }
-  pausedUntil = Math.max(pausedUntil, Date.now() + wait);
-
   if (!res.ok) console.warn("Wikimedia", res.status, url.slice(0, 120));
   return res;
 }

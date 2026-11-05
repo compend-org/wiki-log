@@ -1,8 +1,14 @@
-// ABOUTME: Works out how long Wikimedia has asked a client to wait before more requests.
+// ABOUTME: Works out how long Wikimedia has asked a client to wait, and waits it out until a deadline.
 // ABOUTME: Follows the Retry-After rules on Wikimedia's API rate limits page.
 
 // Wikimedia asks for at least this long when a response doesn't say
 export const DEFAULT_WAIT_MS = 5000;
+
+// The longest one visitor action waits on Wikimedia before showing an error
+export const WAIT_BUDGET_MS = 15000;
+
+// When a client may next send a request to Wikimedia
+export type Pause = { until: number };
 
 // How long to wait after this response, or 0 if it isn't asking for a wait.
 // Retry-After is either a number of seconds or a date.
@@ -17,4 +23,24 @@ export function requestedWaitMs(res: Response): number {
 
   const date = Date.parse(retryAfter);
   return Number.isNaN(date) ? DEFAULT_WAIT_MS : Math.max(date - Date.now(), 0);
+}
+
+// Sends the request, and again after each wait Wikimedia asks for, sharing
+// those waits through `pause`. Once a wait would end after the deadline it
+// stops: it returns the last response, or null if it never got to send.
+export async function sendWithinDeadline(
+  send: () => Promise<Response>,
+  pause: Pause,
+  deadline: number,
+): Promise<Response | null> {
+  for (;;) {
+    if (pause.until > deadline) return null;
+    const waitMs = pause.until - Date.now();
+    if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
+
+    const res = await send();
+    const askedMs = requestedWaitMs(res);
+    pause.until = Math.max(pause.until, Date.now() + askedMs);
+    if (askedMs === 0 || pause.until > deadline) return res;
+  }
 }

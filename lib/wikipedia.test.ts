@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, mock, test } from "node:test";
+import { BUSY_ERROR } from "./articleSummary";
 import { getItemByKey } from "./wikipedia";
 
 const cover =
@@ -321,4 +322,44 @@ test("a failed PageImages request still allows the article-image fallback", asyn
   const result = await getItemByKey("Steel_Ball_Run");
   assert.ok("item" in result);
   assert.equal(result.item.imageUrl, joniImage);
+});
+
+// Refuses the first summary request, asking for a wait, then answers normally
+function rateLimitFirstSummary(retryAfterSeconds: number) {
+  mockWikipedia();
+  const answer = globalThis.fetch;
+  let refused = false;
+  return mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request) => {
+      if (!refused && String(input).includes("/page/summary/")) {
+        refused = true;
+        return new Response(null, {
+          status: 429,
+          headers: { "Retry-After": String(retryAfterSeconds) },
+        });
+      }
+      return answer(input);
+    },
+  );
+}
+
+test("a rate-limited summary is retried after the requested wait", async () => {
+  rateLimitFirstSummary(0.02);
+  const result = await getItemByKey("Steel_Ball_Run");
+  assert.ok("item" in result);
+  assert.equal(result.item.title, "Steel Ball Run");
+});
+
+test("a wait past the deadline reports Wikipedia as busy", async () => {
+  const fetch = rateLimitFirstSummary(0.02);
+  const result = await getItemByKey(
+    "Steel_Ball_Run",
+    "en",
+    undefined,
+    Date.now() + 5,
+  );
+  assert.deepEqual(result, { error: BUSY_ERROR });
+  assert.equal(fetch.mock.callCount(), 1);
 });
