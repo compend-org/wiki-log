@@ -20,7 +20,7 @@ import { isUuid } from "@/lib/ids";
 import { getLikedSet, likeKey } from "@/lib/likes";
 import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
-import { escapeLike, isValidName } from "@/lib/username";
+import { isValidName } from "@/lib/username";
 
 export const instant = false;
 
@@ -63,9 +63,8 @@ export default async function ReviewPage({
   const supabase = await createClient();
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .rpc("profile_by_username", { name })
     .select("id, username, avatar_path")
-    .ilike("username", escapeLike(name))
     .maybeSingle();
   if (!profile) notFound();
 

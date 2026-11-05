@@ -5,7 +5,7 @@ import { useState } from "react";
 import { signIn } from "@/app/actions";
 import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 import { createClient } from "@/lib/supabase/client";
-import { cleanName, escapeLike, isValidName, NAME_RULES } from "@/lib/username";
+import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
 
 export default function LoginForm({ next }: { next: string }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -81,9 +81,8 @@ export default function LoginForm({ next }: { next: string }) {
     const supabase = createClient();
 
     const { data: taken } = await supabase
-      .from("profiles")
+      .rpc("profile_by_username", { name })
       .select("id")
-      .ilike("username", escapeLike(name))
       .maybeSingle();
     if (taken) {
       setBusy(false);
