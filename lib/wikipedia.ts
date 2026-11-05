@@ -181,10 +181,10 @@ async function representativeImage(
   }
 }
 
-// Without a representative image, a sole usable article image is a fallback.
-// Multiple candidates are ambiguous: API file order and licence don't tell us
-// which depicts the topic. Never treat a partial response as a sole candidate.
-async function soleArticleImage(
+// Without a representative image, the first usable article image is a fallback.
+// It may depict a related topic rather than the article's subject: API file
+// order and licence don't tell us which image does.
+async function firstArticleImage(
   lang: LangCode,
   title: string,
 ): Promise<ItemImage | null> {
@@ -195,12 +195,10 @@ async function soleArticleImage(
     );
     if (!res.ok) return null;
     const data: {
-      continue?: Record<string, unknown>;
       query?: { pages?: ImagePage[] };
     } = await res.json();
-    if (data.continue) return null;
 
-    const candidates = (data.query?.pages ?? []).filter((page) => {
+    const page = (data.query?.pages ?? []).find((page) => {
       const info = page.imageinfo?.[0];
       const width = info?.width ?? 0;
       const height = info?.height ?? 0;
@@ -216,9 +214,8 @@ async function soleArticleImage(
         !PAGE_FURNITURE.test(page.title)
       );
     });
-    if (candidates.length !== 1) return null;
+    if (!page) return null;
 
-    const page = candidates[0];
     const info = page.imageinfo?.[0];
     const source = info?.thumburl ?? info?.url;
     if (!source) return null;
@@ -236,7 +233,7 @@ async function soleArticleImage(
 }
 
 // Relevance comes before licence: use Wikipedia's representative image, then
-// Wikidata's curated image, then a sole suitable article image. A free body
+// Wikidata's curated image, then the first suitable article image. A free body
 // image never replaces a lead.
 async function chooseImage(
   lang: LangCode,
@@ -251,7 +248,7 @@ async function chooseImage(
 
   const fromWikidata = await wikidataImage(qid);
   if (fromWikidata) return { ...fromWikidata, nonFree: false };
-  return soleArticleImage(lang, title);
+  return firstArticleImage(lang, title);
 }
 
 // ---------------------------------------------------------------- lookups
