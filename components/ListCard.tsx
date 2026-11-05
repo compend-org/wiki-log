@@ -7,11 +7,11 @@ import ListLikeButton from "@/components/ListLikeButton";
 import ListPreview from "@/components/ListPreview";
 import ShareButton from "@/components/ShareButton";
 import ShareIcon from "@/components/ShareIcon";
-import { isAdmin } from "@/lib/admin";
+import { getAdminIds } from "@/lib/admin";
 import type { ListRow, Thumb } from "@/lib/feedData";
 import { commentLabel, sharedLabel } from "@/lib/format";
 
-export default function ListCard({
+export default async function ListCard({
   list: l,
   thumbs: preview,
   viewerId,
@@ -33,6 +33,7 @@ export default function ListCard({
   const author = l.profiles?.username;
   const avatarPath = l.profiles?.avatar_path ?? null;
   const itemCount = l.list_items?.[0]?.count ?? 0;
+  const adminIds = await getAdminIds();
 
   return (
     <div className="card relative flex flex-col gap-2 p-3 hover:border-accent/60">
@@ -59,7 +60,7 @@ export default function ListCard({
         ) : (
           <span>Someone</span>
         )}
-        {isAdmin(l.user_id) && <AdminBadge />}
+        {adminIds.has(l.user_id) && <AdminBadge />}
         {showActivity && <span>made a {l.ranked ? "ranked " : ""}list</span>}
       </span>
       <span className="font-semibold">{l.title}</span>

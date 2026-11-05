@@ -8,7 +8,7 @@ import LoadMore from "@/components/LoadMore";
 import ShareButton from "@/components/ShareButton";
 import ShareIcon from "@/components/ShareIcon";
 import Stars from "@/components/Stars";
-import { isAdmin } from "@/lib/admin";
+import { getAdminIds } from "@/lib/admin";
 import {
   getPublicFeed,
   getTrendingFeed,
@@ -58,6 +58,7 @@ export default async function Feed({
 
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
+  const adminIds = await getAdminIds();
 
   // Following shows the people you follow and you, so your own entries are in
   // it as well
@@ -384,7 +385,7 @@ export default async function Feed({
             ) : (
               <span>Someone</span>
             )}
-            {isAdmin(row.user_id) && <AdminBadge />}
+            {adminIds.has(row.user_id) && <AdminBadge />}
             <span>logged</span>
           </span>
           <Link

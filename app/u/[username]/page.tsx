@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import AdminBadge from "@/components/AdminBadge";
 import Avatar from "@/components/Avatar";
+import BanButton from "@/components/BanButton";
 import Favourites, { type Slot } from "@/components/Favourites";
 import FollowButton from "@/components/FollowButton";
 import ItemImage from "@/components/ItemImage";
@@ -159,6 +160,8 @@ export default async function ProfilePage({
   }
 
   const isOwner = viewerId === profile.id;
+  const profileIsAdmin = await isAdmin(profile.id);
+  const viewerIsAdmin = await isAdmin(viewerId);
   const profileHref = `/u/${encodeURIComponent(profile.username)}`;
 
   return (
@@ -174,7 +177,7 @@ export default async function ProfilePage({
             <h1 className="break-words text-3xl font-bold">
               {profile.username}
             </h1>
-            {isAdmin(profile.id) && <AdminBadge />}
+            {profileIsAdmin && <AdminBadge />}
           </div>
         </div>
         <p className="text-sm text-muted">
@@ -186,7 +189,7 @@ export default async function ProfilePage({
             {profile.bio}
           </p>
         )}
-        <div className="mt-2">
+        <div className="mt-2 flex items-center gap-4">
           {!viewerId ? (
             <Link href={loginHref(profileHref)} className="underline">
               Sign in to follow
@@ -203,6 +206,13 @@ export default async function ProfilePage({
               viewerId={viewerId}
               targetId={profile.id}
               initiallyFollowing={isFollowing}
+            />
+          )}
+          {viewerIsAdmin && !profileIsAdmin && (
+            <BanButton
+              userId={profile.id}
+              username={profile.username}
+              redirectTo="/"
             />
           )}
         </div>
