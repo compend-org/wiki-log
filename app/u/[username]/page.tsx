@@ -22,6 +22,7 @@ export const instant = false;
 type ItemInfo = { title: string; image_url: string | null } | null;
 
 type LogRow = {
+  id: string;
   item_id: string;
   rating: number;
   review: string;
@@ -87,7 +88,7 @@ export default async function ProfilePage({
     supabase
       .from("logs")
       .select(
-        "item_id, rating, review, logged_at, items(title, image_url), comments(count)",
+        "id, item_id, rating, review, logged_at, items(title, image_url), comments(count)",
       )
       .eq("user_id", profile.id)
       .order("logged_at", { ascending: false }),
@@ -304,8 +305,8 @@ export default async function ProfilePage({
         const commentCount = log.comments?.[0]?.count ?? 0;
         return (
           <Link
-            key={log.item_id}
-            href={`${profileHref}/${log.item_id}`}
+            key={log.id}
+            href={`${profileHref}/${log.id}`}
             className="card flex gap-4 p-3"
           >
             <ItemImage
