@@ -18,7 +18,7 @@ import {
   type LogRow,
   type Thumb,
 } from "@/lib/feedData";
-import { commentLabel, sharedLabel } from "@/lib/format";
+import { commentLabel, sharedLabel, timeAgo } from "@/lib/format";
 import { getLikedListSet, getLikedSet } from "@/lib/likes";
 import { PAGE_SIZE, startOfMinute } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
@@ -60,6 +60,7 @@ export default async function Feed({
 }) {
   await connection();
   const snapshot = asOf ?? new Date().toISOString();
+  const renderedAt = Date.now();
   const supabase = await createClient();
 
   const { data: claimsData } = await supabase.auth.getClaims();
@@ -406,6 +407,9 @@ export default async function Feed({
             )}
             {adminIds.has(row.user_id) && <AdminBadge />}
             <span>logged</span>
+            <span className="whitespace-nowrap">
+              · {timeAgo(row.logged_at, renderedAt)}
+            </span>
           </span>
           <Link
             href={`/item/${row.item_id}`}
@@ -415,10 +419,6 @@ export default async function Feed({
           </Link>
           <Stars rating={row.rating} />
           <div className="flex flex-nowrap items-center gap-2.5 whitespace-nowrap text-xs text-muted">
-            <span className="min-w-0 truncate">
-              {new Date(row.logged_at).toLocaleDateString()}
-            </span>
-
             <span className="relative z-10">
               <LikeButton
                 viewerId={viewerId ?? null}
