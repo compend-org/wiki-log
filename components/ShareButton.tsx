@@ -75,7 +75,7 @@ export default function ShareButton({
       aria-pressed={shared}
       aria-label={shared ? "Undo share" : "Share to your followers"}
       title={shared ? "Undo share" : "Share to your followers"}
-      className={`inline-flex items-center gap-1 text-sm disabled:cursor-default ${
+      className={`inline-flex h-5 items-center gap-1 text-sm disabled:cursor-default ${
         shared ? "text-[#00ba7c]" : "text-muted enabled:hover:text-[#00ba7c]"
       }`}
     >

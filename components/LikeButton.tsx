@@ -57,7 +57,7 @@ export default function LikeButton({
       disabled={own}
       aria-pressed={liked}
       aria-label={liked ? "Unlike this review" : "Like this review"}
-      className={`inline-flex items-center gap-1 text-sm disabled:cursor-default ${
+      className={`inline-flex h-5 items-center gap-1 text-sm disabled:cursor-default ${
         liked ? "text-like" : "text-muted enabled:hover:text-like"
       }`}
     >
