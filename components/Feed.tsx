@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import Avatar from "@/components/Avatar";
 import BalancedColumns from "@/components/BalancedColumns";
+import CardActions from "@/components/CardActions";
 import ItemImage from "@/components/ItemImage";
 import LikeButton from "@/components/LikeButton";
 import ListCard from "@/components/ListCard";
@@ -18,7 +19,7 @@ import {
   type LogRow,
   type Thumb,
 } from "@/lib/feedData";
-import { commentLabel, sharedLabel, timeAgo } from "@/lib/format";
+import { sharedLabel, timeAgo } from "@/lib/format";
 import { getLikedListSet, getLikedSet } from "@/lib/likes";
 import { PAGE_SIZE, startOfMinute } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
@@ -418,8 +419,8 @@ export default async function Feed({
             {title}
           </Link>
           <Stars rating={row.rating} />
-          <div className="flex flex-nowrap items-center gap-2.5 whitespace-nowrap text-xs text-muted">
-            <span className="relative z-10">
+          <CardActions
+            like={
               <LikeButton
                 viewerId={viewerId ?? null}
                 authorId={row.user_id}
@@ -427,9 +428,8 @@ export default async function Feed({
                 initialCount={row.likes?.[0]?.count ?? 0}
                 initiallyLiked={likedSet.has(row.id)}
               />
-            </span>
-
-            <span className="relative z-10">
+            }
+            share={
               <ShareButton
                 viewerId={viewerId ?? null}
                 ownerId={row.user_id}
@@ -438,21 +438,11 @@ export default async function Feed({
                 initialCount={row.shares?.[0]?.count ?? 0}
                 initiallyShared={sharedSet.has(row.id)}
               />
-            </span>
-
-            {reviewHref && (
-              <Link href={reviewHref} className="relative z-10 hover:underline">
-                {commentLabel(row.comments?.[0]?.count ?? 0)}
-              </Link>
-            )}
-
-            <Link
-              href={`/item/${row.item_id}#log`}
-              className="relative z-10 hover:underline"
-            >
-              Log
-            </Link>
-          </div>
+            }
+            commentHref={reviewHref}
+            commentCount={row.comments?.[0]?.count ?? 0}
+            logHref={`/item/${row.item_id}#log`}
+          />
         </div>
 
         {row.review && (

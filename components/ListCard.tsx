@@ -1,15 +1,17 @@
 // ABOUTME: A card summarising one list: its author, title, item thumbnails and social counts.
 // ABOUTME: Shown wherever lists appear among other content, such as feeds and item pages.
 import Link from "next/link";
+import { connection } from "next/server";
 import AdminBadge from "@/components/AdminBadge";
 import Avatar from "@/components/Avatar";
+import CardActions from "@/components/CardActions";
 import ListLikeButton from "@/components/ListLikeButton";
 import ListPreview from "@/components/ListPreview";
 import ShareButton from "@/components/ShareButton";
 import ShareIcon from "@/components/ShareIcon";
 import { getAdminIds } from "@/lib/admin";
 import type { ListRow, Thumb } from "@/lib/feedData";
-import { commentLabel, sharedLabel } from "@/lib/format";
+import { sharedLabel, timeAgo } from "@/lib/format";
 
 export default async function ListCard({
   list: l,
@@ -30,6 +32,8 @@ export default async function ListCard({
   // Whether to say "made a list" after the author, as an activity feed does
   showActivity?: boolean;
 }) {
+  await connection();
+  const renderedAt = Date.now();
   const author = l.profiles?.username;
   const avatarPath = l.profiles?.avatar_path ?? null;
   const itemCount = l.list_items?.[0]?.count ?? 0;
@@ -62,6 +66,9 @@ export default async function ListCard({
         )}
         {adminIds.has(l.user_id) && <AdminBadge />}
         {showActivity && <span>made a {l.ranked ? "ranked " : ""}list</span>}
+        <span className="whitespace-nowrap">
+          · {timeAgo(l.created_at, renderedAt)}
+        </span>
       </span>
       <span className="font-semibold">{l.title}</span>
       {preview.length > 0 && (
@@ -71,12 +78,8 @@ export default async function ListCard({
           href={`/list/${l.id}`}
         />
       )}
-      <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
-        <span>
-          {new Date(l.created_at).toLocaleDateString()} · {itemCount}{" "}
-          {itemCount === 1 ? "item" : "items"}
-        </span>
-        <span className="relative z-10">
+      <CardActions
+        like={
           <ListLikeButton
             viewerId={viewerId ?? null}
             listId={l.id}
@@ -84,8 +87,8 @@ export default async function ListCard({
             initialCount={l.list_likes?.[0]?.count ?? 0}
             initiallyLiked={liked}
           />
-        </span>
-        <span className="relative z-10">
+        }
+        share={
           <ShareButton
             viewerId={viewerId ?? null}
             ownerId={l.user_id}
@@ -94,14 +97,12 @@ export default async function ListCard({
             initialCount={l.shares?.[0]?.count ?? 0}
             initiallyShared={shared}
           />
-        </span>
-        <Link
-          href={`/list/${l.id}#comments`}
-          className="relative z-10 hover:underline"
-        >
-          {commentLabel(l.list_comments?.[0]?.count ?? 0)}
-        </Link>
-      </div>
+        }
+        commentHref={`/list/${l.id}#comments`}
+        commentCount={l.list_comments?.[0]?.count ?? 0}
+      >
+        {itemCount} {itemCount === 1 ? "item" : "items"}
+      </CardActions>
     </div>
   );
 }
