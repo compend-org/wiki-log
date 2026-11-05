@@ -13,9 +13,9 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 test("shows just now under a minute", () => {
-  assert.equal(timeAgo(before(0), now), "Just now");
-  assert.equal(timeAgo(before(3500), now), "Just now");
-  assert.equal(timeAgo(before(MINUTE - 1), now), "Just now");
+  assert.equal(timeAgo(before(0), now), "Now");
+  assert.equal(timeAgo(before(3500), now), "Now");
+  assert.equal(timeAgo(before(MINUTE - 1), now), "Now");
 });
 
 test("shows whole minutes under an hour", () => {
@@ -34,5 +34,5 @@ test("shows the date from a day ago onwards", () => {
 });
 
 test("treats a time just ahead of the clock as now", () => {
-  assert.equal(timeAgo(before(-500), now), "Just now");
+  assert.equal(timeAgo(before(-500), now), "Now");
 });

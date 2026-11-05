@@ -10,7 +10,7 @@ export function sharedLabel(names: string[]): string {
   return `${names[0]} and ${others} ${others === 1 ? "other" : "others"} shared:`;
 }
 
-// "Just now" under a minute, "5m ago" or "2h ago" within the last day, and the
+// "Now" under a minute, "5m ago" or "2h ago" within the last day, and the
 // date after that. A time slightly ahead of `now` counts as just now.
 export function timeAgo(time: string, now: number): string {
   const date = new Date(time);
@@ -21,7 +21,7 @@ export function timeAgo(time: string, now: number): string {
   if (hours >= 24) return date.toLocaleDateString();
   if (hours > 0) return `${hours}h ago`;
   if (minutes > 0) return `${minutes}m ago`;
-  return "Just now";
+  return "Now";
 }
 
 // "54 (number)" becomes "54". If removing the brackets would leave nothing,
