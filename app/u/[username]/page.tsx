@@ -64,7 +64,7 @@ export default async function ProfilePage({
   let name = rawName;
   try {
     name = decodeURIComponent(rawName);
-  } catch {}
+  } catch { }
   if (!isValidName(name)) notFound();
 
   const supabase = await createClient();
@@ -105,11 +105,11 @@ export default async function ProfilePage({
       .eq("follower_id", profile.id),
     viewerId
       ? supabase
-          .from("follows")
-          .select("follower_id")
-          .eq("follower_id", viewerId)
-          .eq("following_id", profile.id)
-          .maybeSingle()
+        .from("follows")
+        .select("follower_id")
+        .eq("follower_id", viewerId)
+        .eq("following_id", profile.id)
+        .maybeSingle()
       : Promise.resolve({ data: null }),
     supabase
       .from("favourites")
@@ -122,11 +122,11 @@ export default async function ProfilePage({
       .order("created_at", { ascending: false }),
     viewerId
       ? supabase
-          .from("blocks")
-          .select("blocked_id")
-          .eq("blocker_id", viewerId)
-          .eq("blocked_id", profile.id)
-          .maybeSingle()
+        .from("blocks")
+        .select("blocked_id")
+        .eq("blocker_id", viewerId)
+        .eq("blocked_id", profile.id)
+        .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
@@ -141,10 +141,10 @@ export default async function ProfilePage({
     const row = favRows.find((r) => r.position === pos);
     return row
       ? {
-          itemId: row.item_id,
-          title: row.items?.title ?? "Unknown item",
-          imageUrl: row.items?.image_url ?? null,
-        }
+        itemId: row.item_id,
+        title: row.items?.title ?? "Unknown item",
+        imageUrl: row.items?.image_url ?? null,
+      }
       : null;
   });
 
@@ -196,8 +196,20 @@ export default async function ProfilePage({
           </div>
         </div>
         <p className="text-sm text-muted">
-          {followers} {followers === 1 ? "follower" : "followers"} · {following}{" "}
-          following · {logs.length} {logs.length === 1 ? "log" : "logs"}
+          <Link
+            href={`${profileHref}/connections?tab=followers`}
+            className="hover:underline"
+          >
+            {followers} {followers === 1 ? "follower" : "followers"}
+          </Link>{" "}
+          ·{" "}
+          <Link
+            href={`${profileHref}/connections?tab=following`}
+            className="hover:underline"
+          >
+            {following} following
+          </Link>{" "}
+          · {logs.length} {logs.length === 1 ? "log" : "logs"}
         </p>
         {profile.bio && (
           <p className="mt-2 max-w-prose whitespace-pre-wrap break-words">
