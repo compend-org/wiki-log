@@ -4,7 +4,7 @@ import LikeButton from "@/components/LikeButton";
 import LoadMore from "@/components/LoadMore";
 import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
-import { isAdmin } from "@/lib/admin";
+import { getAdminIds } from "@/lib/admin";
 import { commentLabel } from "@/lib/format";
 import { getLikedSet } from "@/lib/likes";
 import { PAGE_SIZE } from "@/lib/paging";
@@ -41,6 +41,7 @@ export default async function ItemLogs({
 
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
+  const adminIds = await getAdminIds();
 
   const { data, error } = await supabase
     .from("logs")
@@ -128,7 +129,7 @@ export default async function ItemLogs({
           ) : (
             <span>Someone</span>
           )}
-          {isAdmin(row.user_id) && <AdminBadge />}
+          {adminIds.has(row.user_id) && <AdminBadge />}
           <Stars rating={row.rating} />
           <span className="ml-auto text-xs text-muted">
             {new Date(row.logged_at).toLocaleDateString()}

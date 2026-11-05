@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import AdminBadge from "@/components/AdminBadge";
 import AlsoLiked from "@/components/AlsoLiked";
 import Avatar from "@/components/Avatar";
+import BanButton from "@/components/BanButton";
 import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
 import LikeButton from "@/components/LikeButton";
@@ -12,7 +13,7 @@ import ReportButton from "@/components/ReportButton";
 import ReviewText from "@/components/ReviewText";
 import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
-import { isAdmin } from "@/lib/admin";
+import { getAdminIds, isAdmin } from "@/lib/admin";
 import { getAlsoLiked } from "@/lib/alsoLiked";
 import { isUuid } from "@/lib/ids";
 import { getLikedSet, likeKey } from "@/lib/likes";
@@ -122,6 +123,8 @@ export default async function ReviewPage({
     likedCommentIds = new Set((likedRows ?? []).map((r) => r.comment_id));
   }
 
+  const adminIds = await getAdminIds();
+  const viewerIsAdmin = await isAdmin(viewerId);
   const comments: CommentItem[] = commentRows.map((c) => ({
     id: c.id,
     parentId: c.parent_id,
@@ -129,7 +132,7 @@ export default async function ReviewPage({
     date: c.created_at.slice(0, 10),
     authorId: c.user_id,
     authorName: c.profiles?.username ?? "Someone",
-    authorIsAdmin: isAdmin(c.user_id),
+    authorIsAdmin: adminIds.has(c.user_id),
     likeCount: c.comment_likes?.[0]?.count ?? 0,
     liked: likedCommentIds.has(c.id),
   }));
@@ -168,7 +171,7 @@ export default async function ReviewPage({
             />
             {profile.username}
           </Link>
-          {isAdmin(log.user_id) && <AdminBadge />}
+          {adminIds.has(log.user_id) && <AdminBadge />}
           <span>· {log.logged_at.slice(0, 10)}</span>
         </p>
         <Stars rating={log.rating} />
@@ -229,6 +232,13 @@ export default async function ReviewPage({
           kind="log"
           targetId={log.id}
         />
+        {viewerIsAdmin && !adminIds.has(log.user_id) && (
+          <BanButton
+            userId={log.user_id}
+            username={profile.username}
+            redirectTo="/"
+          />
+        )}
       </div>
 
       <AlsoLiked
@@ -242,6 +252,7 @@ export default async function ReviewPage({
         table="comments"
         scope={{ log_id: log.id }}
         ownerId={profile.id}
+        viewerIsAdmin={viewerIsAdmin}
         likeable
       />
     </main>

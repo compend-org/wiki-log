@@ -2,6 +2,7 @@
 // ABOUTME: Caches items looked up from Wikipedia before anything refers to them.
 "use server";
 
+import { isAdmin } from "@/lib/admin";
 import { FEATURES } from "@/lib/features";
 import { ITEM_ID_PATTERN, isCompoundId, isUuid } from "@/lib/ids";
 import { applyImageHidden, itemColumns, MAX_AGE_MS } from "@/lib/items";
@@ -84,12 +85,8 @@ export async function logItem(input: {
   return {};
 }
 
-export async function deleteAccount(): Promise<{ error?: string }> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to be signed in." };
-
+// Deletes someone's avatar files and their auth user
+async function removeAccount(userId: string): Promise<{ error?: string }> {
   // Deleting the auth user also deletes their profile, logs, favourites and
   // follows (the foreign keys use "on delete cascade")
   const admin = createAdminClient();
@@ -100,10 +97,51 @@ export async function deleteAccount(): Promise<{ error?: string }> {
       .remove(files.map((f) => `${userId}/${f.name}`));
   }
   const { error } = await admin.auth.admin.deleteUser(userId);
-  if (error) return { error: error.message };
+  return error ? { error: error.message } : {};
+}
+
+export async function deleteAccount(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { error: "You need to be signed in." };
+
+  const result = await removeAccount(userId);
+  if (result.error) return result;
 
   await supabase.auth.signOut();
   return {};
+}
+
+// Admins only: blocks the person's email from signing up again, then deletes
+// their account and everything they posted
+export async function banUser(userId: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  if (!(await isAdmin(data?.claims?.sub))) {
+    return { error: "Only admins can ban people." };
+  }
+  if (!isUuid(userId)) return { error: "Invalid user." };
+  if (await isAdmin(userId)) return { error: "Admins can't be banned." };
+
+  const admin = createAdminClient();
+  const { data: target, error: lookupError } =
+    await admin.auth.admin.getUserById(userId);
+  if (lookupError) return { error: lookupError.message };
+
+  if (target.user.email) {
+    const { data: email, error: normalizeError } = await admin.rpc(
+      "normalize_email",
+      { e: target.user.email },
+    );
+    if (normalizeError) return { error: normalizeError.message };
+    const { error } = await admin
+      .from("blocked_emails")
+      .upsert({ email, reason: "banned" }, { ignoreDuplicates: true });
+    if (error) return { error: error.message };
+  }
+
+  return removeAccount(userId);
 }
 
 export async function signIn(input: {

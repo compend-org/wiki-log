@@ -1,6 +1,7 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { cacheLife } from "next/cache";
 import { TRENDING_HOURS } from "@/lib/site";
+import { createPublicClient } from "@/lib/supabase/public";
 
 export type LogRow = {
   id: string;
@@ -54,13 +55,6 @@ const LOG_SELECT =
 export const LIST_SELECT =
   "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count)";
 
-function publicClient(): SupabaseClient {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-  );
-}
-
 // Empty lists stay out of the feed until they have something in them
 function nonEmpty(lists: ListRow[]): ListRow[] {
   return lists.filter((l) => (l.list_items?.[0]?.count ?? 0) > 0);
@@ -100,7 +94,7 @@ export async function getPublicFeed(limit: number): Promise<PublicFeed> {
   "use cache";
   cacheLife({ stale: 30, revalidate: 60, expire: 300 });
 
-  const supabase = publicClient();
+  const supabase = createPublicClient();
 
   const [logsRes, listsRes] = await Promise.all([
     supabase
@@ -129,7 +123,7 @@ export async function getTrendingFeed(limit: number): Promise<PublicFeed> {
   "use cache";
   cacheLife({ stale: 30, revalidate: 60, expire: 300 });
 
-  const supabase = publicClient();
+  const supabase = createPublicClient();
 
   const [logRank, listRank] = await Promise.all([
     supabase.rpc("trending_logs", {

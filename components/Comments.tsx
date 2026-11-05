@@ -9,6 +9,7 @@ import ReviewText from "@/components/ReviewText";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 import AdminBadge from "./AdminBadge";
+import BanButton from "./BanButton";
 import ReviewTextarea from "./ReviewTextArea";
 
 export type CommentItem = {
@@ -29,6 +30,7 @@ export default function Comments({
   table,
   scope,
   ownerId,
+  viewerIsAdmin = false,
   likeable = false,
 }: {
   comments: CommentItem[];
@@ -39,6 +41,8 @@ export default function Comments({
   scope: Record<string, string>;
   // The owner of the review or list can delete any comment on it
   ownerId: string;
+  // Admins can ban the author of any comment who isn't an admin
+  viewerIsAdmin?: boolean;
   // Only review comments can be liked
   likeable?: boolean;
 }) {
@@ -146,6 +150,13 @@ export default function Comments({
             targetId={c.id}
             className="underline"
           />
+          {viewerIsAdmin && !c.authorIsAdmin && (
+            <BanButton
+              userId={c.authorId}
+              username={c.authorName}
+              className="text-danger underline"
+            />
+          )}
           {viewerId && (
             <button
               type="button"
