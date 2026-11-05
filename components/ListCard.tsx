@@ -11,7 +11,8 @@ import ShareButton from "@/components/ShareButton";
 import ShareIcon from "@/components/ShareIcon";
 import { getAdminIds } from "@/lib/admin";
 import type { ListRow, Thumb } from "@/lib/feedData";
-import { sharedLabel, timeAgo } from "@/lib/format";
+import { timeAgo } from "@/lib/format";
+import SharedLabel from "./SharedLabel";
 
 export default async function ListCard({
   list: l,
@@ -49,7 +50,7 @@ export default async function ListCard({
       {sharers.length > 0 && (
         <span className="flex items-center gap-1 text-xs text-muted">
           <ShareIcon className="h-3.5 w-3.5" />
-          {sharedLabel(sharers)}
+          <SharedLabel names={sharers} />
         </span>
       )}
       <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
