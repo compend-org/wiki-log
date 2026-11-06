@@ -97,6 +97,8 @@ export default async function ProfilePage({
     favRes,
     listsRes,
     isBlockedRes,
+    logCountRes,
+    listCountRes,
   ] = await Promise.all([
     supabase
       .from("logs")
@@ -115,11 +117,11 @@ export default async function ProfilePage({
       .eq("follower_id", profile.id),
     viewerId
       ? supabase
-          .from("follows")
-          .select("follower_id")
-          .eq("follower_id", viewerId)
-          .eq("following_id", profile.id)
-          .maybeSingle()
+        .from("follows")
+        .select("follower_id")
+        .eq("follower_id", viewerId)
+        .eq("following_id", profile.id)
+        .maybeSingle()
       : Promise.resolve({ data: null }),
     supabase
       .from("favourites")
@@ -132,17 +134,27 @@ export default async function ProfilePage({
       .order("created_at", { ascending: false }),
     viewerId
       ? supabase
-          .from("blocks")
-          .select("blocked_id")
-          .eq("blocker_id", viewerId)
-          .eq("blocked_id", profile.id)
-          .maybeSingle()
+        .from("blocks")
+        .select("blocked_id")
+        .eq("blocker_id", viewerId)
+        .eq("blocked_id", profile.id)
+        .maybeSingle()
       : Promise.resolve({ data: null }),
+    supabase
+      .from("logs")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", profile.id),
+    supabase
+      .from("lists")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", profile.id),
   ]);
 
   const logs = (logsRes.data ?? []) as unknown as LogRow[];
   const followers = followersRes.count ?? 0;
   const following = followingRes.count ?? 0;
+  const logCount = logCountRes.count ?? 0;
+  const listCount = listCountRes.count ?? 0;
   const isFollowing = Boolean(isFollowingRes.data);
   const isBlocked = Boolean(isBlockedRes.data);
 
@@ -151,10 +163,10 @@ export default async function ProfilePage({
     const row = favRows.find((r) => r.position === pos);
     return row
       ? {
-          itemId: row.item_id,
-          title: row.items?.title ?? "Unknown item",
-          imageUrl: row.items?.image_url ?? null,
-        }
+        itemId: row.item_id,
+        title: row.items?.title ?? "Unknown item",
+        imageUrl: row.items?.image_url ?? null,
+      }
       : null;
   });
 
@@ -219,7 +231,8 @@ export default async function ProfilePage({
           >
             {following} following
           </Link>{" "}
-          · {logs.length} {logs.length === 1 ? "log" : "logs"}
+          · {logCount} {logCount === 1 ? "log" : "logs"} · {listCount}{" "}
+          {listCount === 1 ? "list" : "lists"}
         </p>
         {profile.bio && (
           <p className="mt-2 max-w-prose whitespace-pre-wrap break-words">
