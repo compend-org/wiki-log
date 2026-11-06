@@ -1,32 +1,54 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+// ABOUTME: The home page's feed tabs. The server renders the tab the page opens on;
+// ABOUTME: each other tab's feed is loaded the first time it is opened, then kept.
+
+import { type ReactNode, Suspense, useEffect, useState } from "react";
+import { loadFeedTab } from "@/app/feedActions";
+import { FEATURES } from "@/lib/features";
 import { TRENDING_LABEL } from "@/lib/site";
 
 type Tab = "following" | "everyone" | "trending";
 
+const loading = <p className="py-12 text-center text-muted">Loading…</p>;
+
 export default function FeedTabs({
   initial,
-  following,
-  everyone,
-  trending,
+  initialFeed,
 }: {
   initial: Tab;
-  following: ReactNode;
-  everyone: ReactNode;
-  // Left out when the feature is switched off
-  trending?: ReactNode;
+  // The feed of the `initial` tab
+  initialFeed: ReactNode;
 }) {
   const tabs: { id: Tab; label: string }[] = [
     { id: "everyone", label: "Everyone" },
     { id: "following", label: "Following" },
-    ...(trending ? [{ id: "trending" as Tab, label: TRENDING_LABEL }] : []),
+    ...(FEATURES.trending
+      ? [{ id: "trending" as Tab, label: TRENDING_LABEL }]
+      : []),
   ];
-  const panels: Record<Tab, ReactNode> = { following, everyone, trending };
 
   const [active, setActive] = useState<Tab>(
     tabs.some((t) => t.id === initial) ? initial : "everyone",
   );
+  // The feeds of the tabs opened since the page loaded
+  const [loaded, setLoaded] = useState<Partial<Record<Tab, ReactNode>>>({});
+  const feedOf = (tab: Tab) =>
+    loaded[tab] ?? (tab === initial ? initialFeed : undefined);
+
+  // A tab without a feed yet gets one as soon as it is opened
+  const activeMissing = feedOf(active) === undefined;
+  useEffect(() => {
+    if (!activeMissing) return;
+    setLoaded((shown) => ({ ...shown, [active]: loading }));
+    loadFeedTab(active)
+      .catch(() => (
+        <p className="text-center text-danger">
+          Couldn&apos;t load this feed. Reload the page to try again.
+        </p>
+      ))
+      .then((feed) => setLoaded((shown) => ({ ...shown, [active]: feed })));
+  }, [active, activeMissing]);
 
   function choose(tab: Tab) {
     setActive(tab);
@@ -71,7 +93,7 @@ export default function FeedTabs({
           aria-labelledby={`feed-tab-${t.id}`}
           hidden={active !== t.id}
         >
-          {panels[t.id]}
+          <Suspense fallback={loading}>{feedOf(t.id)}</Suspense>
         </div>
       ))}
     </div>

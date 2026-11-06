@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { Suspense } from "react";
 import Feed from "@/components/Feed";
 import FeedTabs from "@/components/FeedTabs";
 import ItemSearch from "@/components/ItemSearch";
@@ -23,7 +22,8 @@ export default async function Home({
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
-  const signedIn = Boolean(data?.claims?.sub);
+  const viewerId: string | undefined = data?.claims?.sub;
+  const signedIn = Boolean(viewerId);
 
   const picks = FEATURES.dailyPicks ? await getDailyPicks() : null;
 
@@ -36,8 +36,6 @@ export default async function Home({
         : signedIn
           ? "following"
           : "everyone";
-
-  const loading = <p className="py-12 text-center text-muted">Loading…</p>;
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 p-4 sm:p-8">
@@ -79,25 +77,11 @@ export default async function Home({
         )}
       </div>
 
+      {/* Signing in or out starts the tabs afresh */}
       <FeedTabs
+        key={viewerId ?? ""}
         initial={initialTab}
-        following={
-          <Suspense fallback={loading}>
-            <Feed mode="following" />
-          </Suspense>
-        }
-        everyone={
-          <Suspense fallback={loading}>
-            <Feed mode="everyone" />
-          </Suspense>
-        }
-        trending={
-          FEATURES.trending ? (
-            <Suspense fallback={loading}>
-              <Feed mode="trending" />
-            </Suspense>
-          ) : undefined
-        }
+        initialFeed={<Feed mode={initialTab} />}
       />
     </main>
   );
