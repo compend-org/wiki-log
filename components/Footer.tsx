@@ -10,6 +10,9 @@ export default function Footer() {
         <Link href="/privacy" className="hover:text-foreground hover:underline">
           Privacy
         </Link>
+        <Link href="/digest" className="hover:text-foreground hover:underline">
+          Digest
+        </Link>
         <Link href="/guide" className="hover:text-foreground hover:underline">
           &quot;Style Guide&quot;
         </Link>
@@ -19,6 +22,7 @@ export default function Footer() {
         <Link href="/support" className="hover:text-foreground hover:underline">
           Donate
         </Link>
+        
       </nav>
     </footer>
   );
