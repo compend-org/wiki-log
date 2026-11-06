@@ -16,14 +16,14 @@ import ShareImageButton from "@/components/ShareImageButton";
 import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
 import { getAlsoLiked } from "@/lib/alsoLiked";
-import { getBlockedIds, withoutBlockedComments } from "@/lib/blocks";
+import { withoutBlockedComments } from "@/lib/blocks";
 import { isUuid } from "@/lib/ids";
-import { getLikedSet, likeKey } from "@/lib/likes";
+import { likeKey } from "@/lib/likes";
 import { pageMetadata, starText } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { getReview } from "@/lib/reviews";
-import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
+import { getViewerState } from "@/lib/viewerState";
 
 export const instant = false;
 
@@ -104,19 +104,12 @@ export default async function ReviewPage({
 
   const commentRows = (commentData ?? []) as unknown as CommentQueryRow[];
 
-  // Which of these comments has the viewer already liked?
-  let likedCommentIds = new Set<string>();
-  if (viewerId && commentRows.length > 0) {
-    const { data: likedRows } = await supabase
-      .from("comment_likes")
-      .select("comment_id")
-      .eq("user_id", viewerId)
-      .in(
-        "comment_id",
-        commentRows.map((c) => c.id),
-      );
-    likedCommentIds = new Set((likedRows ?? []).map((r) => r.comment_id));
-  }
+  // Whether the viewer has liked and shared this review, which of these
+  // comments they have liked, and who they have blocked
+  const viewer = await getViewerState(supabase, viewerId, {
+    logIds: [log.id],
+    commentIds: commentRows.map((c) => c.id),
+  });
 
   const adminIds = await getAdminIds();
   const allComments: CommentItem[] = commentRows.map((c) => ({
@@ -128,17 +121,12 @@ export default async function ReviewPage({
     authorName: c.profiles?.username ?? "Someone",
     authorIsAdmin: adminIds.has(c.user_id),
     likeCount: c.comment_likes?.[0]?.count ?? 0,
-    liked: likedCommentIds.has(c.id),
+    liked: viewer.likedComments.has(c.id),
   }));
 
   // Comments by people the viewer has blocked are left out
-  const comments = withoutBlockedComments(
-    allComments,
-    await getBlockedIds(supabase, viewerId),
-  );
+  const comments = withoutBlockedComments(allComments, viewer.blocked);
 
-  const likedSet = await getLikedSet(supabase, viewerId, [log]);
-  const sharedSet = await getSharedSet(supabase, viewerId, "log", [log.id]);
   const alsoLiked = await getAlsoLiked(supabase, [log]);
   const title = log.items?.title ?? "Unknown item";
   const isOwner = viewerId === log.user_id;
@@ -222,7 +210,7 @@ export default async function ReviewPage({
           authorId={log.user_id}
           logId={log.id}
           initialCount={log.likes?.[0]?.count ?? 0}
-          initiallyLiked={likedSet.has(log.id)}
+          initiallyLiked={viewer.likedLogs.has(log.id)}
         />
         <ShareButton
           viewerId={viewerId ?? null}
@@ -230,7 +218,7 @@ export default async function ReviewPage({
           kind="log"
           targetId={log.id}
           initialCount={log.shares?.[0]?.count ?? 0}
-          initiallyShared={sharedSet.has(log.id)}
+          initiallyShared={viewer.sharedLogs.has(log.id)}
         />
         <ShareImageButton
           imageHref={`/u/${encodeURIComponent(profile.username)}/${log.id}/image`}

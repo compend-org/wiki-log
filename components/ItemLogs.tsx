@@ -5,12 +5,10 @@ import LoadMore from "@/components/LoadMore";
 import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
-import { getBlockedIds } from "@/lib/blocks";
 import { commentLabel } from "@/lib/format";
-import { getLikedSet } from "@/lib/likes";
 import { PAGE_SIZE } from "@/lib/paging";
-import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
+import { getViewerState } from "@/lib/viewerState";
 import AdminBadge from "./AdminBadge";
 import ReviewText from "./ReviewText";
 
@@ -59,10 +57,14 @@ export default async function ItemLogs({
   const rows = (data ?? []) as unknown as Row[];
   const likeCount = (r: Row) => r.likes?.[0]?.count ?? 0;
 
+  // Which of these the viewer has liked and shared, and who they have blocked
+  const viewer = await getViewerState(supabase, viewerId, {
+    logIds: rows.map((r) => r.id),
+  });
+
   // Reviews by people the viewer has blocked aren't shown, though their
   // ratings still count towards the average
-  const blocked = await getBlockedIds(supabase, viewerId);
-  const visible = rows.filter((r) => !blocked.has(r.user_id));
+  const visible = rows.filter((r) => !viewer.blocked.has(r.user_id));
 
   // The most-liked reviews: written ones with at least one like, most likes
   // first, newer first when tied
@@ -79,18 +81,6 @@ export default async function ItemLogs({
   const popularIds = new Set(popular.map((r) => r.id));
   const recentAll = visible.filter((r) => !popularIds.has(r.id));
   const recent = recentAll.slice(0, limit);
-
-  const likedSet = await getLikedSet(supabase, viewerId, [
-    ...popular,
-    ...recent,
-  ]);
-
-  const sharedSet = await getSharedSet(
-    supabase,
-    viewerId,
-    "log",
-    [...popular, ...recent].map((r) => r.id),
-  );
 
   // The average counts each person's latest rating once, skipping entries
   // that have none
@@ -154,7 +144,7 @@ export default async function ItemLogs({
                 authorId={row.user_id}
                 logId={row.id}
                 initialCount={likeCount(row)}
-                initiallyLiked={likedSet.has(row.id)}
+                initiallyLiked={viewer.likedLogs.has(row.id)}
               />
             </span>
           )}
@@ -165,7 +155,7 @@ export default async function ItemLogs({
               kind="log"
               targetId={row.id}
               initialCount={row.shares?.[0]?.count ?? 0}
-              initiallyShared={sharedSet.has(row.id)}
+              initiallyShared={viewer.sharedLogs.has(row.id)}
             />
           </span>
           {reviewHref && (

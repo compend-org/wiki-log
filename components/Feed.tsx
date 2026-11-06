@@ -12,7 +12,6 @@ import ShareButton from "@/components/ShareButton";
 import ShareIcon from "@/components/ShareIcon";
 import Stars from "@/components/Stars";
 import UserName from "@/components/UserName";
-import { getBlockedIds } from "@/lib/blocks";
 import {
   getFollowingFeed,
   getPublicFeed,
@@ -23,7 +22,6 @@ import {
   type Thumb,
 } from "@/lib/feedData";
 import { timeAgo } from "@/lib/format";
-import { getLikedListSet, getLikedSet } from "@/lib/likes";
 import {
   type ColumnEnd,
   type FeedCursor,
@@ -33,6 +31,7 @@ import {
 } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
+import { getViewerState } from "@/lib/viewerState";
 import ReviewText from "./ReviewText";
 import SharedLabel, { type Sharer } from "./SharedLabel";
 
@@ -139,11 +138,21 @@ export async function loadFeedPage(
       else sharedBy.set(target, { sharers: [sharer], latest: sh.created_at });
     }
 
+    // Which of these the viewer has liked and shared, and who they have
+    // blocked: different for each person, so never cached
+    const viewer = await getViewerState(supabase, viewerId, {
+      logIds: logs.map((l) => l.id),
+      listIds: lists.map((l) => l.id),
+    });
+    likedSet = viewer.likedLogs;
+    sharedSet = viewer.sharedLogs;
+    likedLists = viewer.likedLists;
+    sharedLists = viewer.sharedLists;
+
     // Posts by people the viewer has blocked are left out, including ones
     // shared by people the viewer follows
-    const blocked = await getBlockedIds(supabase, viewerId);
-    logs = logs.filter((l) => !blocked.has(l.user_id));
-    lists = lists.filter((l) => !blocked.has(l.user_id));
+    logs = logs.filter((l) => !viewer.blocked.has(l.user_id));
+    lists = lists.filter((l) => !viewer.blocked.has(l.user_id));
 
     // Every entry gets a date to sort by. On Following, something that was
     // shared counts from the moment it was last shared (if that is later
@@ -175,46 +184,6 @@ export async function loadFeedPage(
       reviewEntries.sort(byDate);
       listEntries.sort(byDate);
     }
-    const shownLogs = reviewEntries.map((e) => (e as { log: LogRow }).log);
-    const shownLists = listEntries.map((e) => (e as { list: ListRow }).list);
-
-    // Which of these the viewer has liked: different for each person, so
-    // never cached
-    likedSet = await getLikedSet(supabase, viewerId, shownLogs);
-
-    // And which of these the viewer has shared
-    if (viewerId) {
-      const [logShares, listShares] = await Promise.all([
-        shownLogs.length > 0
-          ? supabase
-              .from("shares")
-              .select("log_id")
-              .eq("user_id", viewerId)
-              .in(
-                "log_id",
-                shownLogs.map((l) => l.id),
-              )
-          : Promise.resolve({ data: [] }),
-        shownLists.length > 0
-          ? supabase
-              .from("shares")
-              .select("list_id")
-              .eq("user_id", viewerId)
-              .in(
-                "list_id",
-                shownLists.map((l) => l.id),
-              )
-          : Promise.resolve({ data: [] }),
-      ]);
-      sharedSet = new Set(
-        (logShares.data ?? []).map((r) => (r as { log_id: string }).log_id),
-      );
-      sharedLists = new Set(
-        (listShares.data ?? []).map((r) => (r as { list_id: string }).list_id),
-      );
-    }
-
-    likedLists = await getLikedListSet(supabase, viewerId, shownLists);
   }
 
   // The two kinds of card. Their layout follows the width of the column they

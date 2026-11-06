@@ -4,11 +4,9 @@ import { connection } from "next/server";
 import type { ReactNode } from "react";
 import DigestCard from "@/components/DigestCard";
 import DigestPages from "@/components/DigestPages";
-import { getBlockedIds } from "@/lib/blocks";
 import { getDigest } from "@/lib/digest";
-import { getLikedSet } from "@/lib/likes";
-import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
+import { getViewerState } from "@/lib/viewerState";
 
 export type DigestCardItem = { key: string; card: ReactNode };
 
@@ -31,19 +29,12 @@ export async function loadDigestPage(
 
   const { logs, next, error } = await getDigest(before);
 
-  // Reviews by people the viewer has blocked are left out
-  const blocked = await getBlockedIds(supabase, viewerId);
-  const shown = logs.filter((l) => !blocked.has(l.user_id));
+  const viewer = await getViewerState(supabase, viewerId, {
+    logIds: logs.map((l) => l.id),
+  });
 
-  const [liked, shared] = await Promise.all([
-    getLikedSet(supabase, viewerId, shown),
-    getSharedSet(
-      supabase,
-      viewerId,
-      "log",
-      shown.map((l) => l.id),
-    ),
-  ]);
+  // Reviews by people the viewer has blocked are left out
+  const shown = logs.filter((l) => !viewer.blocked.has(l.user_id));
 
   return {
     cards: shown.map((row) => ({
@@ -52,8 +43,8 @@ export async function loadDigestPage(
         <DigestCard
           row={row}
           viewerId={viewerId}
-          liked={liked.has(row.id)}
-          shared={shared.has(row.id)}
+          liked={viewer.likedLogs.has(row.id)}
+          shared={viewer.sharedLogs.has(row.id)}
           now={now}
         />
       ),
