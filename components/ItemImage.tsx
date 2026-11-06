@@ -65,6 +65,7 @@ export default function ItemImage({
   className = "",
   ratio = 1,
   placeholder = alt,
+  sourceWidth,
 }: {
   src: string | null | undefined;
   alt: string;
@@ -73,6 +74,8 @@ export default function ItemImage({
   ratio?: number;
   // The text shown in the box when there is no image
   placeholder?: string;
+  // The widest image to fetch, in pixels, for boxes that only show it small
+  sourceWidth?: number;
 }) {
   if (!src) {
     const width = 100 * ratio;
@@ -113,8 +116,9 @@ export default function ItemImage({
   return (
     // biome-ignore lint/performance/noImgElement: a plain img is intended
     <img
-      src={thumbUrl(src)}
+      src={thumbUrl(src, sourceWidth)}
       alt={alt}
+      loading="lazy"
       draggable={false}
       className={`item-img object-cover [[data-theme=dark]_&]:bg-foreground ${className}`}
     />
