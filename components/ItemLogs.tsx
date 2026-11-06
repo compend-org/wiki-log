@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import ItemLogSummary from "@/components/ItemLogSummary";
 import LikeButton from "@/components/LikeButton";
 import LoadMore from "@/components/LoadMore";
 import ShareButton from "@/components/ShareButton";
@@ -155,17 +156,7 @@ export default async function ItemLogs({
         {rows.length === 0 ? "No logs yet" : "Logs"}
       </h2>
 
-      {people < 10 && (
-        <p className="text-muted">
-          {people > 0 && (
-            <>
-              <span className="text-star">★</span> {average.toFixed(1)} average
-              from {people} {people === 1 ? "person" : "people"} ·{" "}
-            </>
-          )}
-          {logCount} {logCount === 1 ? "entry" : "entries"}
-        </p>
-      )}
+      <ItemLogSummary people={people} average={average} logCount={logCount} />
 
       {popular.length > 0 && (
         <>
