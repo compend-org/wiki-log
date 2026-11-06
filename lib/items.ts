@@ -33,6 +33,7 @@ function toItem(row: ItemRow): ItemData {
     imageNonFree: hidden ? false : row.image_non_free,
     imageFilePage: hidden ? null : row.image_page_url,
     pageUrl: row.page_url,
+    types: null,
   };
 }
 
@@ -53,6 +54,7 @@ export function itemColumns(item: ItemData) {
     image_page_url: item.imageFilePage,
     page_url: item.pageUrl,
     fetched_at: new Date().toISOString(),
+    ...(item.types ? { types: item.types } : {}),
   };
 }
 

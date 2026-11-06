@@ -74,6 +74,13 @@ function mockWikipedia({
       if (url.searchParams.get("prop") === "pageimages") {
         assert.equal(url.searchParams.get("pilicense"), "any");
         assert.equal(url.searchParams.get("titles"), title);
+        if (url.searchParams.get("property") === "P31") {
+          return Response.json({
+            claims: {
+              P31: [{ mainsnak: { datavalue: { value: { id: "Q8274" } } } }],
+            },
+          });
+        }
         return Response.json(
           {
             query: {
@@ -140,6 +147,22 @@ function mockWikipedia({
 
 afterEach(() => mock.restoreAll());
 
+// How many requests were made, not counting the one that asks what the item is
+// an instance of (that one is made for every item, whatever its image)
+function imageLookups(fetch: ReturnType<typeof mockWikipedia>): number {
+  return fetch.mock.calls.filter(
+    (c) =>
+      new URL(String(c.arguments[0])).searchParams.get("property") !== "P31",
+  ).length;
+}
+
+test("an item records what Wikidata says it is an instance of", async () => {
+  mockWikipedia();
+  const result = await getItemByKey("Steel_Ball_Run");
+  assert.ok("item" in result);
+  assert.deepEqual(result.item.types, ["Q8274"]);
+});
+
 test("Steel Ball Run uses its non-free cover ahead of an author portrait", async () => {
   const fetch = mockWikipedia();
   const result = await getItemByKey("Steel_Ball_Run");
@@ -147,7 +170,7 @@ test("Steel Ball Run uses its non-free cover ahead of an author portrait", async
   assert.equal(result.item.imageUrl, cover);
   assert.equal(result.item.imageNonFree, true);
   assert.equal(result.item.imageFilePage, filePage);
-  assert.equal(fetch.mock.callCount(), 2);
+  assert.equal(imageLookups(fetch), 2);
 });
 
 test("a Commons lead stays free and needs no extra image lookup", async () => {
@@ -156,7 +179,7 @@ test("a Commons lead stays free and needs no extra image lookup", async () => {
   assert.ok("item" in result);
   assert.equal(result.item.imageUrl, portrait);
   assert.equal(result.item.imageNonFree, false);
-  assert.equal(fetch.mock.callCount(), 1);
+  assert.equal(imageLookups(fetch), 1);
 });
 
 test("a locally hosted lead marked as free retains its rights", async () => {
@@ -200,7 +223,7 @@ test("no representative or suitable article image leaves the image empty", async
   assert.equal(result.item.imageUrl, null);
   assert.equal(result.item.imageNonFree, false);
   assert.equal(result.item.imageFilePage, null);
-  assert.equal(fetch.mock.callCount(), 4);
+  assert.equal(imageLookups(fetch), 4);
 });
 
 test("the Joni Mitchell controversy can use its sole non-free body image", async () => {
@@ -309,7 +332,7 @@ test("Wikipedia's representative image wins over a related Wikidata image when t
   assert.ok("item" in result);
   assert.equal(result.item.imageUrl, cover);
   assert.equal(result.item.imageNonFree, true);
-  assert.equal(fetch.mock.callCount(), 3);
+  assert.equal(imageLookups(fetch), 3);
 });
 
 test("a failed PageImages request still allows the article-image fallback", async () => {
@@ -361,7 +384,7 @@ test("a wait past the deadline reports Wikipedia as busy", async () => {
     Date.now() + 5,
   );
   assert.deepEqual(result, { error: BUSY_ERROR });
-  assert.equal(fetch.mock.callCount(), 1);
+  assert.equal(imageLookups(fetch), 1);
 });
 
 test("a rate-limited Wikidata lookup reports Wikipedia as busy", async () => {
