@@ -76,3 +76,11 @@ export function freeImage(url: string | undefined | null): string | null {
   const full = absolute(url);
   return full.includes("/wikipedia/commons/") ? full : null;
 }
+
+// Links to items are stored inside the review text as [[Q123|Title]]
+export const REVIEW_LINK = /\[\[([QC]\d+)\|([^\]|]{1,200})\]\]/g;
+
+// A review as plain text, with each item link replaced by the item's title
+export function plainReview(text: string): string {
+  return text.replace(REVIEW_LINK, (_, _id, title) => title);
+}

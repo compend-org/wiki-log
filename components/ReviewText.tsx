@@ -1,7 +1,5 @@
 import Link from "next/link";
-
-// Links to items are stored inside the review text as [[Q123|Title]]
-const TOKEN = /\[\[([QC]\d+)\|([^\]|]{1,200})\]\]/g;
+import { REVIEW_LINK } from "@/lib/format";
 
 // Shows a review, turning item links into real links. Put it inside the
 // element that holds the text. With `plain`, the links are only underlined
@@ -16,7 +14,7 @@ export default function ReviewText({
   const parts: React.ReactNode[] = [];
   let last = 0;
 
-  for (const m of text.matchAll(TOKEN)) {
+  for (const m of text.matchAll(REVIEW_LINK)) {
     const start = m.index ?? 0;
     if (start > last) parts.push(text.slice(last, start));
     parts.push(

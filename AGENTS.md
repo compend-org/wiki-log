@@ -8,12 +8,22 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## After making changes
+
+Whenever you finish a change, typecheck and format it with Biome, and fix anything they report:
+
+```sh
+npx next typegen && npx tsc --noEmit
+npx biome format --write <the files you changed>
+```
+
 ## Before opening a pull request
 
 Run the same checks as CI (`.github/workflows/checks.yml`) and fix any failures:
 
 ```sh
 npx next typegen
+npm test
 npx tsc --noEmit
 npx biome ci --max-diagnostics=none .
 ```
