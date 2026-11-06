@@ -8,6 +8,7 @@ import sharp from "sharp";
 import { AVATAR_SMALL_SIZE, smallAvatarPath } from "../lib/avatar";
 
 const PAGE = 500; // profiles per database request
+const CONCURRENCY = 10; // pictures handled at the same time
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SECRET_KEY;
@@ -72,19 +73,23 @@ async function main() {
   let stored = 0;
   let skipped = 0;
   let failed = 0;
-  for (const path of paths) {
-    try {
-      if (await isStored(smallAvatarPath(path))) {
-        skipped++;
-        continue;
-      }
-      await storeSmallCopy(path);
-      stored++;
-    } catch (e) {
-      failed++;
-      console.warn(`  ${path}: ${e instanceof Error ? e.message : e}`);
-    }
-    if ((stored + failed) % 100 === 0 && stored + failed > 0) {
+  for (let i = 0; i < paths.length; i += CONCURRENCY) {
+    await Promise.all(
+      paths.slice(i, i + CONCURRENCY).map(async (path) => {
+        try {
+          if (await isStored(smallAvatarPath(path))) {
+            skipped++;
+            return;
+          }
+          await storeSmallCopy(path);
+          stored++;
+        } catch (e) {
+          failed++;
+          console.warn(`  ${path}: ${e instanceof Error ? e.message : e}`);
+        }
+      }),
+    );
+    if ((i / CONCURRENCY) % 10 === 9) {
       console.log(`  ${stored} stored, ${skipped} skipped, ${failed} failed`);
     }
   }
