@@ -3,7 +3,11 @@
 import * as Sentry from "@sentry/nextjs";
 
 // Failures the app already explains to the person, as "table:code"
-const HANDLED_FAILURES = new Set(["favourites:23505", "list_items:23505"]);
+const HANDLED_FAILURES = new Set([
+  "favourites:23505",
+  "list_items:23505",
+  "profiles:23505",
+]);
 
 export type FailedRequest = {
   method: string;
