@@ -1,3 +1,5 @@
+// ABOUTME: A round profile picture, or the default picture for people without one.
+// ABOUTME: Tiny displays load the small stored copy to save bandwidth.
 import { avatarUrl } from "@/lib/avatar";
 
 export default function Avatar({
@@ -11,7 +13,7 @@ export default function Avatar({
   size?: number;
   className?: string;
 }) {
-  const url = avatarUrl(path);
+  const url = avatarUrl(path, size);
   const style = { width: size, height: size };
   const base = `avatar shrink-0 rounded-full object-cover ${className}`;
 
