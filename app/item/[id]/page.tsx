@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
 import AddToList from "@/components/AddToList";
@@ -25,7 +25,14 @@ export const instant = false;
 type Part = { id: string; title: string; imageUrl: string | null };
 
 // Cached per request, so the page and its metadata share one lookup
-const getItem = cache(getItemForPage);
+const getItem = cache(async (id: string) => {
+  const result = await getItemForPage(id);
+  if ("item" in result && result.item.id !== id) {
+    // Wikimedia mappings can change, so don't permanently cache this redirect.
+    redirect(`/item/${result.item.id}`);
+  }
+  return result;
+});
 
 export async function generateMetadata({
   params,
