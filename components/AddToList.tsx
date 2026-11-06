@@ -20,7 +20,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { addToList } from "@/app/actions";
 import ItemImage from "@/components/ItemImage";
 import { createClient } from "@/lib/supabase/client";
@@ -91,13 +91,15 @@ export default function AddToList({
   itemId,
   title,
   imageUrl,
+  signedIn: initiallySignedIn,
 }: {
   itemId: string;
   title: string;
   imageUrl: string | null;
+  signedIn: boolean;
 }) {
   const router = useRouter();
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [signedIn, setSignedIn] = useState<boolean>(initiallySignedIn);
   const [open, setOpen] = useState<boolean>(false);
   const [lists, setLists] = useState<ListOption[] | null>(null);
   const [placing, setPlacing] = useState<{
@@ -117,12 +119,6 @@ export default function AddToList({
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-
-  useEffect(() => {
-    createClient()
-      .auth.getUser()
-      .then(({ data }) => setSignedIn(Boolean(data.user)));
-  }, []);
 
   async function loadLists() {
     const supabase = createClient();

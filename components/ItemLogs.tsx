@@ -6,6 +6,7 @@ import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
 import { commentLabel } from "@/lib/format";
+import { getItemLogs, type ItemLogRow } from "@/lib/itemLogs";
 import { PAGE_SIZE } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
@@ -15,18 +16,7 @@ import ReviewText from "./ReviewText";
 // How many of the most-liked reviews to show on top
 const MOST_LIKED = 3;
 
-type Row = {
-  id: string;
-  user_id: string;
-  item_id: string;
-  rating: number | null;
-  review: string;
-  logged_at: string;
-  profiles: { username: string } | null;
-  likes: { count: number }[];
-  comments: { count: number }[];
-  shares: { count: number }[];
-};
+type Row = ItemLogRow;
 
 export default async function ItemLogs({
   itemId,
@@ -42,19 +32,12 @@ export default async function ItemLogs({
   const viewerId: string | undefined = claimsData?.claims?.sub;
   const adminIds = await getAdminIds();
 
-  const { data, error } = await supabase
-    .from("logs")
-    .select(
-      "id, user_id, item_id, rating, review, logged_at, profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count), shares(count)",
-    )
-    .eq("item_id", itemId)
-    .order("logged_at", { ascending: false });
+  const { rows, error } = await getItemLogs(itemId);
 
   if (error) {
-    return <p className="text-danger">{error.message}</p>;
+    return <p className="text-danger">{error}</p>;
   }
 
-  const rows = (data ?? []) as unknown as Row[];
   const likeCount = (r: Row) => r.likes?.[0]?.count ?? 0;
 
   // Which of these the viewer has liked and shared, and who they have blocked

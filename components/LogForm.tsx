@@ -2,34 +2,28 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { logItem } from "@/app/actions";
 import RatingInput from "@/components/RatingInput";
-import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 import ReviewTextarea from "./ReviewTextArea";
 
 export default function LogForm({
   id,
+  signedIn,
   alreadyLogged = false,
 }: {
   id: string;
+  signedIn: boolean;
   alreadyLogged?: boolean;
 }) {
   const loginHref = useLoginHref();
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [rating, setRating] = useState<number>(0);
   const [review, setReview] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
   const [done, setDone] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const router = useRouter();
-
-  useEffect(() => {
-    createClient()
-      .auth.getUser()
-      .then(({ data }) => setSignedIn(Boolean(data.user)));
-  }, []);
 
   async function handleSave() {
     setBusy(true);
@@ -50,10 +44,6 @@ export default function LogForm({
     setReview("");
     setDone(true);
     router.refresh();
-  }
-
-  if (signedIn === null) {
-    return <p className="text-muted">Loading…</p>;
   }
 
   if (!signedIn) {
