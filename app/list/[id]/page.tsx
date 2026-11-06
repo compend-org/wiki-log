@@ -12,11 +12,11 @@ import ReviewText from "@/components/ReviewText";
 import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
-import { getBlockedIds, withoutBlockedComments } from "@/lib/blocks";
+import { withoutBlockedComments } from "@/lib/blocks";
 import { isUuid } from "@/lib/ids";
 import { pageMetadata } from "@/lib/metadata";
-import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
+import { getViewerState } from "@/lib/viewerState";
 
 export const instant = false;
 
@@ -159,18 +159,9 @@ export default async function ListPage({
     }
   }
 
-  let liked = false;
-  if (viewerId) {
-    const { data: likeRow } = await supabase
-      .from("list_likes")
-      .select("list_id")
-      .eq("user_id", viewerId)
-      .eq("list_id", id)
-      .maybeSingle();
-    liked = Boolean(likeRow);
-  }
-
-  const sharedSet = await getSharedSet(supabase, viewerId, "list", [id]);
+  // Whether the viewer has liked and shared this list, and who they have
+  // blocked
+  const viewer = await getViewerState(supabase, viewerId, { listIds: [id] });
   const { data: commentData } = await supabase
     .from("list_comments")
     .select(
@@ -195,10 +186,7 @@ export default async function ListPage({
   }));
 
   // Comments by people the viewer has blocked are left out
-  const comments = withoutBlockedComments(
-    allComments,
-    await getBlockedIds(supabase, viewerId),
-  );
+  const comments = withoutBlockedComments(allComments, viewer.blocked);
 
   const owner = list.profiles?.username;
 
@@ -235,7 +223,7 @@ export default async function ListPage({
             listId={id}
             ownerId={list.user_id}
             initialCount={list.list_likes?.[0]?.count ?? 0}
-            initiallyLiked={liked}
+            initiallyLiked={viewer.likedLists.has(id)}
           />
           <ShareButton
             viewerId={viewerId ?? null}
@@ -243,7 +231,7 @@ export default async function ListPage({
             kind="list"
             targetId={id}
             initialCount={list.shares?.[0]?.count ?? 0}
-            initiallyShared={sharedSet.has(id)}
+            initiallyShared={viewer.sharedLists.has(id)}
           />
           <ReportButton
             viewerId={viewerId ?? null}
