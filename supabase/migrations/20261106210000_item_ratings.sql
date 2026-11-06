@@ -1,5 +1,5 @@
 -- ABOUTME: Returns in one call how many people gave an item each rating, counting each
--- ABOUTME: person's latest rating once, and the signed-in viewer's own entries for it.
+-- ABOUTME: person's latest rating once, its number of logs, and the viewer's own entries.
 create or replace function public.item_ratings(p_item_id text)
 returns jsonb
 language sql
@@ -24,6 +24,9 @@ as $$
         group by per_person.rating
       ) latest
     ), '[]'::jsonb),
+    'log_count', (
+      select count(*) from public.logs l where l.item_id = p_item_id
+    ),
     'viewer_entries', coalesce((
       select jsonb_agg(
         jsonb_build_object(

@@ -7,6 +7,7 @@ import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
 import { commentLabel } from "@/lib/format";
 import { getItemLogs, type ItemLogRow } from "@/lib/itemLogs";
+import { getItemRatings } from "@/lib/itemRatings";
 import { PAGE_SIZE } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
@@ -32,7 +33,10 @@ export default async function ItemLogs({
   const viewerId: string | undefined = claimsData?.claims?.sub;
   const adminIds = await getAdminIds();
 
-  const { rows, error } = await getItemLogs(itemId);
+  const [{ rows, error }, { ratings, logCount }] = await Promise.all([
+    getItemLogs(itemId),
+    getItemRatings(itemId),
+  ]);
 
   if (error) {
     return <p className="text-danger">{error}</p>;
@@ -67,17 +71,9 @@ export default async function ItemLogs({
 
   // The average counts each person's latest rating once, skipping entries
   // that have none
-  const latest = new Map<string, number>();
-  for (const r of rows) {
-    if (r.rating !== null && !latest.has(r.user_id)) {
-      latest.set(r.user_id, Number(r.rating));
-    }
-  }
-  const people = latest.size;
+  const people = ratings.length;
   const average =
-    people > 0
-      ? [...latest.values()].reduce((sum, v) => sum + v, 0) / people
-      : 0;
+    people > 0 ? ratings.reduce((sum, v) => sum + v, 0) / people : 0;
 
   const renderRow = (row: Row) => {
     const author = row.profiles?.username;
@@ -167,7 +163,7 @@ export default async function ItemLogs({
               from {people} {people === 1 ? "person" : "people"} ·{" "}
             </>
           )}
-          {rows.length} {rows.length === 1 ? "entry" : "entries"}
+          {logCount} {logCount === 1 ? "entry" : "entries"}
         </p>
       )}
 

@@ -79,7 +79,7 @@ export default async function ItemPage({
 
   // Everyone's latest rating of this item, one per person, for the histogram,
   // and the viewer's own earlier entries for it
-  const { ratings, viewerEntries } = await getItemRatings(supabase, id);
+  const { ratings, viewerEntries } = await getItemRatings(id);
   const myEntries: MyEntry[] = viewerEntries.map((r) => ({
     id: r.id,
     rating: Number(r.rating ?? 0),
