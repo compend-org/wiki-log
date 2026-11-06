@@ -2,8 +2,8 @@
 // ABOUTME: Reports the error to Sentry and offers a way to try again.
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
+import { reportPageError } from "@/lib/reportPageError";
 
 export default function GlobalError({
   error,
@@ -13,15 +13,7 @@ export default function GlobalError({
   retry: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error, {
-      tags: { error_source: "global-error" },
-      contexts: {
-        browser_state: {
-          online: navigator.onLine,
-          visibility_state: document.visibilityState,
-        },
-      },
-    });
+    reportPageError(error, "global-error");
   }, [error]);
 
   return (
