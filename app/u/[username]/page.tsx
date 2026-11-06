@@ -1,5 +1,6 @@
 // ABOUTME: A person's public profile: their details, favourites, lists and reviews.
 // ABOUTME: Also holds the follow, block and ban controls for whoever is viewing it.
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -15,10 +16,12 @@ import ReviewText from "@/components/ReviewText";
 import SignOutButton from "@/components/SignOutButton";
 import Stars from "@/components/Stars";
 import { isAdmin } from "@/lib/admin";
+import { avatarUrl } from "@/lib/avatar";
 import { commentLabel } from "@/lib/format";
+import { pageMetadata } from "@/lib/metadata";
+import { getProfileByName } from "@/lib/profiles";
 import { loginHref } from "@/lib/redirect";
 import { createClient } from "@/lib/supabase/server";
-import { isValidName } from "@/lib/username";
 
 export const instant = false;
 
@@ -53,6 +56,23 @@ type PreviewRow = {
   items: ItemInfo;
 };
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ username: string }>;
+}): Promise<Metadata> {
+  await connection();
+  const { username } = await params;
+  const profile = await getProfileByName(username);
+  if (!profile) return {};
+
+  return pageMetadata({
+    title: profile.username,
+    image: avatarUrl(profile.avatar_path),
+    squareImage: true,
+  });
+}
+
 export default async function ProfilePage({
   params,
 }: {
@@ -61,19 +81,10 @@ export default async function ProfilePage({
   await connection();
   const { username: rawName } = await params;
 
-  let name = rawName;
-  try {
-    name = decodeURIComponent(rawName);
-  } catch {}
-  if (!isValidName(name)) notFound();
+  const profile = await getProfileByName(rawName);
+  if (!profile) notFound();
 
   const supabase = await createClient();
-
-  const { data: profile } = await supabase
-    .rpc("profile_by_username", { name })
-    .select("id, username, avatar_path, bio")
-    .maybeSingle();
-  if (!profile) notFound();
 
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;

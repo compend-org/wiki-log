@@ -1,4 +1,5 @@
 export const SITE_NAME = "compend";
+export const SITE_URL = "https://compend.org";
 export const SITE_TAGLINE = "";
 export const CONTACT_EMAIL = "leo@compend.org";
 export const TRENDING_LABEL = "Trending";

@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { cache } from "react";
 import AddToList from "@/components/AddToList";
 import ItemImage from "@/components/ItemImage";
 import ItemLists from "@/components/ItemLists";
@@ -12,6 +14,7 @@ import { BUSY_ERROR } from "@/lib/articleSummary";
 import { FEATURES } from "@/lib/features";
 import { isCompoundId } from "@/lib/ids";
 import { getItemForPage } from "@/lib/items";
+import { pageMetadata } from "@/lib/metadata";
 import { parseLimit } from "@/lib/paging";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
@@ -19,6 +22,27 @@ import { createClient } from "@/lib/supabase/server";
 export const instant = false;
 
 type Part = { id: string; title: string; imageUrl: string | null };
+
+// Cached per request, so the page and its metadata share one lookup
+const getItem = cache(getItemForPage);
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  await connection();
+  const { id } = await params;
+  if (isCompoundId(id) && !FEATURES.compounds) return {};
+  const result = await getItem(id);
+  if ("error" in result) return {};
+
+  const { item } = result;
+  return pageMetadata({
+    title: item.title,
+    image: item.imageUrl,
+  });
+}
 
 export default async function ItemPage({
   params,
@@ -31,7 +55,7 @@ export default async function ItemPage({
   const { id } = await params;
   const { limit } = await searchParams;
 
-  const result = await getItemForPage(id);
+  const result = await getItem(id);
   if (isCompoundId(id) && !FEATURES.compounds) notFound();
   if ("error" in result) {
     if (result.error !== BUSY_ERROR) notFound();
