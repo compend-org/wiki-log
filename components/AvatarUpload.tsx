@@ -1,29 +1,29 @@
+// ABOUTME: Lets someone upload, change or remove their profile picture.
+// ABOUTME: Pictures are cropped to a square and stored at full and small sizes.
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
+import { AVATAR_SIZE, AVATAR_SMALL_SIZE, smallAvatarPath } from "@/lib/avatar";
 import { createClient } from "@/lib/supabase/client";
-
-const SIZE = 256;
 
 // Centre-crop to a square, shrink, and re-encode as JPEG (this also drops
 // metadata such as location data stored in photos)
-async function toSquareJpeg(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
+async function toSquareJpeg(bitmap: ImageBitmap, size: number): Promise<Blob> {
   const side = Math.min(bitmap.width, bitmap.height);
   const sx = (bitmap.width - side) / 2;
   const sy = (bitmap.height - side) / 2;
 
   const canvas = document.createElement("canvas");
-  canvas.width = SIZE;
-  canvas.height = SIZE;
+  canvas.width = size;
+  canvas.height = size;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas unavailable");
 
   ctx.fillStyle = "#111b26"; // behind any transparent areas
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, SIZE, SIZE);
-  bitmap.close();
+  ctx.fillRect(0, 0, size, size);
+  ctx.imageSmoothingQuality = "high"; // keeps big shrinks from looking jagged
+  ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, size, size);
 
   return new Promise((resolve, reject) =>
     canvas.toBlob(
@@ -77,8 +77,12 @@ export default function AvatarUpload() {
     setError("");
 
     let blob: Blob;
+    let smallBlob: Blob;
     try {
-      blob = await toSquareJpeg(file);
+      const bitmap = await createImageBitmap(file);
+      blob = await toSquareJpeg(bitmap, AVATAR_SIZE);
+      smallBlob = await toSquareJpeg(bitmap, AVATAR_SMALL_SIZE);
+      bitmap.close();
     } catch {
       setBusy(false);
       setError("Couldn't read that image. Try a JPEG or PNG.");
@@ -87,14 +91,21 @@ export default function AvatarUpload() {
 
     const supabase = createClient();
     const newPath = `${userId}/${Date.now()}.jpg`;
+    const newPaths = [newPath, smallAvatarPath(newPath)];
+    const uploadOptions = {
+      contentType: "image/jpeg",
+      cacheControl: "31536000",
+    };
 
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(newPath, blob, {
-        contentType: "image/jpeg",
-        cacheControl: "31536000",
-      });
+    const uploads = await Promise.all([
+      supabase.storage.from("avatars").upload(newPath, blob, uploadOptions),
+      supabase.storage
+        .from("avatars")
+        .upload(smallAvatarPath(newPath), smallBlob, uploadOptions),
+    ]);
+    const uploadError = uploads.find((u) => u.error)?.error;
     if (uploadError) {
+      await supabase.storage.from("avatars").remove(newPaths);
       setBusy(false);
       setError(uploadError.message);
       return;
@@ -105,14 +116,18 @@ export default function AvatarUpload() {
       .update({ avatar_path: newPath })
       .eq("id", userId);
     if (updateError) {
-      await supabase.storage.from("avatars").remove([newPath]);
+      await supabase.storage.from("avatars").remove(newPaths);
       setBusy(false);
       setError(updateError.message);
       return;
     }
 
     // The new picture is live, so the old file can go
-    if (path) await supabase.storage.from("avatars").remove([path]);
+    if (path) {
+      await supabase.storage
+        .from("avatars")
+        .remove([path, smallAvatarPath(path)]);
+    }
 
     setPath(newPath);
     setBusy(false);
@@ -135,7 +150,9 @@ export default function AvatarUpload() {
       return;
     }
 
-    await supabase.storage.from("avatars").remove([path]);
+    await supabase.storage
+      .from("avatars")
+      .remove([path, smallAvatarPath(path)]);
     setPath(null);
     setBusy(false);
     window.dispatchEvent(new Event("profile-updated"));
