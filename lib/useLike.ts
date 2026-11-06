@@ -3,6 +3,11 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
+import {
+  isLogUnavailable,
+  isMissingLogError,
+  markLogUnavailable,
+} from "@/lib/logAvailability";
 import { createClient } from "@/lib/supabase/client";
 
 const UNIQUE_VIOLATION = "23505";
@@ -47,15 +52,23 @@ export function useLike({
     () => undefined,
   );
   const [busy, setBusy] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const liked = viewerLike ?? initiallyLiked;
   // The server's count already includes the viewer's like when it says liked
   const count = initialCount + Number(liked) - Number(initiallyLiked);
 
   async function toggle() {
-    if (!viewerId || busy) return;
+    if (
+      !viewerId ||
+      busy ||
+      (table === "likes" && isLogUnavailable(targetId))
+    ) {
+      return;
+    }
 
     setBusy(true);
+    setErrorMessage("");
     const next = !liked;
     // Update the screen immediately, undo if the database refuses
     recordViewerLike(key, next);
@@ -75,9 +88,14 @@ export function useLike({
     // device, so showing it as liked is correct and lets the viewer remove it
     if (error && error.code !== UNIQUE_VIOLATION) {
       recordViewerLike(key, !next);
+      if (table === "likes" && isMissingLogError(error, "likes")) {
+        markLogUnavailable(targetId);
+      } else {
+        setErrorMessage("Couldn't update your like. Please try again.");
+      }
     }
     setBusy(false);
   }
 
-  return { liked, count, toggle };
+  return { liked, count, toggle, busy, errorMessage };
 }

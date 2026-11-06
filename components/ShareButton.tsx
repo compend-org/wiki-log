@@ -1,8 +1,17 @@
+// ABOUTME: Shares or unshares a review or list with the viewer's followers.
+// ABOUTME: Rolls back failed changes and explains when a review is no longer available.
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import ShareIcon from "@/components/ShareIcon";
+import {
+  isLogUnavailable,
+  isMissingLogError,
+  MISSING_LOG_MESSAGE,
+  markLogUnavailable,
+  useLogUnavailable,
+} from "@/lib/logAvailability";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 
@@ -26,7 +35,10 @@ export default function ShareButton({
   const [shared, setShared] = useState<boolean>(initiallyShared);
   const [count, setCount] = useState<number>(initialCount);
   const [busy, setBusy] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
+  const logId = kind === "log" ? targetId : null;
+  const unavailable = useLogUnavailable(logId);
 
   const own = viewerId === ownerId;
   const column = kind === "log" ? "log_id" : "list_id";
@@ -36,9 +48,10 @@ export default function ShareButton({
       router.push(loginHref);
       return;
     }
-    if (own || busy) return;
+    if (own || busy || isLogUnavailable(logId)) return;
 
     setBusy(true);
+    setErrorMessage("");
     const next = !shared;
     // Update the screen immediately, undo if the database refuses
     setShared(next);
@@ -58,6 +71,12 @@ export default function ShareButton({
     if (error) {
       setShared(!next);
       setCount((c) => Math.max(0, c + (next ? -1 : 1)));
+      if (logId !== null && isMissingLogError(error, "shares")) {
+        markLogUnavailable(logId);
+        router.refresh();
+      } else {
+        setErrorMessage("Couldn't update your share. Please try again.");
+      }
     } else {
       router.refresh();
     }
@@ -67,20 +86,27 @@ export default function ShareButton({
   // Nothing to show on your own post until someone shares it
   if (own && count === 0) return null;
 
+  if (unavailable) {
+    return <span role="status">{MISSING_LOG_MESSAGE}</span>;
+  }
+
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      disabled={own}
-      aria-pressed={shared}
-      aria-label={shared ? "Undo share" : "Share to your followers"}
-      title={shared ? "Undo share" : "Share to your followers"}
-      className={`inline-flex h-5 items-center gap-1 text-sm disabled:cursor-default ${
-        shared ? "text-[#00ba7c]" : "text-muted enabled:hover:text-[#00ba7c]"
-      }`}
-    >
-      <ShareIcon className="h-4 w-4" />
-      {count > 0 && <span>{count}</span>}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={own || busy}
+        aria-pressed={shared}
+        aria-label={shared ? "Undo share" : "Share to your followers"}
+        title={shared ? "Undo share" : "Share to your followers"}
+        className={`inline-flex h-5 items-center gap-1 text-sm disabled:cursor-default ${
+          shared ? "text-[#00ba7c]" : "text-muted enabled:hover:text-[#00ba7c]"
+        }`}
+      >
+        <ShareIcon className="h-4 w-4" />
+        {count > 0 && <span>{count}</span>}
+      </button>
+      {errorMessage && <span role="status">{errorMessage}</span>}
+    </>
   );
 }

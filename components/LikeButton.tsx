@@ -4,6 +4,11 @@
 
 import { useRouter } from "next/navigation";
 import HeartIcon from "@/components/HeartIcon";
+import {
+  isLogUnavailable,
+  MISSING_LOG_MESSAGE,
+  useLogUnavailable,
+} from "@/lib/logAvailability";
 import { useLike } from "@/lib/useLike";
 import { useLoginHref } from "@/lib/useLoginHref";
 
@@ -25,6 +30,8 @@ export default function LikeButton({
     liked,
     count,
     toggle: toggleLike,
+    busy,
+    errorMessage,
   } = useLike({
     viewerId,
     table: "likes",
@@ -34,6 +41,7 @@ export default function LikeButton({
     initiallyLiked,
   });
   const router = useRouter();
+  const unavailable = useLogUnavailable(logId);
 
   const own = viewerId === authorId;
 
@@ -45,24 +53,32 @@ export default function LikeButton({
     if (own) return;
 
     await toggleLike();
+    if (isLogUnavailable(logId)) router.refresh();
   }
 
   // Nothing to show on your own review until someone likes it
   if (own && count === 0) return null;
 
+  if (unavailable) {
+    return <span role="status">{MISSING_LOG_MESSAGE}</span>;
+  }
+
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      disabled={own}
-      aria-pressed={liked}
-      aria-label={liked ? "Unlike this review" : "Like this review"}
-      className={`inline-flex h-5 items-center gap-1 text-sm disabled:cursor-default ${
-        liked ? "text-like" : "text-muted enabled:hover:text-like"
-      }`}
-    >
-      <HeartIcon filled={liked} className="h-4 w-4" />
-      {count > 0 && <span>{count}</span>}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={own || busy}
+        aria-pressed={liked}
+        aria-label={liked ? "Unlike this review" : "Like this review"}
+        className={`inline-flex h-5 items-center gap-1 text-sm disabled:cursor-default ${
+          liked ? "text-like" : "text-muted enabled:hover:text-like"
+        }`}
+      >
+        <HeartIcon filled={liked} className="h-4 w-4" />
+        {count > 0 && <span>{count}</span>}
+      </button>
+      {errorMessage && <span role="status">{errorMessage}</span>}
+    </>
   );
 }
