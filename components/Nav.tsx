@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
 import { FEATURES } from "@/lib/features";
 import { SITE_NAME } from "@/lib/site";
@@ -16,6 +16,8 @@ import PeopleSearch from "./PeopleSearch";
 import SignInButton from "./SignInButton";
 import SignOutButton from "./SignOutButton";
 
+const UNREAD_REFRESH_MS = 60_000;
+
 export default function Nav() {
   const loginHref = useLoginHref();
   const { userId, username, avatarPath, ready } = useCurrentUser();
@@ -23,25 +25,53 @@ export default function Nav() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Refresh the unread count when you sign in or move to another page
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname refreshes the unread count on navigation
+  const unreadCheckedAt = useRef(0);
+  const refreshUnread = useRef<(() => void) | null>(null);
+
+  // Refresh the unread count when you sign in or come back to the page
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
+    let inFlight = false;
 
-    createClient()
-      .from("notifications")
-      .select("id", { count: "exact", head: true })
-      .eq("recipient_id", userId)
-      .eq("read", false)
-      .then(({ count }) => {
-        if (!cancelled) setUnread(count ?? 0);
-      });
+    const refresh = () => {
+      // Focus and visibilitychange fire together; one request covers both
+      if (inFlight) return;
+      inFlight = true;
+      unreadCheckedAt.current = Date.now();
+      createClient()
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("recipient_id", userId)
+        .eq("read", false)
+        .then(({ count }) => {
+          inFlight = false;
+          if (!cancelled) setUnread(count ?? 0);
+        });
+    };
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
 
+    refresh();
+    refreshUnread.current = refresh;
+    window.addEventListener("focus", refreshIfVisible);
+    document.addEventListener("visibilitychange", refreshIfVisible);
     return () => {
       cancelled = true;
+      refreshUnread.current = null;
+      window.removeEventListener("focus", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
     };
-  }, [userId, pathname]);
+  }, [userId]);
+
+  // Moving to another page refreshes it too, at most once a minute
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname refreshes the unread count on navigation
+  useEffect(() => {
+    if (Date.now() - unreadCheckedAt.current >= UNREAD_REFRESH_MS) {
+      refreshUnread.current?.();
+    }
+  }, [pathname]);
 
   // The notifications page tells us when everything has been read
   useEffect(() => {
