@@ -48,12 +48,19 @@ type ListRow = {
   title: string;
   ranked: boolean;
   list_items: { count: number }[];
+  preview: { position: number; items: ItemInfo }[];
 };
 
-type PreviewRow = {
-  list_id: string;
-  position: number;
-  items: ItemInfo;
+type ProfileContent = {
+  followers: { count: number }[];
+  following: { count: number }[];
+  log_count: { count: number }[];
+  list_count: { count: number }[];
+  favourites: FavRow[];
+  owned_lists: ListRow[];
+  reviews: LogRow[];
+  viewer_follow?: { follower_id: string }[];
+  viewer_block?: { blocker_id: string }[];
 };
 
 export async function generateMetadata({
@@ -89,76 +96,50 @@ export default async function ProfilePage({
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
-  const [
-    logsRes,
-    followersRes,
-    followingRes,
-    isFollowingRes,
-    favRes,
-    listsRes,
-    isBlockedRes,
-    logCountRes,
-    listCountRes,
-  ] = await Promise.all([
-    supabase
-      .from("logs")
-      .select(
-        "id, item_id, rating, review, logged_at, items(title, image_url), comments(count)",
-      )
-      .eq("user_id", profile.id)
-      .order("logged_at", { ascending: false }),
-    supabase
-      .from("follows")
-      .select("*", { count: "exact", head: true })
-      .eq("following_id", profile.id),
-    supabase
-      .from("follows")
-      .select("*", { count: "exact", head: true })
-      .eq("follower_id", profile.id),
-    viewerId
-      ? supabase
-          .from("follows")
-          .select("follower_id")
-          .eq("follower_id", viewerId)
-          .eq("following_id", profile.id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    supabase
-      .from("favourites")
-      .select("position, item_id, items(title, image_url)")
-      .eq("user_id", profile.id),
-    supabase
-      .from("lists")
-      .select("id, title, ranked, list_items(count)")
-      .eq("user_id", profile.id)
-      .order("created_at", { ascending: false }),
-    viewerId
-      ? supabase
-          .from("blocks")
-          .select("blocked_id")
-          .eq("blocker_id", viewerId)
-          .eq("blocked_id", profile.id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    supabase
-      .from("logs")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", profile.id),
-    supabase
-      .from("lists")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", profile.id),
-  ]);
+  // Everything else on the page in one request. The embeds that get filtered,
+  // ordered or limited have aliases of their own, because PostgREST applies
+  // options like "logs.order" to the first embed of that table, which could be
+  // a count. The viewer's follow and block are only asked for when signed in.
+  const viewerEmbeds = viewerId
+    ? ", viewer_follow:follows!follows_following_id_fkey(follower_id), viewer_block:blocks!blocks_blocked_id_fkey(blocker_id)"
+    : "";
+  let contentQuery = supabase
+    .from("profiles")
+    .select(
+      "followers:follows!follows_following_id_fkey(count), " +
+        "following:follows!follows_follower_id_fkey(count), " +
+        "log_count:logs!logs_user_id_profiles_fkey(count), " +
+        "list_count:lists!lists_user_id_profiles_fkey(count), " +
+        "favourites(position, item_id, items(title, image_url)), " +
+        "owned_lists:lists!lists_user_id_profiles_fkey(id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))), " +
+        "reviews:logs!logs_user_id_profiles_fkey(id, item_id, rating, review, logged_at, items(title, image_url), comments(count))" +
+        viewerEmbeds,
+    )
+    .eq("id", profile.id)
+    .order("created_at", { referencedTable: "owned_lists", ascending: false })
+    // The first four items of each list, for the preview thumbnails
+    .lte("owned_lists.preview.position", 4)
+    .order("position", { referencedTable: "owned_lists.preview" })
+    .order("logged_at", { referencedTable: "reviews", ascending: false })
+    // Embedded rows aren't capped by the API's max_rows, so cap them the same way
+    .limit(1000, { referencedTable: "reviews" });
+  if (viewerId) {
+    contentQuery = contentQuery
+      .eq("viewer_follow.follower_id", viewerId)
+      .eq("viewer_block.blocker_id", viewerId);
+  }
+  const { data: contentData } = await contentQuery.maybeSingle();
+  const content = contentData as unknown as ProfileContent | null;
 
-  const logs = (logsRes.data ?? []) as unknown as LogRow[];
-  const followers = followersRes.count ?? 0;
-  const following = followingRes.count ?? 0;
-  const logCount = logCountRes.count ?? 0;
-  const listCount = listCountRes.count ?? 0;
-  const isFollowing = Boolean(isFollowingRes.data);
-  const isBlocked = Boolean(isBlockedRes.data);
+  const logs = content?.reviews ?? [];
+  const followers = content?.followers[0]?.count ?? 0;
+  const following = content?.following[0]?.count ?? 0;
+  const logCount = content?.log_count[0]?.count ?? 0;
+  const listCount = content?.list_count[0]?.count ?? 0;
+  const isFollowing = Boolean(content?.viewer_follow?.length);
+  const isBlocked = Boolean(content?.viewer_block?.length);
 
-  const favRows = (favRes.data ?? []) as unknown as FavRow[];
+  const favRows = content?.favourites ?? [];
   const slots: (Slot | null)[] = [1, 2, 3, 4, 5].map((pos) => {
     const row = favRows.find((r) => r.position === pos);
     return row
@@ -170,31 +151,7 @@ export default async function ProfilePage({
       : null;
   });
 
-  // The first four items of each list, for the preview thumbnails
-  const lists = (listsRes.data ?? []) as unknown as ListRow[];
-  const previews = new Map<
-    string,
-    { title: string; image_url: string | null }[]
-  >();
-  if (lists.length > 0) {
-    const { data: previewData } = await supabase
-      .from("list_items")
-      .select("list_id, position, items(title, image_url)")
-      .in(
-        "list_id",
-        lists.map((l) => l.id),
-      )
-      .lte("position", 4)
-      .order("position");
-    for (const row of (previewData ?? []) as unknown as PreviewRow[]) {
-      const entries = previews.get(row.list_id) ?? [];
-      entries.push({
-        title: row.items?.title ?? "Unknown item",
-        image_url: row.items?.image_url ?? null,
-      });
-      previews.set(row.list_id, entries);
-    }
-  }
+  const lists = content?.owned_lists ?? [];
 
   const isOwner = viewerId === profile.id;
   const profileIsAdmin = await isAdmin(profile.id);
@@ -298,7 +255,10 @@ export default async function ProfilePage({
           {lists.length === 0 && <p className="text-muted">No lists yet.</p>}
           {lists.map((l) => {
             const count = l.list_items?.[0]?.count ?? 0;
-            const preview = previews.get(l.id) ?? [];
+            const preview = l.preview.map((p) => ({
+              title: p.items?.title ?? "Unknown item",
+              image_url: p.items?.image_url ?? null,
+            }));
             return (
               <div
                 key={l.id}
