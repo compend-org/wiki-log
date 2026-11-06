@@ -22,7 +22,6 @@ export default function Footer() {
         <Link href="/support" className="hover:text-foreground hover:underline">
           Donate
         </Link>
-        
       </nav>
     </footer>
   );
