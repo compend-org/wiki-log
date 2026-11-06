@@ -1,8 +1,16 @@
-// ABOUTME: Loads the Everyone and Trending feeds, which are the same for every visitor.
-// ABOUTME: Both are cached in the shared remote cache for all server instances.
+// ABOUTME: Loads the Everyone, Following and Trending feeds a page at a time.
+// ABOUTME: Everyone and Trending are the same for every visitor, so they are cached remotely.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cacheLife } from "next/cache";
-import { inIdOrder } from "@/lib/paging";
+import {
+  type ColumnCursor,
+  type FeedCursor,
+  inIdOrder,
+  type Keyset,
+  olderThan,
+  PAGE_SIZE,
+  takeNewest,
+} from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
 import { createPublicClient } from "@/lib/supabase/public";
 
@@ -42,7 +50,18 @@ export type PublicFeed = {
   previews: Record<string, Thumb[]>;
   // Keyed by log or list id, the likes counted for Trending (empty otherwise)
   scores: Record<string, number>;
+  // Following only: when the people followed shared these, newest first
+  shares: ShareRow[];
+  next: FeedCursor;
   error: string;
+};
+
+export type ShareRow = {
+  user_id: string;
+  log_id: string | null;
+  list_id: string | null;
+  created_at: string;
+  profiles: { username: string } | null;
 };
 
 type PreviewRow = {
@@ -91,101 +110,270 @@ export async function loadPreviews(
   return previews;
 }
 
-// The Everyone feed as it stood at `asOf`: the same for every visitor, so it is
-// computed once a minute and shared. Each viewer's own hearts are looked up
-// separately. Passing the start of a minute lets visitors share the result.
-export async function getPublicFeed(
-  limit: number,
+type Kind = "log" | "list";
+
+const KINDS: Record<
+  Kind,
+  { table: string; select: string; time: string; share: string }
+> = {
+  log: {
+    table: "logs",
+    select: LOG_SELECT,
+    time: "logged_at",
+    share: "log_id",
+  },
+  list: {
+    table: "lists",
+    select: LIST_SELECT,
+    time: "created_at",
+    share: "list_id",
+  },
+};
+
+// Something that puts a post in a column: the post itself, or a share of it
+type ColumnEvent = { at: string; id: string; target: string };
+
+type Column<Row> = { rows: Row[]; next: ColumnCursor | null; error: string };
+
+const NOTHING = { data: [], error: null };
+
+// One page of a column in time order: the next posts made up to `asOf`. Given
+// `authorIds`, only their posts, merged with the posts they shared, each at
+// the time it was shared. The same post can come again on a later page if it
+// was also posted or shared earlier.
+async function loadColumn<Row extends { id: string }>(
+  supabase: SupabaseClient,
+  kind: Kind,
   asOf: string,
+  cursor: ColumnCursor | null,
+  authorIds?: string[],
+): Promise<Column<Row>> {
+  if (!cursor) return { rows: [], next: null, error: "" };
+  const { table, select, time, share } = KINDS[kind];
+
+  let posts = supabase.from(table).select(select).lte(time, asOf);
+  if (authorIds) posts = posts.in("user_id", authorIds);
+  if (cursor.posts) posts = posts.or(olderThan(time, cursor.posts));
+
+  let shares = supabase
+    .from("shares")
+    .select(`id, created_at, ${share}`)
+    .not(share, "is", null)
+    .lte("created_at", asOf);
+  if (authorIds) shares = shares.in("user_id", authorIds);
+  if (cursor.shares) shares = shares.or(olderThan("created_at", cursor.shares));
+
+  const [postsRes, sharesRes] = await Promise.all([
+    posts
+      .order(time, { ascending: false })
+      .order("id", { ascending: false })
+      .limit(PAGE_SIZE + 1),
+    authorIds
+      ? shares
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .limit(PAGE_SIZE + 1)
+      : NOTHING,
+  ]);
+
+  const postRows = (postsRes.data ?? []) as unknown as (Row &
+    Record<string, string>)[];
+  const shareRows = (sharesRes.data ?? []) as unknown as Record<
+    string,
+    string
+  >[];
+  const {
+    taken: [tookPosts, tookShares],
+    hasMore,
+  } = takeNewest<ColumnEvent>(
+    [
+      postRows.map((r) => ({ at: r[time], id: r.id, target: r.id })),
+      shareRows.map((s) => ({ at: s.created_at, id: s.id, target: s[share] })),
+    ],
+    PAGE_SIZE,
+  );
+
+  const lastOf = (events: ColumnEvent[], before?: Keyset) => {
+    const last = events.at(-1);
+    return last ? { at: last.at, id: last.id } : before;
+  };
+  const next = hasMore
+    ? {
+        posts: lastOf(tookPosts, cursor.posts),
+        shares: lastOf(tookShares, cursor.shares),
+      }
+    : null;
+
+  // Shared posts that didn't come with the posts above
+  const have = new Set(tookPosts.map((e) => e.id));
+  const missing = [
+    ...new Set(tookShares.map((e) => e.target).filter((id) => !have.has(id))),
+  ];
+  const extraRes =
+    missing.length > 0
+      ? await supabase.from(table).select(select).in("id", missing)
+      : NOTHING;
+
+  const rows = [
+    ...postRows.filter((r) => have.has(r.id)),
+    ...((extraRes.data ?? []) as unknown as Row[]),
+  ];
+  const error =
+    postsRes.error?.message ??
+    sharesRes.error?.message ??
+    extraRes.error?.message ??
+    "";
+  return { rows, next, error };
+}
+
+// Puts the two columns of a page together, with the previews of its lists
+async function assemble(
+  supabase: SupabaseClient,
+  logs: Column<LogRow>,
+  lists: Column<ListRow>,
+  scores: Record<string, number> = {},
+): Promise<PublicFeed> {
+  const shownLists = nonEmpty(lists.rows);
+  return {
+    logs: logs.rows,
+    lists: shownLists,
+    previews: await loadPreviews(supabase, shownLists),
+    scores,
+    shares: [],
+    next: { reviews: logs.next, lists: lists.next },
+    error: logs.error || lists.error,
+  };
+}
+
+// A page of the Everyone feed as it stood at `asOf`: the same for every
+// visitor, so it is computed once a minute and shared. Each viewer's own
+// hearts are looked up separately. Passing the start of a minute lets
+// visitors share the result.
+export async function getPublicFeed(
+  asOf: string,
+  cursor: FeedCursor,
 ): Promise<PublicFeed> {
   "use cache: remote";
   cacheLife({ stale: 30, revalidate: 60, expire: 300 });
 
   const supabase = createPublicClient();
-
-  const [logsRes, listsRes] = await Promise.all([
-    supabase
-      .from("logs")
-      .select(LOG_SELECT)
-      .lte("logged_at", asOf)
-      .order("logged_at", { ascending: false })
-      .limit(limit + 1),
-    supabase
-      .from("lists")
-      .select(LIST_SELECT)
-      .lte("created_at", asOf)
-      .order("created_at", { ascending: false })
-      .limit(limit + 1),
+  const [logs, lists] = await Promise.all([
+    loadColumn<LogRow>(supabase, "log", asOf, cursor.reviews),
+    loadColumn<ListRow>(supabase, "list", asOf, cursor.lists),
   ]);
-
-  const error = logsRes.error?.message ?? listsRes.error?.message ?? "";
-  const logs = (logsRes.data ?? []) as unknown as LogRow[];
-  const lists = nonEmpty((listsRes.data ?? []) as unknown as ListRow[]);
-  const previews = await loadPreviews(supabase, lists.slice(0, limit));
-
-  return { logs, lists, previews, scores: {}, error };
+  return assemble(supabase, logs, lists);
 }
 
-// The Trending feed: what was liked most in the last TRENDING_HOURS hours.
-// Also the same for every visitor, so also cached for a minute.
-export async function getTrendingFeed(limit: number): Promise<PublicFeed> {
+// A page of the Following feed: what `authorIds` posted or shared up to
+// `asOf`. Comes with every share of these posts by `authorIds`, so each post
+// can say who shared it and count from when it was last shared.
+export async function getFollowingFeed(
+  supabase: SupabaseClient,
+  authorIds: string[],
+  asOf: string,
+  cursor: FeedCursor,
+): Promise<PublicFeed> {
+  const [logs, lists] = await Promise.all([
+    loadColumn<LogRow>(supabase, "log", asOf, cursor.reviews, authorIds),
+    loadColumn<ListRow>(supabase, "list", asOf, cursor.lists, authorIds),
+  ]);
+  const feed = await assemble(supabase, logs, lists);
+
+  const targets = [
+    ...(feed.logs.length > 0
+      ? [`log_id.in.(${feed.logs.map((l) => l.id).join(",")})`]
+      : []),
+    ...(feed.lists.length > 0
+      ? [`list_id.in.(${feed.lists.map((l) => l.id).join(",")})`]
+      : []),
+  ];
+  if (targets.length === 0) return feed;
+
+  const { data, error } = await supabase
+    .from("shares")
+    .select("user_id, log_id, list_id, created_at, profiles(username)")
+    .in("user_id", authorIds)
+    .lte("created_at", asOf)
+    .or(targets.join(","))
+    .order("created_at", { ascending: false });
+  return {
+    ...feed,
+    shares: (data ?? []) as unknown as ShareRow[],
+    error: feed.error || (error?.message ?? ""),
+  };
+}
+
+// How far down Trending goes
+const TRENDING_DEPTH = 300;
+
+// What was liked most in the last TRENDING_HOURS hours, most likes first and
+// most recently liked first when they are tied. It is worked out once for each
+// snapshot minute and then kept as it is, so paging further down it never
+// repeats or skips anything. The minute only picks which ranking to use.
+async function getTrendingRanking(_snapshotMinute: string) {
+  "use cache: remote";
+  cacheLife({ stale: 60, revalidate: 3600, expire: 3600 });
+
+  const supabase = createPublicClient();
+  const [logRank, listRank] = await Promise.all([
+    supabase.rpc("trending_logs", {
+      p_hours: TRENDING_HOURS,
+      p_limit: TRENDING_DEPTH,
+    }),
+    supabase.rpc("trending_lists", {
+      p_hours: TRENDING_HOURS,
+      p_limit: TRENDING_DEPTH,
+    }),
+  ]);
+  return {
+    logs: (logRank.data ?? []) as RankRow[],
+    lists: (listRank.data ?? []) as RankRow[],
+    error: logRank.error?.message ?? listRank.error?.message ?? "",
+  };
+}
+
+// A page of the Trending feed: the next PAGE_SIZE of each kind in the ranking
+// for `snapshotMinute`. Also the same for every visitor, so also cached.
+export async function getTrendingFeed(
+  snapshotMinute: string,
+  cursor: FeedCursor,
+): Promise<PublicFeed> {
   "use cache: remote";
   cacheLife({ stale: 30, revalidate: 60, expire: 300 });
 
   const supabase = createPublicClient();
-
-  const [logRank, listRank] = await Promise.all([
-    supabase.rpc("trending_logs", {
-      p_hours: TRENDING_HOURS,
-      p_limit: limit + 1,
-    }),
-    supabase.rpc("trending_lists", {
-      p_hours: TRENDING_HOURS,
-      p_limit: limit + 1,
-    }),
-  ]);
-
+  const ranking = await getTrendingRanking(snapshotMinute);
   const scores: Record<string, number> = {};
-  const logIds: string[] = [];
-  const listIds: string[] = [];
-  for (const row of (logRank.data ?? []) as RankRow[]) {
-    logIds.push(row.row_id);
-    scores[row.row_id] = Number(row.recent_likes);
+
+  async function rankedColumn<Row extends { id: string }>(
+    kind: Kind,
+    ranked: RankRow[],
+    cursor: ColumnCursor | null,
+  ): Promise<Column<Row>> {
+    if (!cursor) return { rows: [], next: null, error: "" };
+    const from = cursor.rank ?? 0;
+    const to = from + PAGE_SIZE;
+    const ids = ranked.slice(from, to).map((r) => r.row_id);
+    for (const r of ranked.slice(from, to)) {
+      scores[r.row_id] = Number(r.recent_likes);
+    }
+    const next = ranked.length > to ? { rank: to } : null;
+    if (ids.length === 0) return { rows: [], next, error: "" };
+
+    const { table, select } = KINDS[kind];
+    const { data, error } = await supabase
+      .from(table)
+      .select(select)
+      .in("id", ids);
+    // The ranking's own order
+    const rows = inIdOrder((data ?? []) as unknown as Row[], ids);
+    return { rows, next, error: error?.message ?? "" };
   }
-  for (const row of (listRank.data ?? []) as RankRow[]) {
-    listIds.push(row.row_id);
-    scores[row.row_id] = Number(row.recent_likes);
-  }
 
-  const rankError = logRank.error?.message ?? listRank.error?.message ?? "";
-  if (logIds.length === 0 && listIds.length === 0) {
-    return { logs: [], lists: [], previews: {}, scores, error: rankError };
-  }
-
-  const logsRes =
-    logIds.length > 0
-      ? await supabase.from("logs").select(LOG_SELECT).in("id", logIds)
-      : { data: [], error: null };
-  const listsRes =
-    listIds.length > 0
-      ? await supabase.from("lists").select(LIST_SELECT).in("id", listIds)
-      : { data: [], error: null };
-
-  // Most likes first, and most recently liked first when they are tied. This
-  // is the ranking's own order, so a longer page only adds to the bottom.
-  const logs = inIdOrder((logsRes.data ?? []) as unknown as LogRow[], logIds);
-  const lists = inIdOrder(
-    nonEmpty((listsRes.data ?? []) as unknown as ListRow[]),
-    listIds,
-  );
-  const previews = await loadPreviews(supabase, lists.slice(0, limit));
-
-  return {
-    logs,
-    lists,
-    previews,
-    scores,
-    error:
-      rankError || (logsRes.error?.message ?? listsRes.error?.message ?? ""),
-  };
+  const [logs, lists] = await Promise.all([
+    rankedColumn<LogRow>("log", ranking.logs, cursor.reviews),
+    rankedColumn<ListRow>("list", ranking.lists, cursor.lists),
+  ]);
+  const feed = await assemble(supabase, logs, lists, scores);
+  return { ...feed, error: ranking.error || feed.error };
 }

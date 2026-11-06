@@ -1,38 +1,36 @@
+// ABOUTME: The home page feeds (Following, Everyone and Trending), a page at a time.
+// ABOUTME: Renders each page's cards on the server; FeedPages adds later pages below.
 import Link from "next/link";
 import { connection } from "next/server";
-import BalancedColumns from "@/components/BalancedColumns";
+import type { ReactNode } from "react";
 import CardActions from "@/components/CardActions";
+import FeedPages from "@/components/FeedPages";
 import ItemImage from "@/components/ItemImage";
 import LikeButton from "@/components/LikeButton";
 import ListCard from "@/components/ListCard";
-import LoadMore from "@/components/LoadMore";
 import ShareButton from "@/components/ShareButton";
 import ShareIcon from "@/components/ShareIcon";
 import Stars from "@/components/Stars";
 import UserName from "@/components/UserName";
 import { getBlockedIds } from "@/lib/blocks";
 import {
+  getFollowingFeed,
   getPublicFeed,
   getTrendingFeed,
   type ListRow,
   type LogRow,
+  type PublicFeed,
   type Thumb,
 } from "@/lib/feedData";
 import { timeAgo } from "@/lib/format";
 import { getLikedListSet, getLikedSet } from "@/lib/likes";
-import { PAGE_SIZE, startOfMinute } from "@/lib/paging";
+import { type FeedCursor, FIRST_PAGE, startOfMinute } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import ReviewText from "./ReviewText";
 import SharedLabel, { type Sharer } from "./SharedLabel";
 
-type Mode = "following" | "everyone" | "trending";
-
-type PreviewRow = {
-  list_id: string;
-  position: number;
-  items: Thumb | null;
-};
+export type FeedMode = "following" | "everyone" | "trending";
 
 // `sharers` are the people you follow (or you) who shared this entry, newest
 // first. It is only filled in on the Following tab.
@@ -40,26 +38,31 @@ type Entry =
   | { kind: "log"; date: string; log: LogRow; sharers: Sharer[] }
   | { kind: "list"; date: string; list: ListRow; sharers: Sharer[] };
 
-type ShareRow = {
-  user_id: string;
-  log_id: string | null;
-  list_id: string | null;
-  created_at: string;
-  profiles: { username: string } | null;
+// A rendered card with what it is sorted by. `score` is the likes counted for
+// Trending, and 0 on the other tabs.
+export type FeedCard = {
+  key: string;
+  date: string;
+  score: number;
+  card: ReactNode;
 };
 
-export default async function Feed({
-  mode,
-  limit = PAGE_SIZE,
-  asOf,
-}: {
-  mode: Mode;
-  limit?: number;
-  // When this feed was first loaded. Left out on the first page.
-  asOf?: string;
-}) {
-  await connection();
-  const snapshot = asOf ?? new Date().toISOString();
+export type FeedPage = {
+  reviews: FeedCard[];
+  lists: FeedCard[];
+  next: FeedCursor;
+  error: string;
+  needsSignIn: boolean;
+  noFollows: boolean;
+};
+
+// One page of a feed as it stood at `asOf`, rendered for the viewer. Each of
+// the two columns, reviews and lists, carries on from where `cursor` says.
+export async function loadFeedPage(
+  mode: FeedMode,
+  asOf: string,
+  cursor: FeedCursor,
+): Promise<FeedPage> {
   const renderedAt = Date.now();
   const supabase = await createClient();
 
@@ -80,12 +83,9 @@ export default async function Feed({
     authorIds = [...new Set([...followed, viewerId])];
   }
 
-  let entries: Entry[] = [];
   let reviewEntries: Entry[] = [];
   let listEntries: Entry[] = [];
-  let hasMore = false;
-  let reviewsHaveMore = false;
-  let listsHaveMore = false;
+  let next: FeedCursor = { reviews: null, lists: null };
   let errorMessage = "";
   let likedSet = new Set<string>();
   let likedLists = new Set<string>();
@@ -97,121 +97,37 @@ export default async function Feed({
   const previews = new Map<string, Thumb[]>();
 
   if (mode !== "following" || authorIds.length > 0) {
-    let logs: LogRow[] = [];
-    let lists: ListRow[] = [];
+    // Everyone and Trending are the same for every visitor, so they are
+    // cached and shared. Following is the viewer's own. The viewer's own
+    // hearts are looked up below.
+    const feed: PublicFeed =
+      mode === "following"
+        ? await getFollowingFeed(supabase, authorIds, asOf, cursor)
+        : mode === "trending"
+          ? await getTrendingFeed(startOfMinute(asOf), cursor)
+          : await getPublicFeed(startOfMinute(asOf), cursor);
+    let logs = feed.logs;
+    let lists = feed.lists;
+    scores = feed.scores;
+    next = feed.next;
+    errorMessage = feed.error;
+    for (const [id, thumbs] of Object.entries(feed.previews)) {
+      previews.set(id, thumbs);
+    }
 
-    if (mode === "following") {
-      const [logsRes, listsRes] = await Promise.all([
-        supabase
-          .from("logs")
-          .select(
-            "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)",
-          )
-          .in("user_id", authorIds)
-          .lte("logged_at", snapshot)
-          .order("logged_at", { ascending: false })
-          .limit(limit + 1),
-        supabase
-          .from("lists")
-          .select(
-            "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count)",
-          )
-          .in("user_id", authorIds)
-          .lte("created_at", snapshot)
-          .order("created_at", { ascending: false })
-          .limit(limit + 1),
-      ]);
-      if (logsRes.error) errorMessage = logsRes.error.message;
-      else if (listsRes.error) errorMessage = listsRes.error.message;
-
-      logs = (logsRes.data ?? []) as unknown as LogRow[];
-      // Empty lists stay out of the feed until they have something in them
-      lists = ((listsRes.data ?? []) as unknown as ListRow[]).filter(
-        (l) => (l.list_items?.[0]?.count ?? 0) > 0,
-      );
-
-      // Things the people you follow (and you) have shared. Each log or
-      // list is still one entry: if its author is followed too, or several
-      // people shared it, the entry just says so.
-      const { data: shareData, error: shareError } = await supabase
-        .from("shares")
-        .select("user_id, log_id, list_id, created_at, profiles(username)")
-        .in("user_id", authorIds)
-        .lte("created_at", snapshot)
-        .order("created_at", { ascending: false })
-        .limit(limit + 1);
-      if (shareError) errorMessage = shareError.message;
-      const shareRows = (shareData ?? []) as unknown as ShareRow[];
-
-      for (const sh of shareRows) {
-        const target = sh.log_id ?? sh.list_id;
-        if (!target) continue;
-        const sharer: Sharer = {
-          id: sh.user_id,
-          name:
-            sh.user_id === viewerId ? "You" : (sh.profiles?.username ?? null),
-        };
-        const found = sharedBy.get(target);
-        if (found) found.sharers.push(sharer);
-        else sharedBy.set(target, { sharers: [sharer], latest: sh.created_at });
-      }
-
-      // Shared things whose author isn't already in the lists above
-      const haveLogs = new Set(logs.map((l) => l.id));
-      const haveLists = new Set(lists.map((l) => l.id));
-      const missingLogs = [
-        ...new Set(
-          shareRows
-            .map((r) => r.log_id)
-            .filter((id): id is string => !!id && !haveLogs.has(id)),
-        ),
-      ];
-      const missingLists = [
-        ...new Set(
-          shareRows
-            .map((r) => r.list_id)
-            .filter((id): id is string => !!id && !haveLists.has(id)),
-        ),
-      ];
-      const [extraLogs, extraLists] = await Promise.all([
-        missingLogs.length > 0
-          ? supabase
-              .from("logs")
-              .select(
-                "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)",
-              )
-              .in("id", missingLogs)
-          : Promise.resolve({ data: [] }),
-        missingLists.length > 0
-          ? supabase
-              .from("lists")
-              .select(
-                "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count)",
-              )
-              .in("id", missingLists)
-          : Promise.resolve({ data: [] }),
-      ]);
-      logs = [...logs, ...((extraLogs.data ?? []) as unknown as LogRow[])];
-      lists = [
-        ...lists,
-        ...((extraLists.data ?? []) as unknown as ListRow[]).filter(
-          (l) => (l.list_items?.[0]?.count ?? 0) > 0,
-        ),
-      ];
-    } else {
-      // Everyone and Trending are the same for every visitor, so they are
-      // cached and shared. The viewer's own hearts are looked up below.
-      const pub =
-        mode === "trending"
-          ? await getTrendingFeed(limit)
-          : await getPublicFeed(limit, startOfMinute(snapshot));
-      logs = pub.logs;
-      lists = pub.lists;
-      scores = pub.scores;
-      errorMessage = pub.error;
-      for (const [id, thumbs] of Object.entries(pub.previews)) {
-        previews.set(id, thumbs);
-      }
+    // Things the people you follow (and you) have shared. Each log or list
+    // is still one entry: if its author is followed too, or several people
+    // shared it, the entry just says so.
+    for (const sh of feed.shares) {
+      const target = sh.log_id ?? sh.list_id;
+      if (!target) continue;
+      const sharer: Sharer = {
+        id: sh.user_id,
+        name: sh.user_id === viewerId ? "You" : (sh.profiles?.username ?? null),
+      };
+      const found = sharedBy.get(target);
+      if (found) found.sharers.push(sharer);
+      else sharedBy.set(target, { sharers: [sharer], latest: sh.created_at });
     }
 
     // Posts by people the viewer has blocked are left out, including ones
@@ -223,7 +139,6 @@ export default async function Feed({
     // Every entry gets a date to sort by. On Following, something that was
     // shared counts from the moment it was last shared (if that is later
     // than when it was made), so it shows up once, near the top.
-    const entryId = (e: Entry) => (e.kind === "log" ? e.log.id : e.list.id);
     const effective = (id: string, own: string) => {
       const sh = sharedBy.get(id);
       return sh && new Date(sh.latest) > new Date(own) ? sh.latest : own;
@@ -231,7 +146,7 @@ export default async function Feed({
     const byDate = (a: Entry, b: Entry) =>
       new Date(b.date).getTime() - new Date(a.date).getTime();
 
-    const logEntries: Entry[] = logs.map(
+    reviewEntries = logs.map(
       (log): Entry => ({
         kind: "log",
         date: effective(log.id, log.logged_at),
@@ -239,7 +154,7 @@ export default async function Feed({
         sharers: sharedBy.get(log.id)?.sharers ?? [],
       }),
     );
-    const listEntryAll: Entry[] = lists.map(
+    listEntries = lists.map(
       (list): Entry => ({
         kind: "list",
         date: effective(list.id, list.created_at),
@@ -248,28 +163,9 @@ export default async function Feed({
       }),
     );
     if (mode === "following") {
-      logEntries.sort(byDate);
-      listEntryAll.sort(byDate);
+      reviewEntries.sort(byDate);
+      listEntries.sort(byDate);
     }
-
-    // The newest `limit` of the combined list always sit within the newest
-    // `limit` of each, so merging and trimming is exact. Trending goes by
-    // likes instead of by date.
-    const merged: Entry[] = [...logEntries, ...listEntryAll].sort((a, b) =>
-      mode === "trending"
-        ? (scores[entryId(b)] ?? 0) - (scores[entryId(a)] ?? 0) || byDate(a, b)
-        : byDate(a, b),
-    );
-
-    hasMore = merged.length > limit;
-    entries = merged.slice(0, limit);
-
-    // The wide layout has a column for each kind, so each gets its own top
-    // `limit`. A busy stream of reviews can't push every list out.
-    reviewEntries = logEntries.slice(0, limit);
-    listEntries = listEntryAll.slice(0, limit);
-    reviewsHaveMore = logEntries.length > limit;
-    listsHaveMore = listEntryAll.length > limit;
     const shownLogs = reviewEntries.map((e) => (e as { log: LogRow }).log);
     const shownLists = listEntries.map((e) => (e as { list: ListRow }).list);
 
@@ -309,34 +205,8 @@ export default async function Feed({
       );
     }
 
-    if (shownLists.length > 0) {
-      const ids = shownLists.map((l) => l.id);
-
-      // Everyone's and Trending's previews came with the cached data
-      if (mode === "following") {
-        const { data: previewData } = await supabase
-          .from("list_items")
-          .select("list_id, position, items(title, image_url)")
-          .in("list_id", ids)
-          .lte("position", 12)
-          .order("position");
-        for (const row of (previewData ?? []) as unknown as PreviewRow[]) {
-          const arr = previews.get(row.list_id) ?? [];
-          arr.push({
-            title: row.items?.title ?? "Unknown item",
-            image_url: row.items?.image_url ?? null,
-          });
-          previews.set(row.list_id, arr);
-        }
-      }
-
-      likedLists = await getLikedListSet(supabase, viewerId, shownLists);
-    }
+    likedLists = await getLikedListSet(supabase, viewerId, shownLists);
   }
-
-  const needsSignIn = mode === "following" && !viewerId;
-  const noFollows =
-    mode === "following" && Boolean(viewerId) && followedCount === 0;
 
   // The two kinds of card. Their layout follows the width of the column they
   // sit in (the "@xl:" variants), not the width of the screen.
@@ -451,9 +321,36 @@ export default async function Feed({
       ? renderLog(entry.log, entry.sharers)
       : renderList(entry.list, entry.sharers);
 
+  const toCard = (entry: Entry): FeedCard => {
+    const id = entry.kind === "log" ? entry.log.id : entry.list.id;
+    return {
+      key: `${entry.kind}-${id}`,
+      date: entry.date,
+      score: scores[id] ?? 0,
+      card: renderEntry(entry),
+    };
+  };
+
+  return {
+    reviews: reviewEntries.map(toCard),
+    lists: listEntries.map(toCard),
+    next,
+    error: errorMessage,
+    needsSignIn: mode === "following" && !viewerId,
+    noFollows: mode === "following" && Boolean(viewerId) && followedCount === 0,
+  };
+}
+
+export default async function Feed({ mode }: { mode: FeedMode }) {
+  await connection();
+  // When this feed was first loaded. Later pages leave out anything newer.
+  const asOf = new Date().toISOString();
+  const page = await loadFeedPage(mode, asOf, FIRST_PAGE);
+  const empty = page.reviews.length === 0 && page.lists.length === 0;
+
   return (
     <section className="flex flex-col gap-4">
-      {needsSignIn && (
+      {page.needsSignIn && (
         <p className="text-center text-muted">
           <Link href="/login" className="underline">
             Sign in
@@ -462,7 +359,7 @@ export default async function Feed({
         </p>
       )}
 
-      {noFollows && (
+      {page.noFollows && (
         <p className="text-center text-muted">
           You&apos;re not following anyone yet. Use the search icon at the top
           to find people and follow them to fill this feed, or switch to
@@ -470,12 +367,10 @@ export default async function Feed({
         </p>
       )}
 
-      {errorMessage && (
-        <p className="text-center text-danger">{errorMessage}</p>
-      )}
+      {page.error && <p className="text-center text-danger">{page.error}</p>}
 
       {/* Only when there is genuinely nothing to show */}
-      {!needsSignIn && !noFollows && !errorMessage && entries.length === 0 && (
+      {!page.needsSignIn && !page.noFollows && !page.error && empty && (
         <p className="text-center text-muted">
           {mode === "following"
             ? "Nothing here yet. Log something, or follow people to see what they log."
@@ -485,51 +380,7 @@ export default async function Feed({
         </p>
       )}
 
-      {entries.length > 0 && (
-        <>
-          {/* Narrow screens: one column, reviews and lists together */}
-          <div className="@container flex flex-col gap-4 lg:hidden">
-            {entries.map(renderEntry)}
-          </div>
-
-          {/* Wide screens: reviews on the left, lists on the right */}
-          <BalancedColumns
-            leftHasMore={reviewsHaveMore}
-            rightHasMore={listsHaveMore}
-            left={
-              <>
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-                  Reviews
-                </h2>
-                {reviewEntries.length === 0 ? (
-                  <p className="text-sm text-muted">No reviews yet.</p>
-                ) : (
-                  reviewEntries.map(renderEntry)
-                )}
-              </>
-            }
-            right={
-              <>
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-                  Lists
-                </h2>
-                {listEntries.length === 0 ? (
-                  <p className="text-sm text-muted">No lists yet.</p>
-                ) : (
-                  listEntries.map(renderEntry)
-                )}
-              </>
-            }
-          />
-        </>
-      )}
-
-      {hasMore && (
-        <LoadMore
-          key={limit}
-          href={`/?tab=${mode}&limit=${limit + PAGE_SIZE}&asOf=${encodeURIComponent(snapshot)}`}
-        />
-      )}
+      {!empty && <FeedPages mode={mode} asOf={asOf} first={page} />}
     </section>
   );
 }

@@ -7,7 +7,6 @@ import ItemSearch from "@/components/ItemSearch";
 import PickSquare from "@/components/PickSquare";
 import { getDailyPicks } from "@/lib/dailyPicks";
 import { FEATURES } from "@/lib/features";
-import { parseLimit, parseSnapshot } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
@@ -17,10 +16,10 @@ type Tab = "following" | "everyone" | "trending";
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; limit?: string; asOf?: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   await connection();
-  const { tab, limit, asOf } = await searchParams;
+  const { tab } = await searchParams;
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -37,8 +36,6 @@ export default async function Home({
         : signedIn
           ? "following"
           : "everyone";
-  const feedLimit = parseLimit(limit);
-  const feedAsOf = parseSnapshot(asOf);
 
   const loading = <p className="py-12 text-center text-muted">Loading…</p>;
 
@@ -86,18 +83,18 @@ export default async function Home({
         initial={initialTab}
         following={
           <Suspense fallback={loading}>
-            <Feed mode="following" limit={feedLimit} asOf={feedAsOf} />
+            <Feed mode="following" />
           </Suspense>
         }
         everyone={
           <Suspense fallback={loading}>
-            <Feed mode="everyone" limit={feedLimit} asOf={feedAsOf} />
+            <Feed mode="everyone" />
           </Suspense>
         }
         trending={
           FEATURES.trending ? (
             <Suspense fallback={loading}>
-              <Feed mode="trending" limit={feedLimit} />
+              <Feed mode="trending" />
             </Suspense>
           ) : undefined
         }
