@@ -74,13 +74,6 @@ function mockWikipedia({
       if (url.searchParams.get("prop") === "pageimages") {
         assert.equal(url.searchParams.get("pilicense"), "any");
         assert.equal(url.searchParams.get("titles"), title);
-        if (url.searchParams.get("property") === "P31") {
-          return Response.json({
-            claims: {
-              P31: [{ mainsnak: { datavalue: { value: { id: "Q8274" } } } }],
-            },
-          });
-        }
         return Response.json(
           {
             query: {
@@ -97,6 +90,13 @@ function mockWikipedia({
         );
       }
       if (url.searchParams.get("action") === "wbgetclaims") {
+        if (url.searchParams.get("property") === "P31") {
+          return Response.json({
+            claims: {
+              P31: [{ mainsnak: { datavalue: { value: { id: "Q8274" } } } }],
+            },
+          });
+        }
         return Response.json({
           claims: {
             P18: wikidataFile
