@@ -29,6 +29,8 @@ type ListRow = {
   profiles: { username: string } | null;
   list_likes: { count: number }[];
   shares: { count: number }[];
+  list_items: EntryRow[];
+  list_comments: CommentQueryRow[];
 };
 
 type EntryRow = {
@@ -83,21 +85,15 @@ const getList = cache(async (id: string): Promise<ListRow | null> => {
   const { data } = await supabase
     .from("lists")
     .select(
-      "id, user_id, title, description, ranked, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count)",
+      "id, user_id, title, description, ranked, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count), list_items(item_id, items(title, image_url, image_hidden)), list_comments(id, parent_id, body, created_at, user_id, profiles!list_comments_user_id_profiles_fkey(username))",
     )
     .eq("id", id)
+    .order("position", { referencedTable: "list_items" })
+    .order("created_at", { referencedTable: "list_comments", ascending: true })
+    // Embeds aren't capped by the API's row limit, so comments get it here
+    .limit(1000, { referencedTable: "list_comments" })
     .maybeSingle();
   return data as unknown as ListRow | null;
-});
-
-const getEntries = cache(async (id: string): Promise<EntryRow[]> => {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("list_items")
-    .select("item_id, items(title, image_url, image_hidden)")
-    .eq("list_id", id)
-    .order("position");
-  return (data ?? []) as unknown as EntryRow[];
 });
 
 export async function generateMetadata({
@@ -108,11 +104,11 @@ export async function generateMetadata({
   await connection();
   const { id } = await params;
   if (!isUuid(id)) return {};
-  const [list, entries] = await Promise.all([getList(id), getEntries(id)]);
+  const list = await getList(id);
   if (!list) return {};
 
   const owner = list.profiles?.username;
-  const shown = entries.find(
+  const shown = list.list_items.find(
     (e) => e.items?.image_url && !e.items.image_hidden,
   );
   return pageMetadata({
@@ -139,7 +135,7 @@ export default async function ListPage({
   const viewerId: string | undefined = claimsData?.claims?.sub;
   const isOwner = viewerId === list.user_id;
 
-  const entries = await getEntries(id);
+  const entries = list.list_items;
 
   // The list owner's own logs for the items on this list, newest first, so the
   // first one we meet for each item is their most recent
@@ -162,18 +158,9 @@ export default async function ListPage({
   // Whether the viewer has liked and shared this list, and who they have
   // blocked
   const viewer = await getViewerState(supabase, viewerId, { listIds: [id] });
-  const { data: commentData } = await supabase
-    .from("list_comments")
-    .select(
-      "id, parent_id, body, created_at, user_id, profiles!list_comments_user_id_profiles_fkey(username)",
-    )
-    .eq("list_id", id)
-    .order("created_at", { ascending: true });
 
   const adminIds = await getAdminIds();
-  const allComments: CommentItem[] = (
-    (commentData ?? []) as unknown as CommentQueryRow[]
-  ).map((c) => ({
+  const allComments: CommentItem[] = list.list_comments.map((c) => ({
     id: c.id,
     parentId: c.parent_id,
     body: c.body,

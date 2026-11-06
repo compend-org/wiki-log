@@ -21,21 +21,11 @@ import { isUuid } from "@/lib/ids";
 import { likeKey } from "@/lib/likes";
 import { pageMetadata, starText } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
-import { getReview } from "@/lib/reviews";
+import { getReviewWithComments } from "@/lib/reviews";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
 
 export const instant = false;
-
-type CommentQueryRow = {
-  id: string;
-  parent_id: string | null;
-  body: string;
-  created_at: string;
-  user_id: string;
-  profiles: { username: string } | null;
-  comment_likes: { count: number }[];
-};
 
 export async function generateMetadata({
   params,
@@ -47,7 +37,7 @@ export async function generateMetadata({
   if (!isUuid(logId)) return {};
   const profile = await getProfileByName(username);
   if (!profile) return {};
-  const log = await getReview(logId, profile.id);
+  const log = await getReviewWithComments(logId, profile.id);
   if (!log) return {};
 
   const itemTitle = log.items?.title ?? "Unknown item";
@@ -91,18 +81,10 @@ export default async function ReviewPage({
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
-  const log = await getReview(logId, profile.id);
+  const log = await getReviewWithComments(logId, profile.id);
   if (!log) notFound();
 
-  const { data: commentData } = await supabase
-    .from("comments")
-    .select(
-      "id, parent_id, body, created_at, user_id, profiles!comments_user_id_profiles_fkey(username), comment_likes(count)",
-    )
-    .eq("log_id", log.id)
-    .order("created_at", { ascending: true });
-
-  const commentRows = (commentData ?? []) as unknown as CommentQueryRow[];
+  const commentRows = log.comments;
 
   // Whether the viewer has liked and shared this review, which of these
   // comments they have liked, and who they have blocked
