@@ -7,7 +7,7 @@ export default function SupportPage() {
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
       <h1 className="text-3xl font-bold">Donate</h1>
       <p>
-        Server costs are scary like Chucky. I don't want to put adds on here.
+        Server costs are scary like Chucky. I don't want to put ads on here.
       </p>
       <p>
         <a
