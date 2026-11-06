@@ -1,8 +1,14 @@
-// ABOUTME: Tests for paging feeds: merging time-ordered streams and checking cursors.
-// ABOUTME: Covers what is taken from each stream, leftovers, and cursors that aren't valid.
+// ABOUTME: Tests for paging feeds: merging streams and columns, and checking cursors.
+// ABOUTME: Covers leftovers, where merged columns may stop, and cursors that aren't valid.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { olderThan, parseFeedCursor, takeNewest } from "./paging";
+import {
+  type FeedOrder,
+  mergeColumns,
+  olderThan,
+  parseFeedCursor,
+  takeNewest,
+} from "./paging";
 
 const at = (minute: number) =>
   `2026-11-05T12:${String(minute).padStart(2, "0")}:00+00:00`;
@@ -64,4 +70,67 @@ test("turns away cursors that could change the filter", () => {
     { reviews: "all", lists: {} },
   ];
   for (const cursor of bad) assert.equal(parseFeedCursor(cursor), null);
+});
+
+const timed = (id: string, minute: number) => ({
+  id,
+  order: { score: 0, rank: 0, time: Date.parse(at(minute)) },
+});
+const ranked = (id: string, score: number, rank: number) => ({
+  id,
+  order: { score, rank, time: 0 },
+});
+const ids = (entries: { id: string }[]) => entries.map((e) => e.id);
+const timeEnd = (minute: number): FeedOrder => ({
+  score: 0,
+  rank: 0,
+  time: Date.parse(at(minute)),
+});
+
+test("merges columns newest first and stops where a column with more stopped", () => {
+  const merged = mergeColumns([
+    { entries: [timed("r50", 50), timed("r20", 20)], end: timeEnd(20) },
+    { entries: [timed("l40", 40), timed("l10", 10)], end: null },
+  ]);
+  assert.deepEqual(ids(merged), ["r50", "l40", "r20"]);
+});
+
+test("a column with more but nothing shown still bounds the merge", () => {
+  // Its first page was all empty lists, consumed up to 11:30
+  const merged = mergeColumns([
+    { entries: [timed("r10", 10)], end: null },
+    { entries: [], end: timeEnd(30) },
+  ]);
+  assert.deepEqual(ids(merged), []);
+  // Once it reaches past the review, the review shows and stays
+  const later = mergeColumns([
+    { entries: [timed("r10", 10)], end: null },
+    { entries: [timed("l11", 11)], end: timeEnd(5) },
+  ]);
+  assert.deepEqual(ids(later), ["l11", "r10"]);
+});
+
+test("Trending keeps shown cards when ties in likes run across pages", () => {
+  // Thirty-odd posts with the same likes: the ranking's order, not post time
+  const first = mergeColumns([
+    {
+      entries: [ranked("a", 5, 0), ranked("b", 5, 1)],
+      end: { score: 5, rank: 1, time: 0 },
+    },
+    { entries: [], end: null },
+  ]);
+  const second = mergeColumns([
+    {
+      entries: [
+        ranked("a", 5, 0),
+        ranked("b", 5, 1),
+        ranked("c", 5, 2),
+        ranked("d", 5, 3),
+      ],
+      end: { score: 5, rank: 3, time: 0 },
+    },
+    { entries: [], end: null },
+  ]);
+  assert.deepEqual(ids(first), ["a", "b"]);
+  assert.deepEqual(ids(second), ["a", "b", "c", "d"]);
 });

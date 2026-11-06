@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { cacheLife } from "next/cache";
 import {
   type ColumnCursor,
+  type ColumnEnd,
   type FeedCursor,
   inIdOrder,
   type Keyset,
@@ -48,11 +49,15 @@ export type PublicFeed = {
   lists: ListRow[];
   // Keyed by list id, the first few items of each list
   previews: Record<string, Thumb[]>;
-  // Keyed by log or list id, the likes counted for Trending (empty otherwise)
+  // Keyed by log or list id, the likes counted for Trending and the place in
+  // its ranking (both empty otherwise)
   scores: Record<string, number>;
+  ranks: Record<string, number>;
   // Following only: when the people followed shared these, newest first
   shares: ShareRow[];
   next: FeedCursor;
+  // Where each column stopped, counting entries that were left out
+  ends: { reviews: ColumnEnd; lists: ColumnEnd };
   error: string;
 };
 
@@ -133,7 +138,12 @@ const KINDS: Record<
 // Something that puts a post in a column: the post itself, or a share of it
 type ColumnEvent = { at: string; id: string; target: string };
 
-type Column<Row> = { rows: Row[]; next: ColumnCursor | null; error: string };
+type Column<Row> = {
+  rows: Row[];
+  next: ColumnCursor | null;
+  end: ColumnEnd;
+  error: string;
+};
 
 const NOTHING = { data: [], error: null };
 
@@ -148,7 +158,7 @@ async function loadColumn<Row extends { id: string }>(
   cursor: ColumnCursor | null,
   authorIds?: string[],
 ): Promise<Column<Row>> {
-  if (!cursor) return { rows: [], next: null, error: "" };
+  if (!cursor) return { rows: [], next: null, end: null, error: "" };
   const { table, select, time, share } = KINDS[kind];
 
   let posts = supabase.from(table).select(select).lte(time, asOf);
@@ -203,6 +213,11 @@ async function loadColumn<Row extends { id: string }>(
         shares: lastOf(tookShares, cursor.shares),
       }
     : null;
+  // Everything after this page is older than the oldest thing taken
+  const taken = [tookPosts.at(-1), tookShares.at(-1)].flatMap((e) =>
+    e ? [Date.parse(e.at)] : [],
+  );
+  const end = hasMore ? { score: 0, rank: 0, time: Math.min(...taken) } : null;
 
   // Shared posts that didn't come with the posts above
   const have = new Set(tookPosts.map((e) => e.id));
@@ -223,7 +238,7 @@ async function loadColumn<Row extends { id: string }>(
     sharesRes.error?.message ??
     extraRes.error?.message ??
     "";
-  return { rows, next, error };
+  return { rows, next, end, error };
 }
 
 // Puts the two columns of a page together, with the previews of its lists
@@ -232,6 +247,7 @@ async function assemble(
   logs: Column<LogRow>,
   lists: Column<ListRow>,
   scores: Record<string, number> = {},
+  ranks: Record<string, number> = {},
 ): Promise<PublicFeed> {
   const shownLists = nonEmpty(lists.rows);
   return {
@@ -239,8 +255,10 @@ async function assemble(
     lists: shownLists,
     previews: await loadPreviews(supabase, shownLists),
     scores,
+    ranks,
     shares: [],
     next: { reviews: logs.next, lists: lists.next },
+    ends: { reviews: logs.end, lists: lists.end },
     error: logs.error || lists.error,
   };
 }
@@ -344,21 +362,27 @@ export async function getTrendingFeed(
   const supabase = createPublicClient();
   const ranking = await getTrendingRanking(snapshotMinute);
   const scores: Record<string, number> = {};
+  const ranks: Record<string, number> = {};
 
   async function rankedColumn<Row extends { id: string }>(
     kind: Kind,
     ranked: RankRow[],
     cursor: ColumnCursor | null,
   ): Promise<Column<Row>> {
-    if (!cursor) return { rows: [], next: null, error: "" };
+    if (!cursor) return { rows: [], next: null, end: null, error: "" };
     const from = cursor.rank ?? 0;
     const to = from + PAGE_SIZE;
     const ids = ranked.slice(from, to).map((r) => r.row_id);
-    for (const r of ranked.slice(from, to)) {
+    ranked.slice(from, to).forEach((r, i) => {
       scores[r.row_id] = Number(r.recent_likes);
-    }
-    const next = ranked.length > to ? { rank: to } : null;
-    if (ids.length === 0) return { rows: [], next, error: "" };
+      ranks[r.row_id] = from + i;
+    });
+    const more = ranked.length > to;
+    const next = more ? { rank: to } : null;
+    const end = more
+      ? { score: Number(ranked[to - 1].recent_likes), rank: to - 1, time: 0 }
+      : null;
+    if (ids.length === 0) return { rows: [], next, end, error: "" };
 
     const { table, select } = KINDS[kind];
     const { data, error } = await supabase
@@ -367,13 +391,13 @@ export async function getTrendingFeed(
       .in("id", ids);
     // The ranking's own order
     const rows = inIdOrder((data ?? []) as unknown as Row[], ids);
-    return { rows, next, error: error?.message ?? "" };
+    return { rows, next, end, error: error?.message ?? "" };
   }
 
   const [logs, lists] = await Promise.all([
     rankedColumn<LogRow>("log", ranking.logs, cursor.reviews),
     rankedColumn<ListRow>("list", ranking.lists, cursor.lists),
   ]);
-  const feed = await assemble(supabase, logs, lists, scores);
+  const feed = await assemble(supabase, logs, lists, scores, ranks);
   return { ...feed, error: ranking.error || feed.error };
 }

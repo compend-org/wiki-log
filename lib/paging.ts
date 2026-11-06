@@ -112,3 +112,29 @@ export function parseFeedCursor(value: unknown): FeedCursor | null {
   if (reviewsAt === false || listsAt === false) return null;
   return { reviews: reviewsAt, lists: listsAt };
 }
+
+// Where an entry sits in a feed. Trending goes by most likes and then by its
+// place in the ranking; the other feeds leave those at 0 and go by time,
+// newest first.
+export type FeedOrder = { score: number; rank: number; time: number };
+
+export function compareFeedOrder(a: FeedOrder, b: FeedOrder): number {
+  return b.score - a.score || a.rank - b.rank || b.time - a.time;
+}
+
+// Where a column stopped: everything it hasn't loaded yet comes after this.
+// Null once it has nothing more.
+export type ColumnEnd = FeedOrder | null;
+
+// One column made of several that are each in feed order: everything loaded
+// that comes no later than where any column with more stopped, so nothing can
+// turn up above it later
+export function mergeColumns<Entry extends { order: FeedOrder }>(
+  columns: { entries: Entry[]; end: ColumnEnd }[],
+): Entry[] {
+  const ends = columns.flatMap((c) => (c.end ? [c.end] : []));
+  return columns
+    .flatMap((c) => c.entries)
+    .sort((a, b) => compareFeedOrder(a.order, b.order))
+    .filter((e) => ends.every((end) => compareFeedOrder(e.order, end) <= 0));
+}

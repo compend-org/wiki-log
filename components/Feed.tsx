@@ -24,7 +24,13 @@ import {
 } from "@/lib/feedData";
 import { timeAgo } from "@/lib/format";
 import { getLikedListSet, getLikedSet } from "@/lib/likes";
-import { type FeedCursor, FIRST_PAGE, startOfMinute } from "@/lib/paging";
+import {
+  type ColumnEnd,
+  type FeedCursor,
+  type FeedOrder,
+  FIRST_PAGE,
+  startOfMinute,
+} from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import ReviewText from "./ReviewText";
@@ -38,12 +44,10 @@ type Entry =
   | { kind: "log"; date: string; log: LogRow; sharers: Sharer[] }
   | { kind: "list"; date: string; list: ListRow; sharers: Sharer[] };
 
-// A rendered card with what it is sorted by. `score` is the likes counted for
-// Trending, and 0 on the other tabs.
+// A rendered card with where it sits in the feed
 export type FeedCard = {
   key: string;
-  date: string;
-  score: number;
+  order: FeedOrder;
   card: ReactNode;
 };
 
@@ -51,6 +55,7 @@ export type FeedPage = {
   reviews: FeedCard[];
   lists: FeedCard[];
   next: FeedCursor;
+  ends: { reviews: ColumnEnd; lists: ColumnEnd };
   error: string;
   needsSignIn: boolean;
   noFollows: boolean;
@@ -86,6 +91,7 @@ export async function loadFeedPage(
   let reviewEntries: Entry[] = [];
   let listEntries: Entry[] = [];
   let next: FeedCursor = { reviews: null, lists: null };
+  let ends: FeedPage["ends"] = { reviews: null, lists: null };
   let errorMessage = "";
   let likedSet = new Set<string>();
   let likedLists = new Set<string>();
@@ -94,6 +100,7 @@ export async function loadFeedPage(
   // Following only: who shared each log or list id, and when most recently
   const sharedBy = new Map<string, { sharers: Sharer[]; latest: string }>();
   let scores: Record<string, number> = {};
+  let ranks: Record<string, number> = {};
   const previews = new Map<string, Thumb[]>();
 
   if (mode !== "following" || authorIds.length > 0) {
@@ -109,7 +116,9 @@ export async function loadFeedPage(
     let logs = feed.logs;
     let lists = feed.lists;
     scores = feed.scores;
+    ranks = feed.ranks;
     next = feed.next;
+    ends = feed.ends;
     errorMessage = feed.error;
     for (const [id, thumbs] of Object.entries(feed.previews)) {
       previews.set(id, thumbs);
@@ -325,8 +334,11 @@ export async function loadFeedPage(
     const id = entry.kind === "log" ? entry.log.id : entry.list.id;
     return {
       key: `${entry.kind}-${id}`,
-      date: entry.date,
-      score: scores[id] ?? 0,
+      order: {
+        score: scores[id] ?? 0,
+        rank: ranks[id] ?? 0,
+        time: Date.parse(entry.date),
+      },
       card: renderEntry(entry),
     };
   };
@@ -335,6 +347,7 @@ export async function loadFeedPage(
     reviews: reviewEntries.map(toCard),
     lists: listEntries.map(toCard),
     next,
+    ends,
     error: errorMessage,
     needsSignIn: mode === "following" && !viewerId,
     noFollows: mode === "following" && Boolean(viewerId) && followedCount === 0,
@@ -346,7 +359,11 @@ export default async function Feed({ mode }: { mode: FeedMode }) {
   // When this feed was first loaded. Later pages leave out anything newer.
   const asOf = new Date().toISOString();
   const page = await loadFeedPage(mode, asOf, FIRST_PAGE);
-  const empty = page.reviews.length === 0 && page.lists.length === 0;
+  // A first page can come back with nothing to show, such as only empty
+  // lists, while more is still to come
+  const hasMore = Boolean(page.next.reviews || page.next.lists);
+  const empty =
+    page.reviews.length === 0 && page.lists.length === 0 && !hasMore;
 
   return (
     <section className="flex flex-col gap-4">

@@ -8,11 +8,7 @@ import { loadMoreFeed } from "@/app/feedActions";
 import BalancedColumns from "@/components/BalancedColumns";
 import type { FeedCard, FeedMode, FeedPage } from "@/components/Feed";
 import LoadMore from "@/components/LoadMore";
-
-// Most likes first (Trending), then newest first
-function feedOrder(a: FeedCard, b: FeedCard): number {
-  return b.score - a.score || Date.parse(b.date) - Date.parse(a.date);
-}
+import { mergeColumns } from "@/lib/paging";
 
 // A later page can bring a post that is already shown, if it was also posted
 // or shared earlier than when it was first shown. It stays where it is.
@@ -37,16 +33,24 @@ export default function FeedPages({
 }) {
   const [reviews, setReviews] = useState<FeedCard[]>(first.reviews);
   const [lists, setLists] = useState<FeedCard[]>(first.lists);
-  const [next, setNext] = useState(first.next);
+  // The snapshot and the cursor into it stay together. A refresh of the page
+  // brings a new snapshot and first page, which are left alone so that what
+  // is already loaded, and how far it reaches, doesn't change under the reader.
+  const [paging, setPaging] = useState({
+    asOf,
+    next: first.next,
+    ends: first.ends,
+  });
+  const { next, ends } = paging;
   const [pageCount, setPageCount] = useState(1);
   const [error, setError] = useState("");
 
   async function loadNextPage() {
     try {
-      const page = await loadMoreFeed(mode, asOf, next);
+      const page = await loadMoreFeed(mode, paging.asOf, next);
       setReviews((shown) => appendNew(shown, page.reviews));
       setLists((shown) => appendNew(shown, page.lists));
-      setNext(page.next);
+      setPaging({ asOf: paging.asOf, next: page.next, ends: page.ends });
       setError(page.error);
     } catch {
       setError("Couldn't load more. Reload the page to try again.");
@@ -54,15 +58,10 @@ export default function FeedPages({
     setPageCount((n) => n + 1);
   }
 
-  // The merged column shows everything loaded that comes before the last card
-  // of each column that still has more, so nothing can turn up above it later
-  const ends = [
-    next.reviews && reviews.at(-1),
-    next.lists && lists.at(-1),
-  ].filter((c): c is FeedCard => Boolean(c));
-  const merged = [...reviews, ...lists]
-    .sort(feedOrder)
-    .filter((c) => ends.every((end) => feedOrder(c, end) <= 0));
+  const merged = mergeColumns([
+    { entries: reviews, end: ends.reviews },
+    { entries: lists, end: ends.lists },
+  ]);
 
   const hasMore = Boolean(next.reviews || next.lists);
 
