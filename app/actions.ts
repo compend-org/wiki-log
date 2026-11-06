@@ -18,10 +18,10 @@ import { getItemById } from "@/lib/wikipedia";
 
 const ITEM_ID = ITEM_ID_PATTERN;
 
-// A stored item's title and image, or why it couldn't be stored
+// A stored item's ID, title and image, or why it couldn't be stored
 type StoredItem =
   | { error: string }
-  | { title: string; imageUrl: string | null };
+  | { id: string; title: string; imageUrl: string | null };
 
 // Looks the item up on Wikipedia and Wikidata and caches it
 // (users can't write to `items` themselves)
@@ -34,7 +34,7 @@ async function ensureItem(itemId: string): Promise<StoredItem> {
       .eq("id", itemId)
       .maybeSingle();
     return data
-      ? { title: data.title, imageUrl: data.image_url }
+      ? { id: itemId, title: data.title, imageUrl: data.image_url }
       : { error: "That compound doesn't exist." };
   }
   const { data: existing } = await createAdminClient()
@@ -46,7 +46,7 @@ async function ensureItem(itemId: string): Promise<StoredItem> {
     existing &&
     Date.now() - new Date(existing.fetched_at).getTime() < MAX_AGE_MS
   ) {
-    return { title: existing.title, imageUrl: existing.image_url };
+    return { id: itemId, title: existing.title, imageUrl: existing.image_url };
   }
   // With a stale copy to fall back on, saving doesn't wait long on Wikipedia
   const result = await getItemById(
@@ -56,7 +56,7 @@ async function ensureItem(itemId: string): Promise<StoredItem> {
   // An item we already have stays usable when refreshing it fails
   if ("error" in result) {
     return existing
-      ? { title: existing.title, imageUrl: existing.image_url }
+      ? { id: itemId, title: existing.title, imageUrl: existing.image_url }
       : { error: result.error };
   }
 
@@ -66,9 +66,10 @@ async function ensureItem(itemId: string): Promise<StoredItem> {
   const { error } = await createAdminClient()
     .from("items")
     .upsert({ id: item.id, ...itemColumns(item) });
+  // Wikipedia can resolve a different ID; callers must reference the stored row.
   return error
     ? { error: error.message }
-    : { title: item.title, imageUrl: item.imageUrl };
+    : { id: item.id, title: item.title, imageUrl: item.imageUrl };
 }
 
 export async function logItem(input: {
@@ -99,7 +100,7 @@ export async function logItem(input: {
   // Saved as the signed-in user, so RLS applies
   const { error } = await supabase.from("logs").insert({
     user_id: userId,
-    item_id: input.itemId,
+    item_id: stored.id,
     rating: input.rating,
     review: input.review.slice(0, 5000),
   });
@@ -229,7 +230,7 @@ export async function setFavourite(input: {
   const { error } = await supabase
     .from("favourites")
     .upsert(
-      { user_id: userId, position: input.position, item_id: input.itemId },
+      { user_id: userId, position: input.position, item_id: stored.id },
       { onConflict: "user_id,position" },
     );
   if (error) {
@@ -302,7 +303,7 @@ export async function addToList(input: {
 
   const { error } = await supabase.from("list_items").insert({
     list_id: input.listId,
-    item_id: input.itemId,
+    item_id: stored.id,
     position: (last?.position ?? 0) + 1,
   });
   if (error) {
@@ -318,14 +319,14 @@ export async function addToList(input: {
   if (input.order) {
     const { error: orderError } = await supabase.rpc("reorder_list_items", {
       p_list: input.listId,
-      p_items: input.order,
+      p_items: input.order.map((id) => (id === input.itemId ? stored.id : id)),
     });
     if (orderError) return { error: orderError.message };
   }
 
   return {
     item: {
-      itemId: input.itemId,
+      itemId: stored.id,
       title: stored.title,
       imageUrl: stored.imageUrl,
     },
@@ -373,8 +374,14 @@ export async function createCompound(input: {
 
   // Make sure every ingredient is stored in the database
   const stored = await Promise.all(parts.map((p) => ensureItem(p)));
-  const problem = stored.find((p) => "error" in p);
-  if (problem) return { error: problem.error };
+  const resolvedParts: string[] = [];
+  for (const part of stored) {
+    if ("error" in part) return { error: part.error };
+    resolvedParts.push(part.id);
+  }
+  if (new Set(resolvedParts).size !== resolvedParts.length) {
+    return { error: "Each ingredient can only be used once." };
+  }
 
   const { data: result, error } = await createAdminClient().rpc(
     "create_compound",
@@ -382,7 +389,7 @@ export async function createCompound(input: {
       p_user: userId,
       p_title: title,
       p_description: description,
-      p_parts: parts,
+      p_parts: resolvedParts,
     },
   );
   if (error) return { error: error.message };

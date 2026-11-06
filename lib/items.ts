@@ -98,7 +98,9 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
   // A hidden image stays hidden, however often the item is refreshed
   const item = applyImageHidden(fresh.item, cached?.image_hidden === true);
 
-  if (cached) {
+  // Don't mark an alias fresh with another item's data: future visits must
+  // resolve it again so the page can redirect to the resolved ID.
+  if (cached && item.id === id) {
     await createAdminClient()
       .from("items")
       .update(itemColumns(item))
