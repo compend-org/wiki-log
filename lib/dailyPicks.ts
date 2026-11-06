@@ -2,6 +2,7 @@
 // ABOUTME: The result is cached in the shared remote cache for all server instances.
 import { createClient } from "@supabase/supabase-js";
 import { cacheLife } from "next/cache";
+import { reportFailedResponses } from "@/lib/supabase/reportFailedResponses";
 
 export type Pick = {
   itemId: string;
@@ -44,6 +45,7 @@ export async function getDailyPicks(): Promise<DailyPicks> {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { global: { fetch: reportFailedResponses } },
   );
 
   const { data, error } = await supabase.rpc("popular_picks");
