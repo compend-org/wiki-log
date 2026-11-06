@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -29,12 +30,32 @@ export default function LogForm({
     setBusy(true);
     setError("");
     setDone(false);
-    const result = await logItem({
-      itemId: id,
-      rating: rating > 0 ? rating : null,
-      review,
-    });
-    setBusy(false);
+    let result: Awaited<ReturnType<typeof logItem>>;
+    try {
+      result = await logItem({
+        itemId: id,
+        rating: rating > 0 ? rating : null,
+        review,
+      });
+    } catch (error) {
+      // The server may have saved the entry before its response was lost.
+      // Keep the draft and let the person check before submitting it again.
+      setError(
+        "We couldn't confirm whether your entry was saved. Check your diary before trying again.",
+      );
+      Sentry.captureException(error, {
+        tags: { action: "logItem", error_source: "log-form" },
+        contexts: {
+          browser_state: {
+            online: navigator.onLine,
+            visibility_state: document.visibilityState,
+          },
+        },
+      });
+      return;
+    } finally {
+      setBusy(false);
+    }
     if (result.error) {
       setError(result.error);
       return;

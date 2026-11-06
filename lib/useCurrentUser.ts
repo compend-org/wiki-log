@@ -16,7 +16,8 @@ export function useCurrentUser() {
     let cancelled = false;
 
     // The authority: asks the server whether this account really exists
-    supabase.auth.getUser().then(async ({ data, error }) => {
+    const loadUser = async () => {
+      const { data, error } = await supabase.auth.getUser();
       if (cancelled) return;
       if (error || !data.user) {
         // No session, or one for an account that no longer exists: forget it
@@ -29,7 +30,12 @@ export function useCurrentUser() {
         setEmail(data.user.email ?? null);
       }
       setReady(true);
-    });
+    };
+
+    loadUser();
+    // Signing in through a Server Action updates cookies without emitting
+    // onAuthStateChange in this browser client.
+    window.addEventListener("auth-updated", loadUser);
 
     // Later changes (signing in or out, token refreshes). The very first event
     // only repeats what the browser has stored, so it is ignored.
@@ -44,6 +50,7 @@ export function useCurrentUser() {
 
     return () => {
       cancelled = true;
+      window.removeEventListener("auth-updated", loadUser);
       listener.subscription.unsubscribe();
     };
   }, []);

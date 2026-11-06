@@ -1,6 +1,8 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { signIn } from "@/app/actions";
 import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/Turnstile";
@@ -8,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
 
 export default function LoginForm({ next }: { next: string }) {
+  const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [identifier, setIdentifier] = useState<string>("");
   const [username, setUsername] = useState<string>("");
@@ -39,10 +42,38 @@ export default function LoginForm({ next }: { next: string }) {
     setBusy(true);
     setMessage("");
     setNotice("");
-    const result = await signIn({
-      identifier,
-      password,
-      captchaToken: captcha || undefined,
+    Sentry.addBreadcrumb({
+      category: "auth.sign-in",
+      message: "Sign-in action started",
+    });
+    let result: Awaited<ReturnType<typeof signIn>>;
+    try {
+      result = await signIn({
+        identifier,
+        password,
+        captchaToken: captcha || undefined,
+      });
+    } catch (error) {
+      setBusy(false);
+      resetCaptcha();
+      setMessage(
+        "We couldn't confirm the sign-in result. Please try signing in again.",
+      );
+      Sentry.captureException(error, {
+        tags: { action: "signIn", error_source: "login-form" },
+        contexts: {
+          browser_state: {
+            online: navigator.onLine,
+            visibility_state: document.visibilityState,
+          },
+        },
+      });
+      return;
+    }
+    Sentry.addBreadcrumb({
+      category: "auth.sign-in",
+      message: "Sign-in action returned",
+      data: { outcome: result.error ? "error" : "success" },
     });
     if (result.error) {
       setBusy(false);
@@ -64,8 +95,10 @@ export default function LoginForm({ next }: { next: string }) {
       setMessage(result.error);
       return;
     }
-    // Full reload so the nav bar picks up the new session
-    window.location.href = next;
+    // Server-set cookies don't emit a browser auth event. Refresh mounted
+    // user state, then navigate without aborting the action's RSC stream.
+    window.dispatchEvent(new Event("auth-updated"));
+    router.replace(next);
   }
 
   async function handleSignUp(e: React.FormEvent<HTMLFormElement>) {
