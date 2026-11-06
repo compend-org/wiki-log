@@ -63,7 +63,7 @@ function SortableTile({
       }}
       {...attributes}
       {...listeners}
-      className="relative flex cursor-grab select-none flex-col gap-1 active:cursor-grabbing"
+      className="relative flex cursor-grab select-none flex-col gap-1 [-webkit-touch-callout:none] active:cursor-grabbing"
     >
       <div className="relative">
         <ItemImage
