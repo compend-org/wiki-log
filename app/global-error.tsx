@@ -13,7 +13,15 @@ export default function GlobalError({
   retry: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    Sentry.captureException(error, {
+      tags: { error_source: "global-error" },
+      contexts: {
+        browser_state: {
+          online: navigator.onLine,
+          visibility_state: document.visibilityState,
+        },
+      },
+    });
   }, [error]);
 
   return (
