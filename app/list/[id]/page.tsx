@@ -14,7 +14,7 @@ import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
 import { getBlockedIds, withoutBlockedComments } from "@/lib/blocks";
 import { isUuid } from "@/lib/ids";
-import { pageMetadata, previewText } from "@/lib/metadata";
+import { pageMetadata } from "@/lib/metadata";
 import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,7 +33,11 @@ type ListRow = {
 
 type EntryRow = {
   item_id: string;
-  items: { title: string; image_url: string | null } | null;
+  items: {
+    title: string;
+    image_url: string | null;
+    image_hidden: boolean;
+  } | null;
 };
 
 type CommentQueryRow = {
@@ -90,7 +94,7 @@ const getEntries = cache(async (id: string): Promise<EntryRow[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("list_items")
-    .select("item_id, items(title, image_url)")
+    .select("item_id, items(title, image_url, image_hidden)")
     .eq("list_id", id)
     .order("position");
   return (data ?? []) as unknown as EntryRow[];
@@ -108,11 +112,12 @@ export async function generateMetadata({
   if (!list) return {};
 
   const owner = list.profiles?.username;
-  const count = `${entries.length} ${entries.length === 1 ? "item" : "items"}`;
+  const shown = entries.find(
+    (e) => e.items?.image_url && !e.items.image_hidden,
+  );
   return pageMetadata({
     title: owner ? `${list.title} by ${owner}` : list.title,
-    description: list.description ? previewText(list.description) : count,
-    image: entries.find((e) => e.items?.image_url)?.items?.image_url,
+    image: shown?.items?.image_url,
   });
 }
 

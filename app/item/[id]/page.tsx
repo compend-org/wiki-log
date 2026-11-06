@@ -40,7 +40,6 @@ export async function generateMetadata({
   const { item } = result;
   return pageMetadata({
     title: item.title,
-    description: item.description ?? undefined,
     image: item.imageUrl,
   });
 }

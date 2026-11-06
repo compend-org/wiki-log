@@ -18,10 +18,9 @@ import Stars from "@/components/Stars";
 import { isAdmin } from "@/lib/admin";
 import { avatarUrl } from "@/lib/avatar";
 import { commentLabel } from "@/lib/format";
-import { pageMetadata, previewText } from "@/lib/metadata";
+import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { loginHref } from "@/lib/redirect";
-import { SITE_NAME } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
@@ -69,9 +68,6 @@ export async function generateMetadata({
 
   return pageMetadata({
     title: profile.username,
-    description: profile.bio
-      ? previewText(profile.bio)
-      : `${profile.username}'s reviews and lists on ${SITE_NAME}`,
     image: avatarUrl(profile.avatar_path),
     squareImage: true,
   });

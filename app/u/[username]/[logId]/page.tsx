@@ -19,7 +19,7 @@ import { getAlsoLiked } from "@/lib/alsoLiked";
 import { getBlockedIds, withoutBlockedComments } from "@/lib/blocks";
 import { isUuid } from "@/lib/ids";
 import { getLikedSet, likeKey } from "@/lib/likes";
-import { pageMetadata, previewText, starText } from "@/lib/metadata";
+import { pageMetadata, starText } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
@@ -33,7 +33,11 @@ type LogRow = {
   rating: number | null;
   review: string;
   logged_at: string;
-  items: { title: string; image_url: string | null } | null;
+  items: {
+    title: string;
+    image_url: string | null;
+    image_hidden: boolean;
+  } | null;
   likes: { count: number }[];
   shares: { count: number }[];
 };
@@ -55,7 +59,7 @@ const getLog = cache(
     const { data } = await supabase
       .from("logs")
       .select(
-        "id, user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count), shares(count)",
+        "id, user_id, item_id, rating, review, logged_at, items(title, image_url, image_hidden), likes(count), shares(count)",
       )
       .eq("id", logId)
       .eq("user_id", userId)
@@ -78,13 +82,10 @@ export async function generateMetadata({
   if (!log) return {};
 
   const itemTitle = log.items?.title ?? "Unknown item";
-  const stars = starText(log.rating);
   return pageMetadata({
     title: `${profile.username} on ${itemTitle}`,
-    description: [stars, log.review ? previewText(log.review) : ""]
-      .filter(Boolean)
-      .join(" "),
-    image: log.items?.image_url,
+    description: starText(log.rating) || undefined,
+    image: log.items?.image_hidden ? null : log.items?.image_url,
   });
 }
 

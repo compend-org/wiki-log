@@ -1,15 +1,8 @@
 // ABOUTME: Builds the metadata a page shows in link previews: title, description and image.
 // ABOUTME: Keeps the Open Graph and Twitter card fields in step with each other.
 import type { Metadata } from "next";
-import { absolute, truncate } from "@/lib/format";
+import { absolute } from "@/lib/format";
 import { SITE_NAME } from "@/lib/site";
-
-const DESCRIPTION_MAX = 200;
-
-// Whitespace collapsed, and cut off with an ellipsis after `max` characters
-export function previewText(text: string, max = DESCRIPTION_MAX): string {
-  return truncate(text.replace(/\s+/g, " ").trim(), max);
-}
 
 // A rating out of 5 as plain text, like "★★★½". No rating gives "".
 export function starText(rating: number | null | undefined): string {
