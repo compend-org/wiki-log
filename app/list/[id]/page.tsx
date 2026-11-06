@@ -90,6 +90,8 @@ const getList = cache(async (id: string): Promise<ListRow | null> => {
     .eq("id", id)
     .order("position", { referencedTable: "list_items" })
     .order("created_at", { referencedTable: "list_comments", ascending: true })
+    // Embeds aren't capped by the API's row limit, so comments get it here
+    .limit(1000, { referencedTable: "list_comments" })
     .maybeSingle();
   return data as unknown as ListRow | null;
 });
