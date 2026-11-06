@@ -1,9 +1,15 @@
 "use client";
 
 // ABOUTME: The home page's feed tabs. The server renders the tab the page opens on;
-// ABOUTME: each other tab's feed is loaded the first time it is opened, then kept.
+// ABOUTME: each other tab's feed is loaded when first opened, then kept and brought up to date.
 
-import { type ReactNode, Suspense, useEffect, useState } from "react";
+import {
+  type ReactNode,
+  Suspense,
+  startTransition,
+  useEffect,
+  useState,
+} from "react";
 import { loadFeedTab } from "@/app/feedActions";
 import { FEATURES } from "@/lib/features";
 import { TRENDING_LABEL } from "@/lib/site";
@@ -31,24 +37,61 @@ export default function FeedTabs({
   const [active, setActive] = useState<Tab>(
     tabs.some((t) => t.id === initial) ? initial : "everyone",
   );
-  // The feeds of the tabs opened since the page loaded
-  const [loaded, setLoaded] = useState<Partial<Record<Tab, ReactNode>>>({});
-  const feedOf = (tab: Tab) =>
-    loaded[tab] ?? (tab === initial ? initialFeed : undefined);
+  // How many times the server has rendered the page since it loaded, such as
+  // after router.refresh(), and the feed it rendered last time
+  const [served, setServed] = useState({ feed: initialFeed, count: 0 });
+  // Each opened tab's feed, and the render of the page it is up to date with
+  const [panels, setPanels] = useState<
+    Partial<Record<Tab, { feed: ReactNode; served: number }>>
+  >({ [initial]: { feed: initialFeed, served: 0 } });
 
-  // A tab without a feed yet gets one as soon as it is opened
-  const activeMissing = feedOf(active) === undefined;
+  if (served.feed !== initialFeed) {
+    const count = served.count + 1;
+    setServed({ feed: initialFeed, count });
+    setPanels((shown) => ({
+      ...shown,
+      [initial]: { feed: initialFeed, served: count },
+    }));
+  }
+
+  // The open tab gets its feed the first time it is opened, and again if the
+  // page has been rendered since. A feed brought up to date keeps the pages it
+  // has already loaded and how far they reach.
   useEffect(() => {
-    if (!activeMissing) return;
-    setLoaded((shown) => ({ ...shown, [active]: loading }));
-    loadFeedTab(active)
-      .catch(() => (
-        <p className="text-center text-danger">
-          Couldn&apos;t load this feed. Reload the page to try again.
-        </p>
-      ))
-      .then((feed) => setLoaded((shown) => ({ ...shown, [active]: feed })));
-  }, [active, activeMissing]);
+    const panel = panels[active];
+    const count = served.count;
+    if (panel?.served === count) return;
+    // Until the feed arrives, the one already there stays on screen
+    setPanels((shown) => ({
+      ...shown,
+      [active]: { feed: panel?.feed ?? loading, served: count },
+    }));
+    loadFeedTab(active).then(
+      (feed) =>
+        startTransition(() =>
+          // A feed asked for before a later render of the page is left out
+          setPanels((shown) =>
+            (shown[active]?.served ?? 0) > count
+              ? shown
+              : { ...shown, [active]: { feed, served: count } },
+          ),
+        ),
+      () => {
+        if (panel) return;
+        setPanels((shown) => ({
+          ...shown,
+          [active]: {
+            feed: (
+              <p className="text-center text-danger">
+                Couldn&apos;t load this feed. Reload the page to try again.
+              </p>
+            ),
+            served: count,
+          },
+        }));
+      },
+    );
+  }, [active, panels, served.count]);
 
   function choose(tab: Tab) {
     setActive(tab);
@@ -93,7 +136,7 @@ export default function FeedTabs({
           aria-labelledby={`feed-tab-${t.id}`}
           hidden={active !== t.id}
         >
-          <Suspense fallback={loading}>{feedOf(t.id)}</Suspense>
+          <Suspense fallback={loading}>{panels[t.id]?.feed}</Suspense>
         </div>
       ))}
     </div>
