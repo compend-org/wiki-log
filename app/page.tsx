@@ -4,6 +4,7 @@ import Feed from "@/components/Feed";
 import FeedTabs from "@/components/FeedTabs";
 import ItemSearch from "@/components/ItemSearch";
 import PickSquare from "@/components/PickSquare";
+import ShareImageButton from "@/components/ShareImageButton";
 import { getDailyPicks } from "@/lib/dailyPicks";
 import { FEATURES } from "@/lib/features";
 import { createClient } from "@/lib/supabase/server";
@@ -49,22 +50,37 @@ export default async function Home({
         )}
 
         <div className="order-3 col-span-2 flex flex-col gap-8 xl:order-2 xl:col-span-1 xl:col-start-2 xl:self-center">
-          {!signedIn && (
-            <p className="text-center text-sm">
-              <Link
-                href="/login"
-                className="text-accent underline hover:no-underline"
-              >
-                Create an account
-              </Link>{" "}
-              or{" "}
-              <Link
-                href="/?tab=everyone"
-                className="text-accent underline hover:no-underline"
-              >
-                browse
-              </Link>
-            </p>
+          {/* The sign-up links are centred. On phones, the button that shares
+              both squares as one picture sits at the right end of their row. */}
+          {(!signedIn || picks) && (
+            <div
+              className={`grid grid-cols-[1fr_auto_1fr] items-center ${signedIn ? "sm:hidden" : ""}`}
+            >
+              {!signedIn && (
+                <p className="col-start-2 text-center text-sm">
+                  <Link
+                    href="/login"
+                    className="text-accent underline hover:no-underline"
+                  >
+                    Create an account
+                  </Link>{" "}
+                  or{" "}
+                  <Link
+                    href="/?tab=everyone"
+                    className="text-accent underline hover:no-underline"
+                  >
+                    browse
+                  </Link>
+                </p>
+              )}
+              {picks && (
+                <ShareImageButton
+                  imageHref="/picks/image"
+                  fileName="popular-today.png"
+                  className="col-start-3 justify-self-end sm:hidden"
+                />
+              )}
+            </div>
           )}
 
           <ItemSearch signedIn={signedIn} />
