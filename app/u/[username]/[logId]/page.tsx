@@ -4,7 +4,6 @@ import { connection } from "next/server";
 import AdminBadge from "@/components/AdminBadge";
 import AlsoLiked from "@/components/AlsoLiked";
 import Avatar from "@/components/Avatar";
-import BanButton from "@/components/BanButton";
 import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
 import LikeButton from "@/components/LikeButton";
@@ -13,7 +12,7 @@ import ReportButton from "@/components/ReportButton";
 import ReviewText from "@/components/ReviewText";
 import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
-import { getAdminIds, isAdmin } from "@/lib/admin";
+import { getAdminIds } from "@/lib/admin";
 import { getAlsoLiked } from "@/lib/alsoLiked";
 import { getBlockedIds, withoutBlockedComments } from "@/lib/blocks";
 import { isUuid } from "@/lib/ids";
@@ -124,7 +123,6 @@ export default async function ReviewPage({
   }
 
   const adminIds = await getAdminIds();
-  const viewerIsAdmin = await isAdmin(viewerId);
   const allComments: CommentItem[] = commentRows.map((c) => ({
     id: c.id,
     parentId: c.parent_id,
@@ -238,13 +236,6 @@ export default async function ReviewPage({
           kind="log"
           targetId={log.id}
         />
-        {viewerIsAdmin && !adminIds.has(log.user_id) && (
-          <BanButton
-            userId={log.user_id}
-            username={profile.username}
-            redirectTo="/"
-          />
-        )}
       </div>
 
       <AlsoLiked
@@ -258,7 +249,6 @@ export default async function ReviewPage({
         table="comments"
         scope={{ log_id: log.id }}
         ownerId={profile.id}
-        viewerIsAdmin={viewerIsAdmin}
         likeable
       />
     </main>

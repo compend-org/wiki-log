@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import AdminBadge from "@/components/AdminBadge";
-import BanButton from "@/components/BanButton";
 import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
 import ListLikeButton from "@/components/ListLikeButton";
@@ -10,7 +9,7 @@ import ReportButton from "@/components/ReportButton";
 import ReviewText from "@/components/ReviewText";
 import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
-import { getAdminIds, isAdmin } from "@/lib/admin";
+import { getAdminIds } from "@/lib/admin";
 import { getBlockedIds, withoutBlockedComments } from "@/lib/blocks";
 import { isUuid } from "@/lib/ids";
 import { getSharedSet } from "@/lib/shares";
@@ -141,7 +140,6 @@ export default async function ListPage({
     .order("created_at", { ascending: true });
 
   const adminIds = await getAdminIds();
-  const viewerIsAdmin = await isAdmin(viewerId);
   const allComments: CommentItem[] = (
     (commentData ?? []) as unknown as CommentQueryRow[]
   ).map((c) => ({
@@ -213,13 +211,6 @@ export default async function ListPage({
             kind="list"
             targetId={id}
           />
-          {viewerIsAdmin && !adminIds.has(list.user_id) && (
-            <BanButton
-              userId={list.user_id}
-              username={owner ?? "this person"}
-              redirectTo="/"
-            />
-          )}
           {isOwner && (
             <Link href={`/list/${id}/edit`} className="text-sm underline">
               Edit list
@@ -298,7 +289,6 @@ export default async function ListPage({
         table="list_comments"
         scope={{ list_id: id }}
         ownerId={list.user_id}
-        viewerIsAdmin={viewerIsAdmin}
       />
     </main>
   );
