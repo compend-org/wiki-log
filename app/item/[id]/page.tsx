@@ -13,6 +13,7 @@ import RatingHistogram from "@/components/RatingsHistogram";
 import { BUSY_ERROR } from "@/lib/articleSummary";
 import { FEATURES } from "@/lib/features";
 import { isCompoundId } from "@/lib/ids";
+import { getItemRatings } from "@/lib/itemRatings";
 import { getItemForPage } from "@/lib/items";
 import { pageMetadata } from "@/lib/metadata";
 import { parseLimit } from "@/lib/paging";
@@ -76,39 +77,15 @@ export default async function ItemPage({
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
-  // The viewer's own earlier entries for this item
-  let myEntries: MyEntry[] = [];
-  if (viewerId) {
-    const { data } = await supabase
-      .from("logs")
-      .select("id, rating, review, logged_at")
-      .eq("user_id", viewerId)
-      .eq("item_id", id)
-      .order("logged_at", { ascending: false });
-    myEntries = (data ?? []).map((r) => ({
-      id: r.id,
-      rating: Number(r.rating ?? 0),
-      review: r.review,
-      loggedAt: r.logged_at,
-    }));
-  }
-
-  // Everyone's latest rating of this item, one per person, for the histogram
-  const { data: ratingRows } = await supabase
-    .from("logs")
-    .select("user_id, rating")
-    .eq("item_id", id)
-    .not("rating", "is", null)
-    .order("logged_at", { ascending: false });
-  const latestRating = new Map<string, number>();
-  for (const r of (ratingRows ?? []) as {
-    user_id: string;
-    rating: number | string;
-  }[]) {
-    if (!latestRating.has(r.user_id)) {
-      latestRating.set(r.user_id, Number(r.rating));
-    }
-  }
+  // Everyone's latest rating of this item, one per person, for the histogram,
+  // and the viewer's own earlier entries for it
+  const { ratings, viewerEntries } = await getItemRatings(id);
+  const myEntries: MyEntry[] = viewerEntries.map((r) => ({
+    id: r.id,
+    rating: Number(r.rating ?? 0),
+    review: r.review,
+    loggedAt: r.logged_at,
+  }));
   // The viewer's own latest rating (entries are newest first; 0 means none)
   const myRating = myEntries.find((e) => e.rating > 0)?.rating ?? null;
 
@@ -295,15 +272,21 @@ export default async function ItemPage({
           </section>
         )}
 
-        <AddToList itemId={id} title={item.title} imageUrl={item.imageUrl} />
+        <AddToList
+          itemId={id}
+          title={item.title}
+          imageUrl={item.imageUrl}
+          signedIn={Boolean(viewerId)}
+        />
         <div id="log" className="scroll-mt-4">
-          <LogForm id={id} alreadyLogged={myEntries.length > 0} />
+          <LogForm
+            id={id}
+            signedIn={Boolean(viewerId)}
+            alreadyLogged={myEntries.length > 0}
+          />
         </div>
         <MyEntries entries={myEntries} />
-        <RatingHistogram
-          ratings={[...latestRating.values()]}
-          highlight={myRating}
-        />
+        <RatingHistogram ratings={ratings} highlight={myRating} />
       </div>
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0">
