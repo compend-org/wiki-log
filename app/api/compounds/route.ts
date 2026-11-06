@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { FEATURES } from "@/lib/features";
+import { reportFailedResponses } from "@/lib/supabase/reportFailedResponses";
 import { escapeLike } from "@/lib/username";
 
 type Hit = {
@@ -17,6 +18,7 @@ async function findCompounds(q: string): Promise<Hit[]> {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      { global: { fetch: reportFailedResponses } },
     );
     const { data } = await supabase
       .from("items")
