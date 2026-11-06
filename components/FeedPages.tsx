@@ -3,7 +3,7 @@
 // ABOUTME: Shows a feed's pages one after another and loads the next as the bottom nears.
 // ABOUTME: Narrow screens get one merged column; wide screens get reviews and lists side by side.
 
-import { Fragment, useState } from "react";
+import { Fragment, startTransition, useState } from "react";
 import { loadMoreFeed } from "@/app/feedActions";
 import BalancedColumns from "@/components/BalancedColumns";
 import type { FeedCard, FeedMode, FeedPage } from "@/components/Feed";
@@ -48,14 +48,20 @@ export default function FeedPages({
   async function loadNextPage() {
     try {
       const page = await loadMoreFeed(mode, paging.asOf, next);
-      setReviews((shown) => appendNew(shown, page.reviews));
-      setLists((shown) => appendNew(shown, page.lists));
-      setPaging({ asOf: paging.asOf, next: page.next, ends: page.ends });
-      setError(page.error);
+      // The new cards can still be arriving when they are first rendered. As a
+      // transition, the page keeps showing what it has until they are ready,
+      // instead of falling back to the feed's loading message.
+      startTransition(() => {
+        setReviews((shown) => appendNew(shown, page.reviews));
+        setLists((shown) => appendNew(shown, page.lists));
+        setPaging({ asOf: paging.asOf, next: page.next, ends: page.ends });
+        setError(page.error);
+        setPageCount((n) => n + 1);
+      });
     } catch {
       setError("Couldn't load more. Reload the page to try again.");
+      setPageCount((n) => n + 1);
     }
-    setPageCount((n) => n + 1);
   }
 
   const merged = mergeColumns([
