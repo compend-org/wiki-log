@@ -18,28 +18,35 @@ import { getItemById } from "@/lib/wikipedia";
 
 const ITEM_ID = ITEM_ID_PATTERN;
 
+// A stored item's title and image, or why it couldn't be stored
+type StoredItem =
+  | { error: string }
+  | { title: string; imageUrl: string | null };
+
 // Looks the item up on Wikipedia and Wikidata and caches it
 // (users can't write to `items` themselves)
-async function ensureItem(itemId: string): Promise<string | null> {
+async function ensureItem(itemId: string): Promise<StoredItem> {
   // Compounds only exist in our own database
   if (isCompoundId(itemId)) {
     const { data } = await createAdminClient()
       .from("items")
-      .select("id")
+      .select("title, image_url")
       .eq("id", itemId)
       .maybeSingle();
-    return data ? null : "That compound doesn't exist.";
+    return data
+      ? { title: data.title, imageUrl: data.image_url }
+      : { error: "That compound doesn't exist." };
   }
   const { data: existing } = await createAdminClient()
     .from("items")
-    .select("fetched_at, image_hidden")
+    .select("title, image_url, fetched_at, image_hidden")
     .eq("id", itemId)
     .maybeSingle();
   if (
     existing &&
     Date.now() - new Date(existing.fetched_at).getTime() < MAX_AGE_MS
   ) {
-    return null;
+    return { title: existing.title, imageUrl: existing.image_url };
   }
   // With a stale copy to fall back on, saving doesn't wait long on Wikipedia
   const result = await getItemById(
@@ -47,7 +54,11 @@ async function ensureItem(itemId: string): Promise<string | null> {
     existing ? Date.now() + STALE_COPY_WAIT_MS : undefined,
   );
   // An item we already have stays usable when refreshing it fails
-  if ("error" in result) return existing ? null : result.error;
+  if ("error" in result) {
+    return existing
+      ? { title: existing.title, imageUrl: existing.image_url }
+      : { error: result.error };
+  }
 
   // A hidden image stays hidden
   const item = applyImageHidden(result.item, existing?.image_hidden === true);
@@ -55,7 +66,9 @@ async function ensureItem(itemId: string): Promise<string | null> {
   const { error } = await createAdminClient()
     .from("items")
     .upsert({ id: item.id, ...itemColumns(item) });
-  return error ? error.message : null;
+  return error
+    ? { error: error.message }
+    : { title: item.title, imageUrl: item.imageUrl };
 }
 
 export async function logItem(input: {
@@ -80,8 +93,8 @@ export async function logItem(input: {
   }
 
   // The server looks the item up itself instead of trusting the browser
-  const itemError = await ensureItem(input.itemId);
-  if (itemError) return { error: itemError };
+  const stored = await ensureItem(input.itemId);
+  if ("error" in stored) return { error: stored.error };
 
   // Saved as the signed-in user, so RLS applies
   const { error } = await supabase.from("logs").insert({
@@ -210,8 +223,8 @@ export async function setFavourite(input: {
     return { error: "Invalid slot." };
   }
   if (!ITEM_ID.test(input.itemId)) return { error: "Invalid item." };
-  const itemError = await ensureItem(input.itemId);
-  if (itemError) return { error: itemError };
+  const stored = await ensureItem(input.itemId);
+  if ("error" in stored) return { error: stored.error };
 
   const { error } = await supabase
     .from("favourites")
@@ -276,8 +289,8 @@ export async function addToList(input: {
     .maybeSingle();
   if (!list) return { error: "That list isn't yours." };
 
-  const itemError = await ensureItem(input.itemId);
-  if (itemError) return { error: itemError };
+  const stored = await ensureItem(input.itemId);
+  if ("error" in stored) return { error: stored.error };
 
   const { data: last } = await supabase
     .from("list_items")
@@ -310,17 +323,11 @@ export async function addToList(input: {
     if (orderError) return { error: orderError.message };
   }
 
-  const { data: item } = await supabase
-    .from("items")
-    .select("title, image_url")
-    .eq("id", input.itemId)
-    .maybeSingle();
-
   return {
     item: {
       itemId: input.itemId,
-      title: item?.title ?? "Unknown item",
-      imageUrl: item?.image_url ?? null,
+      title: stored.title,
+      imageUrl: stored.imageUrl,
     },
   };
 }
@@ -365,9 +372,9 @@ export async function createCompound(input: {
   }
 
   // Make sure every ingredient is stored in the database
-  const problems = await Promise.all(parts.map((p) => ensureItem(p)));
-  const problem = problems.find((p) => p !== null);
-  if (problem) return { error: problem };
+  const stored = await Promise.all(parts.map((p) => ensureItem(p)));
+  const problem = stored.find((p) => "error" in p);
+  if (problem) return { error: problem.error };
 
   const { data: result, error } = await createAdminClient().rpc(
     "create_compound",
