@@ -18,7 +18,7 @@ import { isAdmin } from "@/lib/admin";
 import { commentLabel } from "@/lib/format";
 import { loginHref } from "@/lib/redirect";
 import { createClient } from "@/lib/supabase/server";
-import { escapeLike, isValidName } from "@/lib/username";
+import { isValidName } from "@/lib/username";
 
 export const instant = false;
 
@@ -70,9 +70,8 @@ export default async function ProfilePage({
   const supabase = await createClient();
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .rpc("profile_by_username", { name })
     .select("id, username, avatar_path, bio")
-    .ilike("username", escapeLike(name))
     .maybeSingle();
   if (!profile) notFound();
 

@@ -13,7 +13,7 @@ import {
 } from "@/lib/items";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { cleanName, escapeLike, isValidName } from "@/lib/username";
+import { cleanName, isValidName } from "@/lib/username";
 import { getItemById } from "@/lib/wikipedia";
 
 const ITEM_ID = ITEM_ID_PATTERN;
@@ -169,9 +169,8 @@ export async function signIn(input: {
 
     const admin = createAdminClient();
     const { data: profile } = await admin
-      .from("profiles")
+      .rpc("profile_by_username", { name })
       .select("id")
-      .ilike("username", escapeLike(name))
       .maybeSingle();
     if (!profile) return { error: generic };
 
