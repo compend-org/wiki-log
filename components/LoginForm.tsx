@@ -12,6 +12,7 @@ export default function LoginForm({ next }: { next: string }) {
   const [identifier, setIdentifier] = useState<string>("");
   const [username, setUsername] = useState<string>("");
   const [email, setEmail] = useState<string>("");
+  const [confirmEmail, setConfirmEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [message, setMessage] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
@@ -72,6 +73,10 @@ export default function LoginForm({ next }: { next: string }) {
     const name = cleanName(username);
     if (!isValidName(name)) {
       setMessage(`Usernames are ${NAME_RULES}.`);
+      return;
+    }
+    if (email.trim().toLowerCase() !== confirmEmail.trim().toLowerCase()) {
+      setMessage("The two email addresses don't match.");
       return;
     }
 
@@ -231,6 +236,16 @@ export default function LoginForm({ next }: { next: string }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
+            required
+            className={inputClass}
+          />
+          <input
+            type="email"
+            value={confirmEmail}
+            onChange={(e) => setConfirmEmail(e.target.value)}
+            onPaste={(e) => e.preventDefault()}
+            placeholder="Type your email again"
+            autoComplete="off"
             required
             className={inputClass}
           />
