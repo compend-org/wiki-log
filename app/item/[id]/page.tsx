@@ -13,7 +13,7 @@ import RatingHistogram from "@/components/RatingsHistogram";
 import { BUSY_ERROR } from "@/lib/articleSummary";
 import { FEATURES } from "@/lib/features";
 import { isCompoundId } from "@/lib/ids";
-import { getItemLogs } from "@/lib/itemLogs";
+import { getItemRatings } from "@/lib/itemRatings";
 import { getItemForPage } from "@/lib/items";
 import { pageMetadata } from "@/lib/metadata";
 import { parseLimit } from "@/lib/paging";
@@ -77,26 +77,15 @@ export default async function ItemPage({
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
-  // Every log of this item, newest first: the same rows the logs section shows
-  const { rows: logRows } = await getItemLogs(id);
-
-  // The viewer's own earlier entries for this item
-  const myEntries: MyEntry[] = logRows
-    .filter((r) => viewerId && r.user_id === viewerId)
-    .map((r) => ({
-      id: r.id,
-      rating: Number(r.rating ?? 0),
-      review: r.review,
-      loggedAt: r.logged_at,
-    }));
-
-  // Everyone's latest rating of this item, one per person, for the histogram
-  const latestRating = new Map<string, number>();
-  for (const r of logRows) {
-    if (r.rating !== null && !latestRating.has(r.user_id)) {
-      latestRating.set(r.user_id, Number(r.rating));
-    }
-  }
+  // Everyone's latest rating of this item, one per person, for the histogram,
+  // and the viewer's own earlier entries for it
+  const { ratings, viewerEntries } = await getItemRatings(supabase, id);
+  const myEntries: MyEntry[] = viewerEntries.map((r) => ({
+    id: r.id,
+    rating: Number(r.rating ?? 0),
+    review: r.review,
+    loggedAt: r.logged_at,
+  }));
   // The viewer's own latest rating (entries are newest first; 0 means none)
   const myRating = myEntries.find((e) => e.rating > 0)?.rating ?? null;
 
@@ -297,10 +286,7 @@ export default async function ItemPage({
           />
         </div>
         <MyEntries entries={myEntries} />
-        <RatingHistogram
-          ratings={[...latestRating.values()]}
-          highlight={myRating}
-        />
+        <RatingHistogram ratings={ratings} highlight={myRating} />
       </div>
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0">

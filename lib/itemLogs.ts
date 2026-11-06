@@ -1,6 +1,5 @@
 // ABOUTME: Loads every log of one item, newest first, with its author and social counts.
-// ABOUTME: Cached per request, so an item page and its sections share one query.
-import { cache } from "react";
+// ABOUTME: Shown in the logs section of an item page.
 import { createClient } from "@/lib/supabase/server";
 
 export type ItemLogRow = {
@@ -16,7 +15,7 @@ export type ItemLogRow = {
   shares: { count: number }[];
 };
 
-export const getItemLogs = cache(async (itemId: string) => {
+export async function getItemLogs(itemId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("logs")
@@ -29,4 +28,4 @@ export const getItemLogs = cache(async (itemId: string) => {
     rows: (data ?? []) as unknown as ItemLogRow[],
     error: error?.message ?? "",
   };
-});
+}
