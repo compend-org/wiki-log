@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
-import { cache } from "react";
 import AdminBadge from "@/components/AdminBadge";
 import AlsoLiked from "@/components/AlsoLiked";
 import Avatar from "@/components/Avatar";
@@ -13,6 +12,7 @@ import OwnerControls from "@/components/OwnerControls";
 import ReportButton from "@/components/ReportButton";
 import ReviewText from "@/components/ReviewText";
 import ShareButton from "@/components/ShareButton";
+import ShareImageButton from "@/components/ShareImageButton";
 import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
 import { getAlsoLiked } from "@/lib/alsoLiked";
@@ -21,26 +21,11 @@ import { isUuid } from "@/lib/ids";
 import { getLikedSet, likeKey } from "@/lib/likes";
 import { pageMetadata, starText } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
+import { getReview } from "@/lib/reviews";
 import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
-
-type LogRow = {
-  id: string;
-  user_id: string;
-  item_id: string;
-  rating: number | null;
-  review: string;
-  logged_at: string;
-  items: {
-    title: string;
-    image_url: string | null;
-    image_hidden: boolean;
-  } | null;
-  likes: { count: number }[];
-  shares: { count: number }[];
-};
 
 type CommentQueryRow = {
   id: string;
@@ -52,22 +37,6 @@ type CommentQueryRow = {
   comment_likes: { count: number }[];
 };
 
-// One person's log, cached per request so the page and its metadata share it
-const getLog = cache(
-  async (logId: string, userId: string): Promise<LogRow | null> => {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("logs")
-      .select(
-        "id, user_id, item_id, rating, review, logged_at, items(title, image_url, image_hidden), likes(count), shares(count)",
-      )
-      .eq("id", logId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    return data as unknown as LogRow | null;
-  },
-);
-
 export async function generateMetadata({
   params,
 }: {
@@ -78,7 +47,7 @@ export async function generateMetadata({
   if (!isUuid(logId)) return {};
   const profile = await getProfileByName(username);
   if (!profile) return {};
-  const log = await getLog(logId, profile.id);
+  const log = await getReview(logId, profile.id);
   if (!log) return {};
 
   const itemTitle = log.items?.title ?? "Unknown item";
@@ -122,7 +91,7 @@ export default async function ReviewPage({
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
-  const log = await getLog(logId, profile.id);
+  const log = await getReview(logId, profile.id);
   if (!log) notFound();
 
   const { data: commentData } = await supabase
@@ -189,21 +158,27 @@ export default async function ReviewPage({
         <Link href={`/item/${log.item_id}`} className="text-xl font-bold">
           {title}
         </Link>
-        <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
-          <span>Review by</span>
-          <Link
-            href={`/u/${encodeURIComponent(profile.username)}`}
-            className="inline-flex items-center gap-1.5 underline"
-          >
-            <Avatar
-              name={profile.username}
-              path={profile.avatar_path}
-              size={20}
-            />
-            {profile.username}
-          </Link>
-          {adminIds.has(log.user_id) && <AdminBadge />}
-          <span>· {log.logged_at.slice(0, 10)}</span>
+        {/* The dot before the date sits in the gap left of it, so when the
+            date wraps to the start of a line the dot is clipped away */}
+        <p className="flex flex-wrap items-center gap-x-3.5 overflow-hidden text-sm text-muted">
+          <span className="flex flex-wrap items-center gap-x-1.5">
+            <span>Review by</span>
+            <Link
+              href={`/u/${encodeURIComponent(profile.username)}`}
+              className="inline-flex items-center gap-1.5 underline"
+            >
+              <Avatar
+                name={profile.username}
+                path={profile.avatar_path}
+                size={20}
+              />
+              {profile.username}
+            </Link>
+            {adminIds.has(log.user_id) && <AdminBadge />}
+          </span>
+          <span className="relative before:absolute before:right-full before:mr-1 before:content-['·']">
+            {log.logged_at.slice(0, 10)}
+          </span>
         </p>
         <Stars rating={log.rating} />
       </div>
@@ -256,6 +231,11 @@ export default async function ReviewPage({
           targetId={log.id}
           initialCount={log.shares?.[0]?.count ?? 0}
           initiallyShared={sharedSet.has(log.id)}
+        />
+        <ShareImageButton
+          imageHref={`/u/${encodeURIComponent(profile.username)}/${log.id}/image`}
+          fileName={`${profile.username}-review.png`}
+          className="sm:hidden"
         />
         <ReportButton
           viewerId={viewerId ?? null}

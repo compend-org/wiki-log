@@ -16,7 +16,10 @@ const USER_AGENT = `Compend/0.1${process.env.NODE_ENV === "production" ? "" : "-
 // Articles about real people are blocked unless this is true
 export const ALLOW_PEOPLE = true;
 
-const HEADERS = { "User-Agent": USER_AGENT, "Api-User-Agent": USER_AGENT };
+export const HEADERS = {
+  "User-Agent": USER_AGENT,
+  "Api-User-Agent": USER_AGENT,
+};
 
 export type ItemData = {
     id: string; // the Wikidata ID, like Q89
