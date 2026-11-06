@@ -1,32 +1,97 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+// ABOUTME: The home page's feed tabs. The server renders the tab the page opens on;
+// ABOUTME: each other tab's feed is loaded when first opened, then kept and brought up to date.
+
+import {
+  type ReactNode,
+  Suspense,
+  startTransition,
+  useEffect,
+  useState,
+} from "react";
+import { loadFeedTab } from "@/app/feedActions";
+import { FEATURES } from "@/lib/features";
 import { TRENDING_LABEL } from "@/lib/site";
 
 type Tab = "following" | "everyone" | "trending";
 
+const loading = <p className="py-12 text-center text-muted">Loading…</p>;
+
 export default function FeedTabs({
   initial,
-  following,
-  everyone,
-  trending,
+  initialFeed,
 }: {
   initial: Tab;
-  following: ReactNode;
-  everyone: ReactNode;
-  // Left out when the feature is switched off
-  trending?: ReactNode;
+  // The feed of the `initial` tab
+  initialFeed: ReactNode;
 }) {
   const tabs: { id: Tab; label: string }[] = [
     { id: "everyone", label: "Everyone" },
     { id: "following", label: "Following" },
-    ...(trending ? [{ id: "trending" as Tab, label: TRENDING_LABEL }] : []),
+    ...(FEATURES.trending
+      ? [{ id: "trending" as Tab, label: TRENDING_LABEL }]
+      : []),
   ];
-  const panels: Record<Tab, ReactNode> = { following, everyone, trending };
 
   const [active, setActive] = useState<Tab>(
     tabs.some((t) => t.id === initial) ? initial : "everyone",
   );
+  // How many times the server has rendered the page since it loaded, such as
+  // after router.refresh(), and the feed it rendered last time
+  const [served, setServed] = useState({ feed: initialFeed, count: 0 });
+  // Each opened tab's feed, and the render of the page it is up to date with
+  const [panels, setPanels] = useState<
+    Partial<Record<Tab, { feed: ReactNode; served: number }>>
+  >({ [initial]: { feed: initialFeed, served: 0 } });
+
+  if (served.feed !== initialFeed) {
+    const count = served.count + 1;
+    setServed({ feed: initialFeed, count });
+    setPanels((shown) => ({
+      ...shown,
+      [initial]: { feed: initialFeed, served: count },
+    }));
+  }
+
+  // The open tab gets its feed the first time it is opened, and again if the
+  // page has been rendered since. A feed brought up to date keeps the pages it
+  // has already loaded and how far they reach.
+  useEffect(() => {
+    const panel = panels[active];
+    const count = served.count;
+    if (panel?.served === count) return;
+    // Until the feed arrives, the one already there stays on screen
+    setPanels((shown) => ({
+      ...shown,
+      [active]: { feed: panel?.feed ?? loading, served: count },
+    }));
+    loadFeedTab(active).then(
+      (feed) =>
+        startTransition(() =>
+          // A feed asked for before a later render of the page is left out
+          setPanels((shown) =>
+            (shown[active]?.served ?? 0) > count
+              ? shown
+              : { ...shown, [active]: { feed, served: count } },
+          ),
+        ),
+      () => {
+        if (panel) return;
+        setPanels((shown) => ({
+          ...shown,
+          [active]: {
+            feed: (
+              <p className="text-center text-danger">
+                Couldn&apos;t load this feed. Reload the page to try again.
+              </p>
+            ),
+            served: count,
+          },
+        }));
+      },
+    );
+  }, [active, panels, served.count]);
 
   function choose(tab: Tab) {
     setActive(tab);
@@ -71,7 +136,7 @@ export default function FeedTabs({
           aria-labelledby={`feed-tab-${t.id}`}
           hidden={active !== t.id}
         >
-          {panels[t.id]}
+          <Suspense fallback={loading}>{panels[t.id]?.feed}</Suspense>
         </div>
       ))}
     </div>

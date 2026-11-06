@@ -1,8 +1,13 @@
-// ABOUTME: Server action that loads the next page of a home page feed.
-// ABOUTME: Checks what the browser sent, then renders the page's cards for the viewer.
+// ABOUTME: Server actions that load a home page feed tab and the later pages of a feed.
+// ABOUTME: Checks what the browser sent, then renders the feed or the page's cards for the viewer.
 "use server";
 
-import { type FeedMode, type FeedPage, loadFeedPage } from "@/components/Feed";
+import { createElement, type ReactNode } from "react";
+import Feed, {
+  type FeedMode,
+  type FeedPage,
+  loadFeedPage,
+} from "@/components/Feed";
 import { FEATURES } from "@/lib/features";
 import { parseFeedCursor, parseSnapshot } from "@/lib/paging";
 
@@ -23,4 +28,12 @@ export async function loadMoreFeed(
     throw new Error("That isn't a page of a feed.");
   }
   return loadFeedPage(mode, snapshot, parsed);
+}
+
+// A feed tab's first page, rendered when the tab is first opened
+export async function loadFeedTab(mode: FeedMode): Promise<ReactNode> {
+  if (!MODES.includes(mode)) {
+    throw new Error("That isn't a feed.");
+  }
+  return createElement(Feed, { mode });
 }
