@@ -262,6 +262,7 @@ export async function loadFeedPage(
             src={row.items?.image_url}
             alt={title}
             className="h-20 w-20 rounded"
+            sourceWidth={250}
           />
         </Link>
 

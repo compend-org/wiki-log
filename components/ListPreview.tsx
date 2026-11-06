@@ -111,6 +111,7 @@ export default function ListPreview({
               alt=""
               placeholder={firstLetter(p.title)}
               className="h-14 w-14 rounded"
+              sourceWidth={120}
             />
           </Link>
         ))}

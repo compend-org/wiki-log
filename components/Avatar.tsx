@@ -22,6 +22,7 @@ export default function Avatar({
         <img
           src="/default-avi-light.png"
           alt=""
+          loading="lazy"
           width={size}
           height={size}
           draggable={false}
@@ -32,6 +33,7 @@ export default function Avatar({
         <img
           src="/default-avi-dark.png"
           alt=""
+          loading="lazy"
           width={size}
           height={size}
           draggable={false}
@@ -47,6 +49,7 @@ export default function Avatar({
     <img
       src={url}
       alt=""
+      loading="lazy"
       width={size}
       height={size}
       draggable={false}
