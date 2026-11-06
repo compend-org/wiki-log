@@ -5,7 +5,7 @@ import "flag-icons/css/flag-icons.min.css";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import ScrollToTop from "@/components/ScrollToTop";
-import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
+import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 import { themeInitScript } from "@/lib/theme";
 
 const geistSans = Geist({
@@ -19,8 +19,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: SITE_NAME,
-  description: SITE_TAGLINE,
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
+  description: SITE_TAGLINE || undefined,
+  openGraph: { siteName: SITE_NAME, type: "website" },
+  twitter: { card: "summary" },
   icons: {
     icon: [
       { url: "/logo-light.png", media: "(prefers-color-scheme: light)" },

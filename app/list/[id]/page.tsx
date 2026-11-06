@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { cache } from "react";
 import AdminBadge from "@/components/AdminBadge";
 import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
@@ -12,6 +14,7 @@ import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
 import { getBlockedIds, withoutBlockedComments } from "@/lib/blocks";
 import { isUuid } from "@/lib/ids";
+import { pageMetadata, previewText } from "@/lib/metadata";
 import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
 
@@ -69,6 +72,50 @@ function tooltipPosition(index: number): string {
   return `${base} ${wide}`;
 }
 
+// The list and its entries are cached per request, so the page and its
+// metadata share them
+const getList = cache(async (id: string): Promise<ListRow | null> => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("lists")
+    .select(
+      "id, user_id, title, description, ranked, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count)",
+    )
+    .eq("id", id)
+    .maybeSingle();
+  return data as unknown as ListRow | null;
+});
+
+const getEntries = cache(async (id: string): Promise<EntryRow[]> => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("list_items")
+    .select("item_id, items(title, image_url)")
+    .eq("list_id", id)
+    .order("position");
+  return (data ?? []) as unknown as EntryRow[];
+});
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  await connection();
+  const { id } = await params;
+  if (!isUuid(id)) return {};
+  const [list, entries] = await Promise.all([getList(id), getEntries(id)]);
+  if (!list) return {};
+
+  const owner = list.profiles?.username;
+  const count = `${entries.length} ${entries.length === 1 ? "item" : "items"}`;
+  return pageMetadata({
+    title: owner ? `${list.title} by ${owner}` : list.title,
+    description: list.description ? previewText(list.description) : count,
+    image: entries.find((e) => e.items?.image_url)?.items?.image_url,
+  });
+}
+
 export default async function ListPage({
   params,
 }: {
@@ -80,26 +127,14 @@ export default async function ListPage({
 
   const supabase = await createClient();
 
-  const { data } = await supabase
-    .from("lists")
-    .select(
-      "id, user_id, title, description, ranked, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count)",
-    )
-    .eq("id", id)
-    .maybeSingle();
-  if (!data) notFound();
-  const list = data as unknown as ListRow;
+  const list = await getList(id);
+  if (!list) notFound();
 
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
   const isOwner = viewerId === list.user_id;
 
-  const { data: entryData } = await supabase
-    .from("list_items")
-    .select("item_id, items(title, image_url)")
-    .eq("list_id", id)
-    .order("position");
-  const entries = (entryData ?? []) as unknown as EntryRow[];
+  const entries = await getEntries(id);
 
   // The list owner's own logs for the items on this list, newest first, so the
   // first one we meet for each item is their most recent

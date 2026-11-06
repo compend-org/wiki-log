@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
+import { cache } from "react";
 import AdminBadge from "@/components/AdminBadge";
 import AlsoLiked from "@/components/AlsoLiked";
 import Avatar from "@/components/Avatar";
@@ -17,9 +19,10 @@ import { getAlsoLiked } from "@/lib/alsoLiked";
 import { getBlockedIds, withoutBlockedComments } from "@/lib/blocks";
 import { isUuid } from "@/lib/ids";
 import { getLikedSet, likeKey } from "@/lib/likes";
+import { pageMetadata, previewText, starText } from "@/lib/metadata";
+import { getProfileByName } from "@/lib/profiles";
 import { getSharedSet } from "@/lib/shares";
 import { createClient } from "@/lib/supabase/server";
-import { isValidName } from "@/lib/username";
 
 export const instant = false;
 
@@ -45,6 +48,46 @@ type CommentQueryRow = {
   comment_likes: { count: number }[];
 };
 
+// One person's log, cached per request so the page and its metadata share it
+const getLog = cache(
+  async (logId: string, userId: string): Promise<LogRow | null> => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("logs")
+      .select(
+        "id, user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count), shares(count)",
+      )
+      .eq("id", logId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    return data as unknown as LogRow | null;
+  },
+);
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ username: string; logId: string }>;
+}): Promise<Metadata> {
+  await connection();
+  const { username, logId } = await params;
+  if (!isUuid(logId)) return {};
+  const profile = await getProfileByName(username);
+  if (!profile) return {};
+  const log = await getLog(logId, profile.id);
+  if (!log) return {};
+
+  const itemTitle = log.items?.title ?? "Unknown item";
+  const stars = starText(log.rating);
+  return pageMetadata({
+    title: `${profile.username} on ${itemTitle}`,
+    description: [stars, log.review ? previewText(log.review) : ""]
+      .filter(Boolean)
+      .join(" "),
+    image: log.items?.image_url,
+  });
+}
+
 export default async function ReviewPage({
   params,
 }: {
@@ -53,19 +96,10 @@ export default async function ReviewPage({
   await connection();
   const { username: rawName, logId } = await params;
 
-  let name = rawName;
-  try {
-    name = decodeURIComponent(rawName);
-  } catch {}
-  if (!isValidName(name)) notFound();
+  const profile = await getProfileByName(rawName);
+  if (!profile) notFound();
 
   const supabase = await createClient();
-
-  const { data: profile } = await supabase
-    .rpc("profile_by_username", { name })
-    .select("id, username, avatar_path")
-    .maybeSingle();
-  if (!profile) notFound();
 
   // Old links used the item's id: send them to that person's latest entry
   if (/^Q\d+$/.test(logId)) {
@@ -87,16 +121,8 @@ export default async function ReviewPage({
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
-  const { data: logData } = await supabase
-    .from("logs")
-    .select(
-      "id, user_id, item_id, rating, review, logged_at, items(title, image_url), likes(count), shares(count)",
-    )
-    .eq("id", logId)
-    .eq("user_id", profile.id)
-    .maybeSingle();
-  if (!logData) notFound();
-  const log = logData as unknown as LogRow;
+  const log = await getLog(logId, profile.id);
+  if (!log) notFound();
 
   const { data: commentData } = await supabase
     .from("comments")
