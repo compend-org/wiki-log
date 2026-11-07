@@ -121,6 +121,7 @@ export default function Nav() {
       </Link>
       <Link
         href="/diary"
+        prefetch={false}
         aria-label="Diary"
         title="Diary"
         className={`flex ${tone("/diary")}`}
