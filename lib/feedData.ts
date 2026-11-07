@@ -1,7 +1,7 @@
 // ABOUTME: Loads the Everyone, Following and Trending feeds a page at a time.
 // ABOUTME: Everyone and Trending are the same for every visitor, so they are cached remotely.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { cacheLife } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import {
   type ColumnCursor,
   type ColumnEnd,
@@ -14,6 +14,7 @@ import {
 } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
 import { createPublicClient } from "@/lib/supabase/public";
+import { POSTS_CACHE_TAG } from "./cacheTags";
 
 export type LogRow = {
   id: string;
@@ -273,6 +274,7 @@ export async function getPublicFeed(
 ): Promise<PublicFeed> {
   "use cache: remote";
   cacheLife({ stale: 30, revalidate: 60, expire: 300 });
+  cacheTag(POSTS_CACHE_TAG);
 
   const supabase = createPublicClient();
   const [logs, lists] = await Promise.all([
@@ -331,6 +333,7 @@ const TRENDING_DEPTH = 300;
 async function getTrendingRanking(_snapshotMinute: string) {
   "use cache: remote";
   cacheLife({ stale: 60, revalidate: 3600, expire: 3600 });
+  cacheTag(POSTS_CACHE_TAG);
 
   const supabase = createPublicClient();
   const [logRank, listRank] = await Promise.all([
@@ -358,6 +361,7 @@ export async function getTrendingFeed(
 ): Promise<PublicFeed> {
   "use cache: remote";
   cacheLife({ stale: 30, revalidate: 60, expire: 300 });
+  cacheTag(POSTS_CACHE_TAG);
 
   const supabase = createPublicClient();
   const ranking = await getTrendingRanking(snapshotMinute);

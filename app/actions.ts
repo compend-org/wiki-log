@@ -15,6 +15,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { cleanName, isValidName } from "@/lib/username";
 import { getItemById } from "@/lib/wikipedia";
+import { updateTag } from "next/cache";
+import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
 
 const ITEM_ID = ITEM_ID_PATTERN;
 
@@ -121,7 +123,13 @@ async function removeAccount(userId: string): Promise<{ error?: string }> {
       .remove(files.map((f) => `${userId}/${f.name}`));
   }
   const { error } = await admin.auth.admin.deleteUser(userId);
-  return error ? { error: error.message } : {};
+  if (error) return { error: error.message };
+
+  // Their posts are gone from the database, but the feeds, digest and
+  // leaderboards keep a copy for a few minutes. Drop those copies now.
+  updateTag(POSTS_CACHE_TAG);
+  return {};
+}
 }
 
 export async function deleteAccount(): Promise<{ error?: string }> {

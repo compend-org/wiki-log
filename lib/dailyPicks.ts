@@ -1,8 +1,9 @@
 // ABOUTME: Picks the most and least popular items of the last 24 hours.
 // ABOUTME: The result is cached in the shared remote cache for all server instances.
 import { createClient } from "@supabase/supabase-js";
-import { cacheLife } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import { reportFailedResponses } from "@/lib/supabase/reportFailedResponses";
+import { POSTS_CACHE_TAG } from "./cacheTags";
 
 export type Pick = {
   itemId: string;
@@ -39,6 +40,7 @@ export async function getDailyPicks(): Promise<DailyPicks> {
   // Recomputed about every 2 minutes (120 seconds), however many people load
   // the page in between. The numbers must be written out here as plain values.
   cacheLife({ stale: 60, revalidate: 120, expire: 600 });
+  cacheTag(POSTS_CACHE_TAG);
 
   const none: DailyPicks = { popular: null, unpopular: null };
 
