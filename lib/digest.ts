@@ -1,10 +1,8 @@
 // ABOUTME: Loads the newest long reviews for the Digest page, a page at a time.
 // ABOUTME: The same for every visitor, so the result is cached in the shared remote cache.
 import { cacheLife, cacheTag } from "next/cache";
-import { createPublicClient } from "@/lib/supabase/public";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
-
-
+import { createPublicClient } from "@/lib/supabase/public";
 
 // A review counts as long above 720 characters. That number lives in the
 // long_logs() function and its index in the database, so change it there too.

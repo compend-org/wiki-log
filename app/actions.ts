@@ -2,7 +2,9 @@
 // ABOUTME: Caches items looked up from Wikipedia before anything refers to them.
 "use server";
 
+import { updateTag } from "next/cache";
 import { isAdmin } from "@/lib/admin";
+import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
 import { FEATURES } from "@/lib/features";
 import { ITEM_ID_PATTERN, isCompoundId, isUuid } from "@/lib/ids";
 import {
@@ -15,8 +17,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { cleanName, isValidName } from "@/lib/username";
 import { getItemById } from "@/lib/wikipedia";
-import { updateTag } from "next/cache";
-import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
 
 const ITEM_ID = ITEM_ID_PATTERN;
 
@@ -129,7 +129,6 @@ async function removeAccount(userId: string): Promise<{ error?: string }> {
   // leaderboards keep a copy for a few minutes. Drop those copies now.
   updateTag(POSTS_CACHE_TAG);
   return {};
-}
 }
 
 export async function deleteAccount(): Promise<{ error?: string }> {
