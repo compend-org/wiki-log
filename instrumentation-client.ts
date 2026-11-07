@@ -9,6 +9,8 @@ Sentry.init({
   // in-app webviews inject into the page (translators, Twitter, Instagram)
   // report the page's URL as their file, so their errors are left out.
   allowUrls: [/\/_next\//],
+  // Server action requests carry passwords and review text in their bodies
+  dataCollection: { httpBodies: [] },
 });
 
 tolerateTranslatedPage(Node.prototype);

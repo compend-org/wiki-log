@@ -11,6 +11,9 @@ export function register() {
     // Configuring tracing gives every request its own scope when Next.js
     // starts handling it. A rate of 0 sends no traces.
     tracesSampleRate: 0,
+    // Request bodies are sent unfiltered. Server action bodies hold
+    // passwords and review text, so no bodies are sent.
+    dataCollection: { httpBodies: [] },
   });
 }
 
