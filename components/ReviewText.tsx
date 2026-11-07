@@ -3,7 +3,9 @@ import { REVIEW_LINK } from "@/lib/format";
 
 // Shows a review, turning item links into real links. Put it inside the
 // element that holds the text. With `plain`, the links are only underlined
-// (for places where a link can't be clicked, like tooltips).
+// (for places where a link can't be clicked, like tooltips). Otherwise the
+// text sits above a card's full-card link, so it can be selected while the
+// space around it still opens the card.
 export default function ReviewText({
   text,
   plain = false,
@@ -39,5 +41,5 @@ export default function ReviewText({
   }
   if (last < text.length) parts.push(text.slice(last));
 
-  return <>{parts}</>;
+  return plain ? parts : <span className="relative z-10">{parts}</span>;
 }
