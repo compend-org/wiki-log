@@ -138,9 +138,10 @@ export default function FeedTabs({
             aria-labelledby={`feed-tab-${t.id}`}
             // Closed panels are collapsed but stay laid out. Shown again from
             // display: none, Safari briefly sizes a feed as empty, and the
-            // page jumps up.
+            // page jumps up. The open panel is at least a screen tall, so the
+            // page doesn't get shorter while its feed loads or first appears.
             className={
-              active === t.id ? undefined : "invisible h-0 overflow-hidden"
+              active === t.id ? "min-h-lvh" : "invisible h-0 overflow-hidden"
             }
           >
             <Suspense fallback={loading}>{panels[t.id]?.feed}</Suspense>
