@@ -113,6 +113,13 @@ body {
     background: var(--color-surface);
     text-decoration: none;
   }
+
+  /* While text above a card's full-card link is being selected, the link
+     stops catching the pointer, so the selection follows the text across
+     the gaps between lines instead of jumping to the link */
+  .card:has(.card-text:active) > a.absolute {
+    pointer-events: none;
+  }
 }
 
 /* No rounded corners anywhere. Blunt, but it reaches every component. */
