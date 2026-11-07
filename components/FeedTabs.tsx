@@ -128,17 +128,25 @@ export default function FeedTabs({
         ))}
       </div>
 
-      {tabs.map((t) => (
-        <div
-          key={t.id}
-          role="tabpanel"
-          id={`feed-panel-${t.id}`}
-          aria-labelledby={`feed-tab-${t.id}`}
-          hidden={active !== t.id}
-        >
-          <Suspense fallback={loading}>{panels[t.id]?.feed}</Suspense>
-        </div>
-      ))}
+      {/* One box for the panels, so the closed ones add no gaps */}
+      <div>
+        {tabs.map((t) => (
+          <div
+            key={t.id}
+            role="tabpanel"
+            id={`feed-panel-${t.id}`}
+            aria-labelledby={`feed-tab-${t.id}`}
+            // Closed panels are collapsed but stay laid out. Shown again from
+            // display: none, Safari briefly sizes a feed as empty, and the
+            // page jumps up.
+            className={
+              active === t.id ? undefined : "invisible h-0 overflow-hidden"
+            }
+          >
+            <Suspense fallback={loading}>{panels[t.id]?.feed}</Suspense>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
