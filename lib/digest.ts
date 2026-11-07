@@ -4,9 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
 
-"use cache: remote";
-cacheLife({ stale: 30, revalidate: 60, expire: 300 });
-cacheTag(POSTS_CACHE_TAG);
+
 
 // A review counts as long above 720 characters. That number lives in the
 // long_logs() function and its index in the database, so change it there too.
@@ -46,6 +44,7 @@ export async function getDigest(
 ): Promise<{ logs: DigestLog[]; next: string | null; error: string }> {
   "use cache: remote";
   cacheLife({ stale: 30, revalidate: 60, expire: 300 });
+  cacheTag(POSTS_CACHE_TAG);
 
   const supabase = createPublicClient();
   const { data, error } = await supabase
