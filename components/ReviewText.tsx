@@ -41,5 +41,9 @@ export default function ReviewText({
   }
   if (last < text.length) parts.push(text.slice(last));
 
-  return plain ? parts : <span className="relative z-10">{parts}</span>;
+  return plain ? (
+    parts
+  ) : (
+    <span className="card-text relative z-10">{parts}</span>
+  );
 }
