@@ -5,6 +5,7 @@
 import { updateTag } from "next/cache";
 import { isAdmin } from "@/lib/admin";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
+import { withErrorContext } from "@/lib/errorContext";
 import { FEATURES } from "@/lib/features";
 import { ITEM_ID_PATTERN, isCompoundId, isUuid } from "@/lib/ids";
 import {
@@ -100,12 +101,17 @@ export async function logItem(input: {
   if ("error" in stored) return { error: stored.error };
 
   // Saved as the signed-in user, so RLS applies
-  const { error } = await supabase.from("logs").insert({
-    user_id: userId,
-    item_id: stored.id,
-    rating: input.rating,
-    review: input.review.slice(0, 5000),
-  });
+  const { error } = await withErrorContext(
+    "log",
+    { requestedItemId: input.itemId, itemId: stored.id },
+    () =>
+      supabase.from("logs").insert({
+        user_id: userId,
+        item_id: stored.id,
+        rating: input.rating,
+        review: input.review.slice(0, 5000),
+      }),
+  );
   if (error) return { error: error.message };
 
   return {};
@@ -234,12 +240,21 @@ export async function setFavourite(input: {
   const stored = await ensureItem(input.itemId);
   if ("error" in stored) return { error: stored.error };
 
-  const { error } = await supabase
-    .from("favourites")
-    .upsert(
-      { user_id: userId, position: input.position, item_id: stored.id },
-      { onConflict: "user_id,position" },
-    );
+  const { error } = await withErrorContext(
+    "favourite",
+    {
+      requestedItemId: input.itemId,
+      itemId: stored.id,
+      position: input.position,
+    },
+    () =>
+      supabase
+        .from("favourites")
+        .upsert(
+          { user_id: userId, position: input.position, item_id: stored.id },
+          { onConflict: "user_id,position" },
+        ),
+  );
   if (error) {
     return {
       error:
@@ -308,11 +323,22 @@ export async function addToList(input: {
     .limit(1)
     .maybeSingle();
 
-  const { error } = await supabase.from("list_items").insert({
-    list_id: input.listId,
-    item_id: stored.id,
-    position: (last?.position ?? 0) + 1,
-  });
+  const position = (last?.position ?? 0) + 1;
+  const { error } = await withErrorContext(
+    "list_item",
+    {
+      listId: input.listId,
+      requestedItemId: input.itemId,
+      itemId: stored.id,
+      position,
+    },
+    () =>
+      supabase.from("list_items").insert({
+        list_id: input.listId,
+        item_id: stored.id,
+        position,
+      }),
+  );
   if (error) {
     return {
       error:
