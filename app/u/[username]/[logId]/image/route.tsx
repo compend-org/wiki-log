@@ -9,21 +9,12 @@ import { absolute, plainReview, shortLabel, thumbUrl } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { getProfileByName } from "@/lib/profiles";
 import { getReview } from "@/lib/reviews";
+import { COLORS, embeddable, loadSerifFonts, Stars } from "@/lib/shareImage";
 import { SITE_NAME } from "@/lib/site";
 import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia";
 
 const WIDTH = 1080;
 const HEIGHT = 1350;
-
-// The site's light theme colours, from globals.css
-const COLORS = {
-  background: "#ffffff",
-  surface: "#f1f3f8",
-  line: "#a9adb8",
-  foreground: "#000000",
-  muted: "#555555",
-  star: "#c98a00",
-};
 
 // The card is the site's review card scaled up: one site pixel is this many
 // image pixels, which makes the card fill the image's width
@@ -32,94 +23,6 @@ const px = (sitePixels: number) => Math.round(sitePixels * SCALE);
 
 // The most lines of review shown before it's cut off with an ellipsis
 const REVIEW_LINES = 10;
-
-type Font = {
-  name: string;
-  data: ArrayBuffer;
-  weight: 400 | 700;
-  style: "normal";
-};
-
-// Tinos is a free serif drawn to the same measurements as Times New Roman,
-// the site's own font. It's fetched once per server and reused.
-let serifFonts: Promise<Font[]> | null = null;
-
-function loadSerifFonts(): Promise<Font[]> {
-  serifFonts ??= (async () => {
-    const css = await fetch(
-      "https://fonts.googleapis.com/css2?family=Tinos:wght@400;700",
-    ).then((res) => res.text());
-    const faces = [
-      ...css.matchAll(/font-weight: (400|700);\s*src: url\((.+?)\)/g),
-    ];
-    if (faces.length === 0) throw new Error("No Tinos fonts found");
-    return Promise.all(
-      faces.map(async ([, weight, url]) => ({
-        name: "Tinos",
-        data: await fetch(url).then((res) => res.arrayBuffer()),
-        weight: Number(weight) as 400 | 700,
-        style: "normal" as const,
-      })),
-    );
-  })().catch((error) => {
-    // Try again on the next image; this one uses the default font
-    console.error("Loading the review image font failed:", error);
-    serifFonts = null;
-    return [];
-  });
-  return serifFonts;
-}
-
-// An image as a data address the renderer can draw, or null when it can't be
-// fetched or is in a format the renderer doesn't support
-async function embeddable(
-  url: string,
-  headers?: Record<string, string>,
-): Promise<string | null> {
-  try {
-    const res = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(5000),
-    });
-    const type = res.headers.get("content-type") ?? "";
-    if (!res.ok || !/^image\/(png|jpeg|gif)$/.test(type)) return null;
-    const data = Buffer.from(await res.arrayBuffer()).toString("base64");
-    return `data:${type};base64,${data}`;
-  } catch {
-    return null;
-  }
-}
-
-// Five-pointed stars for a rating out of 5, with a half star for .5
-function Stars({ rating, size }: { rating: number; size: number }) {
-  const full = Math.floor(rating);
-  const half = rating - full >= 0.5;
-  const star =
-    "12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26";
-  const leftHalf = "12,2 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26";
-
-  return (
-    <div style={{ display: "flex" }}>
-      {Array.from({ length: full }, (_, i) => (
-        <svg
-          // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries repeat
-          key={i}
-          width={size}
-          height={size}
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <polygon points={star} fill={COLORS.star} />
-        </svg>
-      ))}
-      {half && (
-        <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
-          <polygon points={leftHalf} fill={COLORS.star} />
-        </svg>
-      )}
-    </div>
-  );
-}
 
 export async function GET(
   request: Request,
