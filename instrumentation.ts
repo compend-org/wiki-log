@@ -3,7 +3,15 @@
 import * as Sentry from "@sentry/nextjs";
 
 export function register() {
-  Sentry.init({ dsn: process.env.NEXT_PUBLIC_SENTRY_DSN });
+  Sentry.init({
+    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    // Sentry starts during each server instance's first request, so that
+    // request gets no scope of its own from the HTTP server. Its breadcrumbs
+    // and tags would then land on every later error from the instance.
+    // Configuring tracing gives every request its own scope when Next.js
+    // starts handling it. A rate of 0 sends no traces.
+    tracesSampleRate: 0,
+  });
 }
 
 export const onRequestError = Sentry.captureRequestError;
