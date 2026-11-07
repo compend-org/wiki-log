@@ -2,12 +2,19 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import ItemPicker from "@/components/ItemPicker";
 import { DEFAULT_LANG, isLang } from "@/lib/languages";
 import { loginHref } from "@/lib/redirect";
 
-export default function ItemSearch({ signedIn }: { signedIn: boolean }) {
+export default function ItemSearch({
+  signedIn,
+  headingAction,
+}: {
+  signedIn: boolean;
+  // Shown at the right end of the heading's row
+  headingAction?: ReactNode;
+}) {
   const router = useRouter();
   const [randoming, setRandoming] = useState<boolean>(false);
   const [navigating, startTransition] = useTransition();
@@ -46,7 +53,10 @@ export default function ItemSearch({ signedIn }: { signedIn: boolean }) {
 
   return (
     <section className="flex flex-col gap-3">
-      <h1 className="text-3xl font-bold">Log.</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-3xl font-bold">Log.</h1>
+        {headingAction}
+      </div>
       <p className="text-sm text-muted">
         Search, paste a Wikipedia article URL, or{" "}
         <button
