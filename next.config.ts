@@ -29,7 +29,7 @@ export default withSentryConfig(nextConfig, {
     // Builds on Vercel have no git history, so the commit comes from Vercel
     setCommits: process.env.VERCEL_GIT_COMMIT_SHA
       ? {
-          repo: "crabbeleo/wiki-log",
+          repo: "compend-org/wiki-log",
           commit: process.env.VERCEL_GIT_COMMIT_SHA,
           ignoreMissing: true,
         }
