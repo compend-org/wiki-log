@@ -1,3 +1,4 @@
+import { FEATURES } from "@/lib/features";
 import Link from "next/link";
 
 export default function Footer() {
@@ -21,6 +22,15 @@ export default function Footer() {
                 >
                     Digest
                 </Link>
+                {FEATURES.leaderboards && (
+                    <Link
+                        href="/leaderboards"
+                        prefetch={false}
+                        className="hover:text-foreground hover:underline"
+                    >
+                        Leaderboards
+                    </Link>
+                )}
                 <Link
                     href="/guide"
                     prefetch={false}

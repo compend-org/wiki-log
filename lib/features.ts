@@ -18,4 +18,6 @@ export const FEATURES = {
   dailyPicks: flag(process.env.NEXT_PUBLIC_FEATURE_DAILY_PICKS, true),
   // The Trending tab on the home page
   trending: flag(process.env.NEXT_PUBLIC_FEATURE_TRENDING, true),
+  // leaderboards page
+  leaderboards: flag(process.env.NEXT_PUBLIC_FEATURE_LEADERBOARDS, false),
 };
