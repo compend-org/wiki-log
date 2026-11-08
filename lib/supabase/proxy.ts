@@ -12,7 +12,7 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headers) {
           // biome-ignore lint/suspicious/useIterableCallbackReturn: the callback's return value is unused
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
@@ -22,6 +22,10 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
           );
+          // Stops CDNs storing a response that carries someone's session
+          for (const [key, value] of Object.entries(headers)) {
+            supabaseResponse.headers.set(key, value);
+          }
         },
       },
     },
