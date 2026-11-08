@@ -59,15 +59,17 @@ export async function reportFailedResponses(
       response.clone(),
     );
     if (failure) {
-      Sentry.captureMessage(
+      // Sentry titles events by error name, and this name survives minification
+      const error = new Error(
         `Supabase ${failure.method} ${failure.table}: ${failure.message}`,
-        {
-          level: "error",
-          fingerprint: ["supabase", failure.table, failure.code],
-          tags: { table: failure.table, sql_code: failure.code },
-          extra: { status: failure.status },
-        },
       );
+      error.name = "SupabaseError";
+      Sentry.captureException(error, {
+        level: "error",
+        fingerprint: ["supabase", failure.table, failure.code],
+        tags: { table: failure.table, sql_code: failure.code },
+        extra: { status: failure.status },
+      });
     }
   } catch {
     // Reporting must never change what the caller receives
