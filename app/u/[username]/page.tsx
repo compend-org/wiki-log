@@ -120,14 +120,14 @@ export default async function ProfilePage({
     .from("profiles")
     .select(
       "followers:follows!follows_following_id_fkey(count), " +
-      "following:follows!follows_follower_id_fkey(count), " +
-      "log_count:logs!logs_user_id_profiles_fkey(count), " +
-      "list_count:lists!lists_user_id_profiles_fkey(count), " +
-      "favourites(position, item_id, items(title, image_url)), " +
-      "pin_rows:pins(pinned_at, log_id, list_id), " +
-      "owned_lists:lists!lists_user_id_profiles_fkey(id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))), " +
-      "reviews:logs!logs_user_id_profiles_fkey(id, item_id, rating, review, logged_at, items(title, image_url), comments(count))" +
-      viewerEmbeds,
+        "following:follows!follows_follower_id_fkey(count), " +
+        "log_count:logs!logs_user_id_profiles_fkey(count), " +
+        "list_count:lists!lists_user_id_profiles_fkey(count), " +
+        "favourites(position, item_id, items(title, image_url)), " +
+        "pin_rows:pins(pinned_at, log_id, list_id), " +
+        "owned_lists:lists!lists_user_id_profiles_fkey(id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))), " +
+        "reviews:logs!logs_user_id_profiles_fkey(id, item_id, rating, review, logged_at, items(title, image_url), comments(count))" +
+        viewerEmbeds,
     )
     .eq("id", profile.id)
     .order("created_at", { referencedTable: "owned_lists", ascending: false })
@@ -159,10 +159,10 @@ export default async function ProfilePage({
     const row = favRows.find((r) => r.position === pos);
     return row
       ? {
-        itemId: row.item_id,
-        title: row.items?.title ?? "Unknown item",
-        imageUrl: row.items?.image_url ?? null,
-      }
+          itemId: row.item_id,
+          title: row.items?.title ?? "Unknown item",
+          imageUrl: row.items?.image_url ?? null,
+        }
       : null;
   });
 
@@ -176,21 +176,21 @@ export default async function ProfilePage({
   const [pinnedLogsRes, pinnedListsRes] = await Promise.all([
     pinnedLogIds.length > 0
       ? supabase
-        .from("logs")
-        .select(
-          "id, item_id, rating, review, logged_at, items(title, image_url), comments(count)",
-        )
-        .in("id", pinnedLogIds)
+          .from("logs")
+          .select(
+            "id, item_id, rating, review, logged_at, items(title, image_url), comments(count)",
+          )
+          .in("id", pinnedLogIds)
       : { data: [] },
     pinnedListIds.length > 0
       ? supabase
-        .from("lists")
-        .select(
-          "id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))",
-        )
-        .in("id", pinnedListIds)
-        .lte("preview.position", 4)
-        .order("position", { referencedTable: "preview" })
+          .from("lists")
+          .select(
+            "id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))",
+          )
+          .in("id", pinnedListIds)
+          .lte("preview.position", 4)
+          .order("position", { referencedTable: "preview" })
       : { data: [] },
   ]);
   const pinnedLogs = new Map(
@@ -391,8 +391,6 @@ export default async function ProfilePage({
           )}
         </section>
       )}
-
-
 
       {(otherLists.length > 0 || (isOwner && lists.length === 0)) && (
         <section className="flex flex-col gap-3">
