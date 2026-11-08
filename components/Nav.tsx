@@ -99,6 +99,7 @@ export default function Nav() {
       {" "}
       <Link
         href="/"
+        prefetch={false}
         className="sm:mr-2 flex items-center gap-2 text-xl font-bold text-foreground no-underline"
       >
         {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
@@ -143,6 +144,7 @@ export default function Nav() {
         <Link
           href="/notifications"
           aria-label="Notifications"
+          prefetch={false}
           title="Notifications"
           className={`inline-flex items-center gap-1 ${tone("/notifications")}`}
         >
@@ -165,6 +167,7 @@ export default function Nav() {
               <Link
                 href={`/u/${encodeURIComponent(username)}`}
                 aria-label={`${username}'s profile`}
+                prefetch={false}
                 className="flex items-center gap-2 text-accent underline hover:no-underline"
               >
                 <Avatar name={username} path={avatarPath} size={40} />

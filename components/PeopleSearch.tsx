@@ -119,6 +119,7 @@ export default function PeopleSearch() {
                   <Link
                     href={`/u/${encodeURIComponent(p.username)}`}
                     onClick={close}
+                    prefetch={false}
                     className="flex items-center gap-2 px-2 py-1.5 text-sm text-foreground no-underline hover:bg-surface"
                   >
                     <Avatar name={p.username} path={p.avatar_path} size={20} />

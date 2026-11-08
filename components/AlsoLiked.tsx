@@ -33,6 +33,7 @@ export default function AlsoLiked({
         <Link
           key={p.logId}
           href={`/u/${encodeURIComponent(p.username)}/${p.logId}`}
+          prefetch={false}
           aria-label={`${p.username}'s review, ${p.rating} out of 5 stars`}
           title={`${p.username}'s review`}
           className={`${
