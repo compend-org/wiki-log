@@ -12,6 +12,7 @@ import Favourites, { type Slot } from "@/components/Favourites";
 import FollowButton from "@/components/FollowButton";
 import ItemImage from "@/components/ItemImage";
 import ListPreview from "@/components/ListPreview";
+import PinButton from "@/components/PinButton";
 import ReviewText from "@/components/ReviewText";
 import SignOutButton from "@/components/SignOutButton";
 import Stars from "@/components/Stars";
@@ -51,6 +52,17 @@ type ListRow = {
   preview: { position: number; items: ItemInfo }[];
 };
 
+type PinRow = {
+  pinned_at: string;
+  log_id: string | null;
+  list_id: string | null;
+};
+
+type Pinned = { kind: "log"; log: LogRow } | { kind: "list"; list: ListRow };
+
+// How many things a person can pin. The database enforces the same number.
+const MAX_PINS = 3;
+
 type ProfileContent = {
   followers: { count: number }[];
   following: { count: number }[];
@@ -59,6 +71,7 @@ type ProfileContent = {
   favourites: FavRow[];
   owned_lists: ListRow[];
   reviews: LogRow[];
+  pin_rows: PinRow[];
   viewer_follow?: { follower_id: string }[];
   viewer_block?: { blocker_id: string }[];
 };
@@ -107,16 +120,18 @@ export default async function ProfilePage({
     .from("profiles")
     .select(
       "followers:follows!follows_following_id_fkey(count), " +
-        "following:follows!follows_follower_id_fkey(count), " +
-        "log_count:logs!logs_user_id_profiles_fkey(count), " +
-        "list_count:lists!lists_user_id_profiles_fkey(count), " +
-        "favourites(position, item_id, items(title, image_url)), " +
-        "owned_lists:lists!lists_user_id_profiles_fkey(id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))), " +
-        "reviews:logs!logs_user_id_profiles_fkey(id, item_id, rating, review, logged_at, items(title, image_url), comments(count))" +
-        viewerEmbeds,
+      "following:follows!follows_follower_id_fkey(count), " +
+      "log_count:logs!logs_user_id_profiles_fkey(count), " +
+      "list_count:lists!lists_user_id_profiles_fkey(count), " +
+      "favourites(position, item_id, items(title, image_url)), " +
+      "pin_rows:pins(pinned_at, log_id, list_id), " +
+      "owned_lists:lists!lists_user_id_profiles_fkey(id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))), " +
+      "reviews:logs!logs_user_id_profiles_fkey(id, item_id, rating, review, logged_at, items(title, image_url), comments(count))" +
+      viewerEmbeds,
     )
     .eq("id", profile.id)
     .order("created_at", { referencedTable: "owned_lists", ascending: false })
+    .order("pinned_at", { referencedTable: "pin_rows", ascending: false })
     // The first four items of each list, for the preview thumbnails
     .lte("owned_lists.preview.position", 4)
     .order("position", { referencedTable: "owned_lists.preview" })
@@ -144,19 +159,145 @@ export default async function ProfilePage({
     const row = favRows.find((r) => r.position === pos);
     return row
       ? {
-          itemId: row.item_id,
-          title: row.items?.title ?? "Unknown item",
-          imageUrl: row.items?.image_url ?? null,
-        }
+        itemId: row.item_id,
+        title: row.items?.title ?? "Unknown item",
+        imageUrl: row.items?.image_url ?? null,
+      }
       : null;
   });
 
   const lists = content?.owned_lists ?? [];
 
+  // What they pinned: loaded on its own, so a pinned log older than the
+  // newest 1000 still shows
+  const pinRows = content?.pin_rows ?? [];
+  const pinnedLogIds = pinRows.flatMap((p) => (p.log_id ? [p.log_id] : []));
+  const pinnedListIds = pinRows.flatMap((p) => (p.list_id ? [p.list_id] : []));
+  const [pinnedLogsRes, pinnedListsRes] = await Promise.all([
+    pinnedLogIds.length > 0
+      ? supabase
+        .from("logs")
+        .select(
+          "id, item_id, rating, review, logged_at, items(title, image_url), comments(count)",
+        )
+        .in("id", pinnedLogIds)
+      : { data: [] },
+    pinnedListIds.length > 0
+      ? supabase
+        .from("lists")
+        .select(
+          "id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))",
+        )
+        .in("id", pinnedListIds)
+        .lte("preview.position", 4)
+        .order("position", { referencedTable: "preview" })
+      : { data: [] },
+  ]);
+  const pinnedLogs = new Map(
+    ((pinnedLogsRes.data ?? []) as unknown as LogRow[]).map((l) => [l.id, l]),
+  );
+  const pinnedLists = new Map(
+    ((pinnedListsRes.data ?? []) as unknown as ListRow[]).map((l) => [l.id, l]),
+  );
+  // Newest pin first. A pin whose log or list can't be found is left out.
+  const pinned = pinRows.flatMap((p): Pinned[] => {
+    const log = p.log_id ? pinnedLogs.get(p.log_id) : undefined;
+    if (log) return [{ kind: "log", log }];
+    const list = p.list_id ? pinnedLists.get(p.list_id) : undefined;
+    return list ? [{ kind: "list", list }] : [];
+  });
+  // Pinned things show at the top, so they aren't shown again below
+  const otherLogs = logs.filter((l) => !pinnedLogs.has(l.id));
+  const otherLists = lists.filter((l) => !pinnedLists.has(l.id));
+
   const isOwner = viewerId === profile.id;
   const profileIsAdmin = await isAdmin(profile.id);
   const viewerIsAdmin = await isAdmin(viewerId);
   const profileHref = `/u/${encodeURIComponent(profile.username)}`;
+
+  // Pin and Unpin, on your own profile. Once you have 3 pins, only Unpin shows.
+  const pinControl = (kind: "log" | "list", id: string, isPinned: boolean) =>
+    isOwner && viewerId && (isPinned || pinRows.length < MAX_PINS) ? (
+      <PinButton
+        userId={viewerId}
+        kind={kind}
+        targetId={id}
+        pinned={isPinned}
+      />
+    ) : null;
+
+  const renderList = (l: ListRow, isPinned: boolean) => {
+    const count = l.list_items?.[0]?.count ?? 0;
+    const preview = l.preview.map((p) => ({
+      title: p.items?.title ?? "Unknown item",
+      image_url: p.items?.image_url ?? null,
+    }));
+    return (
+      <div
+        key={l.id}
+        className="card relative flex flex-col gap-2 p-3 hover:bg-surface"
+      >
+        <Link
+          href={`/list/${l.id}`}
+          aria-label={`Open the list ${l.title}`}
+          className="absolute inset-0 rounded-[inherit]"
+        />
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="font-semibold">{l.title}</span>
+          <span className="flex shrink-0 items-baseline gap-3 text-xs text-muted">
+            <span>
+              {l.ranked ? "Ranked · " : ""}
+              {count} {count === 1 ? "item" : "items"}
+            </span>
+            {pinControl("list", l.id, isPinned)}
+          </span>
+        </div>
+        {preview.length > 0 && (
+          <ListPreview thumbs={preview} total={count} href={`/list/${l.id}`} />
+        )}
+      </div>
+    );
+  };
+
+  const renderLog = (log: LogRow, isPinned: boolean) => {
+    const title = log.items?.title ?? "Unknown item";
+    const commentCount = log.comments?.[0]?.count ?? 0;
+    return (
+      <div
+        key={log.id}
+        className="card relative flex gap-4 p-3 hover:bg-surface"
+      >
+        <Link
+          href={`${profileHref}/${log.id}`}
+          aria-label={`Open the review of ${title}`}
+          className="absolute inset-0 rounded-[inherit]"
+        />
+        <ItemImage
+          src={log.items?.image_url}
+          alt={title}
+          className="h-20 w-20 shrink-0 rounded"
+        />
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="font-semibold">{title}</span>
+            <span className="shrink-0 text-xs text-muted">
+              {pinControl("log", log.id, isPinned)}
+            </span>
+          </div>
+          <Stars rating={log.rating} />
+          {log.review && (
+            <p className="text-sm">
+              <ReviewText text={log.review} />
+            </p>
+          )}
+          <span className="text-xs text-muted">
+            {new Date(log.logged_at).toLocaleDateString()}
+            {commentCount > 0 && <> · {commentLabel(commentCount)}</>}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
@@ -235,12 +376,25 @@ export default async function ProfilePage({
           )}
         </div>
       </header>
-
       {(isOwner || slots.some(Boolean)) && (
         <Favourites slots={slots} isOwner={isOwner} />
       )}
+      {pinned.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+            Pinned
+          </h2>
+          {pinned.map((p) =>
+            p.kind === "log"
+              ? renderLog(p.log, true)
+              : renderList(p.list, true),
+          )}
+        </section>
+      )}
 
-      {(isOwner || lists.length > 0) && (
+
+
+      {(otherLists.length > 0 || (isOwner && lists.length === 0)) && (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
@@ -253,42 +407,10 @@ export default async function ProfilePage({
             )} */}
           </div>
           {lists.length === 0 && <p className="text-muted">No lists yet.</p>}
-          {lists.map((l) => {
-            const count = l.list_items?.[0]?.count ?? 0;
-            const preview = l.preview.map((p) => ({
-              title: p.items?.title ?? "Unknown item",
-              image_url: p.items?.image_url ?? null,
-            }));
-            return (
-              <div
-                key={l.id}
-                className="card relative flex flex-col gap-2 p-3 hover:bg-surface"
-              >
-                <Link
-                  href={`/list/${l.id}`}
-                  aria-label={`Open the list ${l.title}`}
-                  className="absolute inset-0 rounded-[inherit]"
-                />
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-semibold">{l.title}</span>
-                  <span className="shrink-0 text-xs text-muted">
-                    {l.ranked ? "Ranked · " : ""}
-                    {count} {count === 1 ? "item" : "items"}
-                  </span>
-                </div>
-                {preview.length > 0 && (
-                  <ListPreview
-                    thumbs={preview}
-                    total={count}
-                    href={`/list/${l.id}`}
-                  />
-                )}
-              </div>
-            );
-          })}
+          {otherLists.map((l) => renderList(l, false))}
         </section>
       )}
-      {logs.length > 0 && (
+      {otherLogs.length > 0 && (
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
           Reviews
         </h2>
@@ -296,40 +418,7 @@ export default async function ProfilePage({
 
       {logs.length === 0 && <p className="text-muted">Nothing logged yet.</p>}
 
-      {logs.map((log) => {
-        const title = log.items?.title ?? "Unknown item";
-        const commentCount = log.comments?.[0]?.count ?? 0;
-        return (
-          <div
-            key={log.id}
-            className="card relative flex gap-4 p-3 hover:bg-surface"
-          >
-            <Link
-              href={`${profileHref}/${log.id}`}
-              aria-label={`Open the review of ${title}`}
-              className="absolute inset-0 rounded-[inherit]"
-            />
-            <ItemImage
-              src={log.items?.image_url}
-              alt={title}
-              className="h-20 w-20 shrink-0 rounded"
-            />
-            <div className="flex min-w-0 flex-col gap-1">
-              <span className="font-semibold">{title}</span>
-              <Stars rating={log.rating} />
-              {log.review && (
-                <p className="text-sm">
-                  <ReviewText text={log.review} />
-                </p>
-              )}
-              <span className="text-xs text-muted">
-                {new Date(log.logged_at).toLocaleDateString()}
-                {commentCount > 0 && <> · {commentLabel(commentCount)}</>}
-              </span>
-            </div>
-          </div>
-        );
-      })}
+      {otherLogs.map((log) => renderLog(log, false))}
     </main>
   );
 }
