@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { confirmCurrentUser } from "@/lib/confirmCurrentUser";
 import { createClient } from "@/lib/supabase/client";
 
 export function useCurrentUser() {
@@ -17,18 +18,10 @@ export function useCurrentUser() {
 
     // The authority: asks the server whether this account really exists
     const loadUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
+      const user = await confirmCurrentUser(supabase);
       if (cancelled) return;
-      if (error || !data.user) {
-        // No session, or one for an account that no longer exists: forget it
-        await supabase.auth.signOut({ scope: "local" });
-        if (cancelled) return;
-        setUserId(null);
-        setEmail(null);
-      } else {
-        setUserId(data.user.id);
-        setEmail(data.user.email ?? null);
-      }
+      setUserId(user?.id ?? null);
+      setEmail(user?.email ?? null);
       setReady(true);
     };
 
