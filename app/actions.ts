@@ -304,12 +304,14 @@ export async function addToList(input: {
     return { error: "Invalid order." };
   }
 
-  const { data: list } = await supabase
+  const { data: list, error: listError } = await supabase
     .from("lists")
     .select("id")
     .eq("id", input.listId)
     .eq("user_id", userId)
     .maybeSingle();
+  if (listError)
+    return { error: "Couldn't add to that list. Please try again." };
   if (!list) return { error: "That list isn't yours." };
 
   const stored = await ensureItem(input.itemId);

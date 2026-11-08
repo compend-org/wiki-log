@@ -36,6 +36,7 @@ type Write = {
 
 function setup({
   cached = [] as Row[],
+  listCheckFails = false,
   lookupFails = false,
   upsertFails = false,
   writeFails = false,
@@ -125,7 +126,10 @@ function setup({
           );
           return Response.json(item ? [item] : []);
         }
-        if (table === "lists") return Response.json([{ id: listId }]);
+        if (table === "lists") {
+          if (listCheckFails) return new Response("timeout", { status: 555 });
+          return Response.json([{ id: listId }]);
+        }
         assert.equal(table, "list_items");
         return Response.json([]);
       }
@@ -204,6 +208,14 @@ test("adding to a ranked list uses the resolved ID in the row, order and respons
     ["Q89", resolvedId, "Q90"],
   );
   assert.deepEqual(order, ["Q89", requestedId, "Q90"]);
+});
+
+test("a failed list check isn't reported as someone else's list", async () => {
+  fixture = setup({ listCheckFails: true });
+  assert.deepEqual(await addToList({ listId, itemId: requestedId }), {
+    error: "Couldn't add to that list. Please try again.",
+  });
+  assert.deepEqual(fixture.writes, []);
 });
 
 test("favourites reference the resolved ID", async () => {
