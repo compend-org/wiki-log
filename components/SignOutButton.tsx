@@ -18,7 +18,7 @@ export default function SignOutButton({
   const router = useRouter();
 
   async function handleSignOut() {
-    await createClient().auth.signOut();
+    await createClient().auth.signOut({ scope: "local" });
     router.push("/");
     router.refresh();
   }
