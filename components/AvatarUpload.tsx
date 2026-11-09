@@ -2,6 +2,7 @@
 // ABOUTME: Pictures are cropped to a square and stored at full and small sizes.
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
 import { AVATAR_SIZE, AVATAR_SMALL_SIZE, smallAvatarPath } from "@/lib/avatar";
@@ -41,6 +42,7 @@ export default function AvatarUpload() {
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const fileInput = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     async function load() {
@@ -131,7 +133,7 @@ export default function AvatarUpload() {
 
     setPath(newPath);
     setBusy(false);
-    window.dispatchEvent(new Event("profile-updated"));
+    router.refresh();
   }
 
   async function handleRemove() {
@@ -155,7 +157,7 @@ export default function AvatarUpload() {
       .remove([path, smallAvatarPath(path)]);
     setPath(null);
     setBusy(false);
-    window.dispatchEvent(new Event("profile-updated"));
+    router.refresh();
   }
 
   if (!userId) return null;

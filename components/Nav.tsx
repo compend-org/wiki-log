@@ -1,95 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import Avatar from "@/components/Avatar";
+import type { ReactNode } from "react";
 import { FEATURES } from "@/lib/features";
 import { SITE_NAME } from "@/lib/site";
-import { createClient } from "@/lib/supabase/client";
-import { useCurrentUser } from "@/lib/useCurrentUser";
+import { useNavLinkTone } from "@/lib/useNavLinkTone";
 import CraftIcon from "./CraftIcon";
 import DiaryIcon from "./DiaryIcon";
-import NotificationIcon from "./NotificationIcon";
 import PeopleSearch from "./PeopleSearch";
-import SignInButton from "./SignInButton";
-import SignOutButton from "./SignOutButton";
 
-const UNREAD_REFRESH_MS = 60_000;
-
-export default function Nav() {
-  const { userId, username, avatarPath, ready } = useCurrentUser();
-  const [unread, setUnread] = useState<number>(0);
-  const pathname = usePathname();
-
-  const unreadCheckedAt = useRef(0);
-  const refreshUnread = useRef<(() => void) | null>(null);
-
-  // Refresh the unread count when you sign in, or when you come back to the
-  // page, at most once a minute
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    let inFlight = false;
-
-    const refresh = () => {
-      // Focus and visibilitychange fire together; one request covers both
-      if (inFlight) return;
-      inFlight = true;
-      unreadCheckedAt.current = Date.now();
-      createClient()
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("recipient_id", userId)
-        .eq("read", false)
-        .then(({ count }) => {
-          inFlight = false;
-          if (!cancelled) setUnread(count ?? 0);
-        });
-    };
-    const refreshIfVisible = () => {
-      if (
-        document.visibilityState === "visible" &&
-        Date.now() - unreadCheckedAt.current >= UNREAD_REFRESH_MS
-      ) {
-        refresh();
-      }
-    };
-
-    refresh();
-    refreshUnread.current = refresh;
-    window.addEventListener("focus", refreshIfVisible);
-    document.addEventListener("visibilitychange", refreshIfVisible);
-    return () => {
-      cancelled = true;
-      refreshUnread.current = null;
-      window.removeEventListener("focus", refreshIfVisible);
-      document.removeEventListener("visibilitychange", refreshIfVisible);
-    };
-  }, [userId]);
-
-  // Moving to another page refreshes it too, at most once a minute
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname refreshes the unread count on navigation
-  useEffect(() => {
-    if (Date.now() - unreadCheckedAt.current >= UNREAD_REFRESH_MS) {
-      refreshUnread.current?.();
-    }
-  }, [pathname]);
-
-  // The notifications page tells us when everything has been read
-  useEffect(() => {
-    const clear = () => setUnread(0);
-    window.addEventListener("notifications-read", clear);
-    return () => window.removeEventListener("notifications-read", clear);
-  }, []);
-
-  const shownUnread = userId ? unread : 0;
-
-  // Link blue, with the page you're on in black
-  const tone = (href: string) =>
-    pathname === href || pathname.startsWith(href + "/")
-      ? "text-foreground"
-      : "text-accent hover:text-foreground";
+// `account` fills the signed-in part of the bar: the bell, profile and sign in/out
+export default function Nav({ account }: { account: ReactNode }) {
+  const tone = useNavLinkTone();
 
   return (
     <nav className="flex relative flex-nowrap items-center justify-between gap-x-3 border-b border-line bg-surface px-4 py-2 text-sm sm:flex-wrap sm:justify-start sm:gap-x-5 sm:gap-y-1 sm:px-8">
@@ -137,54 +59,7 @@ export default function Nav() {
           <CraftIcon />
         </Link>
       )}
-      {userId && (
-        <Link
-          href="/notifications"
-          aria-label="Notifications"
-          prefetch={false}
-          title="Notifications"
-          className={`inline-flex items-center gap-1 ${tone("/notifications")}`}
-        >
-          <NotificationIcon />
-          {shownUnread > 0 && (
-            <span className="bg-accent px-1.5 text-xs font-bold text-background">
-              {shownUnread > 20 ? "20+" : shownUnread}
-            </span>
-          )}
-        </Link>
-      )}
-      <div className="contents sm:ml-auto sm:flex sm:items-center sm:gap-4">
-        {!ready ? (
-          // Reserves the space while we find out who is signed in, so neither
-          // the login nor the logout button flashes up
-          <div className="h-5 w-5 sm:w-24" aria-hidden="true" />
-        ) : userId ? (
-          <>
-            {username && (
-              <Link
-                href={`/u/${encodeURIComponent(username)}`}
-                aria-label={`${username}'s profile`}
-                prefetch={false}
-                className="flex items-center gap-2 text-accent underline hover:no-underline"
-              >
-                <Avatar name={username} path={avatarPath} size={40} />
-                <span className="hidden max-w-[8rem] truncate sm:inline">
-                  {username}
-                </span>
-              </Link>
-            )}
-            <SignOutButton
-              className="hidden sm:inline-flex"
-              labelClassName="hidden sm:inline"
-            />
-          </>
-        ) : (
-          <SignInButton
-            className="inline-flex"
-            labelClassName="hidden sm:inline"
-          />
-        )}
-      </div>
+      {account}
     </nav>
   );
 }

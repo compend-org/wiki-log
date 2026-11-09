@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AvatarUpload from "@/components/AvatarUpload";
 import BioEditor from "@/components/BioEditor";
@@ -14,6 +15,7 @@ import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
 
 export default function SettingsPage() {
   const loginHref = useLoginHref();
+  const router = useRouter();
   const [loaded, setLoaded] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [username, setUsername] = useState<string>("");
@@ -69,8 +71,8 @@ export default function SettingsPage() {
     setUsername(name);
     setSavedUsername(name);
     setMessage("Saved.");
-    // Tells the top bar to pick up the new username
-    window.dispatchEvent(new Event("profile-updated"));
+    // Redraws the top bar with the new username
+    router.refresh();
   }
 
   if (!loaded) return <main className="p-8 text-muted">Loading…</main>;

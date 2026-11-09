@@ -1,0 +1,40 @@
+// ABOUTME: Looks up who is signed in, their profile and unread count on the server,
+// ABOUTME: so the top bar's account section arrives with the page.
+import { createClient } from "@/lib/supabase/server";
+import NavAccountLinks, { type NavAccountDetails } from "./NavAccountLinks";
+
+async function getSignedInAccount(): Promise<NavAccountDetails | null> {
+  const supabase = await createClient();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
+  if (!userId) return null;
+
+  const [{ data: profile }, { count }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("username, avatar_path")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("recipient_id", userId)
+      .eq("read", false),
+  ]);
+
+  // A session for an account that no longer exists counts as signed out
+  if (!profile) return null;
+
+  return {
+    userId,
+    username: profile.username,
+    avatarPath: profile.avatar_path,
+    unread: count ?? 0,
+  };
+}
+
+export default async function NavAccount() {
+  const account = await getSignedInAccount();
+  // A different account starts over, rather than keeping the last one's state
+  return <NavAccountLinks key={account?.userId} account={account} />;
+}
