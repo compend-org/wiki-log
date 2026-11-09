@@ -22,8 +22,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { addToList } from "@/app/actions";
 import ItemImage from "@/components/ItemImage";
-import { MAX_DRAG_PLACE_ITEMS } from "@/lib/listLimits";
 import { createClient } from "@/lib/supabase/client";
+
+// Up to this many items, the new one is dragged into place among them;
+// past it, people type the rank instead.
+const MAX_DRAG_PLACE_ITEMS = 100;
 
 type ListOption = {
   id: string;

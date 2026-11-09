@@ -14,13 +14,14 @@ import {
   MAX_AGE_MS,
   STALE_COPY_WAIT_MS,
 } from "@/lib/items";
-import { MAX_LIST_ITEMS } from "@/lib/listLimits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { cleanName, isValidName } from "@/lib/username";
 import { getItemById } from "@/lib/wikipedia";
 
 const ITEM_ID = ITEM_ID_PATTERN;
+// Matches limit_list_counts() in supabase/migrations/*_raise_list_limits.sql
+const MAX_LIST_ITEMS = 10000;
 
 // A stored item's ID, title and image, or why it couldn't be stored
 type StoredItem =
