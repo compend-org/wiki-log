@@ -784,6 +784,36 @@ begin
 end;
 $$;
 
+-- Every banned account, newest ban first, whether or not anyone reported it,
+-- so a ban can always be found and lifted
+create function public.admin_banned_accounts()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform public.assert_site_admin();
+
+  return coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'user_id', p.id,
+      'username', p.username,
+      'banned_at', p.banned_at,
+      'reason', (
+        select a.reason from public.moderation_actions a
+        where a.user_id = p.id and a.kind = 'ban'
+        order by a.created_at desc
+        limit 1
+      )
+    ) order by p.banned_at desc)
+    from public.profiles p
+    where p.banned_at is not null
+  ), '[]'::jsonb);
+end;
+$$;
+
 -- Posts now say whether and when they were removed
 create or replace function public.admin_post(p_kind text, p_id uuid)
 returns jsonb
@@ -1154,6 +1184,7 @@ revoke execute on function public.admin_lift_suspension(uuid, text) from public,
 revoke execute on function public.admin_ban(uuid, text, text) from public, anon;
 revoke execute on function public.admin_unban(uuid, text) from public, anon;
 revoke execute on function public.admin_account_moderation(uuid) from public, anon;
+revoke execute on function public.admin_banned_accounts() from public, anon;
 revoke execute on function public.admin_set_account_report_status(uuid, text, timestamptz) from public, anon;
 grant execute on function public.admin_remove_post(text, uuid, text, text) to authenticated;
 grant execute on function public.admin_restore_post(text, uuid, text) to authenticated;
@@ -1163,4 +1194,5 @@ grant execute on function public.admin_lift_suspension(uuid, text) to authentica
 grant execute on function public.admin_ban(uuid, text, text) to authenticated;
 grant execute on function public.admin_unban(uuid, text) to authenticated;
 grant execute on function public.admin_account_moderation(uuid) to authenticated;
+grant execute on function public.admin_banned_accounts() to authenticated;
 grant execute on function public.admin_set_account_report_status(uuid, text, timestamptz) to authenticated;

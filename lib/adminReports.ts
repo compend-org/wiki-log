@@ -159,6 +159,21 @@ export async function getAccountModeration(
   return data as AccountModeration;
 }
 
+export type BannedAccount = {
+  user_id: string;
+  username: string;
+  banned_at: string;
+  reason: string | null;
+};
+
+export async function getBannedAccounts(): Promise<BannedAccount[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_banned_accounts");
+  if (error?.code === NOT_ALLOWED) notFound();
+  if (error) throw new Error(`Couldn't load banned accounts: ${error.message}`);
+  return data as BannedAccount[];
+}
+
 // The public page a post appears on, when it still exists
 export function postHref(post: AdminPost): string | null {
   if (post.href_log) {

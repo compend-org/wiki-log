@@ -11,6 +11,7 @@ import ReportStatusButtons from "@/components/ReportStatusButtons";
 import {
   countLabel,
   gapLabel,
+  getBannedAccounts,
   getReportQueue,
   type QueueAccount,
   reportedSoonAfterJoining,
@@ -142,12 +143,20 @@ export default async function ReportsPage({
 }) {
   await connection();
   const { view } = await searchParams;
-  const includeHandled = view === "all";
-  const queue = await getReportQueue(includeHandled);
+  const showing = view === "all" || view === "banned" ? view : "open";
+  const [queue, banned] = await Promise.all([
+    getReportQueue(showing === "all"),
+    showing === "banned" ? getBannedAccounts() : [],
+  ]);
   const now = Date.now();
 
   const tab = "rounded-lg border border-line px-2.5 py-1 text-sm";
   const activeTab = `${tab} bg-surface font-semibold`;
+  const tabs = [
+    { view: "open", label: "Open", href: "/admin/reports" },
+    { view: "all", label: "All", href: "/admin/reports?view=all" },
+    { view: "banned", label: "Banned", href: "/admin/reports?view=banned" },
+  ];
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4 sm:p-8">
@@ -161,25 +170,42 @@ export default async function ReportsPage({
       </header>
 
       <nav aria-label="Filter reports" className="flex gap-2">
-        <Link
-          href="/admin/reports"
-          prefetch={false}
-          aria-current={includeHandled ? undefined : "page"}
-          className={includeHandled ? tab : activeTab}
-        >
-          Open
-        </Link>
-        <Link
-          href="/admin/reports?view=all"
-          prefetch={false}
-          aria-current={includeHandled ? "page" : undefined}
-          className={includeHandled ? activeTab : tab}
-        >
-          All
-        </Link>
+        {tabs.map((t) => (
+          <Link
+            key={t.view}
+            href={t.href}
+            prefetch={false}
+            aria-current={showing === t.view ? "page" : undefined}
+            className={showing === t.view ? activeTab : tab}
+          >
+            {t.label}
+          </Link>
+        ))}
       </nav>
 
-      {queue.accounts.length === 0 ? (
+      {showing === "banned" ? (
+        banned.length === 0 ? (
+          <p className="py-12 text-center text-muted">Nobody is banned.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-line">
+            {banned.map((account) => (
+              <li key={account.user_id} className="flex flex-col gap-0.5 py-3">
+                <Link
+                  href={`/admin/reports/${account.user_id}`}
+                  prefetch={false}
+                  className="break-all font-semibold hover:underline"
+                >
+                  {account.username}
+                </Link>
+                <span className="text-sm text-muted">
+                  Banned {timeAgo(account.banned_at, now)}
+                  {account.reason && ` · ${account.reason}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : queue.accounts.length === 0 ? (
         <p className="py-12 text-center text-muted">Nothing to look at.</p>
       ) : (
         <ol className="flex flex-col gap-3">
@@ -188,13 +214,13 @@ export default async function ReportsPage({
               key={account.user_id}
               account={account}
               now={now}
-              showingOpen={!includeHandled}
+              showingOpen={showing === "open"}
             />
           ))}
         </ol>
       )}
 
-      {queue.account_count > queue.accounts.length && (
+      {showing !== "banned" && queue.account_count > queue.accounts.length && (
         <p className="text-center text-sm text-muted">
           Showing the top {queue.accounts.length} of {queue.account_count}{" "}
           accounts
