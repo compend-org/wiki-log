@@ -49,8 +49,13 @@ export function loadSerifFonts(): Promise<Font[]> {
   return serifFonts;
 }
 
+// The longest side of a picture drawn into a shared image. Bigger pictures
+// can be too much data for the renderer to draw.
+const PICTURE_SIDE = 600;
+
 // A picture from the web as a still image, ready to convert: an animated GIF
-// gives its first frame. Converting throws if the picture can't be read.
+// gives its first frame, a photo stored on its side is turned upright, and a
+// big picture is shrunk to fit. Converting throws if it can't be read.
 export async function stillImage(
   url: string,
   headers?: Record<string, string>,
@@ -60,7 +65,12 @@ export async function stillImage(
     signal: AbortSignal.timeout(5000),
   });
   if (!res.ok) throw new Error(`${url} answered ${res.status}`);
-  return sharp(Buffer.from(await res.arrayBuffer()));
+  return sharp(Buffer.from(await res.arrayBuffer()))
+    .autoOrient()
+    .resize(PICTURE_SIDE, PICTURE_SIDE, {
+      fit: "inside",
+      withoutEnlargement: true,
+    });
 }
 
 // An image as a still PNG data address the renderer can draw, or null when it
