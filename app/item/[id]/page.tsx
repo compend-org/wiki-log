@@ -51,7 +51,7 @@ export async function generateMetadata({
   const { item } = result;
   return pageMetadata({
     title: item.title,
-    image: item.imageUrl,
+    image: item.imageUrl ? `/item/${item.id}/image` : null,
   });
 }
 

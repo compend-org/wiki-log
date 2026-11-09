@@ -1,5 +1,6 @@
 // ABOUTME: Colours, fonts, stars and picture loading shared by the images people share from the site.
 // ABOUTME: Each image route draws its own layout with these.
+import sharp, { type Sharp } from "sharp";
 
 // The site's light theme colours, from globals.css
 export const COLORS = {
@@ -48,21 +49,39 @@ export function loadSerifFonts(): Promise<Font[]> {
   return serifFonts;
 }
 
-// An image as a data address the renderer can draw, or null when it can't be
-// fetched or is in a format the renderer doesn't support
+// The longest side of a picture drawn into a shared image. Bigger pictures
+// can be too much data for the renderer to draw.
+const PICTURE_SIDE = 600;
+
+// A picture from the web as a still image, ready to convert: an animated GIF
+// gives its first frame, a photo stored on its side is turned upright, and a
+// big picture is shrunk to fit. Converting throws if it can't be read.
+export async function stillImage(
+  url: string,
+  headers?: Record<string, string>,
+): Promise<Sharp> {
+  const res = await fetch(url, {
+    headers,
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) throw new Error(`${url} answered ${res.status}`);
+  return sharp(Buffer.from(await res.arrayBuffer()))
+    .autoOrient()
+    .resize(PICTURE_SIDE, PICTURE_SIDE, {
+      fit: "inside",
+      withoutEnlargement: true,
+    });
+}
+
+// An image as a still PNG data address the renderer can draw, or null when it
+// can't be fetched or read. A big animated GIF would be too large to draw.
 export async function embeddable(
   url: string,
   headers?: Record<string, string>,
 ): Promise<string | null> {
   try {
-    const res = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(5000),
-    });
-    const type = res.headers.get("content-type") ?? "";
-    if (!res.ok || !/^image\/(png|jpeg|gif)$/.test(type)) return null;
-    const data = Buffer.from(await res.arrayBuffer()).toString("base64");
-    return `data:${type};base64,${data}`;
+    const png = await (await stillImage(url, headers)).png().toBuffer();
+    return `data:image/png;base64,${png.toString("base64")}`;
   } catch {
     return null;
   }

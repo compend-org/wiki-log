@@ -45,7 +45,10 @@ export async function generateMetadata({
   return pageMetadata({
     title: `${profile.username} on ${itemTitle}`,
     description: starText(log.rating) || undefined,
-    image: log.items?.image_hidden ? null : log.items?.image_url,
+    image:
+      log.items?.image_url && !log.items.image_hidden
+        ? `/item/${log.item_id}/image`
+        : null,
   });
 }
 
