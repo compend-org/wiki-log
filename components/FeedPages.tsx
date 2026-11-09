@@ -6,8 +6,8 @@
 import { Fragment, startTransition, useState } from "react";
 import { loadMoreFeed } from "@/app/feedActions";
 import BalancedColumns from "@/components/BalancedColumns";
-import type { FeedCard, FeedMode, FeedPage } from "@/components/Feed";
 import LoadMore from "@/components/LoadMore";
+import type { FeedCard, FeedMode, FeedPage } from "@/components/loadFeedPage";
 import { mergeColumns } from "@/lib/paging";
 
 // A later page can bring a post that is already shown, if it was also posted

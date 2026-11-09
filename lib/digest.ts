@@ -6,7 +6,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 
 // A review counts as long above 720 characters. That number lives in the
 // long_logs() function and its index in the database, so change it there too.
-export const DIGEST_PAGE_SIZE = 20;
+const DIGEST_PAGE_SIZE = 20;
 
 export type DigestLog = {
   id: string;
