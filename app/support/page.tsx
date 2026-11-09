@@ -1,4 +1,4 @@
-import { KOFI_URL, SITE_NAME } from "@/lib/site";
+import { KOFI_URL } from "@/lib/site";
 
 export const metadata = { title: "Support" };
 
