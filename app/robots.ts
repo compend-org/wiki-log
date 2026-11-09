@@ -10,6 +10,7 @@ const BLOCKED_CRAWLERS = [
   "Amazonbot",
   "ElevenlabsCrawler",
   "SERankingBacklinksBot",
+  "AIWebIndex",
 ];
 
 export default function robots(): MetadataRoute.Robots {
