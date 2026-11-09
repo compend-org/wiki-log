@@ -117,12 +117,16 @@ function AccountRow({
                 />
               </>
             )}
-            {!account.is_admin && (
-              <BanButton
-                userId={account.user_id}
-                username={account.username}
-                className="rounded-lg border border-danger px-2.5 py-1 text-sm text-danger"
-              />
+            {account.banned_at ? (
+              <span className="text-sm font-medium text-danger">Banned</span>
+            ) : (
+              !account.is_admin && (
+                <BanButton
+                  userId={account.user_id}
+                  username={account.username}
+                  className="rounded-lg border border-danger px-2.5 py-1 text-sm text-danger"
+                />
+              )
             )}
           </div>
         )}

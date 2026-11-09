@@ -7,6 +7,7 @@ import AdminBadge from "@/components/AdminBadge";
 import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
 import ListLikeButton from "@/components/ListLikeButton";
+import RemovedNotice from "@/components/RemovedNotice";
 import ReportButton from "@/components/ReportButton";
 import ReviewText from "@/components/ReviewText";
 import ShareButton from "@/components/ShareButton";
@@ -26,6 +27,8 @@ type ListRow = {
   title: string;
   description: string | null;
   ranked: boolean;
+  // Only ever set for the author: removed lists are hidden from everyone else
+  removed_at: string | null;
   profiles: { username: string } | null;
   list_likes: { count: number }[];
   shares: { count: number }[];
@@ -48,6 +51,7 @@ type CommentQueryRow = {
   body: string;
   created_at: string;
   user_id: string;
+  removed_at: string | null;
   profiles: { username: string } | null;
 };
 
@@ -85,7 +89,7 @@ const getList = cache(async (id: string): Promise<ListRow | null> => {
   const { data } = await supabase
     .from("lists")
     .select(
-      "id, user_id, title, description, ranked, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count), list_items(item_id, items(title, image_url, image_hidden)), list_comments(id, parent_id, body, created_at, user_id, profiles!list_comments_user_id_profiles_fkey(username))",
+      "id, user_id, title, description, ranked, removed_at, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count), list_items(item_id, items(title, image_url, image_hidden)), list_comments(id, parent_id, body, created_at, user_id, removed_at, profiles!list_comments_user_id_profiles_fkey(username))",
     )
     .eq("id", id)
     .order("position", { referencedTable: "list_items" })
@@ -168,6 +172,7 @@ export default async function ListPage({
     authorId: c.user_id,
     authorName: c.profiles?.username ?? "Someone",
     authorIsAdmin: adminIds.has(c.user_id),
+    removed: c.removed_at !== null,
     likeCount: 0,
     liked: false,
   }));
@@ -179,6 +184,7 @@ export default async function ListPage({
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
+      {list.removed_at && <RemovedNotice noun="list" />}
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold">{list.title}</h1>
         <p className="text-sm text-muted">
