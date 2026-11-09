@@ -21,7 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { addToList } from "@/app/actions";
+import { addToList, createList, stageItem } from "@/app/actions";
 import ItemImage from "@/components/ItemImage";
 import ItemPicker from "@/components/ItemPicker";
 import { createClient } from "@/lib/supabase/client";
@@ -96,7 +96,7 @@ export default function ListEditor({
   initialItems,
 }: {
   list: {
-    id: string;
+    id: string | null;
     title: string;
     description: string | null;
     ranked: boolean;
@@ -140,6 +140,7 @@ export default function ListEditor({
     const next = arrayMove(items, oldIndex, newIndex);
     setItems(next);
     setError("");
+    if (list.id === null) return;
 
     const { error } = await createClient().rpc("reorder_list_items", {
       p_list: list.id,
@@ -153,7 +154,10 @@ export default function ListEditor({
 
   async function handleAdd(itemId: string) {
     setError("");
-    const result = await addToList({ listId: list.id, itemId });
+    const result =
+      list.id === null
+        ? await stageItem(itemId)
+        : await addToList({ listId: list.id, itemId });
     if (result.error || !result.item) {
       setError(result.error ?? "Something went wrong.");
       return;
@@ -169,6 +173,7 @@ export default function ListEditor({
     const previous = items;
     setItems(items.filter((i) => i.itemId !== itemId));
     setError("");
+    if (list.id === null) return;
 
     const { error } = await createClient().rpc("remove_list_item", {
       p_list: list.id,
@@ -186,7 +191,28 @@ export default function ListEditor({
       setDetailsMessage("Titles are 1–80 characters.");
       return;
     }
-
+    if (list.id === null) {
+      if (items.length === 0) {
+        setDetailsMessage("Add at least one item first.");
+        return;
+      }
+      setBusy(true);
+      setDetailsMessage("");
+      const result = await createList({
+        title: t,
+        description,
+        ranked,
+        itemIds: items.map((i) => i.itemId),
+      });
+      if (result.error || !result.id) {
+        setBusy(false);
+        setDetailsMessage(result.error ?? "Couldn't create the list.");
+        return;
+      }
+      router.push(`/list/${result.id}`);
+      router.refresh();
+      return;
+    }
     setBusy(true);
     setDetailsMessage("");
     const { error } = await createClient()
@@ -204,6 +230,7 @@ export default function ListEditor({
   }
 
   async function handleDeleteList() {
+    if (list.id === null) return;
     if (!window.confirm("Delete this list? This can't be undone.")) return;
     const { error } = await createClient()
       .from("lists")
@@ -220,10 +247,14 @@ export default function ListEditor({
   return (
     <div className="flex flex-col gap-6">
       <header className="flex items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold">Edit list</h1>
-        <Link href={`/list/${list.id}`} className="text-sm underline">
-          View list
-        </Link>
+        <h1 className="text-3xl font-bold">
+          {list.id === null ? "New list" : "Edit list"}
+        </h1>
+        {list.id !== null && (
+          <Link href={`/list/${list.id}`} className="text-sm underline">
+            View list
+          </Link>
+        )}
       </header>
 
       <form
@@ -268,7 +299,7 @@ export default function ListEditor({
         </h2>
 
         <DndContext
-          id={`list-${list.id}`}
+          id={`list-${list.id ?? "new"}`}
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
@@ -330,25 +361,34 @@ export default function ListEditor({
           disabled={busy}
           className="self-start rounded-lg bg-accent px-6 py-2 text-background disabled:opacity-40"
         >
-          {busy ? "Saving…" : "Save list"}
+          {list.id === null
+            ? busy
+              ? "Creating…"
+              : "Create list"
+            : busy
+              ? "Saving…"
+              : "Save list"}
         </button>
         {detailsMessage && (
           <p className="text-sm text-danger">{detailsMessage}</p>
         )}
         <p className="text-xs text-muted">
-          Items are saved as you add and move them. This saves the title,
-          description and ranking, then opens the list.
+          {list.id === null
+            ? "Nobody sees this list until you create it."
+            : "Items are saved as you add and move them. This saves the title, description and ranking, then opens the list."}
         </p>
       </section>
-      <section className="border-t border-line pt-4">
-        <button
-          type="button"
-          onClick={handleDeleteList}
-          className="text-sm text-danger underline"
-        >
-          Delete this list
-        </button>
-      </section>
+      {list.id !== null && (
+        <section className="border-t border-line pt-4">
+          <button
+            type="button"
+            onClick={handleDeleteList}
+            className="text-sm text-danger underline"
+          >
+            Delete this list
+          </button>
+        </section>
+      )}
     </div>
   );
 }

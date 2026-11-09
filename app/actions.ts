@@ -282,6 +282,85 @@ export async function removeFavourite(
   return error ? { error: error.message } : {};
 }
 
+// Stores an item (looked up on Wikipedia if need be) so it can go in a list
+// that doesn't exist yet. Returns the stored item's ID, title and image.
+export async function stageItem(itemId: string): Promise<{
+  error?: string;
+  item?: { itemId: string; title: string; imageUrl: string | null };
+}> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims?.sub) return { error: "You need to sign in." };
+  if (!ITEM_ID.test(itemId)) return { error: "Invalid item." };
+
+  const stored = await ensureItem(itemId);
+  if ("error" in stored) return { error: stored.error };
+  return {
+    item: { itemId: stored.id, title: stored.title, imageUrl: stored.imageUrl },
+  };
+}
+
+// Creates a list with all its items at once, so nobody sees it half-built.
+// The items are in the order given. They must already be stored (stageItem).
+export async function createList(input: {
+  title: string;
+  description: string;
+  ranked: boolean;
+  itemIds: string[];
+}): Promise<{ error?: string; id?: string }> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { error: "You need to sign in." };
+
+  const title = input.title.trim();
+  if (title.length < 1 || title.length > 80) {
+    return { error: "Titles are 1–80 characters." };
+  }
+  const description = input.description.trim();
+  if (description.length > 500) {
+    return { error: "Descriptions are at most 500 characters." };
+  }
+  const itemIds = [...new Set(input.itemIds)];
+  if (itemIds.length === 0) return { error: "Add at least one item." };
+  if (itemIds.length > 10000 || !itemIds.every((id) => ITEM_ID.test(id))) {
+    return { error: "Invalid items." };
+  }
+
+  const { data: list, error } = await supabase
+    .from("lists")
+    .insert({
+      user_id: userId,
+      title,
+      description: description || null,
+      ranked: input.ranked,
+    })
+    .select("id")
+    .single();
+  if (error || !list) {
+    return { error: error?.message ?? "Couldn't create the list." };
+  }
+
+  // One statement, so the items appear together
+  const { error: itemsError } = await withErrorContext(
+    "list_items",
+    { listId: list.id, count: itemIds.length },
+    () =>
+      supabase.from("list_items").insert(
+        itemIds.map((itemId, index) => ({
+          list_id: list.id,
+          item_id: itemId,
+          position: index + 1,
+        })),
+      ),
+  );
+  if (itemsError) {
+    await supabase.from("lists").delete().eq("id", list.id);
+    return { error: itemsError.message };
+  }
+  return { id: list.id };
+}
+
 export async function addToList(input: {
   listId: string;
   itemId: string;
