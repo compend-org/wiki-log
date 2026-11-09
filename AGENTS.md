@@ -26,4 +26,5 @@ npx next typegen
 npm test
 npx tsc --noEmit
 npx biome ci --max-diagnostics=none .
+npm run deadcode
 ```
