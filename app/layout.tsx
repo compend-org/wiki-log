@@ -5,6 +5,7 @@ import "flag-icons/css/flag-icons.min.css";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import ScrollToTop from "@/components/ScrollToTop";
+import { iphoneViewportScript } from "@/lib/iphoneViewport";
 import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 import { themeInitScript } from "@/lib/theme";
 
@@ -42,6 +43,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         {/** biome-ignore lint/security/noDangerouslySetInnerHtml: injects the app's own constant theme script */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {/** biome-ignore lint/security/noDangerouslySetInnerHtml: injects the app's own constant viewport script */}
+        <script dangerouslySetInnerHTML={{ __html: iphoneViewportScript }} />
       </head>
       <body className="min-h-full flex flex-col">
         <Nav />
