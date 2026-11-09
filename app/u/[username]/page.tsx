@@ -73,6 +73,7 @@ type ProfileContent = {
   reviews: LogRow[];
   pin_rows: PinRow[];
   viewer_follow?: { follower_id: string }[];
+  follows_viewer?: { follower_id: string }[];
   viewer_block?: { blocker_id: string }[];
 };
 
@@ -114,20 +115,20 @@ export default async function ProfilePage({
   // options like "logs.order" to the first embed of that table, which could be
   // a count. The viewer's follow and block are only asked for when signed in.
   const viewerEmbeds = viewerId
-    ? ", viewer_follow:follows!follows_following_id_fkey(follower_id), viewer_block:blocks!blocks_blocked_id_fkey(blocker_id)"
+    ? ", viewer_follow:follows!follows_following_id_fkey(follower_id), follows_viewer:follows!follows_follower_id_fkey(following_id), viewer_block:blocks!blocks_blocked_id_fkey(blocker_id)"
     : "";
   let contentQuery = supabase
     .from("profiles")
     .select(
       "followers:follows!follows_following_id_fkey(count), " +
-        "following:follows!follows_follower_id_fkey(count), " +
-        "log_count:logs!logs_user_id_profiles_fkey(count), " +
-        "list_count:lists!lists_user_id_profiles_fkey(count), " +
-        "favourites(position, item_id, items(title, image_url)), " +
-        "pin_rows:pins(pinned_at, log_id, list_id), " +
-        "owned_lists:lists!lists_user_id_profiles_fkey(id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))), " +
-        "reviews:logs!logs_user_id_profiles_fkey(id, item_id, rating, review, logged_at, items(title, image_url), comments(count))" +
-        viewerEmbeds,
+      "following:follows!follows_follower_id_fkey(count), " +
+      "log_count:logs!logs_user_id_profiles_fkey(count), " +
+      "list_count:lists!lists_user_id_profiles_fkey(count), " +
+      "favourites(position, item_id, items(title, image_url)), " +
+      "pin_rows:pins(pinned_at, log_id, list_id), " +
+      "owned_lists:lists!lists_user_id_profiles_fkey(id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))), " +
+      "reviews:logs!logs_user_id_profiles_fkey(id, item_id, rating, review, logged_at, items(title, image_url), comments(count))" +
+      viewerEmbeds,
     )
     .eq("id", profile.id)
     .order("created_at", { referencedTable: "owned_lists", ascending: false })
@@ -141,6 +142,7 @@ export default async function ProfilePage({
   if (viewerId) {
     contentQuery = contentQuery
       .eq("viewer_follow.follower_id", viewerId)
+      .eq("follows_viewer.following_id", viewerId)
       .eq("viewer_block.blocker_id", viewerId);
   }
   const { data: contentData } = await contentQuery.maybeSingle();
@@ -152,6 +154,7 @@ export default async function ProfilePage({
   const logCount = content?.log_count[0]?.count ?? 0;
   const listCount = content?.list_count[0]?.count ?? 0;
   const isFollowing = Boolean(content?.viewer_follow?.length);
+  const followsViewer = Boolean(content?.follows_viewer?.length);
   const isBlocked = Boolean(content?.viewer_block?.length);
 
   const favRows = content?.favourites ?? [];
@@ -159,10 +162,10 @@ export default async function ProfilePage({
     const row = favRows.find((r) => r.position === pos);
     return row
       ? {
-          itemId: row.item_id,
-          title: row.items?.title ?? "Unknown item",
-          imageUrl: row.items?.image_url ?? null,
-        }
+        itemId: row.item_id,
+        title: row.items?.title ?? "Unknown item",
+        imageUrl: row.items?.image_url ?? null,
+      }
       : null;
   });
 
@@ -176,21 +179,21 @@ export default async function ProfilePage({
   const [pinnedLogsRes, pinnedListsRes] = await Promise.all([
     pinnedLogIds.length > 0
       ? supabase
-          .from("logs")
-          .select(
-            "id, item_id, rating, review, logged_at, items(title, image_url), comments(count)",
-          )
-          .in("id", pinnedLogIds)
+        .from("logs")
+        .select(
+          "id, item_id, rating, review, logged_at, items(title, image_url), comments(count)",
+        )
+        .in("id", pinnedLogIds)
       : { data: [] },
     pinnedListIds.length > 0
       ? supabase
-          .from("lists")
-          .select(
-            "id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))",
-          )
-          .in("id", pinnedListIds)
-          .lte("preview.position", 4)
-          .order("position", { referencedTable: "preview" })
+        .from("lists")
+        .select(
+          "id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))",
+        )
+        .in("id", pinnedListIds)
+        .lte("preview.position", 4)
+        .order("position", { referencedTable: "preview" })
       : { data: [] },
   ]);
   const pinnedLogs = new Map(
@@ -313,6 +316,11 @@ export default async function ProfilePage({
               {profile.username}
             </h1>
             {profileIsAdmin && <AdminBadge />}
+            {followsViewer && (
+              <span className="ml-2 rounded border border-line bg-surface px-2 py-0.5 text-xs text-muted">
+                Follows you
+              </span>
+            )}
           </div>
         </div>
         <p className="text-sm text-muted">
