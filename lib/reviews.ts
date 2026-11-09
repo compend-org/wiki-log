@@ -9,6 +9,8 @@ export type ReviewComment = {
   body: string;
   created_at: string;
   user_id: string;
+  // Only ever set on the viewer's own comments: other removed ones are hidden
+  removed_at: string | null;
   profiles: { username: string } | null;
   comment_likes: { count: number }[];
 };
@@ -20,6 +22,8 @@ export type Review = {
   rating: number | null;
   review: string;
   logged_at: string;
+  // Only ever set for the author: removed reviews are hidden from everyone else
+  removed_at: string | null;
   items: {
     title: string;
     image_url: string | null;
@@ -32,7 +36,7 @@ export type Review = {
 export type ReviewWithComments = Review & { comments: ReviewComment[] };
 
 const REVIEW_COLUMNS =
-  "id, user_id, item_id, rating, review, logged_at, items(title, image_url, image_hidden), likes(count), shares(count)";
+  "id, user_id, item_id, rating, review, logged_at, removed_at, items(title, image_url, image_hidden), likes(count), shares(count)";
 
 // The review with this id by this person, or null when there's no such review
 export const getReview = cache(
@@ -55,7 +59,7 @@ export const getReviewWithComments = cache(
     const { data } = await supabase
       .from("logs")
       .select(
-        `${REVIEW_COLUMNS}, comments(id, parent_id, body, created_at, user_id, profiles!comments_user_id_profiles_fkey(username), comment_likes(count))`,
+        `${REVIEW_COLUMNS}, comments(id, parent_id, body, created_at, user_id, removed_at, profiles!comments_user_id_profiles_fkey(username), comment_likes(count))`,
       )
       .eq("id", logId)
       .eq("user_id", userId)

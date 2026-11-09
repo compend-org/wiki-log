@@ -3,7 +3,6 @@
 "use server";
 
 import { updateTag } from "next/cache";
-import { isAdmin } from "@/lib/admin";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
 import { withErrorContext } from "@/lib/errorContext";
 import { FEATURES } from "@/lib/features";
@@ -14,6 +13,11 @@ import {
   MAX_AGE_MS,
   STALE_COPY_WAIT_MS,
 } from "@/lib/items";
+import {
+  cleanNote,
+  isReportReason,
+  type ModerationInput,
+} from "@/lib/moderation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { cleanName, isValidName } from "@/lib/username";
@@ -152,35 +156,108 @@ export async function deleteAccount(): Promise<{ error?: string }> {
   return {};
 }
 
-// Admins only: blocks the person's email from signing up again, then deletes
-// their account and everything they posted
-export async function banUser(userId: string): Promise<{ error?: string }> {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  if (!(await isAdmin(data?.claims?.sub))) {
-    return { error: "Only admins can ban people." };
-  }
-  if (!isUuid(userId)) return { error: "Invalid user." };
-  if (await isAdmin(userId)) return { error: "Admins can't be banned." };
-
+// The banned-email entry for an account, or null when it has no email
+async function normalizedEmailOf(
+  userId: string,
+): Promise<{ email: string | null; error?: string }> {
   const admin = createAdminClient();
   const { data: target, error: lookupError } =
     await admin.auth.admin.getUserById(userId);
-  if (lookupError) return { error: lookupError.message };
+  if (lookupError) return { email: null, error: lookupError.message };
+  if (!target.user.email) return { email: null };
 
-  if (target.user.email) {
-    const { data: email, error: normalizeError } = await admin.rpc(
-      "normalize_email",
-      { e: target.user.email },
-    );
-    if (normalizeError) return { error: normalizeError.message };
-    const { error } = await admin
+  const { data: email, error } = await admin.rpc("normalize_email", {
+    e: target.user.email,
+  });
+  if (error) return { email: null, error: error.message };
+  return { email: email as string };
+}
+
+// Signs a person out for good, or lets them sign in again
+async function setSignInBanned(
+  userId: string,
+  banned: boolean,
+): Promise<{ error?: string }> {
+  const { error } = await createAdminClient().auth.admin.updateUserById(
+    userId,
+    // About a hundred years, which is as long as a ban can be set for
+    { ban_duration: banned ? "876000h" : "none" },
+  );
+  return error ? { error: error.message } : {};
+}
+
+// Admins only: hides the account and everything it posted, then blocks its
+// email from signing up again and stops it signing in. Nothing is deleted.
+export async function banUser(
+  userId: string,
+  input: ModerationInput,
+): Promise<{ error?: string }> {
+  if (!isUuid(userId)) return { error: "Invalid user." };
+  if (!isReportReason(input.reason)) return { error: "Choose a reason." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_ban", {
+    p_user_id: userId,
+    p_reason: input.reason,
+    p_note: cleanNote(input.note),
+  });
+  // Already banned means an earlier try got this far, so finish the rest
+  if (error && error.message !== "That account is already banned") {
+    return { error: error.message };
+  }
+  updateTag(POSTS_CACHE_TAG);
+
+  // The database has checked this is an admin acting, so the rest can use the
+  // secret key
+  const { email, error: emailError } = await normalizedEmailOf(userId);
+  if (emailError) return { error: `Banned, but ${emailError}` };
+  if (email) {
+    const { error: blockError } = await createAdminClient()
       .from("blocked_emails")
       .upsert({ email, reason: "banned" }, { ignoreDuplicates: true });
-    if (error) return { error: error.message };
+    if (blockError) return { error: `Banned, but ${blockError.message}` };
   }
 
-  return removeAccount(userId);
+  const signIn = await setSignInBanned(userId, true);
+  if (signIn.error) return { error: `Banned, but ${signIn.error}` };
+  return {};
+}
+
+// Admins only: lifts a ban, bringing back the posts it hid and letting the
+// person sign in and use their email again
+export async function unbanUser(
+  userId: string,
+  input: ModerationInput,
+): Promise<{ error?: string }> {
+  if (!isUuid(userId)) return { error: "Invalid user." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_unban", {
+    p_user_id: userId,
+    p_note: cleanNote(input.note),
+  });
+  // Not banned means an earlier try got this far, so finish the rest
+  if (error && error.message !== "That account isn't banned") {
+    return { error: error.message };
+  }
+  updateTag(POSTS_CACHE_TAG);
+
+  const { email, error: emailError } = await normalizedEmailOf(userId);
+  if (emailError) return { error: `Unbanned, but ${emailError}` };
+  if (email) {
+    const { error: unblockError } = await createAdminClient()
+      .from("blocked_emails")
+      .delete()
+      .eq("email", email)
+      .eq("reason", "banned");
+    if (unblockError) {
+      return { error: `Unbanned, but ${unblockError.message}` };
+    }
+  }
+
+  const signIn = await setSignInBanned(userId, false);
+  if (signIn.error) return { error: `Unbanned, but ${signIn.error}` };
+  return {};
 }
 
 export async function signIn(input: {

@@ -4,15 +4,29 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { unbanUser } from "@/app/actions";
+import {
+  liftSuspension,
+  removePost,
+  restorePost,
+  setReportStatus,
+  suspendUser,
+  warnUser,
+} from "@/app/admin/reports/actions";
 import AdminBadge from "@/components/AdminBadge";
 import AdminPost from "@/components/AdminPost";
 import BanButton from "@/components/BanButton";
+import ModerationButton from "@/components/ModerationButton";
 import ReportStatusButtons from "@/components/ReportStatusButtons";
 import RevealAvatar from "@/components/RevealAvatar";
 import {
+  type AdminPost as AdminPostData,
   combinedStatus,
   countLabel,
+  getAccountModeration,
   getReportedAccount,
+  type ModerationAction,
+  type PostKind,
   type ReportedAccount,
 } from "@/lib/adminReports";
 import { timeAgo } from "@/lib/format";
@@ -33,12 +47,96 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
+// Removes a post, or restores it once removed. A banned account's posts stay
+// hidden until the ban is lifted, so they get neither.
+function PostRemovalButton({
+  kind,
+  id,
+  post,
+  banned,
+}: {
+  kind: PostKind;
+  id: string;
+  post: AdminPostData;
+  banned: boolean;
+}) {
+  if (!post.exists || banned) return null;
+  return post.removed_at ? (
+    <ModerationButton
+      label="Restore"
+      title="Restore this post?"
+      description="Everyone will be able to see it again, and its author is told it was restored."
+      run={restorePost.bind(null, kind, id)}
+    />
+  ) : (
+    <ModerationButton
+      label="Remove"
+      title="Remove this post?"
+      description="Only its author will still see it, marked as removed. Its open reports are closed as actioned, and its author is told why."
+      askReason
+      danger
+      run={removePost.bind(null, kind, id)}
+    />
+  );
+}
+
+const ACTION_LABELS: Record<ModerationAction["kind"], string> = {
+  warn: "Warned",
+  remove_post: "Removed a post",
+  restore_post: "Restored a post",
+  suspend: "Suspended",
+  lift_suspension: "Lifted the suspension",
+  ban: "Banned",
+  unban: "Lifted the ban",
+  close_reports: "Closed reports",
+  reopen_reports: "Reopened reports",
+};
+
+function ActionEntry({
+  action,
+  now,
+}: {
+  action: ModerationAction;
+  now: number;
+}) {
+  const details = [
+    action.reason,
+    action.report_status &&
+      action.report_status !== "open" &&
+      `as ${action.report_status}`,
+    action.report_count > 0 && countLabel(action.report_count, "report"),
+    action.suspended_until &&
+      `until ${new Date(action.suspended_until).toLocaleDateString()}`,
+  ].filter(Boolean);
+
+  return (
+    <li className="flex flex-col gap-0.5 py-2 text-sm">
+      <p>
+        <span className="font-medium">{ACTION_LABELS[action.kind]}</span>
+        {details.length > 0 && (
+          <span className="text-muted"> · {details.join(" · ")}</span>
+        )}
+      </p>
+      <p className="text-muted">
+        {action.admin ?? "A former admin"} · {timeAgo(action.at, now)}
+      </p>
+      {action.note && (
+        <p className="whitespace-pre-wrap break-words italic text-muted">
+          “{action.note}”
+        </p>
+      )}
+    </li>
+  );
+}
+
 function FlaggedPost({
   flagged,
   now,
+  banned,
 }: {
   flagged: ReportedAccount["flagged"][number];
   now: number;
+  banned: boolean;
 }) {
   const status = combinedStatus(flagged.reports);
 
@@ -76,9 +174,14 @@ function FlaggedPost({
           <span className="text-sm text-muted">Closed as {status}</span>
         )}
         <ReportStatusButtons
-          kind={flagged.kind}
-          postId={flagged.id}
+          setStatus={setReportStatus.bind(null, flagged.kind, flagged.id)}
           status={status}
+        />
+        <PostRemovalButton
+          kind={flagged.kind}
+          id={flagged.id}
+          post={flagged.post}
+          banned={banned}
         />
       </div>
     </li>
@@ -94,7 +197,10 @@ export default async function ReportedAccountPage({
   const { userId } = await params;
   if (!isUuid(userId)) notFound();
 
-  const account = await getReportedAccount(userId);
+  const [account, moderation] = await Promise.all([
+    getReportedAccount(userId),
+    getAccountModeration(userId),
+  ]);
   const now = Date.now();
   const openReports = account.flagged
     .flatMap((flagged) => flagged.reports)
@@ -136,14 +242,61 @@ export default async function ReportedAccountPage({
           <p className="whitespace-pre-wrap break-words">{account.bio}</p>
         )}
         <RevealAvatar path={account.avatar_path} />
-        {!account.is_admin && (
-          <BanButton
-            userId={account.id}
-            username={account.username}
-            redirectTo="/admin/reports"
-            className="self-start rounded-lg border border-danger px-2.5 py-1 text-sm text-danger"
-          />
+        {moderation.banned_at && (
+          <p className="font-medium text-danger">
+            Banned {timeAgo(moderation.banned_at, now)}
+          </p>
         )}
+        {moderation.suspended_until && (
+          <p className="font-medium text-danger">
+            Suspended until{" "}
+            {new Date(moderation.suspended_until).toLocaleString()}
+          </p>
+        )}
+        {!account.is_admin &&
+          (moderation.banned_at ? (
+            <div className="flex flex-wrap gap-2">
+              <ModerationButton
+                label="Lift ban"
+                title={`Lift the ban on ${account.username}?`}
+                description="Their profile and the posts the ban hid come back, and they can sign in again. Likes, shares and follows the ban removed don't come back."
+                run={unbanUser.bind(null, account.id)}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <ModerationButton
+                label="Warn"
+                title={`Warn ${account.username}?`}
+                description="They get a notification naming the reason. Nothing else changes."
+                askReason
+                run={warnUser.bind(null, account.id)}
+              />
+              {moderation.suspended_until ? (
+                <ModerationButton
+                  label="Lift suspension"
+                  title={`Lift ${account.username}'s suspension?`}
+                  description="They can post, comment, like, share and follow again straight away, and are told so."
+                  run={liftSuspension.bind(null, account.id)}
+                />
+              ) : (
+                <ModerationButton
+                  label="Suspend"
+                  title={`Suspend ${account.username}?`}
+                  description="Until it ends they can't post, comment, like, share, follow or change their profile. Their posts stay up. They're told why and for how long."
+                  askReason
+                  askDays
+                  danger
+                  run={suspendUser.bind(null, account.id)}
+                />
+              )}
+              <BanButton
+                userId={account.id}
+                username={account.username}
+                className="rounded-lg border border-danger px-2.5 py-1 text-sm text-danger"
+              />
+            </div>
+          ))}
       </header>
 
       <section aria-label="Summary" className="flex flex-col gap-2">
@@ -176,7 +329,12 @@ export default async function ReportedAccountPage({
         ) : (
           <ul className="flex flex-col gap-3">
             {account.flagged.map((flagged) => (
-              <FlaggedPost key={flagged.id} flagged={flagged} now={now} />
+              <FlaggedPost
+                key={flagged.id}
+                flagged={flagged}
+                now={now}
+                banned={moderation.banned_at !== null}
+              />
             ))}
           </ul>
         )}
@@ -201,6 +359,14 @@ export default async function ReportedAccountPage({
                   now={now}
                   clamp
                 />
+                <div className="flex">
+                  <PostRemovalButton
+                    kind={entry.kind}
+                    id={entry.id}
+                    post={entry.post}
+                    banned={moderation.banned_at !== null}
+                  />
+                </div>
               </li>
             ))}
           </ul>
@@ -209,6 +375,19 @@ export default async function ReportedAccountPage({
           <p className="text-center text-sm text-muted">
             Showing the latest {account.activity.length} of {totalPosts} posts
           </p>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-xl font-semibold">Moderation history</h2>
+        {moderation.actions.length === 0 ? (
+          <p className="text-muted">No moderation actions yet.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-line">
+            {moderation.actions.map((action) => (
+              <ActionEntry key={action.id} action={action} now={now} />
+            ))}
+          </ul>
         )}
       </section>
     </main>

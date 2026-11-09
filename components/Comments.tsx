@@ -21,6 +21,8 @@ export type CommentItem = {
   likeCount: number;
   liked: boolean;
   authorIsAdmin?: boolean;
+  // Removed by the moderators. Only its author is ever sent one of these.
+  removed?: boolean;
 };
 
 export default function Comments({
@@ -125,6 +127,11 @@ export default function Comments({
           </Link>
           {c.authorIsAdmin && <AdminBadge />}
           <span className="text-xs text-muted">{c.date}</span>
+          {c.removed && (
+            <span className="text-xs font-medium text-danger">
+              Removed by the moderators · only you can see it
+            </span>
+          )}
         </div>
         <p className="whitespace-pre-wrap text-sm">
           <ReviewText text={c.body} />

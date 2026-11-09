@@ -1,11 +1,9 @@
-// ABOUTME: An admin's button for banning someone, which asks for confirmation first.
-// ABOUTME: A ban blocks their email and deletes their account and everything they posted.
+// ABOUTME: An admin's button for banning someone, which asks for a reason and confirmation first.
+// ABOUTME: A ban hides their profile and everything they posted, and blocks their email and sign-in.
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { banUser } from "@/app/actions";
-import Dialog from "@/components/Dialog";
+import ModerationButton from "@/components/ModerationButton";
 
 export default function BanButton({
   userId,
@@ -20,69 +18,16 @@ export default function BanButton({
   redirectTo?: string;
   className?: string;
 }) {
-  const router = useRouter();
-  const [open, setOpen] = useState<boolean>(false);
-  const [busy, setBusy] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
-
-  async function ban() {
-    if (busy) return;
-
-    setBusy(true);
-    setError("");
-    const result = await banUser(userId);
-    setBusy(false);
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-    setOpen(false);
-    if (redirectTo) router.push(redirectTo);
-    router.refresh();
-  }
-
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          setError("");
-          setOpen(true);
-        }}
-        className={className}
-      >
-        Ban
-      </button>
-
-      {open && (
-        <Dialog label="Ban" onClose={() => setOpen(false)}>
-          <h2 className="text-base font-semibold">Ban {username}?</h2>
-          <p>
-            This deletes their account and everything they posted, and stops
-            their email from signing up again. It can&apos;t be undone.
-          </p>
-
-          {error && <p className="text-danger">{error}</p>}
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={ban}
-              disabled={busy}
-              className="rounded-lg bg-danger px-3 py-1.5 text-background disabled:opacity-40"
-            >
-              {busy ? "Banning…" : "Ban"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-lg border border-line px-3 py-1.5"
-            >
-              Cancel
-            </button>
-          </div>
-        </Dialog>
-      )}
-    </>
+    <ModerationButton
+      label="Ban"
+      title={`Ban ${username}?`}
+      description="This hides their profile and everything they posted, removes their likes, shares and follows, closes the reports about them, and stops them signing in or signing up again with their email. Admins can lift the ban from their reports page."
+      askReason
+      danger
+      redirectTo={redirectTo}
+      className={className}
+      run={(input) => banUser(userId, input)}
+    />
   );
 }

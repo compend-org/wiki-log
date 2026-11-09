@@ -3,16 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import Dialog from "@/components/Dialog";
+import { REPORT_REASONS } from "@/lib/moderation";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
-
-const REASONS = [
-  { value: "spam", label: "Spam or advertising" },
-  { value: "harassment", label: "Harassment or abuse" },
-  { value: "hate", label: "Hateful content" },
-  { value: "sexual", label: "Sexual or graphic content" },
-  { value: "other", label: "Something else" },
-] as const;
 
 // Lets a signed-in person flag a review, list or comment for the admins
 export default function ReportButton({
@@ -107,7 +100,7 @@ export default function ReportButton({
                   onChange={(e) => setReason(e.target.value)}
                   className="rounded-lg border border-line bg-surface px-3 py-2"
                 >
-                  {REASONS.map((r) => (
+                  {REPORT_REASONS.map((r) => (
                     <option key={r.value} value={r.value}>
                       {r.label}
                     </option>

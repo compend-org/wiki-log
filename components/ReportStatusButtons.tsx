@@ -1,19 +1,17 @@
-// ABOUTME: An admin's buttons for closing the reports on a post, or reopening them.
-// ABOUTME: Applies to every report on the post, then refreshes the page.
+// ABOUTME: An admin's buttons for closing reports, or reopening them.
+// ABOUTME: Runs the given action (for a post, or a whole account), then refreshes the page.
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { setReportStatus } from "@/app/admin/reports/actions";
-import type { PostKind, ReportStatus } from "@/lib/adminReports";
+import type { ReportStatus } from "@/lib/adminReports";
 
 export default function ReportStatusButtons({
-  kind,
-  postId,
+  setStatus,
   status,
 }: {
-  kind: PostKind;
-  postId: string;
+  // A server action with everything but the new status already bound
+  setStatus: (next: ReportStatus) => Promise<{ error?: string }>;
   status: ReportStatus;
 }) {
   const router = useRouter();
@@ -26,7 +24,7 @@ export default function ReportStatusButtons({
     setBusy(true);
     setError("");
     try {
-      const result = await setReportStatus(kind, postId, next);
+      const result = await setStatus(next);
       if (result.error) {
         setError(result.error);
         return;

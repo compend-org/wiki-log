@@ -9,6 +9,7 @@ import Comments, { type CommentItem } from "@/components/Comments";
 import ItemImage from "@/components/ItemImage";
 import LikeButton from "@/components/LikeButton";
 import OwnerControls from "@/components/OwnerControls";
+import RemovedNotice from "@/components/RemovedNotice";
 import ReportButton from "@/components/ReportButton";
 import ReviewText from "@/components/ReviewText";
 import ShareButton from "@/components/ShareButton";
@@ -102,6 +103,7 @@ export default async function ReviewPage({
     authorId: c.user_id,
     authorName: c.profiles?.username ?? "Someone",
     authorIsAdmin: adminIds.has(c.user_id),
+    removed: c.removed_at !== null,
     likeCount: c.comment_likes?.[0]?.count ?? 0,
     liked: viewer.likedComments.has(c.id),
   }));
@@ -168,6 +170,7 @@ export default async function ReviewPage({
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
+      {log.removed_at && <RemovedNotice noun="review" />}
       <article className="card flex flex-col gap-3 p-4">
         {isOwner ? (
           <OwnerControls

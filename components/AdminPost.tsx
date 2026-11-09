@@ -57,6 +57,11 @@ export default function AdminPost({
           ))}
         {post.rating != null && <span>{post.rating}★</span>}
         {post.at && <span>{timeAgo(post.at, now)}</span>}
+        {post.removed_at && (
+          <span className="font-medium text-danger">
+            Removed {timeAgo(post.removed_at, now)}
+          </span>
+        )}
       </p>
       {text ? (
         <p

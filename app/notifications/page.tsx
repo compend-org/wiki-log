@@ -23,12 +23,15 @@ type NotificationRow = {
     | "list_comment"
     | "list_reply"
     | "share"
-    | "list_share";
+    | "list_share"
+    | "moderation";
   read: boolean;
   created_at: string;
   log_id: string | null;
   list_id: string | null;
-  actor_id: string;
+  // Moderators' messages have no actor, just a body
+  actor_id: string | null;
+  body: string | null;
   profiles: { username: string; avatar_path: string | null } | null;
 };
 
@@ -134,7 +137,7 @@ export default function NotificationsPage() {
       const { data, error } = await supabase
         .from("notifications")
         .select(
-          "id, type, read, created_at, log_id, list_id, actor_id, profiles!notifications_actor_fkey(username, avatar_path)",
+          "id, type, read, created_at, log_id, list_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path)",
         )
         .eq("recipient_id", userId)
         .order("created_at", { ascending: false })
@@ -168,10 +171,10 @@ export default function NotificationsPage() {
       const itemIds = [...new Set(logRows.map((l) => l.item_id))];
       const ownerIds = [...new Set(logRows.map((l) => l.user_id))];
 
-      // Everyone who could be named on a card, to badge the admins among them
-      const peopleIds = [
-        ...new Set([...list.map((n) => n.actor_id), ...ownerIds]),
-      ];
+      // Everyone who could be named on a card, to badge the admins among them.
+      // Notices from the moderators have no actor.
+      const actorIds = list.flatMap((n) => (n.actor_id ? [n.actor_id] : []));
+      const peopleIds = [...new Set([...actorIds, ...ownerIds])];
 
       const [itemRes, listRes, profs, admins] = await Promise.all([
         itemIds.length
@@ -343,6 +346,16 @@ export default function NotificationsPage() {
           href: listHref,
           subject: listSubject,
         };
+      case "moderation":
+        return {
+          rest: n.body ?? "",
+          href: n.log_id
+            ? reviewHref
+            : n.list_id
+              ? `/list/${n.list_id}`
+              : "/notifications",
+          subject: n.log_id ? itemSubject : listSubject,
+        };
     }
   }
 
@@ -379,12 +392,18 @@ export default function NotificationsPage() {
           >
             <Link
               href={href}
-              aria-label={`${actor ?? "Someone"}${rest}${reviewOwner?.username ?? ""}`}
+              aria-label={
+                n.type === "moderation"
+                  ? `From the moderators: ${rest}`
+                  : `${actor ?? "Someone"}${rest}${reviewOwner?.username ?? ""}`
+              }
               className="absolute inset-0"
             />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="text-sm [overflow-wrap:anywhere]">
-                {actor ? (
+                {n.type === "moderation" ? (
+                  <span className="font-semibold">From the moderators: </span>
+                ) : actor && n.actor_id ? (
                   <PersonLink
                     username={actor}
                     isAdmin={adminIds.has(n.actor_id)}

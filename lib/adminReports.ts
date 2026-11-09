@@ -8,6 +8,7 @@ export type ReportStatus = "open" | "actioned" | "dismissed";
 
 export type AdminPost = {
   exists: boolean;
+  removed_at?: string | null;
   at?: string;
   body?: string | null;
   rating?: number | null;
@@ -28,6 +29,7 @@ export type QueueAccount = {
   flagged_post_count: number;
   first_report_at: string;
   last_report_at: string;
+  banned_at: string | null;
   is_admin: boolean;
   reasons: Record<string, number>;
   review_count: number;
@@ -114,6 +116,62 @@ export async function getReportedAccount(
   if (error) throw new Error(`Couldn't load account: ${error.message}`);
   if (!data) notFound();
   return data as ReportedAccount;
+}
+
+export type ModerationAction = {
+  id: string;
+  kind:
+    | "warn"
+    | "remove_post"
+    | "restore_post"
+    | "suspend"
+    | "lift_suspension"
+    | "ban"
+    | "unban"
+    | "close_reports"
+    | "reopen_reports";
+  at: string;
+  admin: string | null;
+  reason: string | null;
+  note: string | null;
+  target_type: PostKind | null;
+  target_id: string | null;
+  report_status: ReportStatus | null;
+  report_count: number;
+  suspended_until: string | null;
+};
+
+export type AccountModeration = {
+  banned_at: string | null;
+  suspended_until: string | null;
+  actions: ModerationAction[];
+};
+
+export async function getAccountModeration(
+  userId: string,
+): Promise<AccountModeration> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_account_moderation", {
+    p_user_id: userId,
+  });
+  if (error?.code === NOT_ALLOWED) notFound();
+  if (error) throw new Error(`Couldn't load moderation: ${error.message}`);
+  return data as AccountModeration;
+}
+
+export type BannedAccount = {
+  user_id: string;
+  username: string;
+  banned_at: string;
+  reason: string | null;
+};
+
+export async function getBannedAccounts(): Promise<BannedAccount[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_banned_accounts");
+  if (error?.code === NOT_ALLOWED) notFound();
+  if (error) throw new Error(`Couldn't load banned accounts: ${error.message}`);
+  return data as BannedAccount[];
 }
 
 // The public page a post appears on, when it still exists
