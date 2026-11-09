@@ -47,17 +47,20 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-// Removes a post, or restores it once removed
+// Removes a post, or restores it once removed. A banned account's posts stay
+// hidden until the ban is lifted, so they get neither.
 function PostRemovalButton({
   kind,
   id,
   post,
+  banned,
 }: {
   kind: PostKind;
   id: string;
   post: AdminPostData;
+  banned: boolean;
 }) {
-  if (!post.exists) return null;
+  if (!post.exists || banned) return null;
   return post.removed_at ? (
     <ModerationButton
       label="Restore"
@@ -129,9 +132,11 @@ function ActionEntry({
 function FlaggedPost({
   flagged,
   now,
+  banned,
 }: {
   flagged: ReportedAccount["flagged"][number];
   now: number;
+  banned: boolean;
 }) {
   const status = combinedStatus(flagged.reports);
 
@@ -176,6 +181,7 @@ function FlaggedPost({
           kind={flagged.kind}
           id={flagged.id}
           post={flagged.post}
+          banned={banned}
         />
       </div>
     </li>
@@ -323,7 +329,12 @@ export default async function ReportedAccountPage({
         ) : (
           <ul className="flex flex-col gap-3">
             {account.flagged.map((flagged) => (
-              <FlaggedPost key={flagged.id} flagged={flagged} now={now} />
+              <FlaggedPost
+                key={flagged.id}
+                flagged={flagged}
+                now={now}
+                banned={moderation.banned_at !== null}
+              />
             ))}
           </ul>
         )}
@@ -353,6 +364,7 @@ export default async function ReportedAccountPage({
                     kind={entry.kind}
                     id={entry.id}
                     post={entry.post}
+                    banned={moderation.banned_at !== null}
                   />
                 </div>
               </li>

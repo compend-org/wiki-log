@@ -508,6 +508,10 @@ begin
   if v_author is null then
     raise exception 'That post no longer exists';
   end if;
+  -- A banned account's posts stay hidden until the ban is lifted
+  if exists (select 1 from public.profiles where id = v_author and banned_at is not null) then
+    raise exception 'Lift the ban before restoring their posts';
+  end if;
 
   insert into public.moderation_actions (
     admin_id, user_id, kind, target_type, target_id, note
@@ -1098,6 +1102,13 @@ language plpgsql
 security definer set search_path = ''
 as $$
 begin
+  -- Checked here because reopening a closed report below skips the insert
+  -- policy. Calls without a signed-in user (the database itself, the service
+  -- role) are trusted.
+  if (select auth.uid()) is not null and new.reporter_id is distinct from (select auth.uid()) then
+    raise exception 'You can only report as yourself' using errcode = '42501';
+  end if;
+
   new.reported_user_id := public.post_author(new.target_type, new.target_id);
 
   if new.reported_user_id is null then

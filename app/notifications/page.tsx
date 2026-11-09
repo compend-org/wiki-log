@@ -171,10 +171,10 @@ export default function NotificationsPage() {
       const itemIds = [...new Set(logRows.map((l) => l.item_id))];
       const ownerIds = [...new Set(logRows.map((l) => l.user_id))];
 
-      // Everyone who could be named on a card, to badge the admins among them
-      const peopleIds = [
-        ...new Set([...list.map((n) => n.actor_id), ...ownerIds]),
-      ];
+      // Everyone who could be named on a card, to badge the admins among them.
+      // Notices from the moderators have no actor.
+      const actorIds = list.flatMap((n) => (n.actor_id ? [n.actor_id] : []));
+      const peopleIds = [...new Set([...actorIds, ...ownerIds])];
 
       const [itemRes, listRes, profs, admins] = await Promise.all([
         itemIds.length
