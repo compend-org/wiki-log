@@ -14,6 +14,7 @@ import {
   MAX_AGE_MS,
   STALE_COPY_WAIT_MS,
 } from "@/lib/items";
+import { MAX_LIST_ITEMS } from "@/lib/listLimits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { cleanName, isValidName } from "@/lib/username";
@@ -323,7 +324,10 @@ export async function createList(input: {
   }
   const itemIds = [...new Set(input.itemIds)];
   if (itemIds.length === 0) return { error: "Add at least one item." };
-  if (itemIds.length > 10000 || !itemIds.every((id) => ITEM_ID.test(id))) {
+  if (
+    itemIds.length > MAX_LIST_ITEMS ||
+    !itemIds.every((id) => ITEM_ID.test(id))
+  ) {
     return { error: "Invalid items." };
   }
 
@@ -364,7 +368,8 @@ export async function createList(input: {
 export async function addToList(input: {
   listId: string;
   itemId: string;
-  order?: string[];
+  // Ranked lists: the 1-based place to put the new item (otherwise it goes last)
+  position?: number;
 }): Promise<{
   error?: string;
   item?: { itemId: string; title: string; imageUrl: string | null };
@@ -377,10 +382,12 @@ export async function addToList(input: {
   if (!isUuid(input.listId)) return { error: "Invalid list." };
   if (!ITEM_ID.test(input.itemId)) return { error: "Invalid item." };
   if (
-    input.order &&
-    (input.order.length > 101 || !input.order.every((id) => ITEM_ID.test(id)))
+    input.position !== undefined &&
+    (!Number.isInteger(input.position) ||
+      input.position < 1 ||
+      input.position > MAX_LIST_ITEMS)
   ) {
-    return { error: "Invalid order." };
+    return { error: "Invalid position." };
   }
 
   const { data: list, error: listError } = await supabase
@@ -430,12 +437,13 @@ export async function addToList(input: {
   }
 
   // Ranked lists: move the new item into the place the user chose
-  if (input.order) {
-    const { error: orderError } = await supabase.rpc("reorder_list_items", {
+  if (input.position !== undefined && input.position < position) {
+    const { error: moveError } = await supabase.rpc("move_list_item", {
       p_list: input.listId,
-      p_items: input.order.map((id) => (id === input.itemId ? stored.id : id)),
+      p_item: stored.id,
+      p_position: input.position,
     });
-    if (orderError) return { error: orderError.message };
+    if (moveError) return { error: moveError.message };
   }
 
   return {

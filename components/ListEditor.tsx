@@ -142,9 +142,11 @@ export default function ListEditor({
     setError("");
     if (list.id === null) return;
 
-    const { error } = await createClient().rpc("reorder_list_items", {
+    // Just the one move, so a long list isn't sent back in full
+    const { error } = await createClient().rpc("move_list_item", {
       p_list: list.id,
-      p_items: next.map((i) => i.itemId),
+      p_item: String(active.id),
+      p_position: newIndex + 1,
     });
     if (error) {
       setItems(previous);

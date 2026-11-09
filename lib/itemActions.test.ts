@@ -36,6 +36,7 @@ type Write = {
 
 function setup({
   cached = [] as Row[],
+  lastPosition = null as number | null,
   listCheckFails = false,
   lookupFails = false,
   upsertFails = false,
@@ -116,7 +117,7 @@ function setup({
             assert.ok((body.p_parts as string[]).every((id) => items.has(id)));
             return Response.json({ id: "C1", title: "Music", existing: false });
           } else {
-            assert.equal(table, "rpc/reorder_list_items");
+            assert.equal(table, "rpc/move_list_item");
           }
           return new Response(null, { status: 201 });
         }
@@ -131,7 +132,9 @@ function setup({
           return Response.json([{ id: listId }]);
         }
         assert.equal(table, "list_items");
-        return Response.json([]);
+        return Response.json(
+          lastPosition === null ? [] : [{ position: lastPosition }],
+        );
       }
       if (url.searchParams.get("action") === "wbgetentities") {
         lookups++;
@@ -192,22 +195,59 @@ test("logging a requested ID stores and references the resolved Wikipedia ID", a
   assert.equal(fixture.writes[1].body.item_id, resolvedId);
 });
 
-test("adding to a ranked list uses the resolved ID in the row, order and response", async () => {
-  fixture = setup();
-  const order = ["Q89", requestedId, "Q90"];
-  assert.deepEqual(await addToList({ listId, itemId: requestedId, order }), {
-    item: { itemId: resolvedId, title, imageUrl },
-  });
+test("adding to a ranked list uses the resolved ID in the row, move and response", async () => {
+  fixture = setup({ lastPosition: 2 });
+  assert.deepEqual(
+    await addToList({ listId, itemId: requestedId, position: 2 }),
+    { item: { itemId: resolvedId, title, imageUrl } },
+  );
   assert.equal(
     fixture.writes.find((w) => w.table === "list_items")?.body.item_id,
     resolvedId,
   );
   assert.deepEqual(
-    fixture.writes.find((w) => w.table === "rpc/reorder_list_items")?.body
-      .p_items,
-    ["Q89", resolvedId, "Q90"],
+    fixture.writes.find((w) => w.table === "rpc/move_list_item")?.body,
+    { p_list: listId, p_item: resolvedId, p_position: 2 },
   );
-  assert.deepEqual(order, ["Q89", requestedId, "Q90"]);
+});
+
+test("a ranked list past the old 100-item cap takes a placed item", async () => {
+  fixture = setup({ lastPosition: 5000 });
+  assert.deepEqual(
+    await addToList({ listId, itemId: requestedId, position: 1 }),
+    { item: { itemId: resolvedId, title, imageUrl } },
+  );
+  assert.equal(
+    fixture.writes.find((w) => w.table === "list_items")?.body.position,
+    5001,
+  );
+  assert.deepEqual(
+    fixture.writes.find((w) => w.table === "rpc/move_list_item")?.body,
+    { p_list: listId, p_item: resolvedId, p_position: 1 },
+  );
+});
+
+test("placing an item last doesn't move anything", async () => {
+  fixture = setup({ lastPosition: 150 });
+  assert.deepEqual(
+    await addToList({ listId, itemId: requestedId, position: 151 }),
+    { item: { itemId: resolvedId, title, imageUrl } },
+  );
+  assert.deepEqual(
+    fixture.writes.map(({ table }) => table),
+    ["items", "list_items"],
+  );
+});
+
+test("positions outside a list's possible range are rejected", async () => {
+  fixture = setup();
+  for (const position of [0, -1, 1.5, Number.NaN, 10001]) {
+    assert.deepEqual(
+      await addToList({ listId, itemId: requestedId, position }),
+      { error: "Invalid position." },
+    );
+  }
+  assert.deepEqual(fixture.writes, []);
 });
 
 test("a failed list check isn't reported as someone else's list", async () => {

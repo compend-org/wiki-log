@@ -19,9 +19,10 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { addToList } from "@/app/actions";
 import ItemImage from "@/components/ItemImage";
+import { MAX_DRAG_PLACE_ITEMS } from "@/lib/listLimits";
 import { createClient } from "@/lib/supabase/client";
 
 type ListOption = {
@@ -33,6 +34,22 @@ type ListOption = {
 };
 
 type Tile = { itemId: string; title: string; imageUrl: string | null };
+
+// Small ranked lists: every item is shown and the new one is dragged into
+// place. Big ones (up to 10,000 items): the rank is typed in instead.
+type Placing =
+  | { kind: "drag"; list: ListOption; tiles: Tile[] }
+  | { kind: "rank"; list: ListOption; rank: string };
+
+type Neighbours = { before: string | null; after: string | null };
+
+// The rank typed so far, if it's a whole number in 1..last
+function parseRank(rank: string, last: number): number | null {
+  const n = Number(rank);
+  return rank.trim() !== "" && Number.isInteger(n) && n >= 1 && n <= last
+    ? n
+    : null;
+}
 
 function PlaceTile({
   tile,
@@ -100,10 +117,8 @@ export default function AddToList({
   const [signedIn, setSignedIn] = useState<boolean>(initiallySignedIn);
   const [open, setOpen] = useState<boolean>(false);
   const [lists, setLists] = useState<ListOption[] | null>(null);
-  const [placing, setPlacing] = useState<{
-    list: ListOption;
-    tiles: Tile[];
-  } | null>(null);
+  const [placing, setPlacing] = useState<Placing | null>(null);
+  const [neighbours, setNeighbours] = useState<Neighbours | null>(null);
   const [busy, setBusy] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
   const [error, setError] = useState<string>("");
@@ -171,10 +186,10 @@ export default function AddToList({
     if (next) loadLists();
   }
 
-  async function add(list: ListOption, order?: string[]): Promise<boolean> {
+  async function add(list: ListOption, position?: number): Promise<boolean> {
     setBusy(true);
     setError("");
-    const result = await addToList({ listId: list.id, itemId, order });
+    const result = await addToList({ listId: list.id, itemId, position });
     setBusy(false);
     if (result.error) {
       setError(result.error);
@@ -198,12 +213,17 @@ export default function AddToList({
     if (list.has || busy) return;
 
     // Ranked lists with something in them: let the user pick the place
+    if (list.ranked && list.count > MAX_DRAG_PLACE_ITEMS) {
+      setPlacing({ kind: "rank", list, rank: String(list.count + 1) });
+      return;
+    }
     if (list.ranked && list.count > 0) {
       const { data, error } = await createClient()
         .from("list_items")
         .select("item_id, items(title, image_url)")
         .eq("list_id", list.id)
-        .order("position");
+        .order("position")
+        .limit(MAX_DRAG_PLACE_ITEMS);
       if (error) {
         setError(error.message);
         return;
@@ -218,7 +238,11 @@ export default function AddToList({
         title: e.items?.title ?? "Unknown item",
         imageUrl: e.items?.image_url ?? null,
       }));
-      setPlacing({ list, tiles: [...tiles, { itemId, title, imageUrl }] });
+      setPlacing({
+        kind: "drag",
+        list,
+        tiles: [...tiles, { itemId, title, imageUrl }],
+      });
       return;
     }
 
@@ -227,7 +251,7 @@ export default function AddToList({
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id || !placing) return;
+    if (!over || active.id === over.id || placing?.kind !== "drag") return;
     const oldIndex = placing.tiles.findIndex((t) => t.itemId === active.id);
     const newIndex = placing.tiles.findIndex((t) => t.itemId === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
@@ -237,21 +261,54 @@ export default function AddToList({
     });
   }
 
+  // The rank the new item would get, or null while the typed rank is invalid
+  const newPosition =
+    placing?.kind === "drag"
+      ? placing.tiles.findIndex((t) => t.itemId === itemId) + 1
+      : placing?.kind === "rank"
+        ? parseRank(placing.rank, placing.list.count + 1)
+        : null;
+
+  // Show what the typed rank sits between, so a big list needn't be loaded
+  const rankList = placing?.kind === "rank" ? placing.list : null;
+  useEffect(() => {
+    setNeighbours(null);
+    if (!rankList || newPosition === null) return;
+    let current = true;
+    const timer = setTimeout(async () => {
+      const from = Math.max(newPosition - 2, 0);
+      const { data } = await createClient()
+        .from("list_items")
+        .select("position, items(title)")
+        .eq("list_id", rankList.id)
+        .order("position")
+        .range(from, newPosition - 1);
+      if (!current) return;
+      const rows = (data ?? []) as unknown as {
+        items: { title: string } | null;
+      }[];
+      const titleAt = (i: number) =>
+        i < rows.length ? (rows[i].items?.title ?? "Unknown item") : null;
+      setNeighbours(
+        newPosition === 1
+          ? { before: null, after: titleAt(0) }
+          : { before: titleAt(0), after: titleAt(1) },
+      );
+    }, 250);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [rankList, newPosition]);
+
   async function confirmPlacement() {
-    if (!placing) return;
-    const ok = await add(
-      placing.list,
-      placing.tiles.map((t) => t.itemId),
-    );
+    if (!placing || newPosition === null) return;
+    const ok = await add(placing.list, newPosition);
     if (ok) setPlacing(null);
   }
 
   // Nothing to offer signed-out visitors (the review form already says so)
   if (!signedIn) return null;
-
-  const newPosition = placing
-    ? placing.tiles.findIndex((t) => t.itemId === itemId) + 1
-    : 0;
 
   return (
     <div className="flex flex-col gap-2">
@@ -266,7 +323,63 @@ export default function AddToList({
 
       {open && (
         <div className="card flex flex-col gap-3 p-3">
-          {placing ? (
+          {placing?.kind === "rank" ? (
+            <>
+              <label className="flex flex-wrap items-center gap-2 text-sm">
+                <span>
+                  Rank for{" "}
+                  <span className="font-semibold text-accent">{title}</span> in{" "}
+                  <span className="font-semibold">“{placing.list.title}”</span>
+                </span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={placing.list.count + 1}
+                  step={1}
+                  value={placing.rank}
+                  onChange={(e) =>
+                    setPlacing({ ...placing, rank: e.target.value })
+                  }
+                  className="w-24 rounded-lg border border-line bg-surface px-3 py-1 text-foreground"
+                />
+                <span className="text-muted">of {placing.list.count + 1}</span>
+              </label>
+              <p className="min-h-5 text-sm text-muted">
+                {newPosition === null
+                  ? `Pick a number from 1 to ${placing.list.count + 1}.`
+                  : neighbours &&
+                    (neighbours.before && neighbours.after
+                      ? `Between “${neighbours.before}” and “${neighbours.after}”.`
+                      : neighbours.after
+                        ? `Before “${neighbours.after}”.`
+                        : neighbours.before
+                          ? `After “${neighbours.before}”, at the end.`
+                          : null)}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={confirmPlacement}
+                  disabled={busy || newPosition === null}
+                  className="rounded-lg bg-accent px-4 py-2 text-sm text-background disabled:opacity-40"
+                >
+                  {busy
+                    ? "Adding…"
+                    : newPosition === null
+                      ? "Add"
+                      : `Add as #${newPosition}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlacing(null)}
+                  className="rounded-lg border border-line px-4 py-2 text-sm"
+                >
+                  Back
+                </button>
+              </div>
+            </>
+          ) : placing ? (
             <>
               <p className="text-sm">
                 Drag <span className="font-semibold text-accent">{title}</span>{" "}
