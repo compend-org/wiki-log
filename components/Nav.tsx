@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
 import { FEATURES } from "@/lib/features";
 import { SITE_NAME } from "@/lib/site";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/lib/useCurrentUser";
-import { useLoginHref } from "@/lib/useLoginHref";
 import CraftIcon from "./CraftIcon";
 import DiaryIcon from "./DiaryIcon";
 import NotificationIcon from "./NotificationIcon";
@@ -19,10 +18,8 @@ import SignOutButton from "./SignOutButton";
 const UNREAD_REFRESH_MS = 60_000;
 
 export default function Nav() {
-  const loginHref = useLoginHref();
   const { userId, username, avatarPath, ready } = useCurrentUser();
   const [unread, setUnread] = useState<number>(0);
-  const router = useRouter();
   const pathname = usePathname();
 
   const unreadCheckedAt = useRef(0);
@@ -85,12 +82,6 @@ export default function Nav() {
     window.addEventListener("notifications-read", clear);
     return () => window.removeEventListener("notifications-read", clear);
   }, []);
-
-  async function handleSignOut() {
-    await createClient().auth.signOut();
-    router.push("/");
-    router.refresh();
-  }
 
   const shownUnread = userId ? unread : 0;
 
