@@ -1,5 +1,5 @@
 // ABOUTME: The row of like, share, comment and log actions at the bottom of a feed card.
-// ABOUTME: Keeps room for a one-digit count beside each icon, so tapping one moves nothing.
+// ABOUTME: Keeps room for a one-digit count beside the like icon, so tapping it moves nothing.
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { commentLabel } from "@/lib/format";
@@ -28,9 +28,7 @@ export default function CardActions({
         {like}
       </span>
 
-      <span className="relative z-10 mr-1.5 flex min-w-[1.7rem] empty:hidden">
-        {share}
-      </span>
+      <span className="relative z-10 mr-2.5 flex empty:hidden">{share}</span>
 
       {commentHref && (
         <Link

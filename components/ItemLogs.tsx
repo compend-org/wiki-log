@@ -1,12 +1,14 @@
+// ABOUTME: The logs section of an item page: rating summary, most-liked reviews, then recent ones.
+// ABOUTME: Each review is a card linking to its own page, with like, share and comment actions.
 import Link from "next/link";
 import { connection } from "next/server";
+import CardActions from "@/components/CardActions";
 import ItemLogSummary from "@/components/ItemLogSummary";
 import LikeButton from "@/components/LikeButton";
 import LoadMore from "@/components/LoadMore";
 import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
-import { commentLabel } from "@/lib/format";
 import type { ItemLogRow } from "@/lib/itemLogs";
 import { getItemRatings } from "@/lib/itemRatings";
 import { PAGE_SIZE } from "@/lib/paging";
@@ -101,7 +103,7 @@ export default async function ItemLogs({
           )}
           {adminIds.has(row.user_id) && <AdminBadge />}
           <Stars rating={row.rating} />
-          <span className="ml-auto text-xs text-muted">
+          <span className="ml-auto text-sm text-muted">
             {new Date(row.logged_at).toLocaleDateString()}
           </span>
         </div>
@@ -110,9 +112,9 @@ export default async function ItemLogs({
             <ReviewText text={row.review} />
           </p>
         )}
-        <div className="flex items-center gap-3 text-xs text-muted">
-          {row.review && (
-            <span className="relative z-10">
+        <CardActions
+          like={
+            row.review ? (
               <LikeButton
                 viewerId={viewerId ?? null}
                 authorId={row.user_id}
@@ -120,9 +122,9 @@ export default async function ItemLogs({
                 initialCount={likeCount(row)}
                 initiallyLiked={viewer.likedLogs.has(row.id)}
               />
-            </span>
-          )}
-          <span className="relative z-10">
+            ) : null
+          }
+          share={
             <ShareButton
               viewerId={viewerId ?? null}
               ownerId={row.user_id}
@@ -131,13 +133,10 @@ export default async function ItemLogs({
               initialCount={row.shares?.[0]?.count ?? 0}
               initiallyShared={viewer.sharedLogs.has(row.id)}
             />
-          </span>
-          {reviewHref && (
-            <Link href={reviewHref} className="relative z-10 underline">
-              {commentLabel(row.comments?.[0]?.count ?? 0)}
-            </Link>
-          )}
-        </div>
+          }
+          commentHref={reviewHref}
+          commentCount={row.comments?.[0]?.count ?? 0}
+        />
       </div>
     );
   };
