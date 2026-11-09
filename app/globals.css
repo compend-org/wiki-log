@@ -122,6 +122,24 @@ body {
   }
 }
 
+/* Phone keyboards shrink only the visible part of the page, so anything pinned
+   to the bottom of the screen ends up stranded mid-screen once you scroll.
+   While a field that opens the keyboard has focus, nothing stays pinned. */
+@media (pointer: coarse) {
+  body:has(
+    input:not([type="checkbox"], [type="radio"], [type="file"]):focus,
+    textarea:focus
+  ) {
+    > footer {
+      position: static;
+    }
+
+    > .scroll-to-top {
+      display: none;
+    }
+  }
+}
+
 /* No rounded corners anywhere. Blunt, but it reaches every component. */
 *,
 *::before,
