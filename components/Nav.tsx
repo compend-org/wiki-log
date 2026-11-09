@@ -176,14 +176,6 @@ export default function Nav() {
                 </span>
               </Link>
             )}
-            {/* <Link
-              href="/settings"
-              aria-label="Settings"
-              title="Settings"
-              className={`flex ${tone("/settings")}`}
-            >
-              <SettingsIcon />
-            </Link> */}
             <SignOutButton
               className="hidden sm:inline-flex"
               labelClassName="hidden sm:inline"

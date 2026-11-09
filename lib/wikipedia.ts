@@ -14,7 +14,7 @@ const CONTACT = process.env.WIKI_CONTACT ?? "no contact set";
 const USER_AGENT = `Compend/0.1${process.env.NODE_ENV === "production" ? "" : "-dev"} (https://compend.org; ${CONTACT})`;
 
 // Articles about real people are blocked unless this is true
-export const ALLOW_PEOPLE = true;
+const ALLOW_PEOPLE = true;
 
 export const HEADERS = {
   "User-Agent": USER_AGENT,

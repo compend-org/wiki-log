@@ -1,5 +1,5 @@
 export type ThemePref = "light" | "dark" | "system";
-export const THEME_KEY = "theme";
+const THEME_KEY = "theme";
 
 export function getStoredTheme(): ThemePref {
   try {

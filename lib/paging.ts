@@ -118,7 +118,7 @@ export function parseFeedCursor(value: unknown): FeedCursor | null {
 // newest first.
 export type FeedOrder = { score: number; rank: number; time: number };
 
-export function compareFeedOrder(a: FeedOrder, b: FeedOrder): number {
+function compareFeedOrder(a: FeedOrder, b: FeedOrder): number {
   return b.score - a.score || a.rank - b.rank || b.time - a.time;
 }
 
