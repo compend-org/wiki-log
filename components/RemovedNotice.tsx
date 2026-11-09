@@ -7,8 +7,7 @@ export default function RemovedNotice({ noun }: { noun: string }) {
       role="status"
       className="rounded-lg border border-danger px-4 py-3 text-sm text-danger"
     >
-      The moderators removed this {noun}. Only you can see it now. Your
-      notifications say why.
+      The moderators removed this {noun}.
     </p>
   );
 }

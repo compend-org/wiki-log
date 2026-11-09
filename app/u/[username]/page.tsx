@@ -214,6 +214,14 @@ export default async function ProfilePage({
   const otherLists = lists.filter((l) => !pinnedLists.has(l.id));
 
   const isOwner = viewerId === profile.id;
+  // Only the owner can read their own suspension
+  const { data: suspension } = isOwner
+    ? await supabase
+        .from("account_restrictions")
+        .select("suspended_until")
+        .gt("suspended_until", new Date().toISOString())
+        .maybeSingle()
+    : { data: null };
   const profileIsAdmin = await isAdmin(profile.id);
   const viewerIsAdmin = await isAdmin(viewerId);
   const profileHref = `/u/${encodeURIComponent(profile.username)}`;
@@ -304,6 +312,19 @@ export default async function ProfilePage({
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
+      {suspension && (
+        <p
+          role="status"
+          className="rounded-lg border border-danger px-4 py-3 text-sm text-danger"
+        >
+          Your account is suspended until{" "}
+          {new Date(suspension.suspended_until).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          })}
+          .
+        </p>
+      )}
       <header className="flex flex-col gap-1">
         <div className="flex items-center gap-4">
           <Avatar

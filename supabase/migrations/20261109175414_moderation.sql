@@ -61,6 +61,12 @@ alter table public.account_restrictions enable row level security;
 revoke all on public.account_restrictions from anon, authenticated;
 grant all on public.account_restrictions to service_role;
 
+-- So their own profile can tell them they're suspended and until when
+grant select on public.account_restrictions to authenticated;
+create policy "people can see their own suspension"
+  on public.account_restrictions for select to authenticated
+  using ((select auth.uid()) = user_id);
+
 alter table public.profiles add column banned_at timestamptz;
 alter table public.logs
   add column removed_at timestamptz,
