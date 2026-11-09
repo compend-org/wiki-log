@@ -5,8 +5,8 @@
 
 import { Fragment, startTransition, useState } from "react";
 import { loadMoreDigest } from "@/app/digestActions";
-import type { DigestCardItem, DigestPage } from "@/components/Digest";
 import LoadMore from "@/components/LoadMore";
+import type { DigestCardItem, DigestPage } from "@/components/loadDigestPage";
 
 // A later page can repeat a review that is already shown, if one was posted
 // while the reader was scrolling. It stays where it is.
