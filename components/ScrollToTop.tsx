@@ -25,7 +25,7 @@ export default function ScrollToTop() {
       // Hidden, it can't be clicked or reached with the keyboard. It sits
       // just above the footer, which sticks to the bottom of the screen.
       inert={!visible}
-      className={`card round fixed right-6 bottom-16 z-30 flex h-11 w-11 items-center justify-center text-muted transition-opacity duration-300 hover:border-accent hover:text-accent ${
+      className={`scroll-to-top card round fixed right-6 bottom-16 z-30 flex h-11 w-11 items-center justify-center text-muted transition-opacity duration-300 hover:border-accent hover:text-accent ${
         visible ? "opacity-100" : "pointer-events-none opacity-0"
       }`}
     >
