@@ -8,10 +8,13 @@ export default function FollowButton({
   viewerId,
   targetId,
   initiallyFollowing,
+  followsViewer = false,
 }: {
   viewerId: string;
   targetId: string;
   initiallyFollowing: boolean;
+  // Whether the target already follows the viewer, so the button can offer to follow back
+  followsViewer?: boolean;
 }) {
   const [following, setFollowing] = useState<boolean>(initiallyFollowing);
   const [busy, setBusy] = useState<boolean>(false);
@@ -52,7 +55,7 @@ export default function FollowButton({
             : "rounded-lg bg-accent px-4 py-2 text-background disabled:opacity-40"
         }
       >
-        {following ? "Following " : "Follow"}
+        {following ? "Following " : followsViewer ? "Follow back" : "Follow"}
       </button>
       {error && <p className="text-sm text-danger">{error}</p>}
     </div>

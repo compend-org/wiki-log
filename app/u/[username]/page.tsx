@@ -73,7 +73,7 @@ type ProfileContent = {
   reviews: LogRow[];
   pin_rows: PinRow[];
   viewer_follow?: { follower_id: string }[];
-  follows_viewer?: { follower_id: string }[];
+  follows_viewer?: { following_id: string }[];
   viewer_block?: { blocker_id: string }[];
 };
 
@@ -365,6 +365,7 @@ export default async function ProfilePage({
                   viewerId={viewerId}
                   targetId={profile.id}
                   initiallyFollowing={isFollowing}
+                  followsViewer={followsViewer}
                 />
               )}
               <BlockButton
