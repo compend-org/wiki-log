@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "flag-icons/css/flag-icons.min.css";
+import { Suspense } from "react";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
+import NavAccount from "@/components/NavAccount";
+import { NavAccountPlaceholder } from "@/components/NavAccountLinks";
 import ScrollToTop from "@/components/ScrollToTop";
 import { iphoneViewportScript } from "@/lib/iphoneViewport";
 import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
@@ -47,7 +50,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: iphoneViewportScript }} />
       </head>
       <body className="min-h-full flex flex-col">
-        <Nav />
+        <Nav
+          account={
+            <Suspense fallback={<NavAccountPlaceholder />}>
+              <NavAccount />
+            </Suspense>
+          }
+        />
         {children}
         <Footer />
         <ScrollToTop />
