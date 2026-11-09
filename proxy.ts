@@ -1,7 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { updateSession } from "@/lib/supabase/proxy";
+import { adminOnly, isAdminPath, updateSession } from "@/lib/supabase/proxy";
 
 export async function proxy(request: NextRequest) {
+  if (isAdminPath(request.nextUrl.pathname)) return await adminOnly(request);
+
   // Safety net: visitors with no Supabase ("sb-") cookie have no session
   const hasSession = request.cookies
     .getAll()
@@ -14,9 +16,12 @@ export async function proxy(request: NextRequest) {
 // The proxy only runs for visitors who have a session cookie, so signed-out
 // visitors (and the pages and prefetches they load) don't invoke it at all.
 // The cookie is split into pieces when it is long, hence two entries.
+// The admin pages are the exception: they have to answer signed-out visitors
+// with a 404 too, so the proxy always runs for them.
 // Next.js reads these values at build time, so they are written out in full.
 export const config = {
   matcher: [
+    "/admin/:path*",
     {
       source:
         "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
