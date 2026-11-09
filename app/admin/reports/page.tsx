@@ -3,8 +3,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
+import { setAccountReportStatus } from "@/app/admin/reports/actions";
 import AdminBadge from "@/components/AdminBadge";
 import AdminPost from "@/components/AdminPost";
+import BanButton from "@/components/BanButton";
+import ReportStatusButtons from "@/components/ReportStatusButtons";
 import {
   countLabel,
   gapLabel,
@@ -20,7 +23,16 @@ export const metadata: Metadata = {
 };
 export const instant = false;
 
-function AccountRow({ account, now }: { account: QueueAccount; now: number }) {
+function AccountRow({
+  account,
+  now,
+  showingOpen,
+}: {
+  account: QueueAccount;
+  now: number;
+  // In the Open view every report on the card is open, so they can be closed
+  showingOpen: boolean;
+}) {
   const reasons = Object.entries(account.reasons).sort((a, b) => b[1] - a[1]);
 
   return (
@@ -89,6 +101,31 @@ function AccountRow({ account, now }: { account: QueueAccount; now: number }) {
             </li>
           ))}
         </ul>
+
+        {(showingOpen || !account.is_admin) && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            {showingOpen && (
+              <>
+                <span className="text-sm text-muted">All open reports:</span>
+                <ReportStatusButtons
+                  setStatus={setAccountReportStatus.bind(
+                    null,
+                    account.user_id,
+                    account.last_report_at,
+                  )}
+                  status="open"
+                />
+              </>
+            )}
+            {!account.is_admin && (
+              <BanButton
+                userId={account.user_id}
+                username={account.username}
+                className="rounded-lg border border-danger px-2.5 py-1 text-sm text-danger"
+              />
+            )}
+          </div>
+        )}
       </div>
     </li>
   );
@@ -143,7 +180,12 @@ export default async function ReportsPage({
       ) : (
         <ol className="flex flex-col gap-3">
           {queue.accounts.map((account) => (
-            <AccountRow key={account.user_id} account={account} now={now} />
+            <AccountRow
+              key={account.user_id}
+              account={account}
+              now={now}
+              showingOpen={!includeHandled}
+            />
           ))}
         </ol>
       )}

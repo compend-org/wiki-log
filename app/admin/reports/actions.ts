@@ -1,4 +1,4 @@
-// ABOUTME: Lets admins mark the reports on a post as dismissed, actioned, or open again.
+// ABOUTME: Lets admins mark the reports on a post as dismissed, actioned, or open again, or close an account's open reports.
 // ABOUTME: Anyone can call a server action directly, so the database function makes the admin check.
 "use server";
 
@@ -25,5 +25,28 @@ export async function setReportStatus(
     p_status: status,
   });
   if (error) return { error: "Couldn't update the report." };
+  return {};
+}
+
+export async function setAccountReportStatus(
+  userId: string,
+  reportedBefore: string,
+  status: ReportStatus,
+): Promise<{ error?: string }> {
+  if (
+    !isUuid(userId) ||
+    (status !== "actioned" && status !== "dismissed") ||
+    Number.isNaN(Date.parse(reportedBefore))
+  ) {
+    return { error: "Invalid report." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_set_account_report_status", {
+    p_user_id: userId,
+    p_status: status,
+    p_reported_before: reportedBefore,
+  });
+  if (error) return { error: "Couldn't update the reports." };
   return {};
 }

@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { setReportStatus } from "@/app/admin/reports/actions";
 import AdminBadge from "@/components/AdminBadge";
 import AdminPost from "@/components/AdminPost";
 import BanButton from "@/components/BanButton";
@@ -76,8 +77,7 @@ function FlaggedPost({
           <span className="text-sm text-muted">Closed as {status}</span>
         )}
         <ReportStatusButtons
-          kind={flagged.kind}
-          postId={flagged.id}
+          setStatus={setReportStatus.bind(null, flagged.kind, flagged.id)}
           status={status}
         />
       </div>
