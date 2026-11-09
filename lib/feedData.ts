@@ -2,6 +2,7 @@
 // ABOUTME: Everyone and Trending are the same for every visitor, so they are cached remotely.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cacheLife, cacheTag } from "next/cache";
+import { shownImage } from "@/lib/format";
 import {
   type ColumnCursor,
   type ColumnEnd,
@@ -23,7 +24,11 @@ export type LogRow = {
   rating: number | null;
   review: string;
   logged_at: string;
-  items: { title: string; image_url: string | null } | null;
+  items: {
+    title: string;
+    image_url: string | null;
+    image_hidden?: boolean;
+  } | null;
   profiles: { username: string; avatar_path: string | null } | null;
   likes: { count: number }[];
   comments: { count: number }[];
@@ -73,13 +78,13 @@ export type ShareRow = {
 type PreviewRow = {
   list_id: string;
   position: number;
-  items: Thumb | null;
+  items: (Thumb & { image_hidden: boolean }) | null;
 };
 
 type RankRow = { row_id: string; recent_likes: number | string };
 
 const LOG_SELECT =
-  "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
+  "id, user_id, item_id, rating, review, logged_at, items(title, image_url, image_hidden), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
 export const LIST_SELECT =
   "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count)";
 
@@ -98,7 +103,7 @@ async function loadPreviews(
 
   const { data } = await supabase
     .from("list_items")
-    .select("list_id, position, items(title, image_url)")
+    .select("list_id, position, items(title, image_url, image_hidden)")
     .in(
       "list_id",
       lists.map((l) => l.id),
@@ -109,7 +114,7 @@ async function loadPreviews(
     const arr = previews[row.list_id] ?? [];
     arr.push({
       title: row.items?.title ?? "Unknown item",
-      image_url: row.items?.image_url ?? null,
+      image_url: row.items ? shownImage(row.items) : null,
     });
     previews[row.list_id] = arr;
   }
@@ -252,7 +257,10 @@ async function assemble(
 ): Promise<PublicFeed> {
   const shownLists = nonEmpty(lists.rows);
   return {
-    logs: logs.rows,
+    logs: logs.rows.map((l) => ({
+      ...l,
+      items: l.items && { ...l.items, image_url: shownImage(l.items) },
+    })),
     lists: shownLists,
     previews: await loadPreviews(supabase, shownLists),
     scores,

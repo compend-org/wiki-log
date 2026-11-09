@@ -2,6 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import AdminBadge from "@/components/AdminBadge";
+import NotificationThumb, {
+  MOSAIC_SIZE,
+  type NotificationSubject,
+} from "@/components/NotificationThumb";
+import type { Thumb } from "@/lib/feedData";
+import { shownImage } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 
@@ -21,10 +28,28 @@ type NotificationRow = {
   created_at: string;
   log_id: string | null;
   list_id: string | null;
-  profiles: { username: string } | null;
+  actor_id: string;
+  profiles: { username: string; avatar_path: string | null } | null;
 };
 
 type LogInfo = { owner: string; item: string };
+type ListInfo = { title: string; items: Thumb[] };
+
+type ItemRow = {
+  title: string;
+  image_url: string | null;
+  image_hidden: boolean;
+};
+
+type ListQueryRow = {
+  id: string;
+  title: string;
+  list_items: { items: ItemRow | null }[];
+};
+
+function toThumb(item: ItemRow): Thumb {
+  return { title: item.title, image_url: shownImage(item) };
+}
 
 type NotificationsState = {
   loaded: boolean;
@@ -32,11 +57,39 @@ type NotificationsState = {
   error: string;
   rows: NotificationRow[];
   logs: Record<string, LogInfo>;
-  titles: Record<string, string>;
-  listTitles: Record<string, string>;
+  items: Record<string, Thumb>;
+  lists: Record<string, ListInfo>;
   owners: Record<string, string>;
+  adminIds: Set<string>;
   myId: string;
 };
+
+// A person's name linked to their profile, above the card's full-card link,
+// followed by the admin badge if they are one
+function PersonLink({
+  username,
+  isAdmin,
+}: {
+  username: string;
+  isAdmin: boolean;
+}) {
+  return (
+    <>
+      <Link
+        href={`/u/${encodeURIComponent(username)}`}
+        className="relative z-10 font-semibold hover:underline"
+      >
+        {username}
+      </Link>
+      {isAdmin && (
+        <>
+          {" "}
+          <AdminBadge inline />
+        </>
+      )}
+    </>
+  );
+}
 
 export default function NotificationsPage() {
   const loginHref = useLoginHref();
@@ -46,9 +99,10 @@ export default function NotificationsPage() {
     error: "",
     rows: [],
     logs: {},
-    titles: {},
-    listTitles: {},
+    items: {},
+    lists: {},
     owners: {},
+    adminIds: new Set(),
     myId: "",
   });
   const {
@@ -57,9 +111,10 @@ export default function NotificationsPage() {
     error,
     rows,
     logs,
-    titles,
-    listTitles,
+    items,
+    lists,
     owners,
+    adminIds,
     myId,
   } = state;
 
@@ -75,7 +130,7 @@ export default function NotificationsPage() {
       const { data, error } = await supabase
         .from("notifications")
         .select(
-          "id, type, read, created_at, log_id, list_id, profiles!notifications_actor_fkey(username)",
+          "id, type, read, created_at, log_id, list_id, actor_id, profiles!notifications_actor_fkey(username, avatar_path)",
         )
         .eq("recipient_id", userId)
         .order("created_at", { ascending: false })
@@ -109,16 +164,34 @@ export default function NotificationsPage() {
       const itemIds = [...new Set(logRows.map((l) => l.item_id))];
       const ownerIds = [...new Set(logRows.map((l) => l.user_id))];
 
-      const [items, lists, profs] = await Promise.all([
+      // Everyone who could be named on a card, to badge the admins among them
+      const peopleIds = [
+        ...new Set([...list.map((n) => n.actor_id), ...ownerIds]),
+      ];
+
+      const [itemRes, listRes, profs, admins] = await Promise.all([
         itemIds.length
-          ? supabase.from("items").select("id, title").in("id", itemIds)
-          : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+          ? supabase
+              .from("items")
+              .select("id, title, image_url, image_hidden")
+              .in("id", itemIds)
+          : Promise.resolve({ data: [] as (ItemRow & { id: string })[] }),
         listIds.length
-          ? supabase.from("lists").select("id, title").in("id", listIds)
-          : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+          ? supabase
+              .from("lists")
+              .select(
+                "id, title, list_items(position, items(title, image_url, image_hidden))",
+              )
+              .in("id", listIds)
+              .order("position", { referencedTable: "list_items" })
+              .limit(MOSAIC_SIZE, { referencedTable: "list_items" })
+          : Promise.resolve({ data: [] as ListQueryRow[] }),
         ownerIds.length
           ? supabase.from("profiles").select("id, username").in("id", ownerIds)
           : Promise.resolve({ data: [] as { id: string; username: string }[] }),
+        peopleIds.length
+          ? supabase.from("admins").select("user_id").in("user_id", peopleIds)
+          : Promise.resolve({ data: [] as { user_id: string }[] }),
       ]);
 
       // Publish the notifications and all their display data together.
@@ -130,15 +203,24 @@ export default function NotificationsPage() {
         logs: Object.fromEntries(
           logRows.map((l) => [l.id, { owner: l.user_id, item: l.item_id }]),
         ),
-        titles: Object.fromEntries(
-          (items.data ?? []).map((v) => [v.id, v.title]),
+        items: Object.fromEntries(
+          (itemRes.data ?? []).map((v) => [v.id, toThumb(v)]),
         ),
-        listTitles: Object.fromEntries(
-          (lists.data ?? []).map((v) => [v.id, v.title]),
+        lists: Object.fromEntries(
+          ((listRes.data ?? []) as unknown as ListQueryRow[]).map((v) => [
+            v.id,
+            {
+              title: v.title,
+              items: v.list_items.flatMap((e) =>
+                e.items ? [toThumb(e.items)] : [],
+              ),
+            },
+          ]),
         ),
         owners: Object.fromEntries(
           (profs.data ?? []).map((p) => [p.id, p.username]),
         ),
+        adminIds: new Set((admins.data ?? []).map((a) => a.user_id)),
         myId: userId,
       });
 
@@ -155,16 +237,30 @@ export default function NotificationsPage() {
     load();
   }, []);
 
-  // `rest` is everything after the username
-  function describe(n: NotificationRow): { rest: string; href: string } {
+  // `rest` is everything after the username. `reviewOwner` is a second person
+  // named at the very end of it. `subject` is the card's picture.
+  function describe(n: NotificationRow): {
+    rest: string;
+    href: string;
+    reviewOwner?: { id: string; username: string };
+    subject: NotificationSubject | null;
+  } {
     const entry = n.log_id ? logs[n.log_id] : undefined;
-    const title = entry ? (titles[entry.item] ?? "an item") : "an item";
+    const item = entry ? items[entry.item] : undefined;
+    const title = item?.title ?? "an item";
     const ownerName = entry ? owners[entry.owner] : undefined;
+    const itemSubject: NotificationSubject | null = item
+      ? { kind: "item", item }
+      : null;
+    const list = n.list_id ? lists[n.list_id] : undefined;
+    const listSubject: NotificationSubject | null = list
+      ? { kind: "list", title: list.title, items: list.items }
+      : null;
     const reviewHref =
       ownerName && n.log_id
         ? `/u/${encodeURIComponent(ownerName)}/${n.log_id}`
         : "/";
-    const listTitle = n.list_id ? (listTitles[n.list_id] ?? "a list") : "";
+    const listTitle = n.list_id ? (list?.title ?? "a list") : "";
     const listHref = n.list_id ? `/list/${n.list_id}#comments` : "/";
 
     switch (n.type) {
@@ -172,18 +268,30 @@ export default function NotificationsPage() {
         return {
           rest: ` liked your review of ${title}`,
           href: reviewHref,
+          subject: itemSubject,
         };
       case "comment":
         return {
           rest: ` commented on your review of ${title}`,
           href: reviewHref,
+          subject: itemSubject,
         };
       case "reply": {
-        const whose =
-          entry?.owner === myId ? "your" : `${ownerName ?? "someone"}'s`;
+        if (entry?.owner === myId) {
+          return {
+            rest: ` replied to your comment on your review of ${title}`,
+            href: reviewHref,
+            subject: itemSubject,
+          };
+        }
         return {
-          rest: ` replied to your comment on ${whose} review of ${title}`,
+          rest: ` replied to your comment on a review of ${title} by ${ownerName ? "" : "someone"}`,
           href: reviewHref,
+          reviewOwner:
+            entry && ownerName
+              ? { id: entry.owner, username: ownerName }
+              : undefined,
+          subject: itemSubject,
         };
       }
       case "follow":
@@ -192,31 +300,43 @@ export default function NotificationsPage() {
           href: n.profiles
             ? `/u/${encodeURIComponent(n.profiles.username)}`
             : "/",
+          subject: n.profiles
+            ? {
+                kind: "person",
+                username: n.profiles.username,
+                avatarPath: n.profiles.avatar_path,
+              }
+            : null,
         };
       case "share":
         return {
           rest: ` shared your review of ${title}`,
           href: reviewHref,
+          subject: itemSubject,
         };
       case "list_share":
         return {
           rest: ` shared your list “${listTitle}”`,
           href: n.list_id ? `/list/${n.list_id}` : "/",
+          subject: listSubject,
         };
       case "list_like":
         return {
           rest: ` liked your list “${listTitle}”`,
           href: n.list_id ? `/list/${n.list_id}` : "/",
+          subject: listSubject,
         };
       case "list_comment":
         return {
           rest: ` commented on your list “${listTitle}”`,
           href: listHref,
+          subject: listSubject,
         };
       case "list_reply":
         return {
           rest: ` replied to your comment on the list “${listTitle}”`,
           href: listHref,
+          subject: listSubject,
         };
     }
   }
@@ -243,36 +363,43 @@ export default function NotificationsPage() {
       )}
 
       {rows.map((n) => {
-        const { rest, href } = describe(n);
+        const { rest, href, reviewOwner, subject } = describe(n);
         const actor = n.profiles?.username;
         return (
           <div
             key={n.id}
-            className={`relative flex flex-col gap-1 border p-3 hover:border-accent/60 ${
+            className={`relative flex items-center gap-3 border p-3 hover:border-accent/60 ${
               n.read ? "border-line" : "border-accent bg-surface"
             }`}
           >
             <Link
               href={href}
-              aria-label={`${actor ?? "Someone"}${rest}`}
+              aria-label={`${actor ?? "Someone"}${rest}${reviewOwner?.username ?? ""}`}
               className="absolute inset-0"
             />
-            <span className="text-sm">
-              {actor ? (
-                <Link
-                  href={`/u/${encodeURIComponent(actor)}`}
-                  className="relative z-10 font-semibold hover:underline"
-                >
-                  {actor}
-                </Link>
-              ) : (
-                "Someone"
-              )}
-              {rest}
-            </span>
-            <span className="text-xs text-muted">
-              {n.created_at.slice(0, 10)}
-            </span>
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="text-sm [overflow-wrap:anywhere]">
+                {actor ? (
+                  <PersonLink
+                    username={actor}
+                    isAdmin={adminIds.has(n.actor_id)}
+                  />
+                ) : (
+                  "Someone"
+                )}
+                {rest}
+                {reviewOwner && (
+                  <PersonLink
+                    username={reviewOwner.username}
+                    isAdmin={adminIds.has(reviewOwner.id)}
+                  />
+                )}
+              </span>
+              <span className="text-xs text-muted">
+                {n.created_at.slice(0, 10)}
+              </span>
+            </div>
+            {subject && <NotificationThumb subject={subject} />}
           </div>
         );
       })}

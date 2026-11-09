@@ -49,6 +49,14 @@ export function firstLetter(title: string): string {
   return text.match(/[\p{L}\p{N}]/u)?.[0].toUpperCase() ?? text;
 }
 
+// The image an item may show: a hidden image counts as no image at all
+export function shownImage(item: {
+  image_url: string | null;
+  image_hidden?: boolean;
+}): string | null {
+  return item.image_hidden ? null : item.image_url;
+}
+
 // A smaller version of a Wikimedia thumbnail address, for small boxes. Other
 // addresses are returned unchanged.
 export function thumbUrl(url: string, width = 330): string {

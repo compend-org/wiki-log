@@ -183,12 +183,6 @@ export default async function ListPage({
         <h1 className="text-3xl font-bold">{list.title}</h1>
         <p className="text-sm text-muted">
           A {list.ranked ? "ranked " : ""}list by{" "}
-          {adminIds.has(list.user_id) && (
-            <>
-              {" "}
-              <AdminBadge />
-            </>
-          )}{" "}
           {owner ? (
             <Link
               href={`/u/${encodeURIComponent(owner)}`}
@@ -198,6 +192,12 @@ export default async function ListPage({
             </Link>
           ) : (
             "someone"
+          )}
+          {adminIds.has(list.user_id) && (
+            <>
+              {" "}
+              <AdminBadge inline />
+            </>
           )}{" "}
           · {entries.length} {entries.length === 1 ? "item" : "items"}
         </p>
