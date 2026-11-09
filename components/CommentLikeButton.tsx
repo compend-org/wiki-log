@@ -6,14 +6,23 @@ import HeartIcon from "@/components/HeartIcon";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 
+// Where likes on each kind of comment are kept
+const LIKES = {
+  comments: { table: "comment_likes", column: "comment_id" },
+  list_comments: { table: "list_comment_likes", column: "list_comment_id" },
+} as const;
+
 export default function CommentLikeButton({
   viewerId,
+  commentTable,
   commentId,
   authorId,
   initialCount,
   initiallyLiked,
 }: {
   viewerId: string | null;
+  // "comments" for reviews, "list_comments" for lists
+  commentTable: keyof typeof LIKES;
   commentId: string;
   authorId: string;
   initialCount: number;
@@ -40,16 +49,17 @@ export default function CommentLikeButton({
     setLiked(next);
     setCount((c) => c + (next ? 1 : -1));
 
+    const likes = LIKES[commentTable];
     const supabase = createClient();
     const { error } = next
       ? await supabase
-          .from("comment_likes")
-          .insert({ user_id: viewerId, comment_id: commentId })
+          .from(likes.table)
+          .insert({ user_id: viewerId, [likes.column]: commentId })
       : await supabase
-          .from("comment_likes")
+          .from(likes.table)
           .delete()
           .eq("user_id", viewerId)
-          .eq("comment_id", commentId);
+          .eq(likes.column, commentId);
 
     if (error) {
       setLiked(!next);

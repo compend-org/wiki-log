@@ -17,6 +17,7 @@ function fakeSupabase() {
           liked_lists: ["list-1"],
           shared_lists: [],
           liked_comments: [],
+          liked_list_comments: ["list-comment-1"],
           blocked: ["person-1"],
         },
       };
@@ -57,10 +58,24 @@ test("asks once for reviews and lists together", async () => {
         p_log_ids: ["log-1"],
         p_list_ids: ["list-1"],
         p_comment_ids: [],
+        p_list_comment_ids: [],
       },
     },
   ]);
   assert.ok(viewer.likedLogs.has("log-1"));
   assert.ok(viewer.likedLists.has("list-1"));
   assert.ok(viewer.blocked.has("person-1"));
+});
+
+test("asks for the list comments a page shows", async () => {
+  const { calls, supabase } = fakeSupabase();
+  const viewer = await getViewerState(supabase, "viewer-1", {
+    listCommentIds: ["list-comment-1"],
+  });
+  assert.equal(calls.length, 1);
+  assert.deepEqual(
+    (calls[0].args as { p_list_comment_ids: string[] }).p_list_comment_ids,
+    ["list-comment-1"],
+  );
+  assert.ok(viewer.likedListComments.has("list-comment-1"));
 });

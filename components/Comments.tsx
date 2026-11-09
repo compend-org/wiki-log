@@ -31,7 +31,6 @@ export default function Comments({
   table,
   scope,
   ownerId,
-  likeable = false,
 }: {
   comments: CommentItem[];
   viewerId: string | null;
@@ -41,8 +40,6 @@ export default function Comments({
   scope: Record<string, string>;
   // The owner of the review or list can delete any comment on it
   ownerId: string;
-  // Only review comments can be liked
-  likeable?: boolean;
 }) {
   const loginHref = useLoginHref();
   const [topText, setTopText] = useState<string>("");
@@ -137,15 +134,14 @@ export default function Comments({
           <ReviewText text={c.body} />
         </p>
         <div className="flex gap-3 text-xs text-muted">
-          {likeable && (
-            <CommentLikeButton
-              viewerId={viewerId}
-              commentId={c.id}
-              authorId={c.authorId}
-              initialCount={c.likeCount}
-              initiallyLiked={c.liked}
-            />
-          )}
+          <CommentLikeButton
+            viewerId={viewerId}
+            commentTable={table}
+            commentId={c.id}
+            authorId={c.authorId}
+            initialCount={c.likeCount}
+            initiallyLiked={c.liked}
+          />
           <ReportButton
             viewerId={viewerId}
             ownerId={c.authorId}

@@ -53,6 +53,7 @@ type CommentQueryRow = {
   user_id: string;
   removed_at: string | null;
   profiles: { username: string } | null;
+  list_comment_likes: { count: number }[];
 };
 
 type OwnerLog = {
@@ -89,7 +90,7 @@ const getList = cache(async (id: string): Promise<ListRow | null> => {
   const { data } = await supabase
     .from("lists")
     .select(
-      "id, user_id, title, description, ranked, removed_at, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count), list_items(item_id, items(title, image_url, image_hidden)), list_comments(id, parent_id, body, created_at, user_id, removed_at, profiles!list_comments_user_id_profiles_fkey(username))",
+      "id, user_id, title, description, ranked, removed_at, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count), list_items(item_id, items(title, image_url, image_hidden)), list_comments(id, parent_id, body, created_at, user_id, removed_at, profiles!list_comments_user_id_profiles_fkey(username), list_comment_likes(count))",
     )
     .eq("id", id)
     .order("position", { referencedTable: "list_items" })
@@ -159,9 +160,12 @@ export default async function ListPage({
     }
   }
 
-  // Whether the viewer has liked and shared this list, and who they have
-  // blocked
-  const viewer = await getViewerState(supabase, viewerId, { listIds: [id] });
+  // Whether the viewer has liked and shared this list, which of its comments
+  // they have liked, and who they have blocked
+  const viewer = await getViewerState(supabase, viewerId, {
+    listIds: [id],
+    listCommentIds: list.list_comments.map((c) => c.id),
+  });
 
   const adminIds = await getAdminIds();
   const allComments: CommentItem[] = list.list_comments.map((c) => ({
@@ -173,8 +177,8 @@ export default async function ListPage({
     authorName: c.profiles?.username ?? "Someone",
     authorIsAdmin: adminIds.has(c.user_id),
     removed: c.removed_at !== null,
-    likeCount: 0,
-    liked: false,
+    likeCount: c.list_comment_likes?.[0]?.count ?? 0,
+    liked: viewer.likedListComments.has(c.id),
   }));
 
   // Comments by people the viewer has blocked are left out
