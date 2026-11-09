@@ -22,18 +22,23 @@ type ViewerStateRow = {
 };
 
 // The viewer's state for these review, list and comment ids. Different for
-// each person, so never cached. Signed out, it is empty and nothing is asked.
+// each person, so never cached. Signed out, or with no ids to look up, it is
+// empty and nothing is asked: with nothing on the page there's no one to hide.
 export async function getViewerState(
   supabase: SupabaseClient,
   viewerId: string | undefined,
   ids: { logIds?: string[]; listIds?: string[]; commentIds?: string[] },
 ): Promise<ViewerState> {
+  const logIds = ids.logIds ?? [];
+  const listIds = ids.listIds ?? [];
+  const commentIds = ids.commentIds ?? [];
+
   let row: ViewerStateRow | null = null;
-  if (viewerId) {
+  if (viewerId && logIds.length + listIds.length + commentIds.length > 0) {
     const { data } = await supabase.rpc("viewer_state", {
-      p_log_ids: ids.logIds ?? [],
-      p_list_ids: ids.listIds ?? [],
-      p_comment_ids: ids.commentIds ?? [],
+      p_log_ids: logIds,
+      p_list_ids: listIds,
+      p_comment_ids: commentIds,
     });
     row = data as ViewerStateRow | null;
   }

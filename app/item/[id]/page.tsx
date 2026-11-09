@@ -13,12 +13,15 @@ import RatingHistogram from "@/components/RatingsHistogram";
 import { BUSY_ERROR } from "@/lib/articleSummary";
 import { FEATURES } from "@/lib/features";
 import { isCompoundId } from "@/lib/ids";
+import { getItemLists } from "@/lib/itemLists";
+import { getItemLogs } from "@/lib/itemLogs";
 import { getItemRatings } from "@/lib/itemRatings";
 import { getItemForPage } from "@/lib/items";
 import { pageMetadata } from "@/lib/metadata";
 import { parseLimit } from "@/lib/paging";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
+import { getViewerState } from "@/lib/viewerState";
 
 export const instant = false;
 
@@ -156,6 +159,17 @@ export default async function ItemPage({
       .in("id", usedIds);
     usedIn = (ci ?? []) as { id: string; title: string }[];
   }
+
+  // The logs and lists sections are loaded together so that one request can
+  // answer what the viewer has liked, shared and blocked in both of them
+  const [itemLogs, itemLists] = await Promise.all([
+    getItemLogs(id),
+    getItemLists(id),
+  ]);
+  const viewer = await getViewerState(supabase, viewerId, {
+    logIds: itemLogs.rows.map((r) => r.id),
+    listIds: itemLists.lists.map((l) => l.id),
+  });
 
   const removalLink = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
     `Image removal request: ${item.title} (${item.id})`,
@@ -297,10 +311,22 @@ export default async function ItemPage({
       </div>
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0">
-          <ItemLogs itemId={id} limit={parseLimit(limit)} />
+          <ItemLogs
+            itemId={id}
+            limit={parseLimit(limit)}
+            rows={itemLogs.rows}
+            error={itemLogs.error}
+            viewerId={viewerId}
+            viewer={viewer}
+          />
         </div>
         <div className="min-w-0">
-          <ItemLists itemId={id} />
+          <ItemLists
+            lists={itemLists.lists}
+            error={itemLists.error}
+            viewerId={viewerId}
+            viewer={viewer}
+          />
         </div>
       </div>
     </main>

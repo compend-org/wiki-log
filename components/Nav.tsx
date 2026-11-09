@@ -28,7 +28,8 @@ export default function Nav() {
   const unreadCheckedAt = useRef(0);
   const refreshUnread = useRef<(() => void) | null>(null);
 
-  // Refresh the unread count when you sign in or come back to the page
+  // Refresh the unread count when you sign in, or when you come back to the
+  // page, at most once a minute
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -50,7 +51,12 @@ export default function Nav() {
         });
     };
     const refreshIfVisible = () => {
-      if (document.visibilityState === "visible") refresh();
+      if (
+        document.visibilityState === "visible" &&
+        Date.now() - unreadCheckedAt.current >= UNREAD_REFRESH_MS
+      ) {
+        refresh();
+      }
     };
 
     refresh();

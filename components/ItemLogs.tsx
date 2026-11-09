@@ -7,11 +7,10 @@ import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
 import { commentLabel } from "@/lib/format";
-import { getItemLogs, type ItemLogRow } from "@/lib/itemLogs";
+import type { ItemLogRow } from "@/lib/itemLogs";
 import { getItemRatings } from "@/lib/itemRatings";
 import { PAGE_SIZE } from "@/lib/paging";
-import { createClient } from "@/lib/supabase/server";
-import { getViewerState } from "@/lib/viewerState";
+import type { ViewerState } from "@/lib/viewerState";
 import AdminBadge from "./AdminBadge";
 import ReviewText from "./ReviewText";
 
@@ -23,32 +22,27 @@ type Row = ItemLogRow;
 export default async function ItemLogs({
   itemId,
   limit = PAGE_SIZE,
+  rows,
+  error,
+  viewerId,
+  viewer,
 }: {
   itemId: string;
   limit?: number;
+  rows: Row[];
+  error: string;
+  viewerId: string | undefined;
+  viewer: ViewerState;
 }) {
   await connection();
-  const supabase = await createClient();
-
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const viewerId: string | undefined = claimsData?.claims?.sub;
   const adminIds = await getAdminIds();
-
-  const [{ rows, error }, { ratings, logCount }] = await Promise.all([
-    getItemLogs(itemId),
-    getItemRatings(itemId),
-  ]);
+  const { ratings, logCount } = await getItemRatings(itemId);
 
   if (error) {
     return <p className="text-danger">{error}</p>;
   }
 
   const likeCount = (r: Row) => r.likes?.[0]?.count ?? 0;
-
-  // Which of these the viewer has liked and shared, and who they have blocked
-  const viewer = await getViewerState(supabase, viewerId, {
-    logIds: rows.map((r) => r.id),
-  });
 
   // Reviews by people the viewer has blocked aren't shown, though their
   // ratings still count towards the average
