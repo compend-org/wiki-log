@@ -2,47 +2,23 @@
 // ABOUTME: Shows the lists that include the item as cards, most recently added first.
 
 import ListCard from "@/components/ListCard";
-import { LIST_SELECT, type ListRow, type Thumb } from "@/lib/feedData";
-import { createClient } from "@/lib/supabase/server";
-import { getViewerState } from "@/lib/viewerState";
+import type { ItemListRow } from "@/lib/itemLists";
+import type { ViewerState } from "@/lib/viewerState";
 
-// How many lists to show for one item
-const MAX_LISTS = 12;
-
-// How many of each list's first items to show on its card
-const PREVIEW_ITEMS = 12;
-
-type PreviewRow = { position: number; items: Thumb | null };
-
-export default async function ItemLists({ itemId }: { itemId: string }) {
-  const supabase = await createClient();
-
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const viewerId: string | undefined = claimsData?.claims?.sub;
-
-  const { data, error } = await supabase
-    .from("list_items")
-    .select(
-      `lists(${LIST_SELECT}, preview:list_items(position, items(title, image_url)))`,
-    )
-    .eq("item_id", itemId)
-    .lte("lists.preview.position", PREVIEW_ITEMS)
-    .order("added_at", { ascending: false })
-    .order("position", { referencedTable: "lists.preview" })
-    .limit(MAX_LISTS);
-
+export default function ItemLists({
+  lists,
+  error,
+  viewerId,
+  viewer,
+}: {
+  lists: ItemListRow[];
+  error: string;
+  viewerId: string | undefined;
+  viewer: ViewerState;
+}) {
   if (error) {
-    return <p className="text-danger">{error.message}</p>;
+    return <p className="text-danger">{error}</p>;
   }
-
-  const lists = (
-    (data ?? []) as unknown as {
-      lists: (ListRow & { preview: PreviewRow[] }) | null;
-    }[]
-  ).flatMap((r) => (r.lists ? [r.lists] : []));
-  const viewer = await getViewerState(supabase, viewerId, {
-    listIds: lists.map((l) => l.id),
-  });
 
   return (
     <section className="flex w-full flex-col gap-3">

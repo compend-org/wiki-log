@@ -19,7 +19,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { addToList } from "@/app/actions";
 import ItemImage from "@/components/ItemImage";
@@ -98,7 +97,6 @@ export default function AddToList({
   imageUrl: string | null;
   signedIn: boolean;
 }) {
-  const router = useRouter();
   const [signedIn, setSignedIn] = useState<boolean>(initiallySignedIn);
   const [open, setOpen] = useState<boolean>(false);
   const [lists, setLists] = useState<ListOption[] | null>(null);
@@ -188,8 +186,9 @@ export default function AddToList({
           l.id === list.id ? { ...l, has: true, count: l.count + 1 } : l,
         ) ?? prev,
     );
+    // Confirmed here rather than by re-rendering the whole page, which takes
+    // several database requests. "In Lists" catches up on the next page load.
     setMessage(`Added to “${list.title}”.`);
-    router.refresh(); // updates the lists shown on the page
     return true;
   }
 
