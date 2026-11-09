@@ -8,6 +8,7 @@ import AdminBadge from "@/components/AdminBadge";
 import AdminPost from "@/components/AdminPost";
 import BanButton from "@/components/BanButton";
 import ReportStatusButtons from "@/components/ReportStatusButtons";
+import SuspendButton from "@/components/SuspendButton";
 import {
   countLabel,
   gapLabel,
@@ -122,11 +123,17 @@ function AccountRow({
               <span className="text-sm font-medium text-danger">Banned</span>
             ) : (
               !account.is_admin && (
-                <BanButton
-                  userId={account.user_id}
-                  username={account.username}
-                  className="rounded-lg border border-danger px-2.5 py-1 text-sm text-danger"
-                />
+                <>
+                  <SuspendButton
+                    userId={account.user_id}
+                    username={account.username}
+                  />
+                  <BanButton
+                    userId={account.user_id}
+                    username={account.username}
+                    className="rounded-lg border border-danger px-2.5 py-1 text-sm text-danger"
+                  />
+                </>
               )
             )}
           </div>

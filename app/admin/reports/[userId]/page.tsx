@@ -10,7 +10,6 @@ import {
   removePost,
   restorePost,
   setReportStatus,
-  suspendUser,
   warnUser,
 } from "@/app/admin/reports/actions";
 import AdminBadge from "@/components/AdminBadge";
@@ -19,6 +18,7 @@ import BanButton from "@/components/BanButton";
 import ModerationButton from "@/components/ModerationButton";
 import ReportStatusButtons from "@/components/ReportStatusButtons";
 import RevealAvatar from "@/components/RevealAvatar";
+import SuspendButton from "@/components/SuspendButton";
 import {
   type AdminPost as AdminPostData,
   combinedStatus,
@@ -268,7 +268,7 @@ export default async function ReportedAccountPage({
               <ModerationButton
                 label="Warn"
                 title={`Warn ${account.username}?`}
-                description="They get a notification naming the reason. Nothing else changes."
+                description="They get a notification naming the reason, and the open reports about them are closed as actioned. Nothing else changes."
                 askReason
                 run={warnUser.bind(null, account.id)}
               />
@@ -280,14 +280,9 @@ export default async function ReportedAccountPage({
                   run={liftSuspension.bind(null, account.id)}
                 />
               ) : (
-                <ModerationButton
-                  label="Suspend"
-                  title={`Suspend ${account.username}?`}
-                  description="Until it ends they can't post, comment, like, share, follow or change their profile. Their posts stay up. They're told why and for how long."
-                  askReason
-                  askDays
-                  danger
-                  run={suspendUser.bind(null, account.id)}
+                <SuspendButton
+                  userId={account.id}
+                  username={account.username}
                 />
               )}
               <BanButton
