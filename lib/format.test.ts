@@ -2,7 +2,7 @@
 // ABOUTME: Covers each unit, the boundaries between them, and times just ahead of the clock.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { timeAgo } from "./format";
+import { shownImage, timeAgo } from "./format";
 
 const now = Date.parse("2026-11-05T12:00:00.000Z");
 const before = (ms: number) => new Date(now - ms).toISOString();
@@ -35,4 +35,12 @@ test("shows the date from a day ago onwards", () => {
 
 test("treats a time just ahead of the clock as now", () => {
   assert.equal(timeAgo(before(-500), now), "Now");
+});
+
+test("shows an item's image unless it is hidden", () => {
+  const url = "https://example.com/a.jpg";
+  assert.equal(shownImage({ image_url: url, image_hidden: false }), url);
+  assert.equal(shownImage({ image_url: url }), url);
+  assert.equal(shownImage({ image_url: url, image_hidden: true }), null);
+  assert.equal(shownImage({ image_url: null, image_hidden: false }), null);
 });
