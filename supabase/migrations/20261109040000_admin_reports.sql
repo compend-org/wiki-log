@@ -133,7 +133,6 @@ begin
       count(*) as report_count,
       count(distinct s.reporter_id) as reporter_count,
       count(distinct (s.target_type, s.target_id)) as flagged_post_count,
-      min(s.created_at) as first_report_at,
       max(s.created_at) as last_report_at
     from shown s
     group by s.reported_user_id
@@ -160,7 +159,12 @@ begin
           r.report_count,
           r.reporter_count,
           r.flagged_post_count,
-          r.first_report_at,
+          -- From every report on the account, whatever the filter, so an early
+          -- report still shows once it has been handled
+          (
+            select min(fr.created_at) from public.reports fr
+            where fr.reported_user_id = r.user_id
+          ) as first_report_at,
           r.last_report_at,
           exists (
             select 1 from public.admins ad where ad.user_id = r.user_id

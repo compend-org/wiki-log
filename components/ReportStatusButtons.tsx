@@ -25,13 +25,19 @@ export default function ReportStatusButtons({
 
     setBusy(true);
     setError("");
-    const result = await setReportStatus(kind, postId, next);
-    setBusy(false);
-    if (result.error) {
-      setError(result.error);
-      return;
+    try {
+      const result = await setReportStatus(kind, postId, next);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    } catch {
+      // The change may have been saved even though no answer came back
+      setError("Couldn't confirm the change. Refresh to check.");
+    } finally {
+      setBusy(false);
     }
-    router.refresh();
   }
 
   const button =
