@@ -8,7 +8,7 @@ import NotificationThumb, {
   type NotificationSubject,
 } from "@/components/NotificationThumb";
 import type { Thumb } from "@/lib/feedData";
-import { shownImage } from "@/lib/format";
+import { shownImage, timeAgo } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 
@@ -62,6 +62,8 @@ type NotificationsState = {
   owners: Record<string, string>;
   adminIds: Set<string>;
   myId: string;
+  // When the data arrived, which is what the times on the cards count from
+  loadedAt: number;
 };
 
 // A person's name linked to their profile, above the card's full-card link,
@@ -104,6 +106,7 @@ export default function NotificationsPage() {
     owners: {},
     adminIds: new Set(),
     myId: "",
+    loadedAt: 0,
   });
   const {
     loaded,
@@ -116,6 +119,7 @@ export default function NotificationsPage() {
     owners,
     adminIds,
     myId,
+    loadedAt,
   } = state;
 
   useEffect(() => {
@@ -222,6 +226,7 @@ export default function NotificationsPage() {
         ),
         adminIds: new Set((admins.data ?? []).map((a) => a.user_id)),
         myId: userId,
+        loadedAt: Date.now(),
       });
 
       // Opening the page marks everything as read
@@ -396,7 +401,7 @@ export default function NotificationsPage() {
                 )}
               </span>
               <span className="text-xs text-muted">
-                {n.created_at.slice(0, 10)}
+                {timeAgo(n.created_at, loadedAt)}
               </span>
             </div>
             {subject && <NotificationThumb subject={subject} />}
