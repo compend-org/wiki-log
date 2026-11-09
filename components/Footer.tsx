@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import AdminFooterLink from "@/components/AdminFooterLink";
 import { FEATURES } from "@/lib/features";
 
 export default function Footer() {
@@ -52,6 +54,9 @@ export default function Footer() {
         >
           Donate
         </Link>
+        <Suspense fallback={null}>
+          <AdminFooterLink />
+        </Suspense>
       </nav>
     </footer>
   );
