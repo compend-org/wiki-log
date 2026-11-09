@@ -1,4 +1,4 @@
-# ABOUTME: Runs the typecheck, lint and format checks on every pull request.
+# ABOUTME: Runs the typecheck, lint, format and dead code checks on every pull request.
 # ABOUTME: Route types are generated first because the code depends on them.
 name: Checks
 
@@ -26,3 +26,5 @@ jobs:
         run: npx tsc --noEmit
       - name: Lint and format
         run: npx biome ci --max-diagnostics=none .
+      - name: Dead code
+        run: npm run deadcode

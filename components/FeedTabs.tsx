@@ -10,7 +10,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { loadFeedTab } from "@/app/feedActions";
+import { loadFeedTab } from "@/app/feedTabActions";
 import { FEATURES } from "@/lib/features";
 import { TRENDING_LABEL } from "@/lib/site";
 

@@ -89,7 +89,7 @@ function nonEmpty(lists: ListRow[]): ListRow[] {
 }
 
 // The first few items of each list that can be shown
-export async function loadPreviews(
+async function loadPreviews(
   supabase: SupabaseClient,
   lists: ListRow[],
 ): Promise<Record<string, Thumb[]>> {
