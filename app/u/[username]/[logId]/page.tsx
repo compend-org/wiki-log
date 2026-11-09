@@ -229,7 +229,6 @@ export default async function ReviewPage({
         table="comments"
         scope={{ log_id: log.id }}
         ownerId={profile.id}
-        likeable
       />
     </main>
   );

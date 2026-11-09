@@ -24,7 +24,9 @@ type NotificationRow = {
     | "list_reply"
     | "share"
     | "list_share"
-    | "moderation";
+    | "moderation"
+    | "comment_like"
+    | "list_comment_like";
   read: boolean;
   created_at: string;
   log_id: string | null;
@@ -271,6 +273,27 @@ export default function NotificationsPage() {
     const listTitle = n.list_id ? (list?.title ?? "a list") : "";
     const listHref = n.list_id ? `/list/${n.list_id}#comments` : "/";
 
+    // Something done to the viewer's comment on a review, which may be their
+    // own review or someone else's
+    function onYourReviewComment(verb: string) {
+      if (entry?.owner === myId) {
+        return {
+          rest: ` ${verb} your comment on your review of ${title}`,
+          href: reviewHref,
+          subject: itemSubject,
+        };
+      }
+      return {
+        rest: ` ${verb} your comment on a review of ${title} by ${ownerName ? "" : "someone"}`,
+        href: reviewHref,
+        reviewOwner:
+          entry && ownerName
+            ? { id: entry.owner, username: ownerName }
+            : undefined,
+        subject: itemSubject,
+      };
+    }
+
     switch (n.type) {
       case "like":
         return {
@@ -284,24 +307,10 @@ export default function NotificationsPage() {
           href: reviewHref,
           subject: itemSubject,
         };
-      case "reply": {
-        if (entry?.owner === myId) {
-          return {
-            rest: ` replied to your comment on your review of ${title}`,
-            href: reviewHref,
-            subject: itemSubject,
-          };
-        }
-        return {
-          rest: ` replied to your comment on a review of ${title} by ${ownerName ? "" : "someone"}`,
-          href: reviewHref,
-          reviewOwner:
-            entry && ownerName
-              ? { id: entry.owner, username: ownerName }
-              : undefined,
-          subject: itemSubject,
-        };
-      }
+      case "reply":
+        return onYourReviewComment("replied to");
+      case "comment_like":
+        return onYourReviewComment("liked");
       case "follow":
         return {
           rest: " started following you",
@@ -343,6 +352,12 @@ export default function NotificationsPage() {
       case "list_reply":
         return {
           rest: ` replied to your comment on the list “${listTitle}”`,
+          href: listHref,
+          subject: listSubject,
+        };
+      case "list_comment_like":
+        return {
+          rest: ` liked your comment on the list “${listTitle}”`,
           href: listHref,
           subject: listSubject,
         };

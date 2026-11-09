@@ -8,6 +8,7 @@ export type ViewerState = {
   likedLists: Set<string>;
   sharedLists: Set<string>;
   likedComments: Set<string>;
+  likedListComments: Set<string>;
   // Everyone the viewer has blocked, not only the authors on the page
   blocked: Set<string>;
 };
@@ -18,6 +19,7 @@ type ViewerStateRow = {
   liked_lists: string[];
   shared_lists: string[];
   liked_comments: string[];
+  liked_list_comments: string[];
   blocked: string[];
 };
 
@@ -27,18 +29,27 @@ type ViewerStateRow = {
 export async function getViewerState(
   supabase: SupabaseClient,
   viewerId: string | undefined,
-  ids: { logIds?: string[]; listIds?: string[]; commentIds?: string[] },
+  ids: {
+    logIds?: string[];
+    listIds?: string[];
+    commentIds?: string[];
+    listCommentIds?: string[];
+  },
 ): Promise<ViewerState> {
   const logIds = ids.logIds ?? [];
   const listIds = ids.listIds ?? [];
   const commentIds = ids.commentIds ?? [];
+  const listCommentIds = ids.listCommentIds ?? [];
 
   let row: ViewerStateRow | null = null;
-  if (viewerId && logIds.length + listIds.length + commentIds.length > 0) {
+  const idCount =
+    logIds.length + listIds.length + commentIds.length + listCommentIds.length;
+  if (viewerId && idCount > 0) {
     const { data } = await supabase.rpc("viewer_state", {
       p_log_ids: logIds,
       p_list_ids: listIds,
       p_comment_ids: commentIds,
+      p_list_comment_ids: listCommentIds,
     });
     row = data as ViewerStateRow | null;
   }
@@ -49,6 +60,7 @@ export async function getViewerState(
     likedLists: new Set(row?.liked_lists),
     sharedLists: new Set(row?.shared_lists),
     likedComments: new Set(row?.liked_comments),
+    likedListComments: new Set(row?.liked_list_comments),
     blocked: new Set(row?.blocked),
   };
 }
