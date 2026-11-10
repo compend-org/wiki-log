@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import RatingInput from "@/components/RatingInput";
 import Stars from "@/components/Stars";
+import { track } from "@/lib/analytics";
 import { deleteLog, updateLog } from "@/lib/logs";
 import DeleteIcon from "./DeleteIcon";
 import ReviewText from "./ReviewText";
@@ -42,6 +43,10 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
       setError(message);
       return;
     }
+    track("log_edited", {
+      has_rating: rating > 0,
+      has_review: review.trim() !== "",
+    });
     setEditing(null);
     router.refresh();
   }
@@ -58,6 +63,7 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
       setError(message);
       return;
     }
+    track("log_deleted");
     router.refresh();
   }
 

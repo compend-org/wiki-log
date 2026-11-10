@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { deleteAccount } from "@/app/actions";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export default function DeleteAccount({ username }: { username: string }) {
@@ -20,6 +21,7 @@ export default function DeleteAccount({ username }: { username: string }) {
       setError(result.error);
       return;
     }
+    track("account_deleted");
     await createClient().auth.signOut();
     router.push("/");
     router.refresh();

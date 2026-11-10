@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { loadFeedTab } from "@/app/feedTabActions";
+import { track } from "@/lib/analytics";
 import { FEATURES } from "@/lib/features";
 import { TRENDING_LABEL } from "@/lib/site";
 
@@ -94,6 +95,7 @@ export default function FeedTabs({
   }, [active, panels, served.count]);
 
   function choose(tab: Tab) {
+    if (tab !== active) track("feed_tab_opened", { tab });
     setActive(tab);
     // Keep the address in step without navigating anywhere
     const url = new URL(window.location.href);

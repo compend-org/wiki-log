@@ -5,6 +5,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
+import { track } from "@/lib/analytics";
 import { AVATAR_SIZE, AVATAR_SMALL_SIZE, smallAvatarPath } from "@/lib/avatar";
 import { createClient } from "@/lib/supabase/client";
 
@@ -131,6 +132,7 @@ export default function AvatarUpload() {
         .remove([path, smallAvatarPath(path)]);
     }
 
+    track("profile_updated", { field: "avatar" });
     setPath(newPath);
     setBusy(false);
     router.refresh();
@@ -155,6 +157,7 @@ export default function AvatarUpload() {
     await supabase.storage
       .from("avatars")
       .remove([path, smallAvatarPath(path)]);
+    track("profile_updated", { field: "avatar" });
     setPath(null);
     setBusy(false);
     router.refresh();

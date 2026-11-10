@@ -22,6 +22,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { addToList } from "@/app/actions";
 import ItemImage from "@/components/ItemImage";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 // Up to this many items, the new one is dragged into place among them;
@@ -198,6 +199,7 @@ export default function AddToList({
       setError(result.error);
       return false;
     }
+    track("list_item_added");
     setLists(
       (prev) =>
         prev?.map((l) =>

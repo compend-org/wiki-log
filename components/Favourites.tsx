@@ -6,6 +6,7 @@ import { useState } from "react";
 import { removeFavourite, setFavourite } from "@/app/actions";
 import ItemImage from "@/components/ItemImage";
 import ItemPicker from "@/components/ItemPicker";
+import { track } from "@/lib/analytics";
 
 export type Slot = { itemId: string; title: string; imageUrl: string | null };
 
@@ -31,6 +32,7 @@ export default function Favourites({
       setError(result.error);
       return;
     }
+    track("favourite_set", { position: editing });
     setEditing(null);
     router.refresh();
   }
@@ -44,6 +46,7 @@ export default function Favourites({
       setError(result.error);
       return;
     }
+    track("favourite_removed", { position });
     router.refresh();
   }
 

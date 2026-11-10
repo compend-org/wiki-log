@@ -1,5 +1,10 @@
 import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
+import {
+  ANALYTICS_ASSETS_HOST,
+  ANALYTICS_INGEST_HOST,
+  ANALYTICS_PROXY_PATH,
+} from "./lib/analyticsEvents";
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -8,6 +13,21 @@ const nextConfig: NextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
+  // Analytics requests are forwarded to PostHog from this site's own address
+  async rewrites() {
+    return [
+      {
+        source: `${ANALYTICS_PROXY_PATH}/static/:path*`,
+        destination: `${ANALYTICS_ASSETS_HOST}/static/:path*`,
+      },
+      {
+        source: `${ANALYTICS_PROXY_PATH}/:path*`,
+        destination: `${ANALYTICS_INGEST_HOST}/:path*`,
+      },
+    ];
+  },
+  // PostHog's addresses end in a slash, which must reach it unchanged
+  skipTrailingSlashRedirect: true,
   turbopack: {
     rules: {
       "*.css": {

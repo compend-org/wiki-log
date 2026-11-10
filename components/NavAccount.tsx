@@ -1,6 +1,8 @@
 // ABOUTME: Looks up who is signed in, their profile and unread count on the server,
-// ABOUTME: so the top bar's account section arrives with the page.
+// ABOUTME: so the top bar's account section arrives with the page, and tells analytics who it is.
+import { isAdmin } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/server";
+import AnalyticsIdentity from "./AnalyticsIdentity";
 import NavAccountLinks, { type NavAccountDetails } from "./NavAccountLinks";
 
 async function getSignedInAccount(): Promise<NavAccountDetails | null> {
@@ -35,6 +37,16 @@ async function getSignedInAccount(): Promise<NavAccountDetails | null> {
 
 export default async function NavAccount() {
   const account = await getSignedInAccount();
-  // A different account starts over, rather than keeping the last one's state
-  return <NavAccountLinks key={account?.userId} account={account} />;
+  const admin = await isAdmin(account?.userId);
+  return (
+    <>
+      <AnalyticsIdentity
+        userId={account?.userId ?? null}
+        username={account?.username ?? ""}
+        isAdmin={admin}
+      />
+      {/* A different account starts over, rather than keeping the last one's state */}
+      <NavAccountLinks key={account?.userId} account={account} />
+    </>
+  );
 }

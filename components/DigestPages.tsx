@@ -7,6 +7,7 @@ import { Fragment, startTransition, useState } from "react";
 import { loadMoreDigest } from "@/app/digestActions";
 import LoadMore from "@/components/LoadMore";
 import type { DigestCardItem, DigestPage } from "@/components/loadDigestPage";
+import { track } from "@/lib/analytics";
 
 // A later page can repeat a review that is already shown, if one was posted
 // while the reader was scrolling. It stays where it is.
@@ -27,6 +28,7 @@ export default function DigestPages({ first }: { first: DigestPage }) {
   async function loadNextPage() {
     try {
       const page = await loadMoreDigest(next);
+      track("feed_more_loaded", { feed: "digest", page: pageCount + 1 });
       // As a transition, the page keeps showing what it has until the new
       // cards are ready
       startTransition(() => {

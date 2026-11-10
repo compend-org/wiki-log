@@ -5,6 +5,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import ShareIcon from "@/components/ShareIcon";
+import { track } from "@/lib/analytics";
 import {
   isLogUnavailable,
   isMissingLogError,
@@ -78,6 +79,7 @@ export default function ShareButton({
         setErrorMessage("Couldn't update your share. Please try again.");
       }
     } else {
+      track(next ? "shared_to_followers" : "unshared", { target: kind });
       router.refresh();
     }
     setBusy(false);

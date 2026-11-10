@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { logItem } from "@/app/actions";
 import RatingInput from "@/components/RatingInput";
+import { track } from "@/lib/analytics";
 import { useLoginHref } from "@/lib/useLoginHref";
 import ReviewTextarea from "./ReviewTextArea";
 
@@ -60,6 +61,13 @@ export default function LogForm({
       setError(result.error);
       return;
     }
+    track("item_logged", {
+      item_id: id,
+      rating: rating > 0 ? rating : null,
+      has_review: review.trim() !== "",
+      review_length: review.trim().length,
+      first_time: !alreadyLogged,
+    });
     // Ready for the next entry
     setRating(0);
     setReview("");

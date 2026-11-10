@@ -4,6 +4,7 @@
 
 import { useRef } from "react";
 import ExternalShareIcon from "@/components/ExternalShareIcon";
+import { track } from "@/lib/analytics";
 
 export default function ShareImageButton({
   imageHref,
@@ -22,6 +23,7 @@ export default function ShareImageButton({
     try {
       await navigator.share({ files: [file] });
       ready.current = null;
+      track("share_image_created", { method: "share_sheet" });
     } catch (error) {
       // Some browsers only open the share sheet straight after a tap, which
       // fetching the picture can outlast. Then the next tap shares it.
@@ -55,6 +57,7 @@ export default function ShareImageButton({
     link.download = fileName;
     link.click();
     URL.revokeObjectURL(url);
+    track("share_image_created", { method: "download" });
   }
 
   return (

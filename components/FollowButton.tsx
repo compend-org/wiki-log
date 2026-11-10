@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export default function FollowButton({
@@ -39,6 +40,8 @@ export default function FollowButton({
       setError(error.message);
       return;
     }
+    if (following) track("user_unfollowed");
+    else track("user_followed", { follows_you: followsViewer });
     setFollowing(!following);
     router.refresh(); // updates the follower counts
   }

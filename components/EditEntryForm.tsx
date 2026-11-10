@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import RatingInput from "@/components/RatingInput";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 import ReviewTextarea from "./ReviewTextArea";
 
@@ -48,6 +49,10 @@ export default function EditEntryForm({
       setError("Couldn't save that change.");
       return;
     }
+    track("log_edited", {
+      has_rating: newRating !== null,
+      has_review: cleanReview !== "",
+    });
     onSaved(newRating, cleanReview);
   }
 

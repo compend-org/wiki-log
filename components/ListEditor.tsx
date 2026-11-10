@@ -24,6 +24,7 @@ import { useState } from "react";
 import { addToList, createList, stageItem } from "@/app/actions";
 import ItemImage from "@/components/ItemImage";
 import ItemPicker from "@/components/ItemPicker";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export type ListEntry = {
@@ -151,7 +152,9 @@ export default function ListEditor({
     if (error) {
       setItems(previous);
       setError(error.message);
+      return;
     }
+    track("list_reordered");
   }
 
   async function handleAdd(itemId: string) {
@@ -164,6 +167,7 @@ export default function ListEditor({
       setError(result.error ?? "Something went wrong.");
       return;
     }
+    if (list.id !== null) track("list_item_added");
     const added = result.item;
     setItems((prev) =>
       prev.some((i) => i.itemId === added.itemId) ? prev : [...prev, added],
@@ -184,7 +188,9 @@ export default function ListEditor({
     if (error) {
       setItems(previous);
       setError(error.message);
+      return;
     }
+    track("list_item_removed");
   }
 
   async function saveList() {
@@ -211,6 +217,7 @@ export default function ListEditor({
         setDetailsMessage(result.error ?? "Couldn't create the list.");
         return;
       }
+      track("list_created", { item_count: items.length, ranked });
       router.push(`/list/${result.id}`);
       router.refresh();
       return;
@@ -227,6 +234,7 @@ export default function ListEditor({
       setDetailsMessage(error.message);
       return;
     }
+    track("list_edited", { item_count: items.length, ranked });
     router.push(`/list/${list.id}`);
     router.refresh();
   }
@@ -242,6 +250,7 @@ export default function ListEditor({
       setError(error.message);
       return;
     }
+    track("list_deleted");
     router.push(`/u/${encodeURIComponent(ownerName)}`);
     router.refresh();
   }

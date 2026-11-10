@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/Turnstile";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export default function EmailVerification() {
@@ -55,6 +56,7 @@ export default function EmailVerification() {
       );
       return;
     }
+    track("verification_email_resent");
     setMessage(
       `We sent a link to ${email}. It can take a minute, and it may land in spam.`,
     );

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import HeartIcon from "@/components/HeartIcon";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 
@@ -64,6 +65,8 @@ export default function CommentLikeButton({
     if (error) {
       setLiked(!next);
       setCount((c) => c + (next ? -1 : 1));
+    } else {
+      track(next ? "liked" : "unliked", { target: "comment" });
     }
     setBusy(false);
   }

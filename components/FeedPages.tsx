@@ -8,6 +8,7 @@ import { loadMoreFeed } from "@/app/feedActions";
 import BalancedColumns from "@/components/BalancedColumns";
 import LoadMore from "@/components/LoadMore";
 import type { FeedCard, FeedMode, FeedPage } from "@/components/loadFeedPage";
+import { track } from "@/lib/analytics";
 import { mergeColumns } from "@/lib/paging";
 
 // A later page can bring a post that is already shown, if it was also posted
@@ -48,6 +49,7 @@ export default function FeedPages({
   async function loadNextPage() {
     try {
       const page = await loadMoreFeed(mode, paging.asOf, next);
+      track("feed_more_loaded", { feed: mode, page: pageCount + 1 });
       // The new cards can still be arriving when they are first rendered. As a
       // transition, the page keeps showing what it has until they are ready,
       // instead of falling back to the feed's loading message.

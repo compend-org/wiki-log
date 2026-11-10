@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import SignOutIcon from "@/components/SignOutIcon";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 // The caller chooses the display (for example "inline-flex" or
@@ -18,6 +19,7 @@ export default function SignOutButton({
   const router = useRouter();
 
   async function handleSignOut() {
+    track("signed_out");
     await createClient().auth.signOut({ scope: "local" });
     router.push("/");
     router.refresh();
