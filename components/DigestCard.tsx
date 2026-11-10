@@ -31,7 +31,7 @@ export default function DigestCard({
     : null;
 
   return (
-    <article className="card relative flex flex-col gap-3 p-4 hover:border-accent/60">
+    <article className="card relative flex flex-col gap-3 p-4 hover-or-tap:border-accent/60">
       {reviewHref && (
         <Link
           href={reviewHref}

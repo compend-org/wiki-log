@@ -67,7 +67,7 @@ export default async function Leaderboard({
             <li key={entry.itemId}>
               <Link
                 href={`/item/${entry.itemId}`}
-                className="card flex items-center gap-4 p-3 hover:border-accent/60"
+                className="card flex items-center gap-4 p-3 hover-or-tap:border-accent/60"
               >
                 <span className="w-8 shrink-0 text-right text-lg font-semibold tabular-nums text-muted">
                   {index + 1}
