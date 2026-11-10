@@ -3,7 +3,7 @@
 "use client";
 
 import { suspendUser } from "@/app/admin/reports/actions";
-import ModerationButton from "@/components/ModerationButton";
+import ModerationButton from "@/components/buttons/ModerationButton";
 
 export default function SuspendButton({
   userId,

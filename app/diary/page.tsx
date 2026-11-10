@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import DeleteIcon from "@/components/DeleteIcon";
 import EditEntryForm from "@/components/EditEntryForm";
-import ItemImage from "@/components/ItemImage";
+import DeleteIcon from "@/components/icons/DeleteIcon";
+import ItemImage from "@/components/icons/ItemImage";
 import LoadMore from "@/components/LoadMore";
 import ReviewText from "@/components/ReviewText";
 import Stars from "@/components/Stars";

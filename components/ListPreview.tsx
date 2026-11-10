@@ -4,7 +4,7 @@
 
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import ItemImage from "@/components/ItemImage";
+import ItemImage from "@/components/icons/ItemImage";
 import { firstLetter } from "@/lib/format";
 
 type Thumb = { title: string; image_url: string | null };

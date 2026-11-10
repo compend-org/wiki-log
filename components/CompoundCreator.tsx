@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createCompound } from "@/app/actions";
-import ItemImage from "@/components/ItemImage";
 import ItemPicker from "@/components/ItemPicker";
+import ItemImage from "@/components/icons/ItemImage";
 
 type Part = { id: string; title: string; imageUrl: string | null };
 

@@ -3,7 +3,7 @@
 "use client";
 
 import { banUser } from "@/app/actions";
-import ModerationButton from "@/components/ModerationButton";
+import ModerationButton from "@/components/buttons/ModerationButton";
 
 export default function BanButton({
   userId,

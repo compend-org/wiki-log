@@ -2,11 +2,11 @@
 // ABOUTME: Each review is a card linking to its own page, with like, share and comment actions.
 import Link from "next/link";
 import { connection } from "next/server";
+import LikeButton from "@/components/buttons/LikeButton";
+import ShareButton from "@/components/buttons/ShareButton";
 import CardActions from "@/components/CardActions";
 import ItemLogSummary from "@/components/ItemLogSummary";
-import LikeButton from "@/components/LikeButton";
 import LoadMore from "@/components/LoadMore";
-import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
 import type { ItemLogRow } from "@/lib/itemLogs";

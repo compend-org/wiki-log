@@ -3,7 +3,7 @@
 import { ImageResponse } from "next/og";
 import { connection } from "next/server";
 import HeartIcon from "@/components/HeartIcon";
-import ShareIcon from "@/components/ShareIcon";
+import ShareIcon from "@/components/icons/ShareIcon";
 import { avatarUrl } from "@/lib/avatar";
 import { absolute, plainReview, shortLabel, thumbUrl } from "@/lib/format";
 import { isUuid } from "@/lib/ids";

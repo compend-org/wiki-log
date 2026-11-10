@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import ShareImageButton from "@/components/buttons/ShareImageButton";
 import Feed from "@/components/Feed";
 import FeedTabs from "@/components/FeedTabs";
 import ItemSearch from "@/components/ItemSearch";
 import PickSquare from "@/components/PickSquare";
-import ShareImageButton from "@/components/ShareImageButton";
 import { getDailyPicks } from "@/lib/dailyPicks";
 import { FEATURES } from "@/lib/features";
 import { createClient } from "@/lib/supabase/server";

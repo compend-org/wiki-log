@@ -6,7 +6,7 @@ import RatingInput from "@/components/RatingInput";
 import Stars from "@/components/Stars";
 import { track } from "@/lib/analytics";
 import { deleteLog, updateLog } from "@/lib/logs";
-import DeleteIcon from "./DeleteIcon";
+import DeleteIcon from "./icons/DeleteIcon";
 import ReviewText from "./ReviewText";
 import ReviewTextarea from "./ReviewTextArea";
 

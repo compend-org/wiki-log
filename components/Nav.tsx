@@ -5,8 +5,8 @@ import type { ReactNode } from "react";
 import { FEATURES } from "@/lib/features";
 import { SITE_NAME } from "@/lib/site";
 import { useNavLinkTone } from "@/lib/useNavLinkTone";
-import CraftIcon from "./CraftIcon";
 import DiaryIcon from "./DiaryIcon";
+import CraftIcon from "./icons/CraftIcon";
 import PeopleSearch from "./PeopleSearch";
 
 // `account` fills the signed-in part of the bar: the bell, profile and sign in/out

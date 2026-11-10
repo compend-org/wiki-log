@@ -6,9 +6,9 @@ import { connection } from "next/server";
 import { setAccountReportStatus } from "@/app/admin/reports/actions";
 import AdminBadge from "@/components/AdminBadge";
 import AdminPost from "@/components/AdminPost";
-import BanButton from "@/components/BanButton";
-import ReportStatusButtons from "@/components/ReportStatusButtons";
-import SuspendButton from "@/components/SuspendButton";
+import BanButton from "@/components/buttons/BanButton";
+import ReportStatusButtons from "@/components/buttons/ReportStatusButtons";
+import SuspendButton from "@/components/buttons/SuspendButton";
 import {
   countLabel,
   gapLabel,

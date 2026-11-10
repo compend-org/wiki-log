@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
+import LikeButton from "@/components/buttons/LikeButton";
+import ShareButton from "@/components/buttons/ShareButton";
 import CardActions from "@/components/CardActions";
-import ItemImage from "@/components/ItemImage";
-import LikeButton from "@/components/LikeButton";
-import ShareButton from "@/components/ShareButton";
-import ShareIcon from "@/components/ShareIcon";
+import ItemImage from "@/components/icons/ItemImage";
+import ShareIcon from "@/components/icons/ShareIcon";
 import Stars from "@/components/Stars";
 import UserName from "@/components/UserName";
 import type { LogRow } from "@/lib/feedData";

@@ -1,7 +1,7 @@
 // ABOUTME: The square picture at the right of a notification, showing what it is about.
 // ABOUTME: An item's image, a mosaic of a list's first items, or a new follower's avatar.
 import Avatar from "@/components/Avatar";
-import ItemImage from "@/components/ItemImage";
+import ItemImage from "@/components/icons/ItemImage";
 import type { Thumb } from "@/lib/feedData";
 import { firstLetter } from "@/lib/format";
 

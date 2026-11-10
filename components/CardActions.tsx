@@ -2,7 +2,7 @@
 // ABOUTME: Keeps room for a one-digit count beside the like icon, so tapping it moves nothing.
 import Link from "next/link";
 import type { ReactNode } from "react";
-import CommentIcon from "@/components/CommentIcon";
+import CommentIcon from "@/components/icons/CommentIcon";
 import { commentLabel } from "@/lib/format";
 
 export default function CardActions({
@@ -29,7 +29,9 @@ export default function CardActions({
         {like}
       </span>
 
-      <span className="relative z-10 mr-2.5 flex min-w-[1.5rem] empty:hidden">{share}</span>
+      <span className="relative z-10 mr-2.5 flex min-w-[1.5rem] empty:hidden">
+        {share}
+      </span>
 
       {commentHref && (
         <Link
@@ -44,7 +46,10 @@ export default function CardActions({
       )}
 
       {logHref && (
-        <Link href={logHref} className="relative z-10 ml-[0.3rem] hover:underline">
+        <Link
+          href={logHref}
+          className="relative z-10 ml-[0.3rem] hover:underline"
+        >
           Log
         </Link>
       )}

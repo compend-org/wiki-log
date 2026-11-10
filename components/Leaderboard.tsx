@@ -2,7 +2,7 @@
 // ABOUTME: Picks the board named in the address and shows it with links to the others.
 import Link from "next/link";
 import { connection } from "next/server";
-import ItemImage from "@/components/ItemImage";
+import ItemImage from "@/components/icons/ItemImage";
 import { getLeaderboard } from "@/lib/leaderboardData";
 import { LEADERBOARDS } from "@/lib/leaderboards";
 

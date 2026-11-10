@@ -14,11 +14,11 @@ import {
 } from "@/app/admin/reports/actions";
 import AdminBadge from "@/components/AdminBadge";
 import AdminPost from "@/components/AdminPost";
-import BanButton from "@/components/BanButton";
-import ModerationButton from "@/components/ModerationButton";
-import ReportStatusButtons from "@/components/ReportStatusButtons";
+import BanButton from "@/components/buttons/BanButton";
+import ModerationButton from "@/components/buttons/ModerationButton";
+import ReportStatusButtons from "@/components/buttons/ReportStatusButtons";
+import SuspendButton from "@/components/buttons/SuspendButton";
 import RevealAvatar from "@/components/RevealAvatar";
-import SuspendButton from "@/components/SuspendButton";
 import {
   type AdminPost as AdminPostData,
   combinedStatus,

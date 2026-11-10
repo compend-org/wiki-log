@@ -4,7 +4,7 @@
 // ABOUTME: It fades in once the page has been scrolled more than a screen down.
 
 import { useEffect, useState } from "react";
-import ArrowUpIcon from "@/components/ArrowUpIcon";
+import ArrowUpIcon from "@/components/icons/ArrowUpIcon";
 
 export default function ScrollToTop() {
   const [visible, setVisible] = useState<boolean>(false);

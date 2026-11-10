@@ -1,11 +1,11 @@
 // ABOUTME: One long review on the Digest page, shown in full.
 // ABOUTME: The whole card opens the review; the links and buttons on it work on their own.
 import Link from "next/link";
+import LikeButton from "@/components/buttons/LikeButton";
+import ShareButton from "@/components/buttons/ShareButton";
 import CardActions from "@/components/CardActions";
-import ItemImage from "@/components/ItemImage";
-import LikeButton from "@/components/LikeButton";
+import ItemImage from "@/components/icons/ItemImage";
 import ReviewText from "@/components/ReviewText";
-import ShareButton from "@/components/ShareButton";
 import Stars from "@/components/Stars";
 import UserName from "@/components/UserName";
 import type { DigestLog } from "@/lib/digest";

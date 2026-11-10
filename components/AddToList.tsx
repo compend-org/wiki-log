@@ -21,7 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { addToList } from "@/app/actions";
-import ItemImage from "@/components/ItemImage";
+import ItemImage from "@/components/icons/ItemImage";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 

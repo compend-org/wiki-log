@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import SignOutIcon from "@/components/SignOutIcon";
+import SignOutIcon from "@/components/icons/SignOutIcon";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 

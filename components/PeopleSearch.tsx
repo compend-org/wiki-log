@@ -6,7 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/client";
 import { escapeLike } from "@/lib/username";
-import SearchIcon from "./SearchIcon";
+import SearchIcon from "./icons/SearchIcon";
 
 type Person = { username: string; avatar_path: string | null };
 

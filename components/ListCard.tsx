@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
+import ShareButton from "@/components/buttons/ShareButton";
 import CardActions from "@/components/CardActions";
+import ShareIcon from "@/components/icons/ShareIcon";
 import ListLikeButton from "@/components/ListLikeButton";
 import ListPreview from "@/components/ListPreview";
-import ShareButton from "@/components/ShareButton";
-import ShareIcon from "@/components/ShareIcon";
 import UserName from "@/components/UserName";
 import type { ListRow, Thumb } from "@/lib/feedData";
 import { timeAgo } from "@/lib/format";

@@ -8,9 +8,9 @@ import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/client";
 import { isCurrentPage, useNavLinkTone } from "@/lib/useNavLinkTone";
+import SignInButton from "./buttons/SignInButton";
+import SignOutButton from "./buttons/SignOutButton";
 import NotificationIcon from "./NotificationIcon";
-import SignInButton from "./SignInButton";
-import SignOutButton from "./SignOutButton";
 
 export type NavAccountDetails = {
   userId: string;

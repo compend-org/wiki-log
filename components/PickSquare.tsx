@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import ItemImage from "@/components/ItemImage";
+import ItemImage from "@/components/icons/ItemImage";
 import { track } from "@/lib/analytics";
 import type { Pick } from "@/lib/dailyPicks";
 

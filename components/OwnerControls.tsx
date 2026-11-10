@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
-import DeleteIcon from "@/components/DeleteIcon";
 import EditEntryForm from "@/components/EditEntryForm";
+import DeleteIcon from "@/components/icons/DeleteIcon";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
