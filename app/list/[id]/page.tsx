@@ -6,7 +6,7 @@ import { cache } from "react";
 import AdminBadge from "@/components/AdminBadge";
 import ReportButton from "@/components/buttons/ReportButton";
 import ShareButton from "@/components/buttons/ShareButton";
-import Comments, { type CommentItem } from "@/components/Comments";
+import Comments from "@/components/Comments";
 import ItemImage from "@/components/icons/ItemImage";
 import ListLikeButton from "@/components/ListLikeButton";
 import ListPager from "@/components/ListPager";
@@ -15,7 +15,15 @@ import ReviewText from "@/components/ReviewText";
 import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
 import { withoutBlockedComments } from "@/lib/blocks";
+import {
+  fetchCommentThreads,
+  parseThreads,
+  THREADS_PER_PAGE,
+  threadsHref,
+  toCommentItems,
+} from "@/lib/comments";
 import { isUuid } from "@/lib/ids";
+import { fetchOwnerLatestLogs } from "@/lib/listOwnerLogs";
 import { fetchListPage, pageCount, parsePage } from "@/lib/listPages";
 import { pageMetadata } from "@/lib/metadata";
 import { createClient } from "@/lib/supabase/server";
@@ -38,26 +46,6 @@ type ListRow = {
   profiles: { username: string } | null;
   list_likes: { count: number }[];
   shares: { count: number }[];
-  list_comments: CommentQueryRow[];
-};
-
-type CommentQueryRow = {
-  id: string;
-  parent_id: string | null;
-  body: string;
-  created_at: string;
-  user_id: string;
-  removed_at: string | null;
-  profiles: { username: string } | null;
-  list_comment_likes: { count: number }[];
-};
-
-type OwnerLog = {
-  id: string;
-  item_id: string;
-  rating: number | null;
-  review: string;
-  logged_at: string;
 };
 
 // Keeps the tooltip on screen: the first column's opens to the right, the last
@@ -86,12 +74,9 @@ const getList = cache(async (id: string): Promise<ListRow | null> => {
   const { data } = await supabase
     .from("lists")
     .select(
-      "id, user_id, title, description, ranked, removed_at, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count), list_comments(id, parent_id, body, created_at, user_id, removed_at, profiles!list_comments_user_id_profiles_fkey(username), list_comment_likes(count))",
+      "id, user_id, title, description, ranked, removed_at, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count)",
     )
     .eq("id", id)
-    .order("created_at", { referencedTable: "list_comments", ascending: true })
-    // Embeds aren't capped by the API's row limit, so comments get it here
-    .limit(1000, { referencedTable: "list_comments" })
     .maybeSingle();
   return data as unknown as ListRow | null;
 });
@@ -129,12 +114,13 @@ export default async function ListPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string | string[] }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await connection();
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const page = parsePage((await searchParams).page);
+  const query = await searchParams;
+  const page = parsePage(query.page);
 
   const supabase = await createClient();
 
@@ -150,47 +136,34 @@ export default async function ListPage({
   // A page past the end (say, after items were removed) goes to the last one
   if (page > lastPage) redirect(pageHref(id, lastPage));
 
-  // The list owner's own logs for the items on this page, newest first, so the
-  // first one we meet for each item is their most recent
+  // The list owner's latest log of each item on this page, and how many
+  // times they have logged it. Alongside, the newest threads of comments,
+  // whole; older ones load on request.
   const itemIds = entries.map((e) => e.itemId);
-  const ownerLatest = new Map<string, { latest: OwnerLog; count: number }>();
-  if (itemIds.length > 0) {
-    const { data: logData } = await supabase
-      .from("logs")
-      .select("id, item_id, rating, review, logged_at")
-      .eq("user_id", list.user_id)
-      .in("item_id", itemIds)
-      .order("logged_at", { ascending: false });
-    for (const l of (logData ?? []) as unknown as OwnerLog[]) {
-      const current = ownerLatest.get(l.item_id);
-      if (current) current.count += 1;
-      else ownerLatest.set(l.item_id, { latest: l, count: 1 });
-    }
-  }
+  const threads = parseThreads(query.comments);
+  const [ownerLatest, commentPage] = await Promise.all([
+    fetchOwnerLatestLogs(supabase, list.user_id, itemIds),
+    fetchCommentThreads(supabase, "list_comments", id, threads),
+  ]);
 
   // Whether the viewer has liked and shared this list, which of its comments
   // they have liked, and who they have blocked
   const viewer = await getViewerState(supabase, viewerId, {
     listIds: [id],
-    listCommentIds: list.list_comments.map((c) => c.id),
+    listCommentIds: commentPage.rows.map((c) => c.id),
   });
 
   const adminIds = await getAdminIds();
-  const allComments: CommentItem[] = list.list_comments.map((c) => ({
-    id: c.id,
-    parentId: c.parent_id,
-    body: c.body,
-    date: c.created_at.slice(0, 10),
-    authorId: c.user_id,
-    authorName: c.profiles?.username ?? "Someone",
-    authorIsAdmin: adminIds.has(c.user_id),
-    removed: c.removed_at !== null,
-    likeCount: c.list_comment_likes?.[0]?.count ?? 0,
-    liked: viewer.likedListComments.has(c.id),
-  }));
+  const allComments = toCommentItems(
+    commentPage.rows,
+    adminIds,
+    viewer.likedListComments,
+  );
 
   // Comments by people the viewer has blocked are left out
   const comments = withoutBlockedComments(allComments, viewer.blocked);
+  const commentTotal =
+    commentPage.total - (allComments.length - comments.length);
 
   const owner = list.profiles?.username;
 
@@ -324,6 +297,12 @@ export default async function ListPage({
         table="list_comments"
         scope={{ list_id: id }}
         ownerId={list.user_id}
+        total={commentTotal}
+        earlierHref={
+          commentPage.olderThreads > 0
+            ? threadsHref(`/list/${id}`, query, threads + THREADS_PER_PAGE)
+            : null
+        }
       />
     </main>
   );

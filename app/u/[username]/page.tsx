@@ -9,15 +9,24 @@ import Avatar from "@/components/Avatar";
 import BanButton from "@/components/buttons/BanButton";
 import BlockButton from "@/components/buttons/BlockButton";
 import FollowButton from "@/components/buttons/FollowButton";
-import PinButton from "@/components/buttons/PinButton";
 import ReportButton from "@/components/buttons/ReportButton";
 import SignOutButton from "@/components/buttons/SignOutButton";
 import Favourites, { type Slot } from "@/components/Favourites";
-import ListCard from "@/components/ListCard";
-import LogCard from "@/components/LogCard";
+import {
+  fetchProfileRows,
+  LIST_FIELDS,
+  LOG_FIELDS,
+  type ProfileCardsPage,
+  type ProfileContext,
+  type ProfileListRow,
+  renderProfileCards,
+  renderProfileList,
+  renderProfileLog,
+} from "@/components/loadProfilePage";
+import ProfilePages from "@/components/ProfilePages";
 import { isAdmin } from "@/lib/admin";
 import { avatarUrl } from "@/lib/avatar";
-import type { ListRow as ListCardRow, LogRow } from "@/lib/feedData";
+import type { LogRow } from "@/lib/feedData";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { loginHref } from "@/lib/redirect";
@@ -28,22 +37,10 @@ export const instant = false;
 
 type ItemInfo = { title: string; image_url: string | null } | null;
 
-// The columns a review card needs, for both the review list and the pinned ones
-const LOG_FIELDS =
-  "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
-
-// The columns a list card needs, with the first items of the list as preview
-const LIST_FIELDS =
-  "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), preview:list_items(position, items(title, image_url))";
-
 type FavRow = {
   position: number;
   item_id: string;
   items: ItemInfo;
-};
-
-type ListRow = ListCardRow & {
-  preview: { position: number; items: ItemInfo }[];
 };
 
 type PinRow = {
@@ -52,10 +49,9 @@ type PinRow = {
   list_id: string | null;
 };
 
-type Pinned = { kind: "log"; log: LogRow } | { kind: "list"; list: ListRow };
-
-// How many things a person can pin. The database enforces the same number.
-const MAX_PINS = 3;
+type Pinned =
+  | { kind: "log"; log: LogRow }
+  | { kind: "list"; list: ProfileListRow };
 
 type ProfileContent = {
   followers: { count: number }[];
@@ -63,8 +59,6 @@ type ProfileContent = {
   log_count: { count: number }[];
   list_count: { count: number }[];
   favourites: FavRow[];
-  owned_lists: ListRow[];
-  reviews: LogRow[];
   pin_rows: PinRow[];
   viewer_follow?: { follower_id: string }[];
   follows_viewer?: { following_id: string }[];
@@ -104,10 +98,12 @@ export default async function ProfilePage({
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
-  // Everything else on the page in one request. The embeds that get filtered,
-  // ordered or limited have aliases of their own, because PostgREST applies
-  // options like "logs.order" to the first embed of that table, which could be
-  // a count. The viewer's follow and block are only asked for when signed in.
+  // Everything else on the page but the lists and reviews in one request. The
+  // embeds that get filtered or ordered have aliases of their own, because
+  // PostgREST applies options like "logs.order" to the first embed of that
+  // table, which could be a count. The viewer's follow and block are only
+  // asked for when signed in. Lists and reviews are loaded a page at a time
+  // below: someone can have more than one response holds.
   const viewerEmbeds = viewerId
     ? ", viewer_follow:follows!follows_following_id_fkey(follower_id), follows_viewer:follows!follows_follower_id_fkey(following_id), viewer_block:blocks!blocks_blocked_id_fkey(blocker_id)"
     : "";
@@ -119,20 +115,11 @@ export default async function ProfilePage({
         "log_count:logs!logs_user_id_profiles_fkey(count), " +
         "list_count:lists!lists_user_id_profiles_fkey(count), " +
         "favourites(position, item_id, items(title, image_url)), " +
-        "pin_rows:pins(pinned_at, log_id, list_id), " +
-        `owned_lists:lists!lists_user_id_profiles_fkey(${LIST_FIELDS}), ` +
-        `reviews:logs!logs_user_id_profiles_fkey(${LOG_FIELDS})` +
+        "pin_rows:pins(pinned_at, log_id, list_id)" +
         viewerEmbeds,
     )
     .eq("id", profile.id)
-    .order("created_at", { referencedTable: "owned_lists", ascending: false })
-    .order("pinned_at", { referencedTable: "pin_rows", ascending: false })
-    // The first four items of each list, for the preview thumbnails
-    .lte("owned_lists.preview.position", 4)
-    .order("position", { referencedTable: "owned_lists.preview" })
-    .order("logged_at", { referencedTable: "reviews", ascending: false })
-    // Embedded rows aren't capped by the API's max_rows, so cap them the same way
-    .limit(1000, { referencedTable: "reviews" });
+    .order("pinned_at", { referencedTable: "pin_rows", ascending: false });
   if (viewerId) {
     contentQuery = contentQuery
       .eq("viewer_follow.follower_id", viewerId)
@@ -142,7 +129,6 @@ export default async function ProfilePage({
   const { data: contentData } = await contentQuery.maybeSingle();
   const content = contentData as unknown as ProfileContent | null;
 
-  const logs = content?.reviews ?? [];
   const followers = content?.followers[0]?.count ?? 0;
   const following = content?.following[0]?.count ?? 0;
   const logCount = content?.log_count[0]?.count ?? 0;
@@ -163,14 +149,18 @@ export default async function ProfilePage({
       : null;
   });
 
-  const lists = content?.owned_lists ?? [];
-
-  // What they pinned: loaded on its own, so a pinned log older than the
-  // newest 1000 still shows
+  // What they pinned, loaded on its own whatever page it would be on, and the
+  // first page of their lists and of their reviews without the pinned ones
   const pinRows = content?.pin_rows ?? [];
   const pinnedLogIds = pinRows.flatMap((p) => (p.log_id ? [p.log_id] : []));
   const pinnedListIds = pinRows.flatMap((p) => (p.list_id ? [p.list_id] : []));
-  const [pinnedLogsRes, pinnedListsRes] = await Promise.all([
+  const ctx: ProfileContext = {
+    profileId: profile.id,
+    viewerId,
+    pinnedLogIds: new Set(pinnedLogIds),
+    pinnedListIds: new Set(pinnedListIds),
+  };
+  const [pinnedLogsRes, pinnedListsRes, listRows, logRows] = await Promise.all([
     pinnedLogIds.length > 0
       ? supabase.from("logs").select(LOG_FIELDS).in("id", pinnedLogIds)
       : { data: [] },
@@ -182,12 +172,17 @@ export default async function ProfilePage({
           .lte("preview.position", 4)
           .order("position", { referencedTable: "preview" })
       : { data: [] },
+    fetchProfileRows(supabase, ctx, "lists", null),
+    fetchProfileRows(supabase, ctx, "reviews", null),
   ]);
   const pinnedLogs = new Map(
     ((pinnedLogsRes.data ?? []) as unknown as LogRow[]).map((l) => [l.id, l]),
   );
   const pinnedLists = new Map(
-    ((pinnedListsRes.data ?? []) as unknown as ListRow[]).map((l) => [l.id, l]),
+    ((pinnedListsRes.data ?? []) as unknown as ProfileListRow[]).map((l) => [
+      l.id,
+      l,
+    ]),
   );
   // Newest pin first. A pin whose log or list can't be found is left out.
   const pinned = pinRows.flatMap((p): Pinned[] => {
@@ -196,15 +191,22 @@ export default async function ProfilePage({
     const list = p.list_id ? pinnedLists.get(p.list_id) : undefined;
     return list ? [{ kind: "list", list }] : [];
   });
-  // Pinned things show at the top, so they aren't shown again below
-  const otherLogs = logs.filter((l) => !pinnedLogs.has(l.id));
-  const otherLists = lists.filter((l) => !pinnedLists.has(l.id));
 
   // What the viewer has liked and shared among the reviews and lists shown
   const viewer = await getViewerState(supabase, viewerId, {
-    logIds: [...pinnedLogs.keys(), ...otherLogs.map((l) => l.id)],
-    listIds: [...pinnedLists.keys(), ...otherLists.map((l) => l.id)],
+    logIds: [...pinnedLogs.keys(), ...logRows.rows.map((l) => l.id)],
+    listIds: [...pinnedLists.keys(), ...listRows.rows.map((l) => l.id)],
   });
+  const firstLists: ProfileCardsPage = {
+    cards: renderProfileCards(ctx, viewer, "lists", listRows.rows),
+    next: listRows.next,
+    error: listRows.error,
+  };
+  const firstLogs: ProfileCardsPage = {
+    cards: renderProfileCards(ctx, viewer, "reviews", logRows.rows),
+    next: logRows.next,
+    error: logRows.error,
+  };
 
   const isOwner = viewerId === profile.id;
   // Only the owner can read their own suspension
@@ -218,45 +220,6 @@ export default async function ProfilePage({
   const profileIsAdmin = await isAdmin(profile.id);
   const viewerIsAdmin = await isAdmin(viewerId);
   const profileHref = `/u/${encodeURIComponent(profile.username)}`;
-
-  // Pin and Unpin, on your own profile. Once you have 3 pins, only Unpin shows.
-  const pinControl = (kind: "log" | "list", id: string, isPinned: boolean) =>
-    isOwner && viewerId && (isPinned || pinRows.length < MAX_PINS) ? (
-      <PinButton
-        userId={viewerId}
-        kind={kind}
-        targetId={id}
-        pinned={isPinned}
-      />
-    ) : null;
-
-  const renderList = (l: ListRow, isPinned: boolean) => (
-    <ListCard
-      key={l.id}
-      list={l}
-      thumbs={l.preview.map((p) => ({
-        title: p.items?.title ?? "Unknown item",
-        image_url: p.items?.image_url ?? null,
-      }))}
-      viewerId={viewerId}
-      liked={viewer.likedLists.has(l.id)}
-      shared={viewer.sharedLists.has(l.id)}
-      showAuthor={false}
-      controls={pinControl("list", l.id, isPinned)}
-    />
-  );
-
-  const renderLog = (log: LogRow, isPinned: boolean) => (
-    <LogCard
-      key={log.id}
-      log={log}
-      viewerId={viewerId}
-      liked={viewer.likedLogs.has(log.id)}
-      shared={viewer.sharedLogs.has(log.id)}
-      showAuthor={false}
-      controls={pinControl("log", log.id, isPinned)}
-    />
-  );
 
   return (
     <main className="@container mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
@@ -371,13 +334,16 @@ export default async function ProfilePage({
           </h2>
           {pinned.map((p) =>
             p.kind === "log"
-              ? renderLog(p.log, true)
-              : renderList(p.list, true),
+              ? renderProfileLog(ctx, viewer, p.log, true)
+              : renderProfileList(ctx, viewer, p.list, true),
           )}
         </section>
       )}
 
-      {(otherLists.length > 0 || (isOwner && lists.length === 0)) && (
+      {(firstLists.cards.length > 0 ||
+        firstLists.next ||
+        firstLists.error ||
+        (isOwner && listCount === 0)) && (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
@@ -389,19 +355,23 @@ export default async function ProfilePage({
               </Link>
             )} */}
           </div>
-          {lists.length === 0 && <p className="text-muted">No lists yet.</p>}
-          {otherLists.map((l) => renderList(l, false))}
+          {listCount === 0 && <p className="text-muted">No lists yet.</p>}
+          <ProfilePages
+            profileId={profile.id}
+            kind="lists"
+            first={firstLists}
+          />
         </section>
       )}
-      {otherLogs.length > 0 && (
+      {(firstLogs.cards.length > 0 || firstLogs.next) && (
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
           Reviews
         </h2>
       )}
 
-      {logs.length === 0 && <p className="text-muted">Nothing logged yet.</p>}
+      {logCount === 0 && <p className="text-muted">Nothing logged yet.</p>}
 
-      {otherLogs.map((log) => renderLog(log, false))}
+      <ProfilePages profileId={profile.id} kind="reviews" first={firstLogs} />
     </main>
   );
 }
