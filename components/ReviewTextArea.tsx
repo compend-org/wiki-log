@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import ItemPicker from "@/components/ItemPicker";
 
 const TRIGGER = "::link";
@@ -37,6 +37,16 @@ export default function ReviewTextarea({
   const ref = useRef<HTMLTextAreaElement>(null);
   const [picking, setPicking] = useState<boolean>(false);
   const [notice, setNotice] = useState<string>("");
+
+  // Focuses the box when it opens, with the caret after any prefilled text.
+  // React fills a new textarea through defaultValue, which leaves the caret
+  // at the start, so it's moved to the end here.
+  useLayoutEffect(() => {
+    const box = ref.current;
+    if (!autoFocus || !box) return;
+    box.focus();
+    box.setSelectionRange(box.value.length, box.value.length);
+  }, [autoFocus]);
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const next = e.target.value;
@@ -85,8 +95,6 @@ export default function ReviewTextarea({
         onChange={handleChange}
         maxLength={maxLength}
         rows={rows}
-        // biome-ignore lint/a11y/noAutofocus: callers ask for focus when the box opens on purpose
-        autoFocus={autoFocus}
         placeholder={placeholder}
         className={className}
       />

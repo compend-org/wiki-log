@@ -8,7 +8,7 @@ import { REPORT_REASONS } from "@/lib/moderation";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 
-// Lets a signed-in person flag a review, list or comment for the admins
+// Lets a signed-in person flag a review, list, comment or account for the admins
 export default function ReportButton({
   viewerId,
   ownerId,
@@ -18,7 +18,7 @@ export default function ReportButton({
 }: {
   viewerId: string | null;
   ownerId: string;
-  kind: "log" | "list" | "comment" | "list_comment";
+  kind: "log" | "list" | "comment" | "list_comment" | "profile";
   targetId: string;
   className?: string;
 }) {
@@ -92,7 +92,9 @@ export default function ReportButton({
             </>
           ) : (
             <form onSubmit={submit} className="flex flex-col gap-3">
-              <h2 className="text-base font-semibold">Report this</h2>
+              <h2 className="text-base font-semibold">
+                {kind === "profile" ? "Report this account" : "Report this"}
+              </h2>
 
               <label htmlFor={reasonId} className="flex flex-col gap-1">
                 Why are you reporting it?
