@@ -6,6 +6,8 @@ import * as Sentry from "@sentry/nextjs";
 const HANDLED_FAILURES = new Set([
   "favourites:23505",
   "list_items:23505",
+  // A page past the end of a list, which lib/listPages.ts follows up on
+  "list_items:PGRST103",
   "profiles:23505",
 ]);
 

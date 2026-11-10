@@ -20,11 +20,18 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { addToList, createList, stageItem } from "@/app/actions";
 import ItemPicker from "@/components/ItemPicker";
 import ItemImage from "@/components/icons/ItemImage";
+import ListPager from "@/components/ListPager";
 import { track } from "@/lib/analytics";
+import {
+  fetchListPage,
+  LIST_PAGE_SIZE,
+  pageCount,
+  pageOfRank,
+} from "@/lib/listPages";
 import { createClient } from "@/lib/supabase/client";
 
 export type ListEntry = {
@@ -35,14 +42,18 @@ export type ListEntry = {
 
 function SortableTile({
   entry,
-  index,
+  rank,
   ranked,
+  selected,
   onRemove,
+  onMove,
 }: {
   entry: ListEntry;
-  index: number;
+  rank: number;
   ranked: boolean;
+  selected: boolean;
   onRemove: (itemId: string) => void;
+  onMove: (itemId: string) => void;
 }) {
   const {
     attributes,
@@ -70,13 +81,24 @@ function SortableTile({
         <ItemImage
           src={entry.imageUrl}
           alt={entry.title}
-          className="aspect-square w-full rounded-lg"
+          className={`aspect-square w-full rounded-lg ${
+            selected ? "ring-2 ring-accent" : ""
+          }`}
         />
         {ranked && (
           <span className="absolute left-1 top-1 rounded bg-background/80 px-1.5 text-sm font-bold text-accent">
-            {index + 1}
+            {rank}
           </span>
         )}
+        <button
+          type="button"
+          onClick={() => onMove(entry.itemId)}
+          aria-label={`Move ${entry.title} to another position`}
+          title="Move to a position"
+          className="absolute bottom-1 right-1 rounded bg-background/80 px-1.5 text-sm"
+        >
+          ⇅
+        </button>
         <button
           type="button"
           onClick={() => onRemove(entry.itemId)}
@@ -95,6 +117,8 @@ export default function ListEditor({
   list,
   ownerName,
   initialItems,
+  initialPage = 1,
+  initialTotal,
 }: {
   list: {
     id: string | null;
@@ -103,9 +127,26 @@ export default function ListEditor({
     ranked: boolean;
   };
   ownerName: string;
+  // A saved list arrives a page at a time; a new one holds all its items here
   initialItems: ListEntry[];
+  initialPage?: number;
+  initialTotal?: number;
 }) {
   const [items, setItems] = useState<ListEntry[]>(initialItems);
+  const [page, setPage] = useState<number>(initialPage);
+  const [savedTotal, setSavedTotal] = useState<number>(
+    initialTotal ?? initialItems.length,
+  );
+  const [loading, setLoading] = useState<boolean>(false);
+  // The item whose "Move to position" box is open, and what's typed in it
+  const [moving, setMoving] = useState<string | null>(null);
+  const [moveTarget, setMoveTarget] = useState<string>("");
+  // Says where an item went when that's on another page
+  const [notice, setNotice] = useState<{ text: string; page: number } | null>(
+    null,
+  );
+  // Only the newest page load is shown, if several overlap
+  const loadCount = useRef(0);
   const [title, setTitle] = useState<string>(list.title);
   const [description, setDescription] = useState<string>(
     list.description ?? "",
@@ -116,6 +157,59 @@ export default function ListEditor({
   const [detailsMessage, setDetailsMessage] = useState<string>("");
   const [error, setError] = useState<string>("");
   const router = useRouter();
+
+  const listId = list.id;
+  // Saved lists are paged; a new list is all here, on one page
+  const total = listId === null ? items.length : savedTotal;
+  const offset = listId === null ? 0 : (page - 1) * LIST_PAGE_SIZE;
+  const lastPage = listId === null ? 1 : pageCount(total);
+  const movingEntry = items.find((i) => i.itemId === moving) ?? null;
+  const movingRank = movingEntry ? offset + items.indexOf(movingEntry) + 1 : 0;
+
+  async function loadPage(wanted: number) {
+    if (listId === null) return;
+    const ticket = ++loadCount.current;
+    setLoading(true);
+    const result = await fetchListPage(createClient(), listId, wanted);
+    if (ticket !== loadCount.current) return;
+    if (result.error) {
+      setLoading(false);
+      setError(result.error);
+      return;
+    }
+    // The list got shorter than this page (say, from another tab): show its end
+    const last = pageCount(result.total);
+    if (wanted > last) {
+      await loadPage(last);
+      return;
+    }
+    setLoading(false);
+    setItems(
+      result.entries.map((e) => ({
+        itemId: e.itemId,
+        title: e.title,
+        imageUrl: e.imageUrl,
+      })),
+    );
+    setSavedTotal(result.total);
+    setPage(wanted);
+    if (moving && !result.entries.some((e) => e.itemId === moving)) {
+      setMoving(null);
+    }
+    // Keeps the page in the address, so reloading comes back to it
+    const path = window.location.pathname;
+    window.history.replaceState(
+      null,
+      "",
+      wanted === 1 ? path : `${path}?page=${wanted}`,
+    );
+  }
+
+  function goToPage(wanted: number) {
+    setError("");
+    setNotice(null);
+    loadPage(wanted);
+  }
 
   // Mouse drags after a few pixels, touch after a short press (so the page
   // still scrolls), and the keyboard works too
@@ -131,7 +225,8 @@ export default function ListEditor({
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    // While another page loads, the tiles on screen are about to change
+    if (!over || active.id === over.id || loading) return;
 
     const oldIndex = items.findIndex((i) => i.itemId === active.id);
     const newIndex = items.findIndex((i) => i.itemId === over.id);
@@ -141,13 +236,15 @@ export default function ListEditor({
     const next = arrayMove(items, oldIndex, newIndex);
     setItems(next);
     setError("");
-    if (list.id === null) return;
+    setNotice(null);
+    if (listId === null) return;
 
-    // Just the one move, so a long list isn't sent back in full
+    // Just the one move, so a long list isn't sent back in full. Positions
+    // count from the top of the whole list, not this page.
     const { error } = await createClient().rpc("move_list_item", {
-      p_list: list.id,
+      p_list: listId,
       p_item: String(active.id),
-      p_position: newIndex + 1,
+      p_position: offset + newIndex + 1,
     });
     if (error) {
       setItems(previous);
@@ -157,38 +254,117 @@ export default function ListEditor({
     track("list_reordered");
   }
 
+  function openMove(itemId: string) {
+    setError("");
+    setNotice(null);
+    if (moving === itemId) {
+      setMoving(null);
+      return;
+    }
+    setMoving(itemId);
+    setMoveTarget("");
+  }
+
+  // Moves an item to any position in the list, including ones on other pages,
+  // which dragging can't reach
+  async function moveToPosition() {
+    if (!movingEntry) return;
+    const rank = Number(moveTarget);
+    if (!Number.isInteger(rank) || rank < 1 || rank > total) {
+      setError(`Pick a position from 1 to ${total.toLocaleString("en-US")}.`);
+      return;
+    }
+    setError("");
+    setMoving(null);
+    if (rank === movingRank) return;
+
+    if (listId === null) {
+      setItems(arrayMove(items, movingRank - 1, rank - 1));
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await createClient().rpc("move_list_item", {
+      p_list: listId,
+      p_item: movingEntry.itemId,
+      p_position: rank,
+    });
+    if (error) {
+      setLoading(false);
+      setError(error.message);
+      return;
+    }
+    const target = pageOfRank(rank);
+    setNotice(
+      target === page
+        ? null
+        : {
+            text: `Moved “${movingEntry.title}” to #${rank.toLocaleString("en-US")}, on page ${target}.`,
+            page: target,
+          },
+    );
+    track("list_reordered");
+    // Everything between the old and new places shifted by one
+    await loadPage(page);
+  }
+
   async function handleAdd(itemId: string) {
     setError("");
+    setNotice(null);
     const result =
-      list.id === null
+      listId === null
         ? await stageItem(itemId)
-        : await addToList({ listId: list.id, itemId });
+        : await addToList({ listId, itemId });
     if (result.error || !result.item) {
       setError(result.error ?? "Something went wrong.");
       return;
     }
     if (list.id !== null) track("list_item_added");
     const added = result.item;
-    setItems((prev) =>
-      prev.some((i) => i.itemId === added.itemId) ? prev : [...prev, added],
-    );
     setAdding(false);
+    if (listId === null) {
+      setItems((prev) =>
+        prev.some((i) => i.itemId === added.itemId) ? prev : [...prev, added],
+      );
+      return;
+    }
+
+    // New items go at the end, which may be on a later page
+    const rank = savedTotal + 1;
+    setSavedTotal(rank);
+    const target = pageOfRank(rank);
+    if (target === page) {
+      setItems((prev) => [...prev, added]);
+    } else {
+      setNotice({
+        text: `Added “${added.title}” at #${rank.toLocaleString("en-US")}, on page ${target}.`,
+        page: target,
+      });
+    }
   }
 
   async function handleRemove(itemId: string) {
     const previous = items;
     setItems(items.filter((i) => i.itemId !== itemId));
+    if (moving === itemId) setMoving(null);
     setError("");
-    if (list.id === null) return;
+    setNotice(null);
+    if (listId === null) return;
 
     const { error } = await createClient().rpc("remove_list_item", {
-      p_list: list.id,
+      p_list: listId,
       p_item: itemId,
     });
     if (error) {
       setItems(previous);
       setError(error.message);
       return;
+    }
+    setSavedTotal((t) => t - 1);
+    // The next page's first item moves up onto this one, or, if this page is
+    // now empty, the one before is shown
+    if (offset + previous.length < savedTotal || previous.length === 1) {
+      await loadPage(page);
     }
     track("list_item_removed");
   }
@@ -234,7 +410,7 @@ export default function ListEditor({
       setDetailsMessage(error.message);
       return;
     }
-    track("list_edited", { item_count: items.length, ranked });
+    track("list_edited", { item_count: total, ranked });
     router.push(`/list/${list.id}`);
     router.refresh();
   }
@@ -306,8 +482,17 @@ export default function ListEditor({
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-          Items{items.length > 0 && " · drag to reorder"}
+          Items
+          {total > 0 &&
+            ` · ${total.toLocaleString("en-US")} · drag or ⇅ to reorder`}
         </h2>
+
+        <ListPager
+          page={page}
+          last={lastPage}
+          onPage={goToPage}
+          disabled={loading}
+        />
 
         <DndContext
           id={`list-${list.id ?? "new"}`}
@@ -319,14 +504,21 @@ export default function ListEditor({
             items={items.map((i) => i.itemId)}
             strategy={rectSortingStrategy}
           >
-            <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+            <ul
+              aria-busy={loading}
+              className={`grid grid-cols-3 gap-3 sm:grid-cols-4 ${
+                loading ? "opacity-60" : ""
+              }`}
+            >
               {items.map((entry, index) => (
                 <SortableTile
                   key={entry.itemId}
                   entry={entry}
-                  index={index}
+                  rank={offset + index + 1}
                   ranked={ranked}
+                  selected={entry.itemId === moving}
                   onRemove={handleRemove}
+                  onMove={openMove}
                 />
               ))}
               <li>
@@ -349,6 +541,69 @@ export default function ListEditor({
             </ul>
           </SortableContext>
         </DndContext>
+
+        <ListPager
+          page={page}
+          last={lastPage}
+          onPage={goToPage}
+          disabled={loading}
+        />
+
+        {movingEntry && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              moveToPosition();
+            }}
+            className="card sticky bottom-2 z-30 flex flex-wrap items-center gap-2 p-3 text-sm"
+          >
+            <label className="flex flex-wrap items-center gap-2">
+              <span>
+                Move “{movingEntry.title}” (now #
+                {movingRank.toLocaleString("en-US")}) to position
+              </span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={total}
+                value={moveTarget}
+                onChange={(e) => setMoveTarget(e.target.value)}
+                placeholder={`1–${total}`}
+                // biome-ignore lint/a11y/noAutofocus: opened by the user to type a position
+                autoFocus
+                className="w-24 rounded-lg border border-line bg-surface px-2 py-1 text-foreground"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={loading || moveTarget === ""}
+              className="rounded-lg bg-accent px-3 py-1 text-background disabled:opacity-40"
+            >
+              Move
+            </button>
+            <button
+              type="button"
+              onClick={() => setMoving(null)}
+              className="rounded-lg border border-line px-3 py-1"
+            >
+              Cancel
+            </button>
+          </form>
+        )}
+
+        {notice && (
+          <p className="text-sm text-muted">
+            {notice.text}{" "}
+            <button
+              type="button"
+              onClick={() => goToPage(notice.page)}
+              className="underline"
+            >
+              Go to page {notice.page}
+            </button>
+          </p>
+        )}
 
         {adding && (
           <div className="flex flex-col gap-2">
