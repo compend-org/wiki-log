@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import CommentLikeButton from "@/components/buttons/CommentLikeButton";
 import ReportButton from "@/components/buttons/ReportButton";
-import CommentLikeButton from "@/components/icons/CommentLikeButton";
 import ReviewText from "@/components/ReviewText";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
