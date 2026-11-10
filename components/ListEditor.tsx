@@ -20,18 +20,14 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { addToList, createList, stageItem } from "@/app/actions";
 import ItemPicker from "@/components/ItemPicker";
 import ItemImage from "@/components/icons/ItemImage";
 import ListPager from "@/components/ListPager";
 import { track } from "@/lib/analytics";
-import {
-  fetchListPage,
-  LIST_PAGE_SIZE,
-  pageCount,
-  pageOfRank,
-} from "@/lib/listPages";
+import { type EditorSnapshot, SavedListEditing } from "@/lib/listEditing";
+import { fetchListPage, LIST_PAGE_SIZE, pageCount } from "@/lib/listPages";
 import { createClient } from "@/lib/supabase/client";
 
 export type ListEntry = {
@@ -132,24 +128,11 @@ export default function ListEditor({
   initialPage?: number;
   initialTotal?: number;
 }) {
-  const [items, setItems] = useState<ListEntry[]>(initialItems);
-  const [page, setPage] = useState<number>(initialPage);
-  const [savedTotal, setSavedTotal] = useState<number>(
-    initialTotal ?? initialItems.length,
-  );
-  // True while a page loads or a change to a saved list is being saved. The
-  // pager is disabled meanwhile, so each change finishes on the page it
-  // started on, and other changes wait (they read the page and total).
-  const [loading, setLoading] = useState<boolean>(false);
+  // A new list's items, all kept here until it is created
+  const [draftItems, setDraftItems] = useState<ListEntry[]>(initialItems);
   // The item whose "Move to position" box is open, and what's typed in it
   const [moving, setMoving] = useState<string | null>(null);
   const [moveTarget, setMoveTarget] = useState<string>("");
-  // Says where an item went when that's on another page
-  const [notice, setNotice] = useState<{ text: string; page: number } | null>(
-    null,
-  );
-  // Only the newest page load is shown, if several overlap
-  const loadCount = useRef(0);
   const [title, setTitle] = useState<string>(list.title);
   const [description, setDescription] = useState<string>(
     list.description ?? "",
@@ -162,56 +145,75 @@ export default function ListEditor({
   const router = useRouter();
 
   const listId = list.id;
-  // Saved lists are paged; a new list is all here, on one page
-  const total = listId === null ? items.length : savedTotal;
-  const offset = listId === null ? 0 : (page - 1) * LIST_PAGE_SIZE;
-  const lastPage = listId === null ? 1 : pageCount(total);
+
+  // A saved list is shown a page at a time. Its changes and page loads go
+  // through one queue, which reads the page and count as they are when each
+  // one runs, so nothing acts on a page that has since changed.
+  const [editing] = useState<SavedListEditing | null>(() =>
+    listId === null
+      ? null
+      : new SavedListEditing(
+          {
+            fetchPage: (wanted) =>
+              fetchListPage(createClient(), listId, wanted),
+            move: async (itemId, position) => {
+              const { error } = await createClient().rpc("move_list_item", {
+                p_list: listId,
+                p_item: itemId,
+                p_position: position,
+              });
+              return { error: error?.message };
+            },
+            remove: async (itemId) => {
+              const { error } = await createClient().rpc("remove_list_item", {
+                p_list: listId,
+                p_item: itemId,
+              });
+              return { error: error?.message };
+            },
+            add: (itemId) => addToList({ listId, itemId }),
+            // Keeps the page in the address, so reloading comes back to it
+            pageShown: (wanted) => {
+              const path = window.location.pathname;
+              window.history.replaceState(
+                null,
+                "",
+                wanted === 1 ? path : `${path}?page=${wanted}`,
+              );
+            },
+          },
+          {
+            items: initialItems,
+            page: initialPage,
+            total: initialTotal ?? initialItems.length,
+          },
+          (snapshot) => setSaved(snapshot),
+        ),
+  );
+  const [saved, setSaved] = useState<EditorSnapshot | null>(
+    () => editing?.snapshot ?? null,
+  );
+
+  const items = saved ? saved.items : draftItems;
+  const page = saved ? saved.page : 1;
+  const total = saved ? saved.total : draftItems.length;
+  // True while a saved list's change or page load is queued or running
+  const loading = saved?.busy ?? false;
+  const notice = saved?.notice ?? null;
+  const shownError = error || saved?.error || "";
+  const offset = (page - 1) * LIST_PAGE_SIZE;
+  const lastPage = pageCount(total);
   const movingEntry = items.find((i) => i.itemId === moving) ?? null;
   const movingRank = movingEntry ? offset + items.indexOf(movingEntry) + 1 : 0;
 
-  async function loadPage(wanted: number) {
-    if (listId === null) return;
-    const ticket = ++loadCount.current;
-    setLoading(true);
-    const result = await fetchListPage(createClient(), listId, wanted);
-    if (ticket !== loadCount.current) return;
-    if (result.error) {
-      setLoading(false);
-      setError(result.error);
-      return;
-    }
-    // The list got shorter than this page (say, from another tab): show its end
-    const last = pageCount(result.total);
-    if (wanted > last) {
-      await loadPage(last);
-      return;
-    }
-    setLoading(false);
-    setItems(
-      result.entries.map((e) => ({
-        itemId: e.itemId,
-        title: e.title,
-        imageUrl: e.imageUrl,
-      })),
-    );
-    setSavedTotal(result.total);
-    setPage(wanted);
-    if (moving && !result.entries.some((e) => e.itemId === moving)) {
-      setMoving(null);
-    }
-    // Keeps the page in the address, so reloading comes back to it
-    const path = window.location.pathname;
-    window.history.replaceState(
-      null,
-      "",
-      wanted === 1 ? path : `${path}?page=${wanted}`,
-    );
+  function clearMessages() {
+    setError("");
+    editing?.dismissError();
   }
 
   function goToPage(wanted: number) {
-    setError("");
-    setNotice(null);
-    loadPage(wanted);
+    clearMessages();
+    editing?.goToPage(wanted);
   }
 
   // Mouse drags after a few pixels, touch after a short press (so the page
@@ -228,40 +230,23 @@ export default function ListEditor({
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    // While another page loads, the tiles on screen are about to change
-    if (!over || active.id === over.id || loading) return;
+    if (!over || active.id === over.id) return;
+    clearMessages();
 
-    const oldIndex = items.findIndex((i) => i.itemId === active.id);
-    const newIndex = items.findIndex((i) => i.itemId === over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-
-    const previous = items;
-    const next = arrayMove(items, oldIndex, newIndex);
-    setItems(next);
-    setError("");
-    setNotice(null);
-    if (listId === null) return;
-
-    // Just the one move, so a long list isn't sent back in full. Positions
-    // count from the top of the whole list, not this page.
-    setLoading(true);
-    const { error } = await createClient().rpc("move_list_item", {
-      p_list: listId,
-      p_item: String(active.id),
-      p_position: offset + newIndex + 1,
-    });
-    setLoading(false);
-    if (error) {
-      setItems(previous);
-      setError(error.message);
+    if (!editing) {
+      const from = draftItems.findIndex((i) => i.itemId === active.id);
+      const to = draftItems.findIndex((i) => i.itemId === over.id);
+      if (from >= 0 && to >= 0) setDraftItems(arrayMove(draftItems, from, to));
       return;
     }
-    track("list_reordered");
+    // Ignored while another change or page load is going on
+    if (await editing.drag(String(active.id), String(over.id))) {
+      track("list_reordered");
+    }
   }
 
   function openMove(itemId: string) {
-    setError("");
-    setNotice(null);
+    clearMessages();
     if (moving === itemId) {
       setMoving(null);
       return;
@@ -275,114 +260,56 @@ export default function ListEditor({
   async function moveToPosition() {
     if (!movingEntry) return;
     const rank = Number(moveTarget);
-    if (!Number.isInteger(rank) || rank < 1 || rank > total) {
-      setError(`Pick a position from 1 to ${total.toLocaleString("en-US")}.`);
-      return;
-    }
-    setError("");
+    clearMessages();
     setMoving(null);
-    if (rank === movingRank) return;
 
-    if (listId === null) {
-      setItems(arrayMove(items, movingRank - 1, rank - 1));
+    if (!editing) {
+      if (!Number.isInteger(rank) || rank < 1 || rank > total) {
+        setError(`Pick a position from 1 to ${total.toLocaleString("en-US")}.`);
+        return;
+      }
+      setDraftItems(arrayMove(draftItems, movingRank - 1, rank - 1));
       return;
     }
-
-    setLoading(true);
-    const { error } = await createClient().rpc("move_list_item", {
-      p_list: listId,
-      p_item: movingEntry.itemId,
-      p_position: rank,
-    });
-    if (error) {
-      setLoading(false);
-      setError(error.message);
-      return;
+    if (await editing.moveTo(movingEntry.itemId, movingEntry.title, rank)) {
+      track("list_reordered");
     }
-    const target = pageOfRank(rank);
-    setNotice(
-      target === page
-        ? null
-        : {
-            text: `Moved “${movingEntry.title}” to #${rank.toLocaleString("en-US")}, on page ${target}.`,
-            page: target,
-          },
-    );
-    track("list_reordered");
-    // Everything between the old and new places shifted by one
-    await loadPage(page);
   }
 
+  // Called by the picker once it knows the item, which can be a while after
+  // it was chosen. A saved list adds it by the page and count as they are
+  // then. If the request fails outright, this rejects, so the picker keeps
+  // the choice and says it couldn't reach the server.
   async function handleAdd(itemId: string) {
-    if (loading) {
-      setError("Wait a moment for the list to finish saving, then add it.");
-      return;
-    }
-    setError("");
-    setNotice(null);
-    if (listId !== null) setLoading(true);
-    const result =
-      listId === null
-        ? await stageItem(itemId)
-        : await addToList({ listId, itemId });
-    setLoading(false);
-    if (result.error || !result.item) {
-      setError(result.error ?? "Something went wrong.");
-      return;
-    }
-    if (list.id !== null) track("list_item_added");
-    const added = result.item;
-    setAdding(false);
-    if (listId === null) {
-      setItems((prev) =>
+    clearMessages();
+    if (!editing) {
+      const result = await stageItem(itemId);
+      if (result.error || !result.item) {
+        setError(result.error ?? "Something went wrong.");
+        return;
+      }
+      const added = result.item;
+      setDraftItems((prev) =>
         prev.some((i) => i.itemId === added.itemId) ? prev : [...prev, added],
       );
+      setAdding(false);
       return;
     }
-
-    // New items go at the end, which may be on a later page
-    const rank = savedTotal + 1;
-    setSavedTotal(rank);
-    const target = pageOfRank(rank);
-    if (target === page) {
-      setItems((prev) => [...prev, added]);
-    } else {
-      setNotice({
-        text: `Added “${added.title}” at #${rank.toLocaleString("en-US")}, on page ${target}.`,
-        page: target,
-      });
+    const { added } = await editing.add(itemId);
+    if (added) {
+      track("list_item_added");
+      setAdding(false);
     }
   }
 
   async function handleRemove(itemId: string) {
-    if (loading) return;
-    const previous = items;
-    setItems(items.filter((i) => i.itemId !== itemId));
     if (moving === itemId) setMoving(null);
-    setError("");
-    setNotice(null);
-    if (listId === null) return;
-
-    setLoading(true);
-    const { error } = await createClient().rpc("remove_list_item", {
-      p_list: listId,
-      p_item: itemId,
-    });
-    if (error) {
-      setLoading(false);
-      setItems(previous);
-      setError(error.message);
+    clearMessages();
+    if (!editing) {
+      setDraftItems((prev) => prev.filter((i) => i.itemId !== itemId));
       return;
     }
-    setSavedTotal((t) => t - 1);
-    // The next page's first item moves up onto this one, or, if this page is
-    // now empty, the one before is shown
-    if (offset + previous.length < savedTotal || previous.length === 1) {
-      await loadPage(page);
-    } else {
-      setLoading(false);
-    }
-    track("list_item_removed");
+    if (await editing.remove(itemId)) track("list_item_removed");
   }
 
   async function saveList() {
@@ -635,7 +562,7 @@ export default function ListEditor({
           </div>
         )}
 
-        {error && <p className="text-sm text-danger">{error}</p>}
+        {shownError && <p className="text-sm text-danger">{shownError}</p>}
       </section>
       <section className="flex flex-col gap-2">
         <button
