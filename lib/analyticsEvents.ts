@@ -64,7 +64,7 @@ export type AnalyticsEvents = {
 
   // Safety
   report_submitted: {
-    target: "log" | "list" | "comment" | "list_comment";
+    target: "log" | "list" | "comment" | "list_comment" | "profile";
     reason: string;
   };
   user_blocked: NoProperties;
