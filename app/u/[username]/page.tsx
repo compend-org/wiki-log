@@ -8,20 +8,16 @@ import AdminBadge from "@/components/AdminBadge";
 import Avatar from "@/components/Avatar";
 import BanButton from "@/components/BanButton";
 import BlockButton from "@/components/BlockButton";
-import CardActions from "@/components/CardActions";
 import Favourites, { type Slot } from "@/components/Favourites";
 import FollowButton from "@/components/FollowButton";
-import ItemImage from "@/components/ItemImage";
-import LikeButton from "@/components/LikeButton";
-import ListPreview from "@/components/ListPreview";
+import ListCard from "@/components/ListCard";
+import LogCard from "@/components/LogCard";
 import PinButton from "@/components/PinButton";
 import ReportButton from "@/components/ReportButton";
-import ReviewText from "@/components/ReviewText";
-import ShareButton from "@/components/ShareButton";
 import SignOutButton from "@/components/SignOutButton";
-import Stars from "@/components/Stars";
 import { isAdmin } from "@/lib/admin";
 import { avatarUrl } from "@/lib/avatar";
+import type { ListRow as ListCardRow, LogRow } from "@/lib/feedData";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { loginHref } from "@/lib/redirect";
@@ -32,21 +28,13 @@ export const instant = false;
 
 type ItemInfo = { title: string; image_url: string | null } | null;
 
-type LogRow = {
-  id: string;
-  item_id: string;
-  rating: number;
-  review: string;
-  logged_at: string;
-  items: ItemInfo;
-  likes: { count: number }[];
-  comments: { count: number }[];
-  shares: { count: number }[];
-};
-
 // The columns a review card needs, for both the review list and the pinned ones
 const LOG_FIELDS =
-  "id, item_id, rating, review, logged_at, items(title, image_url), likes(count), comments(count), shares(count)";
+  "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
+
+// The columns a list card needs, with the first items of the list as preview
+const LIST_FIELDS =
+  "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), preview:list_items(position, items(title, image_url))";
 
 type FavRow = {
   position: number;
@@ -54,11 +42,7 @@ type FavRow = {
   items: ItemInfo;
 };
 
-type ListRow = {
-  id: string;
-  title: string;
-  ranked: boolean;
-  list_items: { count: number }[];
+type ListRow = ListCardRow & {
   preview: { position: number; items: ItemInfo }[];
 };
 
@@ -136,7 +120,7 @@ export default async function ProfilePage({
         "list_count:lists!lists_user_id_profiles_fkey(count), " +
         "favourites(position, item_id, items(title, image_url)), " +
         "pin_rows:pins(pinned_at, log_id, list_id), " +
-        "owned_lists:lists!lists_user_id_profiles_fkey(id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))), " +
+        `owned_lists:lists!lists_user_id_profiles_fkey(${LIST_FIELDS}), ` +
         `reviews:logs!logs_user_id_profiles_fkey(${LOG_FIELDS})` +
         viewerEmbeds,
     )
@@ -193,9 +177,7 @@ export default async function ProfilePage({
     pinnedListIds.length > 0
       ? supabase
           .from("lists")
-          .select(
-            "id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))",
-          )
+          .select(LIST_FIELDS)
           .in("id", pinnedListIds)
           .lte("preview.position", 4)
           .order("position", { referencedTable: "preview" })
@@ -218,9 +200,10 @@ export default async function ProfilePage({
   const otherLogs = logs.filter((l) => !pinnedLogs.has(l.id));
   const otherLists = lists.filter((l) => !pinnedLists.has(l.id));
 
-  // What the viewer has liked and shared among the reviews shown
+  // What the viewer has liked and shared among the reviews and lists shown
   const viewer = await getViewerState(supabase, viewerId, {
     logIds: [...pinnedLogs.keys(), ...otherLogs.map((l) => l.id)],
+    listIds: [...pinnedLists.keys(), ...otherLists.map((l) => l.id)],
   });
 
   const isOwner = viewerId === profile.id;
@@ -247,104 +230,34 @@ export default async function ProfilePage({
       />
     ) : null;
 
-  const renderList = (l: ListRow, isPinned: boolean) => {
-    const count = l.list_items?.[0]?.count ?? 0;
-    const preview = l.preview.map((p) => ({
-      title: p.items?.title ?? "Unknown item",
-      image_url: p.items?.image_url ?? null,
-    }));
-    return (
-      <div
-        key={l.id}
-        className="card relative flex flex-col gap-2 p-3 hover:bg-surface"
-      >
-        <Link
-          href={`/list/${l.id}`}
-          aria-label={`Open the list ${l.title}`}
-          className="absolute inset-0 rounded-[inherit]"
-        />
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="font-semibold">{l.title}</span>
-          <span className="flex shrink-0 items-baseline gap-3 text-xs text-muted">
-            <span>
-              {l.ranked ? "Ranked · " : ""}
-              {count} {count === 1 ? "item" : "items"}
-            </span>
-            {pinControl("list", l.id, isPinned)}
-          </span>
-        </div>
-        {preview.length > 0 && (
-          <ListPreview thumbs={preview} total={count} href={`/list/${l.id}`} />
-        )}
-      </div>
-    );
-  };
+  const renderList = (l: ListRow, isPinned: boolean) => (
+    <ListCard
+      key={l.id}
+      list={l}
+      thumbs={l.preview.map((p) => ({
+        title: p.items?.title ?? "Unknown item",
+        image_url: p.items?.image_url ?? null,
+      }))}
+      viewerId={viewerId}
+      liked={viewer.likedLists.has(l.id)}
+      shared={viewer.sharedLists.has(l.id)}
+      controls={pinControl("list", l.id, isPinned)}
+    />
+  );
 
-  const renderLog = (log: LogRow, isPinned: boolean) => {
-    const title = log.items?.title ?? "Unknown item";
-    const reviewHref = `${profileHref}/${log.id}`;
-    return (
-      <div
-        key={log.id}
-        className="card relative flex gap-4 p-3 hover:bg-surface"
-      >
-        <Link
-          href={reviewHref}
-          aria-label={`Open the review of ${title}`}
-          className="absolute inset-0 rounded-[inherit]"
-        />
-        <ItemImage
-          src={log.items?.image_url}
-          alt={title}
-          className="h-20 w-20 shrink-0 rounded"
-        />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="font-semibold">{title}</span>
-            <span className="shrink-0 text-xs text-muted">
-              {pinControl("log", log.id, isPinned)}
-            </span>
-          </div>
-          <Stars rating={log.rating} />
-          {log.review && (
-            <p className="text-sm">
-              <ReviewText text={log.review} />
-            </p>
-          )}
-          <CardActions
-            like={
-              log.review ? (
-                <LikeButton
-                  viewerId={viewerId ?? null}
-                  authorId={profile.id}
-                  logId={log.id}
-                  initialCount={log.likes?.[0]?.count ?? 0}
-                  initiallyLiked={viewer.likedLogs.has(log.id)}
-                />
-              ) : null
-            }
-            share={
-              <ShareButton
-                viewerId={viewerId ?? null}
-                ownerId={profile.id}
-                kind="log"
-                targetId={log.id}
-                initialCount={log.shares?.[0]?.count ?? 0}
-                initiallyShared={viewer.sharedLogs.has(log.id)}
-              />
-            }
-            commentHref={reviewHref}
-            commentCount={log.comments?.[0]?.count ?? 0}
-          >
-            {new Date(log.logged_at).toLocaleDateString()}
-          </CardActions>
-        </div>
-      </div>
-    );
-  };
+  const renderLog = (log: LogRow, isPinned: boolean) => (
+    <LogCard
+      key={log.id}
+      log={log}
+      viewerId={viewerId}
+      liked={viewer.likedLogs.has(log.id)}
+      shared={viewer.sharedLogs.has(log.id)}
+      controls={pinControl("log", log.id, isPinned)}
+    />
+  );
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
+    <main className="@container mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       {suspension && (
         <p
           role="status"

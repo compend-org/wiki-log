@@ -2,6 +2,7 @@
 // ABOUTME: Shown wherever lists appear among other content, such as feeds and item pages.
 import Link from "next/link";
 import { connection } from "next/server";
+import type { ReactNode } from "react";
 import CardActions from "@/components/CardActions";
 import ListLikeButton from "@/components/ListLikeButton";
 import ListPreview from "@/components/ListPreview";
@@ -20,6 +21,7 @@ export default async function ListCard({
   shared,
   sharers = [],
   showActivity = true,
+  controls,
 }: {
   list: ListRow;
   thumbs: Thumb[];
@@ -30,6 +32,8 @@ export default async function ListCard({
   sharers?: Sharer[];
   // Whether to say "made a list" after the author, as an activity feed does
   showActivity?: boolean;
+  // Extra controls beside the title, such as Pin
+  controls?: ReactNode;
 }) {
   await connection();
   const renderedAt = Date.now();
@@ -61,7 +65,10 @@ export default async function ListCard({
           · {timeAgo(l.created_at, renderedAt)}
         </span>
       </span>
-      <span className="font-semibold">{l.title}</span>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="font-semibold">{l.title}</span>
+        {controls}
+      </div>
       {preview.length > 0 && (
         <ListPreview
           thumbs={preview}
