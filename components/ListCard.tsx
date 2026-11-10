@@ -70,6 +70,7 @@ export default async function ListCard({
             )}
           </>
         )}
+        {!showAuthor && l.ranked && <span>Ranked list ·</span>}
         <span className="whitespace-nowrap">
           {showAuthor && "· "}
           {timeAgo(l.created_at, renderedAt)}
