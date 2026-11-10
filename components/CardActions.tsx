@@ -44,7 +44,7 @@ export default function CardActions({
       )}
 
       {logHref && (
-        <Link href={logHref} className="relative z-10 hover:underline">
+        <Link href={logHref} className="relative z-10 ml-[0.3rem] hover:underline">
           Log
         </Link>
       )}
