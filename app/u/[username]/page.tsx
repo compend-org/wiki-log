@@ -1,5 +1,5 @@
 // ABOUTME: A person's public profile: their details, favourites, lists and reviews.
-// ABOUTME: Also holds the follow, block and ban controls for whoever is viewing it.
+// ABOUTME: Also holds the follow, block, report and ban controls for whoever is viewing it.
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,6 +13,7 @@ import FollowButton from "@/components/FollowButton";
 import ItemImage from "@/components/ItemImage";
 import ListPreview from "@/components/ListPreview";
 import PinButton from "@/components/PinButton";
+import ReportButton from "@/components/ReportButton";
 import ReviewText from "@/components/ReviewText";
 import SignOutButton from "@/components/SignOutButton";
 import Stars from "@/components/Stars";
@@ -394,6 +395,13 @@ export default async function ProfilePage({
                 targetId={profile.id}
                 targetName={profile.username}
                 initiallyBlocked={isBlocked}
+              />
+              <ReportButton
+                viewerId={viewerId}
+                ownerId={profile.id}
+                kind="profile"
+                targetId={profile.id}
+                className="rounded-lg border border-line px-4 py-2 text-muted"
               />
             </div>
           )}

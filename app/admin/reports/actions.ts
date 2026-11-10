@@ -3,7 +3,7 @@
 "use server";
 
 import { updateTag } from "next/cache";
-import type { PostKind, ReportStatus } from "@/lib/adminReports";
+import type { PostKind, ReportKind, ReportStatus } from "@/lib/adminReports";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
 import { isUuid } from "@/lib/ids";
 import {
@@ -15,14 +15,19 @@ import {
 import { createClient } from "@/lib/supabase/server";
 
 const KINDS: PostKind[] = ["log", "list", "comment", "list_comment"];
+const REPORT_KINDS: ReportKind[] = [...KINDS, "profile"];
 const STATUSES: ReportStatus[] = ["open", "actioned", "dismissed"];
 
 export async function setReportStatus(
-  kind: PostKind,
+  kind: ReportKind,
   postId: string,
   status: ReportStatus,
 ): Promise<{ error?: string }> {
-  if (!KINDS.includes(kind) || !STATUSES.includes(status) || !isUuid(postId)) {
+  if (
+    !REPORT_KINDS.includes(kind) ||
+    !STATUSES.includes(status) ||
+    !isUuid(postId)
+  ) {
     return { error: "Invalid report." };
   }
 
