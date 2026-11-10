@@ -8,22 +8,25 @@ import AdminBadge from "@/components/AdminBadge";
 import Avatar from "@/components/Avatar";
 import BanButton from "@/components/BanButton";
 import BlockButton from "@/components/BlockButton";
+import CardActions from "@/components/CardActions";
 import Favourites, { type Slot } from "@/components/Favourites";
 import FollowButton from "@/components/FollowButton";
 import ItemImage from "@/components/ItemImage";
+import LikeButton from "@/components/LikeButton";
 import ListPreview from "@/components/ListPreview";
 import PinButton from "@/components/PinButton";
 import ReportButton from "@/components/ReportButton";
 import ReviewText from "@/components/ReviewText";
+import ShareButton from "@/components/ShareButton";
 import SignOutButton from "@/components/SignOutButton";
 import Stars from "@/components/Stars";
 import { isAdmin } from "@/lib/admin";
 import { avatarUrl } from "@/lib/avatar";
-import { commentLabel } from "@/lib/format";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { loginHref } from "@/lib/redirect";
 import { createClient } from "@/lib/supabase/server";
+import { getViewerState } from "@/lib/viewerState";
 
 export const instant = false;
 
@@ -36,8 +39,14 @@ type LogRow = {
   review: string;
   logged_at: string;
   items: ItemInfo;
+  likes: { count: number }[];
   comments: { count: number }[];
+  shares: { count: number }[];
 };
+
+// The columns a review card needs, for both the review list and the pinned ones
+const LOG_FIELDS =
+  "id, item_id, rating, review, logged_at, items(title, image_url), likes(count), comments(count), shares(count)";
 
 type FavRow = {
   position: number;
@@ -128,7 +137,7 @@ export default async function ProfilePage({
         "favourites(position, item_id, items(title, image_url)), " +
         "pin_rows:pins(pinned_at, log_id, list_id), " +
         "owned_lists:lists!lists_user_id_profiles_fkey(id, title, ranked, list_items(count), preview:list_items(position, items(title, image_url))), " +
-        "reviews:logs!logs_user_id_profiles_fkey(id, item_id, rating, review, logged_at, items(title, image_url), comments(count))" +
+        `reviews:logs!logs_user_id_profiles_fkey(${LOG_FIELDS})` +
         viewerEmbeds,
     )
     .eq("id", profile.id)
@@ -179,12 +188,7 @@ export default async function ProfilePage({
   const pinnedListIds = pinRows.flatMap((p) => (p.list_id ? [p.list_id] : []));
   const [pinnedLogsRes, pinnedListsRes] = await Promise.all([
     pinnedLogIds.length > 0
-      ? supabase
-          .from("logs")
-          .select(
-            "id, item_id, rating, review, logged_at, items(title, image_url), comments(count)",
-          )
-          .in("id", pinnedLogIds)
+      ? supabase.from("logs").select(LOG_FIELDS).in("id", pinnedLogIds)
       : { data: [] },
     pinnedListIds.length > 0
       ? supabase
@@ -213,6 +217,11 @@ export default async function ProfilePage({
   // Pinned things show at the top, so they aren't shown again below
   const otherLogs = logs.filter((l) => !pinnedLogs.has(l.id));
   const otherLists = lists.filter((l) => !pinnedLists.has(l.id));
+
+  // What the viewer has liked and shared among the reviews shown
+  const viewer = await getViewerState(supabase, viewerId, {
+    logIds: [...pinnedLogs.keys(), ...otherLogs.map((l) => l.id)],
+  });
 
   const isOwner = viewerId === profile.id;
   // Only the owner can read their own suspension
@@ -273,14 +282,14 @@ export default async function ProfilePage({
 
   const renderLog = (log: LogRow, isPinned: boolean) => {
     const title = log.items?.title ?? "Unknown item";
-    const commentCount = log.comments?.[0]?.count ?? 0;
+    const reviewHref = `${profileHref}/${log.id}`;
     return (
       <div
         key={log.id}
         className="card relative flex gap-4 p-3 hover:bg-surface"
       >
         <Link
-          href={`${profileHref}/${log.id}`}
+          href={reviewHref}
           aria-label={`Open the review of ${title}`}
           className="absolute inset-0 rounded-[inherit]"
         />
@@ -302,10 +311,33 @@ export default async function ProfilePage({
               <ReviewText text={log.review} />
             </p>
           )}
-          <span className="text-xs text-muted">
+          <CardActions
+            like={
+              log.review ? (
+                <LikeButton
+                  viewerId={viewerId ?? null}
+                  authorId={profile.id}
+                  logId={log.id}
+                  initialCount={log.likes?.[0]?.count ?? 0}
+                  initiallyLiked={viewer.likedLogs.has(log.id)}
+                />
+              ) : null
+            }
+            share={
+              <ShareButton
+                viewerId={viewerId ?? null}
+                ownerId={profile.id}
+                kind="log"
+                targetId={log.id}
+                initialCount={log.shares?.[0]?.count ?? 0}
+                initiallyShared={viewer.sharedLogs.has(log.id)}
+              />
+            }
+            commentHref={reviewHref}
+            commentCount={log.comments?.[0]?.count ?? 0}
+          >
             {new Date(log.logged_at).toLocaleDateString()}
-            {commentCount > 0 && <> · {commentLabel(commentCount)}</>}
-          </span>
+          </CardActions>
         </div>
       </div>
     );
