@@ -57,3 +57,20 @@ test("a successful request is not reported", async () => {
 
   assert.equal(sent.length, 0);
 });
+
+test("asking for a page past the end of a list is not reported", async () => {
+  mock.method(globalThis, "fetch", async () =>
+    Response.json(
+      { code: "PGRST103", message: "Requested range not satisfiable" },
+      { status: 416 },
+    ),
+  );
+
+  const response = await reportFailedResponses(
+    "https://test.supabase.co/rest/v1/list_items?list_id=eq.x",
+  );
+  await Sentry.flush();
+
+  assert.equal(response.status, 416);
+  assert.equal(sent.length, 0);
+});

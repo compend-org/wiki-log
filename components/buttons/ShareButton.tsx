@@ -61,13 +61,13 @@ export default function ShareButton({
     const supabase = createClient();
     const { error } = next
       ? await supabase
-        .from("shares")
-        .insert({ user_id: viewerId, [column]: targetId })
+          .from("shares")
+          .insert({ user_id: viewerId, [column]: targetId })
       : await supabase
-        .from("shares")
-        .delete()
-        .eq("user_id", viewerId)
-        .eq(column, targetId);
+          .from("shares")
+          .delete()
+          .eq("user_id", viewerId)
+          .eq(column, targetId);
 
     if (error) {
       setShared(!next);
@@ -101,8 +101,9 @@ export default function ShareButton({
         aria-pressed={shared}
         aria-label={shared ? "Undo share" : "Share to your followers"}
         title={shared ? "Undo share" : "Share to your followers"}
-        className={`inline-flex h-5 items-center gap-1 text-sm disabled:cursor-default ${shared ? "text-[#00ba7c]" : "text-muted enabled:hover:text-[#00ba7c]"
-          }`}
+        className={`inline-flex h-5 items-center gap-1 text-sm disabled:cursor-default ${
+          shared ? "text-[#00ba7c]" : "text-muted enabled:hover:text-[#00ba7c]"
+        }`}
       >
         <ShareIcon className="h-4 w-4" />
         {count > 0 && <span>{count}</span>}
