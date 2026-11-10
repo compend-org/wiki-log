@@ -72,7 +72,9 @@ export function takeNewest<Row extends { at: string }>(
   return { taken, hasMore: all.length > count };
 }
 
-function parseKeyset(value: unknown): Keyset | undefined | false {
+// A keyset that came from the browser: undefined when there is none, and
+// false when it isn't one
+export function parseKeyset(value: unknown): Keyset | undefined | false {
   if (value === undefined) return undefined;
   if (typeof value !== "object" || value === null) return false;
   const { at, id } = value as Record<string, unknown>;

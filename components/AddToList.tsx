@@ -19,23 +19,25 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { addToList } from "@/app/actions";
 import ItemImage from "@/components/icons/ItemImage";
 import { track } from "@/lib/analytics";
+import {
+  appendLists,
+  fetchPickerLists,
+  type PickerList,
+} from "@/lib/listPicker";
 import { createClient } from "@/lib/supabase/client";
 
 // Up to this many items, the new one is dragged into place among them;
 // past it, people type the rank instead.
 const MAX_DRAG_PLACE_ITEMS = 100;
 
-type ListOption = {
-  id: string;
-  title: string;
-  ranked: boolean;
-  count: number;
-  has: boolean;
-};
+type ListOption = PickerList;
+
+// Past this many lists, the picker offers a search box
+const SEARCH_FROM = 10;
 
 type Tile = { itemId: string; title: string; imageUrl: string | null };
 
@@ -121,6 +123,13 @@ export default function AddToList({
   const [signedIn, setSignedIn] = useState<boolean>(initiallySignedIn);
   const [open, setOpen] = useState<boolean>(false);
   const [lists, setLists] = useState<ListOption[] | null>(null);
+  // How many of the person's lists match the search, loaded or not
+  const [listTotal, setListTotal] = useState<number>(0);
+  const [search, setSearch] = useState<string>("");
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  // Only the latest request for lists is shown, as searches can overtake
+  const listRequest = useRef(0);
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [placing, setPlacing] = useState<Placing | null>(null);
   const [neighbours, setNeighbours] = useState<Neighbours | null>(null);
   const [busy, setBusy] = useState<boolean>(false);
@@ -137,48 +146,43 @@ export default function AddToList({
     }),
   );
 
+  // A page of the person's lists matching `query`: the first page replaces
+  // what is shown, later ones are added below it
+  async function loadListPage(query: string, offset: number) {
+    const request = ++listRequest.current;
+    const page = await fetchPickerLists(createClient(), itemId, query, offset);
+    if (request !== listRequest.current) return;
+    setLoadingMore(false);
+    if (page.error) {
+      setError(page.error);
+      if (offset === 0) setLists([]);
+      return;
+    }
+    if (page.total !== null) setListTotal(page.total);
+    setLists((shown) =>
+      offset === 0 || !shown ? page.lists : appendLists(shown, page.lists),
+    );
+  }
+
   async function loadLists() {
-    const supabase = createClient();
-    const { data: userData } = await supabase.auth.getUser();
+    const { data: userData } = await createClient().auth.getUser();
     if (!userData.user) {
       setSignedIn(false);
       return;
     }
+    await loadListPage(search, 0);
+  }
 
-    const { data } = await supabase
-      .from("lists")
-      .select("id, title, ranked, list_items(count)")
-      .eq("user_id", userData.user.id)
-      .order("created_at", { ascending: false });
-    const rows = (data ?? []) as unknown as {
-      id: string;
-      title: string;
-      ranked: boolean;
-      list_items: { count: number }[];
-    }[];
+  function changeSearch(value: string) {
+    setSearch(value);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => loadListPage(value, 0), 250);
+  }
 
-    let has = new Set<string>();
-    if (rows.length > 0) {
-      const { data: inRows } = await supabase
-        .from("list_items")
-        .select("list_id")
-        .eq("item_id", itemId)
-        .in(
-          "list_id",
-          rows.map((r) => r.id),
-        );
-      has = new Set((inRows ?? []).map((r) => r.list_id));
-    }
-
-    setLists(
-      rows.map((r) => ({
-        id: r.id,
-        title: r.title,
-        ranked: r.ranked,
-        count: r.list_items?.[0]?.count ?? 0,
-        has: has.has(r.id),
-      })),
-    );
+  function showMoreLists() {
+    if (!lists) return;
+    setLoadingMore(true);
+    loadListPage(search, lists.length);
   }
 
   function toggleOpen() {
@@ -433,11 +437,25 @@ export default function AddToList({
             </>
           ) : (
             <>
+              {lists !== null && (search !== "" || listTotal > SEARCH_FROM) && (
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => changeSearch(e.target.value)}
+                  placeholder="Find a list"
+                  aria-label="Find a list"
+                  className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-foreground"
+                />
+              )}
               {lists === null && (
                 <p className="text-sm text-muted">Loading your lists…</p>
               )}
               {lists !== null && lists.length === 0 && (
-                <p className="text-sm text-muted">You have no lists yet.</p>
+                <p className="text-sm text-muted">
+                  {search.trim()
+                    ? `None of your lists have “${search.trim()}” in their title.`
+                    : "You have no lists yet."}
+                </p>
               )}
               {lists?.map((l) => (
                 <button
@@ -457,6 +475,18 @@ export default function AddToList({
                   </span>
                 </button>
               ))}
+              {lists !== null && lists.length < listTotal && (
+                <button
+                  type="button"
+                  onClick={showMoreLists}
+                  disabled={loadingMore}
+                  className="self-start text-sm underline disabled:opacity-60"
+                >
+                  {loadingMore
+                    ? "Loading…"
+                    : `Show more lists (${(listTotal - lists.length).toLocaleString("en-US")} more)`}
+                </button>
+              )}
               <Link href="/list/new" className="self-start text-sm underline">
                 New list
               </Link>

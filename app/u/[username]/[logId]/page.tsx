@@ -9,7 +9,7 @@ import LikeButton from "@/components/buttons/LikeButton";
 import ReportButton from "@/components/buttons/ReportButton";
 import ShareButton from "@/components/buttons/ShareButton";
 import ShareImageButton from "@/components/buttons/ShareImageButton";
-import Comments, { type CommentItem } from "@/components/Comments";
+import Comments from "@/components/Comments";
 import ItemImage from "@/components/icons/ItemImage";
 import OwnerControls from "@/components/OwnerControls";
 import RemovedNotice from "@/components/RemovedNotice";
@@ -18,11 +18,18 @@ import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
 import { getAlsoLiked } from "@/lib/alsoLiked";
 import { withoutBlockedComments } from "@/lib/blocks";
+import {
+  fetchCommentThreads,
+  parseThreads,
+  THREADS_PER_PAGE,
+  threadsHref,
+  toCommentItems,
+} from "@/lib/comments";
 import { isUuid } from "@/lib/ids";
 import { likeKey } from "@/lib/likes";
 import { pageMetadata, starText } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
-import { getReviewWithComments } from "@/lib/reviews";
+import { getReview } from "@/lib/reviews";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
 
@@ -38,7 +45,7 @@ export async function generateMetadata({
   if (!isUuid(logId)) return {};
   const profile = await getProfileByName(username);
   if (!profile) return {};
-  const log = await getReviewWithComments(logId, profile.id);
+  const log = await getReview(logId, profile.id);
   if (!log) return {};
 
   const itemTitle = log.items?.title ?? "Unknown item";
@@ -54,11 +61,15 @@ export async function generateMetadata({
 
 export default async function ReviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ username: string; logId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await connection();
   const { username: rawName, logId } = await params;
+  const query = await searchParams;
+  const threads = parseThreads(query.comments);
 
   const profile = await getProfileByName(rawName);
   if (!profile) notFound();
@@ -85,10 +96,17 @@ export default async function ReviewPage({
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
-  const log = await getReviewWithComments(logId, profile.id);
+  const log = await getReview(logId, profile.id);
   if (!log) notFound();
 
-  const commentRows = log.comments;
+  // The newest threads of comments, whole. Older ones load on request.
+  const commentPage = await fetchCommentThreads(
+    supabase,
+    "comments",
+    log.id,
+    threads,
+  );
+  const commentRows = commentPage.rows;
 
   // Whether the viewer has liked and shared this review, which of these
   // comments they have liked, and who they have blocked
@@ -98,21 +116,17 @@ export default async function ReviewPage({
   });
 
   const adminIds = await getAdminIds();
-  const allComments: CommentItem[] = commentRows.map((c) => ({
-    id: c.id,
-    parentId: c.parent_id,
-    body: c.body,
-    date: c.created_at.slice(0, 10),
-    authorId: c.user_id,
-    authorName: c.profiles?.username ?? "Someone",
-    authorIsAdmin: adminIds.has(c.user_id),
-    removed: c.removed_at !== null,
-    likeCount: c.comment_likes?.[0]?.count ?? 0,
-    liked: viewer.likedComments.has(c.id),
-  }));
+  const allComments = toCommentItems(
+    commentRows,
+    adminIds,
+    viewer.likedComments,
+  );
 
   // Comments by people the viewer has blocked are left out
   const comments = withoutBlockedComments(allComments, viewer.blocked);
+  const commentTotal =
+    commentPage.total - (allComments.length - comments.length);
+  const reviewHref = `/u/${encodeURIComponent(profile.username)}/${log.id}`;
 
   const alsoLiked = await getAlsoLiked(supabase, [log]);
   const title = log.items?.title ?? "Unknown item";
@@ -232,6 +246,12 @@ export default async function ReviewPage({
         table="comments"
         scope={{ log_id: log.id }}
         ownerId={profile.id}
+        total={commentTotal}
+        earlierHref={
+          commentPage.olderThreads > 0
+            ? threadsHref(reviewHref, query, threads + THREADS_PER_PAGE)
+            : null
+        }
       />
     </main>
   );

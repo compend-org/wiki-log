@@ -9,7 +9,7 @@ import LoadMore from "@/components/LoadMore";
 import ReviewText from "@/components/ReviewText";
 import Stars from "@/components/Stars";
 import { track } from "@/lib/analytics";
-import { PAGE_SIZE } from "@/lib/paging";
+import { type Keyset, olderThan, PAGE_SIZE, takeNewest } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 
@@ -61,6 +61,9 @@ type PreviewRow = {
   items: { title: string; image_url: string | null } | null;
 };
 
+// Where the logs and the lists each got to: the last of each shown so far
+type Cursors = { logs?: Keyset; lists?: Keyset };
+
 // The same small controls sit at the top right of every card
 const actionClass = "text-xs text-accent underline hover:no-underline";
 
@@ -69,9 +72,11 @@ export default function DiaryPage() {
   const [ready, setReady] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
-  const [limit, setLimit] = useState<number>(PAGE_SIZE);
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [hasMore, setHasMore] = useState<boolean>(false);
+  // Where the next page starts, or null when everything is shown
+  const [next, setNext] = useState<Cursors | null>(null);
+  // The page being asked for: bumped to load the next one
+  const [wanted, setWanted] = useState<Cursors>({});
   const [loaded, setLoaded] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   // The log whose edit form is open
@@ -96,7 +101,9 @@ export default function DiaryPage() {
     loadUser();
   }, []);
 
-  // Their logs and lists, newest first
+  // Their logs and lists, newest first, a page at a time. Each page takes up
+  // to PAGE_SIZE + 1 more of each from where it got to, so the newest
+  // PAGE_SIZE of the two together are always among them.
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -104,21 +111,31 @@ export default function DiaryPage() {
     async function load() {
       const supabase = createClient();
 
+      let logsQuery = supabase
+        .from("logs")
+        .select(
+          "id, item_id, rating, review, logged_at, items(title, image_url)",
+        )
+        .eq("user_id", userId);
+      if (wanted.logs) {
+        logsQuery = logsQuery.or(olderThan("logged_at", wanted.logs));
+      }
+      let listsQuery = supabase
+        .from("lists")
+        .select("id, title, ranked, created_at, list_items(count)")
+        .eq("user_id", userId);
+      if (wanted.lists) {
+        listsQuery = listsQuery.or(olderThan("created_at", wanted.lists));
+      }
       const [logsRes, listsRes] = await Promise.all([
-        supabase
-          .from("logs")
-          .select(
-            "id, item_id, rating, review, logged_at, items(title, image_url)",
-          )
-          .eq("user_id", userId)
+        logsQuery
           .order("logged_at", { ascending: false })
-          .limit(limit + 1),
-        supabase
-          .from("lists")
-          .select("id, title, ranked, created_at, list_items(count)")
-          .eq("user_id", userId)
+          .order("id", { ascending: false })
+          .limit(PAGE_SIZE + 1),
+        listsQuery
           .order("created_at", { ascending: false })
-          .limit(limit + 1),
+          .order("id", { ascending: false })
+          .limit(PAGE_SIZE + 1),
       ]);
       if (cancelled) return;
 
@@ -131,35 +148,51 @@ export default function DiaryPage() {
       const logs = (logsRes.data ?? []) as unknown as LogRow[];
       const lists = (listsRes.data ?? []) as unknown as ListRow[];
 
-      const logEntries: LogEntry[] = logs.map((l) => ({
-        kind: "log",
-        id: l.id,
-        date: l.logged_at,
-        itemId: l.item_id,
-        title: l.items?.title ?? "Unknown item",
-        imageUrl: l.items?.image_url ?? null,
-        rating: l.rating === null ? null : Number(l.rating),
-        review: l.review,
+      const logEntries = logs.map((l) => ({
+        at: l.logged_at,
+        entry: {
+          kind: "log",
+          id: l.id,
+          date: l.logged_at,
+          itemId: l.item_id,
+          title: l.items?.title ?? "Unknown item",
+          imageUrl: l.items?.image_url ?? null,
+          rating: l.rating === null ? null : Number(l.rating),
+          review: l.review,
+        } satisfies LogEntry,
       }));
 
-      const listEntries: ListEntry[] = lists.map((l) => ({
-        kind: "list",
-        id: l.id,
-        date: l.created_at,
-        title: l.title,
-        ranked: l.ranked,
-        count: l.list_items?.[0]?.count ?? 0,
-        previews: [],
+      const listEntries = lists.map((l) => ({
+        at: l.created_at,
+        entry: {
+          kind: "list",
+          id: l.id,
+          date: l.created_at,
+          title: l.title,
+          ranked: l.ranked,
+          count: l.list_items?.[0]?.count ?? 0,
+          previews: [] as Thumb[],
+        } satisfies ListEntry,
       }));
 
-      // The newest `limit` of the combined list always sit within the newest
-      // `limit` of each, so merging and trimming is exact
-      const merged: Entry[] = [...logEntries, ...listEntries].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      const {
+        taken: [tookLogs, tookLists],
+        hasMore,
+      } = takeNewest<{ at: string; entry: Entry }>(
+        [logEntries, listEntries],
+        PAGE_SIZE,
       );
-      const shown = merged.slice(0, limit);
+      const shown = [...tookLogs, ...tookLists]
+        .map((t) => t.entry)
+        .sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+        );
+      const lastOf = (took: { entry: Entry }[], before?: Keyset) => {
+        const last = took.at(-1)?.entry;
+        return last ? { at: last.date, id: last.id } : before;
+      };
 
-      // A few pictures from each list that is on screen
+      // A few pictures from each list on this page
       const shownLists = shown.filter((e): e is ListEntry => e.kind === "list");
       if (shownLists.length > 0) {
         const { data: previewData } = await supabase
@@ -187,8 +220,23 @@ export default function DiaryPage() {
         }
       }
 
-      setEntries(shown);
-      setHasMore(merged.length > limit);
+      // Something already shown (say, a log edited while paging) stays where
+      // it was
+      setEntries((prev) => {
+        const have = new Set(prev.map((e) => `${e.kind}:${e.id}`));
+        return [
+          ...prev,
+          ...shown.filter((e) => !have.has(`${e.kind}:${e.id}`)),
+        ];
+      });
+      setNext(
+        hasMore
+          ? {
+              logs: lastOf(tookLogs, wanted.logs),
+              lists: lastOf(tookLists, wanted.lists),
+            }
+          : null,
+      );
       setLoaded(true);
     }
 
@@ -196,7 +244,7 @@ export default function DiaryPage() {
     return () => {
       cancelled = true;
     };
-  }, [userId, limit]);
+  }, [userId, wanted]);
 
   async function handleDelete(id: string) {
     if (!window.confirm("Delete this entry?")) return;
@@ -403,11 +451,8 @@ export default function DiaryPage() {
         })}
       </ul>
 
-      {hasMore && (
-        <LoadMore
-          key={entries.length}
-          onLoad={() => setLimit((l) => l + PAGE_SIZE)}
-        />
+      {next && (
+        <LoadMore key={JSON.stringify(next)} onLoad={() => setWanted(next)} />
       )}
     </main>
   );

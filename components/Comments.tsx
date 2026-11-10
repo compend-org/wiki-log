@@ -32,6 +32,8 @@ export default function Comments({
   table,
   scope,
   ownerId,
+  total = comments.length,
+  earlierHref = null,
 }: {
   comments: CommentItem[];
   viewerId: string | null;
@@ -41,6 +43,10 @@ export default function Comments({
   scope: Record<string, string>;
   // The owner of the review or list can delete any comment on it
   ownerId: string;
+  // How many comments there are in all, when only some of them were loaded
+  total?: number;
+  // Where to go to load older threads too, when there are any
+  earlierHref?: string | null;
 }) {
   const loginHref = useLoginHref();
   const [topText, setTopText] = useState<string>("");
@@ -190,10 +196,23 @@ export default function Comments({
   return (
     <section id="comments" className="flex flex-col gap-4">
       <h2 className="text-xl font-bold">
-        {comments.length === 0
+        {total === 0
           ? "No comments yet"
-          : `${comments.length} ${comments.length === 1 ? "comment" : "comments"}`}
+          : `${total.toLocaleString("en-US")} ${total === 1 ? "comment" : "comments"}`}
       </h2>
+
+      {/* Older threads come in above the ones shown, below this link, so it
+          stays put and what was loaded shows up right under it */}
+      {earlierHref && (
+        <Link
+          href={earlierHref}
+          replace
+          scroll={false}
+          className="self-start text-sm underline"
+        >
+          Show earlier comments
+        </Link>
+      )}
 
       {topLevel.map((c) => {
         const replies = repliesOf(c.id);
