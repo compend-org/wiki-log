@@ -81,7 +81,7 @@ export default async function ItemLogs({
     return (
       <div
         key={row.id}
-        className="card relative flex flex-col gap-1 p-3 hover:border-accent/60"
+        className="card relative flex flex-col gap-1 p-3 hover-or-tap:border-accent/60"
       >
         {reviewHref && (
           <Link

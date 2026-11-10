@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Tailwind's hover: only applies on devices with a mouse. Phones apply :hover
+   to whatever a finger taps, which is the only tap feedback iOS Safari gives a
+   card covered by a full-card link, so tappable cards use this instead */
+@custom-variant hover-or-tap (&:hover);
+
 @theme {
   --color-background: #ffffff;
   --color-surface: #f1f3f8;

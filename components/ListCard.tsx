@@ -38,7 +38,7 @@ export default async function ListCard({
   const itemCount = l.list_items?.[0]?.count ?? 0;
 
   return (
-    <div className="card relative flex flex-col gap-2 p-3 hover:border-accent/60">
+    <div className="card relative flex flex-col gap-2 p-3 hover-or-tap:border-accent/60">
       <Link
         href={`/list/${l.id}`}
         aria-label={`Open the list ${l.title}`}
