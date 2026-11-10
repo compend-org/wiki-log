@@ -241,6 +241,7 @@ export default async function ProfilePage({
       viewerId={viewerId}
       liked={viewer.likedLists.has(l.id)}
       shared={viewer.sharedLists.has(l.id)}
+      showAuthor={false}
       controls={pinControl("list", l.id, isPinned)}
     />
   );
@@ -252,6 +253,7 @@ export default async function ProfilePage({
       viewerId={viewerId}
       liked={viewer.likedLogs.has(log.id)}
       shared={viewer.sharedLogs.has(log.id)}
+      showAuthor={false}
       controls={pinControl("log", log.id, isPinned)}
     />
   );

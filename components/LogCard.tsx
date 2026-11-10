@@ -23,6 +23,7 @@ export default async function LogCard({
   liked,
   shared,
   sharers = [],
+  showAuthor = true,
   controls,
 }: {
   log: LogRow;
@@ -31,6 +32,8 @@ export default async function LogCard({
   shared: boolean;
   // The people to credit for sharing this review, newest first
   sharers?: Sharer[];
+  // Whether to name the author, which a page about that person doesn't need
+  showAuthor?: boolean;
   // Extra controls beside the title, such as Pin
   controls?: ReactNode;
 }) {
@@ -77,14 +80,19 @@ export default async function LogCard({
           </span>
         )}
         <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
-          <UserName
-            userId={row.user_id}
-            username={author}
-            avatarPath={avatarPath}
-          />
-          <span>logged</span>
+          {showAuthor && (
+            <>
+              <UserName
+                userId={row.user_id}
+                username={author}
+                avatarPath={avatarPath}
+              />
+              <span>logged</span>
+            </>
+          )}
           <span className="whitespace-nowrap">
-            · {timeAgo(row.logged_at, renderedAt)}
+            {showAuthor && "· "}
+            {timeAgo(row.logged_at, renderedAt)}
           </span>
         </span>
         <div className="flex items-baseline justify-between gap-3">
