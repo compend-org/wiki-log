@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import DeleteIcon from "@/components/DeleteIcon";
 import EditEntryForm from "@/components/EditEntryForm";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export default function OwnerControls({
@@ -50,6 +51,7 @@ export default function OwnerControls({
       setError("Couldn't delete that entry.");
       return;
     }
+    track("log_deleted");
     router.push(profileHref);
     router.refresh();
   }

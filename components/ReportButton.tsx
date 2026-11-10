@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import Dialog from "@/components/Dialog";
+import { track } from "@/lib/analytics";
 import { REPORT_REASONS } from "@/lib/moderation";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
@@ -66,6 +67,7 @@ export default function ReportButton({
       setError("Couldn't send the report. Please try again.");
       return;
     }
+    track("report_submitted", { target: kind, reason });
     setDone(true);
   }
 

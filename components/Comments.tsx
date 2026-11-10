@@ -6,6 +6,7 @@ import { useState } from "react";
 import CommentLikeButton from "@/components/CommentLikeButton";
 import ReportButton from "@/components/ReportButton";
 import ReviewText from "@/components/ReviewText";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 import AdminBadge from "./AdminBadge";
@@ -76,6 +77,11 @@ export default function Comments({
       setError(error.message);
       return false;
     }
+    track("comment_posted", {
+      target: table === "comments" ? "log" : "list",
+      is_reply: parentId !== null,
+      length: trimmed.length,
+    });
     router.refresh();
     return true;
   }
@@ -108,6 +114,7 @@ export default function Comments({
       setError(error.message);
       return;
     }
+    track("comment_deleted", { target: table === "comments" ? "log" : "list" });
     router.refresh();
   }
 

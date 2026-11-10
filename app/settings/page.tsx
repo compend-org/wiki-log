@@ -9,6 +9,7 @@ import BlockedPeople from "@/components/BlockedPeople";
 import DeleteAccount from "@/components/DeleteAccount";
 import EmailVerification from "@/components/EmailVerification";
 import ThemeSetting from "@/components/ThemeSetting";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
@@ -68,6 +69,7 @@ export default function SettingsPage() {
       );
       return;
     }
+    track("profile_updated", { field: "username" });
     setUsername(name);
     setSavedUsername(name);
     setMessage("Saved.");

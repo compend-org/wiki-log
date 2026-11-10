@@ -8,6 +8,7 @@ import ItemImage from "@/components/ItemImage";
 import LoadMore from "@/components/LoadMore";
 import ReviewText from "@/components/ReviewText";
 import Stars from "@/components/Stars";
+import { track } from "@/lib/analytics";
 import { PAGE_SIZE } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
@@ -204,6 +205,7 @@ export default function DiaryPage() {
       setError(error.message);
       return;
     }
+    track("log_deleted");
     setEntries((prev) =>
       prev.filter((e) => !(e.kind === "log" && e.id === id)),
     );
@@ -231,6 +233,7 @@ export default function DiaryPage() {
       setError("Couldn't delete that list.");
       return;
     }
+    track("list_deleted");
     setEntries((prev) =>
       prev.filter((e) => !(e.kind === "list" && e.id === id)),
     );

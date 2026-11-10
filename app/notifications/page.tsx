@@ -7,6 +7,7 @@ import NotificationThumb, {
   MOSAIC_SIZE,
   type NotificationSubject,
 } from "@/components/NotificationThumb";
+import { track } from "@/lib/analytics";
 import type { Thumb } from "@/lib/feedData";
 import { shownImage, timeAgo } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
@@ -412,6 +413,7 @@ export default function NotificationsPage() {
                   ? `From the moderators: ${rest}`
                   : `${actor ?? "Someone"}${rest}${reviewOwner?.username ?? ""}`
               }
+              onClick={() => track("notification_clicked", { type: n.type })}
               className="absolute inset-0"
             />
             <div className="flex min-w-0 flex-1 flex-col gap-1">

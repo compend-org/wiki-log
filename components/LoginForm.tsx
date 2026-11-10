@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { signIn } from "@/app/actions";
 import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/Turnstile";
+import { identifyPerson, track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
 
@@ -79,6 +80,7 @@ export default function LoginForm({ next }: { next: string }) {
       setBusy(false);
       resetCaptcha();
       if (/not confirmed/i.test(result.error)) {
+        track("signin_failed", { reason: "unconfirmed" });
         if (identifier.includes("@")) {
           setPendingEmail(identifier.trim());
           setMessage("");
@@ -92,9 +94,16 @@ export default function LoginForm({ next }: { next: string }) {
         }
         return;
       }
+      track("signin_failed", { reason: "invalid" });
       setMessage(result.error);
       return;
     }
+    // Tied to the account now, so the sign-in counts as theirs. The top bar
+    // adds their username and admin flag once it redraws.
+    if (result.userId) identifyPerson(result.userId);
+    track("signed_in", {
+      method: identifier.includes("@") ? "email" : "username",
+    });
     // Server-set cookies don't emit a browser auth event. Refresh mounted
     // user state, then navigate without aborting the action's RSC stream.
     window.dispatchEvent(new Event("auth-updated"));
@@ -123,6 +132,7 @@ export default function LoginForm({ next }: { next: string }) {
       .select("id")
       .maybeSingle();
     if (taken) {
+      track("signup_failed", { reason: "username_taken" });
       setBusy(false);
       setMessage("That username is taken.");
       return;
@@ -140,12 +150,24 @@ export default function LoginForm({ next }: { next: string }) {
     setBusy(false);
     resetCaptcha();
     if (error) {
+      track("signup_failed", {
+        reason: /rate limit|too many/i.test(error.message)
+          ? "rate_limited"
+          : "other",
+      });
       setMessage(
         /rate limit|too many/i.test(error.message)
           ? "A lot of people are signing up right now. Please try again in a few minutes."
           : error.message,
       );
       return;
+    }
+    // An address that already has an account gets a stand-in user with no
+    // identities, so it isn't counted as a sign-up
+    if (data.user && (data.user.identities?.length ?? 0) > 0) {
+      // Ties this sign-up to the email confirmation the server records later
+      identifyPerson(data.user.id, { username: name, is_admin: false });
+      track("signed_up");
     }
     if (data.session) {
       window.location.href = next;
@@ -178,6 +200,7 @@ export default function LoginForm({ next }: { next: string }) {
       );
       return;
     }
+    track("verification_email_resent");
     setNotice(`We sent another link to ${pendingEmail}.`);
   }
 

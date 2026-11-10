@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/Turnstile";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ForgotPasswordForm() {
@@ -32,6 +33,7 @@ export default function ForgotPasswordForm() {
     }
     // The same answer whether or not an account exists, so this form can't be
     // used to find out who has one
+    track("password_reset_requested");
     setSent(true);
   }
 

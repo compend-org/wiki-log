@@ -4,6 +4,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 type BlockedPerson = { id: string; username: string };
@@ -56,6 +57,7 @@ export default function BlockedPeople() {
       setError(error.message);
       return;
     }
+    track("user_unblocked");
     setPeople((current) => current.filter((p) => p.id !== person.id));
   }
 

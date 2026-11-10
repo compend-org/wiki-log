@@ -1,12 +1,17 @@
+"use client";
+
 import Link from "next/link";
 import ItemImage from "@/components/ItemImage";
+import { track } from "@/lib/analytics";
 import type { Pick } from "@/lib/dailyPicks";
 
 export default function PickSquare({
   heading,
+  kind,
   pick,
 }: {
   heading: string;
+  kind: "popular" | "unpopular";
   pick: Pick | null;
 }) {
   const box =
@@ -30,6 +35,7 @@ export default function PickSquare({
       href={`/item/${pick.itemId}`}
       title={pick.title}
       className={`${box} no-underline`}
+      onClick={() => track("daily_pick_clicked", { kind })}
     >
       <span className={label}>{heading}</span>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ResetPasswordForm() {
@@ -29,6 +30,7 @@ export default function ResetPasswordForm() {
       setError(error.message);
       return;
     }
+    track("password_reset_completed");
     setDone(true);
     setTimeout(() => {
       window.location.href = "/";

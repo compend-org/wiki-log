@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 const MAX = 300;
@@ -51,6 +52,7 @@ export default function BioEditor() {
       setMessage(error.message);
       return;
     }
+    track("profile_updated", { field: "bio" });
     setBio(clean);
     setSaved(clean);
     setMessage("Saved.");

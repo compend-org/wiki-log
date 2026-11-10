@@ -5,6 +5,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Dialog from "@/components/Dialog";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export default function BlockButton({
@@ -44,6 +45,7 @@ export default function BlockButton({
       setError(error.message);
       return;
     }
+    track(blocked ? "user_unblocked" : "user_blocked");
     setBlocked(!blocked);
     setOpen(false);
     router.refresh(); // updates the follow button and follower counts

@@ -1,6 +1,7 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { safeNext } from "@/lib/redirect";
+import { trackForPerson } from "@/lib/serverAnalytics";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -32,10 +33,17 @@ export async function GET(request: NextRequest) {
     if (!error) {
       // Following an emailed link proves the person owns the address
       if (data.user) {
-        const { error: recordError } = await createAdminClient()
-          .from("email_verifications")
-          .upsert({ user_id: data.user.id }, { ignoreDuplicates: true });
+        const { data: firstTime, error: recordError } =
+          await createAdminClient()
+            .from("email_verifications")
+            .upsert({ user_id: data.user.id }, { ignoreDuplicates: true })
+            .select("user_id");
         if (recordError) console.error(recordError);
+        // Only a newly recorded verification comes back, so each account
+        // counts once, however many links it follows
+        if (firstTime && firstTime.length > 0) {
+          trackForPerson(data.user.id, "email_confirmed");
+        }
       }
       return NextResponse.redirect(new URL(next, origin));
     }

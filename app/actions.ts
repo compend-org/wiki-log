@@ -264,7 +264,7 @@ export async function signIn(input: {
   identifier: string;
   password: string;
   captchaToken?: string;
-}): Promise<{ error?: string }> {
+}): Promise<{ error?: string; userId?: string }> {
   const generic = "Invalid sign-in credentials";
   let email = input.identifier.trim();
 
@@ -286,7 +286,7 @@ export async function signIn(input: {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password: input.password,
     options: { captchaToken: input.captchaToken },
@@ -296,7 +296,7 @@ export async function signIn(input: {
       error: error.code === "invalid_credentials" ? generic : error.message,
     };
   }
-  return {};
+  return { userId: data.user.id };
 }
 
 export async function setFavourite(input: {

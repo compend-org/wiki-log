@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export default function PinButton({
@@ -40,6 +41,7 @@ export default function PinButton({
       setError(error.message);
       return;
     }
+    track(pinned ? "unpinned" : "pinned", { target: kind });
     router.refresh();
   }
 

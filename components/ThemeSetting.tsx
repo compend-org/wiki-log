@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { track } from "@/lib/analytics";
 import {
   applyTheme,
   getStoredTheme,
@@ -21,6 +22,7 @@ export default function ThemeSetting() {
   }, []);
 
   function choose(next: ThemePref) {
+    track("theme_changed", { theme: next });
     setPref(next);
     setStoredTheme(next);
     applyTheme(next);

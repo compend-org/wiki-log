@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
+import { track } from "@/lib/analytics";
 import {
   isLogUnavailable,
   isMissingLogError,
@@ -93,6 +94,10 @@ export function useLike({
       } else {
         setErrorMessage("Couldn't update your like. Please try again.");
       }
+    } else if (!error) {
+      track(next ? "liked" : "unliked", {
+        target: table === "likes" ? "log" : "list",
+      });
     }
     setBusy(false);
   }
