@@ -153,30 +153,36 @@ type Column<Row> = {
 
 const NOTHING = { data: [], error: null };
 
-// One page of a column in time order: the next posts made up to `asOf`. Given
-// `authorIds`, only their posts, merged with the posts they shared, each at
-// the time it was shared. The same post can come again on a later page if it
-// was also posted or shared earlier.
+// The rows of `table`, or with `following` only those by the viewer and the
+// people they follow. That filter is done in the database (the following_*
+// functions) rather than sent as a list of ids, which would make the request
+// URL too long for anyone following a few hundred people.
+function rowsOf(supabase: SupabaseClient, table: string, following: boolean) {
+  return following ? supabase.rpc(`following_${table}`) : supabase.from(table);
+}
+
+// One page of a column in time order: the next posts made up to `asOf`. With
+// `following`, only posts by the viewer and the people they follow, merged
+// with the posts those people shared, each at the time it was shared. The
+// same post can come again on a later page if it was also posted or shared
+// earlier.
 async function loadColumn<Row extends { id: string }>(
   supabase: SupabaseClient,
   kind: Kind,
   asOf: string,
   cursor: ColumnCursor | null,
-  authorIds?: string[],
+  following = false,
 ): Promise<Column<Row>> {
   if (!cursor) return { rows: [], next: null, end: null, error: "" };
   const { table, select, time, share } = KINDS[kind];
 
-  let posts = supabase.from(table).select(select).lte(time, asOf);
-  if (authorIds) posts = posts.in("user_id", authorIds);
+  let posts = rowsOf(supabase, table, following).select(select).lte(time, asOf);
   if (cursor.posts) posts = posts.or(olderThan(time, cursor.posts));
 
-  let shares = supabase
-    .from("shares")
+  let shares = rowsOf(supabase, "shares", following)
     .select(`id, created_at, ${share}`)
     .not(share, "is", null)
     .lte("created_at", asOf);
-  if (authorIds) shares = shares.in("user_id", authorIds);
   if (cursor.shares) shares = shares.or(olderThan("created_at", cursor.shares));
 
   const [postsRes, sharesRes] = await Promise.all([
@@ -184,7 +190,7 @@ async function loadColumn<Row extends { id: string }>(
       .order(time, { ascending: false })
       .order("id", { ascending: false })
       .limit(PAGE_SIZE + 1),
-    authorIds
+    following
       ? shares
           .order("created_at", { ascending: false })
           .order("id", { ascending: false })
@@ -292,18 +298,18 @@ export async function getPublicFeed(
   return assemble(supabase, logs, lists);
 }
 
-// A page of the Following feed: what `authorIds` posted or shared up to
-// `asOf`. Comes with every share of these posts by `authorIds`, so each post
-// can say who shared it and count from when it was last shared.
+// A page of the Following feed: what the signed-in viewer and the people
+// they follow posted or shared up to `asOf`. Comes with every share of these
+// posts by those people, so each post can say who shared it and count from
+// when it was last shared.
 export async function getFollowingFeed(
   supabase: SupabaseClient,
-  authorIds: string[],
   asOf: string,
   cursor: FeedCursor,
 ): Promise<PublicFeed> {
   const [logs, lists] = await Promise.all([
-    loadColumn<LogRow>(supabase, "log", asOf, cursor.reviews, authorIds),
-    loadColumn<ListRow>(supabase, "list", asOf, cursor.lists, authorIds),
+    loadColumn<LogRow>(supabase, "log", asOf, cursor.reviews, true),
+    loadColumn<ListRow>(supabase, "list", asOf, cursor.lists, true),
   ]);
   const feed = await assemble(supabase, logs, lists);
 
@@ -317,10 +323,9 @@ export async function getFollowingFeed(
   ];
   if (targets.length === 0) return feed;
 
-  const { data, error } = await supabase
-    .from("shares")
+  // `targets` names only this page's posts (a few dozen ids), so it stays short
+  const { data, error } = await rowsOf(supabase, "shares", true)
     .select("user_id, log_id, list_id, created_at, profiles(username)")
-    .in("user_id", authorIds)
     .lte("created_at", asOf)
     .or(targets.join(","))
     .order("created_at", { ascending: false });

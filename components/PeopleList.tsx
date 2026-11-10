@@ -39,47 +39,39 @@ export default async function PeopleList({
     .maybeSingle();
   if (!profile) notFound();
 
+  // Each follow comes with the person on the other end of it, so their ids
+  // never have to be sent back in a second request (hundreds of them would
+  // make its URL too long)
   const [followersRes, followingRes] = await Promise.all([
     supabase
       .from("follows")
-      .select("follower_id", { count: "exact" })
+      .select(
+        "person:profiles!follows_follower_id_fkey(id, username, avatar_path)",
+        { count: "exact" },
+      )
       .eq("following_id", profile.id)
       .order("created_at", { ascending: false })
       .limit(MAX_PEOPLE),
     supabase
       .from("follows")
-      .select("following_id", { count: "exact" })
+      .select(
+        "person:profiles!follows_following_id_fkey(id, username, avatar_path)",
+        { count: "exact" },
+      )
       .eq("follower_id", profile.id)
       .order("created_at", { ascending: false })
       .limit(MAX_PEOPLE),
   ]);
 
-  const followerIds = (
-    (followersRes.data ?? []) as unknown as { follower_id: string }[]
-  ).map((r) => r.follower_id);
-  const followingIds = (
-    (followingRes.data ?? []) as unknown as { following_id: string }[]
-  ).map((r) => r.following_id);
-  const followersTotal = followersRes.count ?? followerIds.length;
-  const followingTotal = followingRes.count ?? followingIds.length;
-
-  // One lookup for everyone on either list
-  const allIds = [...new Set([...followerIds, ...followingIds])];
-  const { data: personData } = allIds.length
-    ? await supabase
-        .from("profiles")
-        .select("id, username, avatar_path")
-        .in("id", allIds)
-    : { data: [] };
-  const byId = new Map(
-    ((personData ?? []) as unknown as PersonRow[]).map((p) => [p.id, p]),
-  );
   // Newest first, as the follows came back
-  const peopleFor = (ids: string[]) =>
-    ids.flatMap((id) => {
-      const person = byId.get(id);
-      return person ? [person] : [];
-    });
+  const peopleOf = (rows: unknown[] | null) =>
+    ((rows ?? []) as { person: PersonRow | null }[]).flatMap((r) =>
+      r.person ? [r.person] : [],
+    );
+  const followers = peopleOf(followersRes.data);
+  const following = peopleOf(followingRes.data);
+  const followersTotal = followersRes.count ?? followers.length;
+  const followingTotal = followingRes.count ?? following.length;
 
   const adminIds = await getAdminIds();
   const profileHref = `/u/${encodeURIComponent(profile.username)}`;
@@ -129,7 +121,7 @@ export default async function PeopleList({
             id: "followers",
             label: `${followersTotal} ${followersTotal === 1 ? "follower" : "followers"}`,
             content: renderPeople(
-              peopleFor(followerIds),
+              followers,
               followersTotal,
               "No followers yet.",
             ),
@@ -138,7 +130,7 @@ export default async function PeopleList({
             id: "following",
             label: `${followingTotal} following`,
             content: renderPeople(
-              peopleFor(followingIds),
+              following,
               followingTotal,
               "Not following anyone yet.",
             ),

@@ -68,17 +68,15 @@ export async function loadFeedPage(
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
   // Following shows the people you follow and you, so your own entries are in
-  // it as well
+  // it as well. Who they are is worked out in the database; here we only need
+  // to know whether you follow anyone.
   let followedCount = 0;
-  let authorIds: string[] = [];
   if (mode === "following" && viewerId) {
-    const { data: followRows } = await supabase
+    const { count } = await supabase
       .from("follows")
-      .select("following_id")
+      .select("following_id", { count: "exact", head: true })
       .eq("follower_id", viewerId);
-    const followed = (followRows ?? []).map((r) => r.following_id as string);
-    followedCount = followed.length;
-    authorIds = [...new Set([...followed, viewerId])];
+    followedCount = count ?? 0;
   }
 
   let reviewEntries: Entry[] = [];
@@ -96,13 +94,13 @@ export async function loadFeedPage(
   let ranks: Record<string, number> = {};
   const previews = new Map<string, Thumb[]>();
 
-  if (mode !== "following" || authorIds.length > 0) {
+  if (mode !== "following" || viewerId) {
     // Everyone and Trending are the same for every visitor, so they are
     // cached and shared. Following is the viewer's own. The viewer's own
     // hearts are looked up below.
     const feed: PublicFeed =
       mode === "following"
-        ? await getFollowingFeed(supabase, authorIds, asOf, cursor)
+        ? await getFollowingFeed(supabase, asOf, cursor)
         : mode === "trending"
           ? await getTrendingFeed(startOfMinute(asOf), cursor)
           : await getPublicFeed(startOfMinute(asOf), cursor);
