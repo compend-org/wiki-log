@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
 import LanguagePicker from "@/components/LanguagePicker";
 import { findItemId, searchTitles } from "@/lib/browserWikipedia";
 import { FEATURES } from "@/lib/features";
 import { DEFAULT_LANG, isLang, type LangCode } from "@/lib/languages";
+import { useDropdownRoom } from "@/lib/useDropdownRoom";
 
 type Hit = {
   key: string;
@@ -17,6 +18,9 @@ type Hit = {
 };
 
 const LANG_KEY = "search-lang";
+
+// The tallest the list of results gets, in pixels
+const LIST_HEIGHT = 384;
 
 // Matching compounds. A failure here leaves the Wikipedia results to show alone.
 async function searchCompounds(q: string, signal: AbortSignal): Promise<Hit[]> {
@@ -86,10 +90,12 @@ export default function ItemPicker({
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const listId = useId();
+  const box = useRef<HTMLDivElement>(null);
 
   const term = query.trim();
   const searchKey = `${lang}:${term}`;
   const listOpen = open && term.length >= 2;
+  const room = useDropdownRoom(box, listOpen, LIST_HEIGHT);
 
   // A pasted link replaces searching: it is the one result
   const pasted = parseWikipediaUrl(term);
@@ -201,6 +207,7 @@ export default function ItemPicker({
     <div className="flex flex-col gap-2">
       {/** biome-ignore lint/a11y/noStaticElementInteractions: closes the menu on events from the controls inside it */}
       <div
+        ref={box}
         className="relative"
         onBlur={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
@@ -242,7 +249,10 @@ export default function ItemPicker({
             role="listbox"
             // Keeps focus in the input while you click an option
             onMouseDown={(e) => e.preventDefault()}
-            className="absolute z-[15] mt-1 max-h-96 w-full overflow-auto border border-line bg-background"
+            style={{ maxHeight: room.maxHeight }}
+            className={`absolute z-[15] w-full overflow-auto border border-line bg-background ${
+              room.above ? "bottom-full mb-1" : "top-full mt-1"
+            }`}
           >
             {error && (
               <li role="alert" className="px-4 py-3 text-sm text-danger">

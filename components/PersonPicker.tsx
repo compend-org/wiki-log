@@ -2,12 +2,16 @@
 // ABOUTME: Never offers the viewer themselves, nor anyone blocked either way.
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/client";
+import { useDropdownRoom } from "@/lib/useDropdownRoom";
 import { escapeLike } from "@/lib/username";
 
 type Person = { id: string; username: string; avatar_path: string | null };
+
+// The tallest the list of results gets, in pixels
+const LIST_HEIGHT = 384;
 
 export default function PersonPicker({
   onPick,
@@ -23,9 +27,11 @@ export default function PersonPicker({
   const [peopleFor, setPeopleFor] = useState<string>("");
   const [active, setActive] = useState<number>(-1);
   const listId = useId();
+  const box = useRef<HTMLDivElement>(null);
 
   const term = query.trim();
   const ready = term.length > 0 && peopleFor === term;
+  const room = useDropdownRoom(box, term.length > 0, LIST_HEIGHT);
 
   useEffect(() => {
     if (term.length === 0) return;
@@ -62,7 +68,7 @@ export default function PersonPicker({
   }
 
   return (
-    <div className="relative">
+    <div ref={box} className="relative">
       <input
         type="text"
         role="combobox"
@@ -87,7 +93,10 @@ export default function PersonPicker({
           role="listbox"
           // Keeps focus in the input while you click an option
           onMouseDown={(e) => e.preventDefault()}
-          className="absolute z-[15] mt-1 max-h-96 w-full overflow-auto border border-line bg-background"
+          style={{ maxHeight: room.maxHeight }}
+          className={`absolute z-[15] w-full overflow-auto border border-line bg-background ${
+            room.above ? "bottom-full mb-1" : "top-full mt-1"
+          }`}
         >
           {!ready && (
             <li className="px-4 py-3 text-sm text-muted">Searching…</li>

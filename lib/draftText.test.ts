@@ -4,8 +4,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   findChange,
-  insertLink,
+  insertDraft,
   replaceText,
+  sliceDraft,
   toDraft,
   toStored,
 } from "./draftText";
@@ -74,9 +75,35 @@ test("finds a change when the caret doesn't follow it", () => {
 
 test("puts a link in place of what was typed to ask for it", () => {
   const draft = toDraft("Hi @ and ::link");
-  const withAnn = insertLink(draft, 3, 4, ANN);
+  const withAnn = insertDraft(draft, 3, 4, toDraft(ANN));
   assert.equal(withAnn.draft.text, "Hi @Ann and ::link");
   assert.equal(withAnn.caret, 7);
-  const both = insertLink(withAnn.draft, 12, 18, "[[Q42|Douglas Adams]]");
+  const both = insertDraft(
+    withAnn.draft,
+    12,
+    18,
+    toDraft("[[Q42|Douglas Adams]]"),
+  );
   assert.equal(toStored(both.draft), `Hi ${ANN} and [[Q42|Douglas Adams]]`);
+});
+
+test("keeps links through cutting and pasting back", () => {
+  const draft = toDraft(STORED);
+  const cut = sliceDraft(draft, 0, draft.text.length);
+  assert.equal(toStored(cut), STORED);
+  const emptied = replaceText(draft, 0, draft.text.length, "").draft;
+  assert.equal(toStored(insertDraft(emptied, 0, 0, cut).draft), STORED);
+});
+
+test("copies a link only partly selected as plain text", () => {
+  // "@Ann about Doug"
+  const piece = sliceDraft(toDraft(STORED), 4, 19);
+  assert.equal(toStored(piece), `${ANN} about Doug`);
+});
+
+test("pastes links into the middle of text", () => {
+  const piece = toDraft(`see ${ANN} `);
+  const { draft, caret } = insertDraft(toDraft("Go [[Q1|Earth]]"), 3, 3, piece);
+  assert.equal(toStored(draft), `Go see ${ANN} [[Q1|Earth]]`);
+  assert.equal(caret, 12);
 });

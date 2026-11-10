@@ -1,5 +1,5 @@
 -- ABOUTME: Tells people when they're @-mentioned in a review or a comment, and finds
--- ABOUTME: who can be mentioned: anyone but yourself and people blocked either way.
+-- ABOUTME: who can be mentioned: anyone but yourself, banned people and people blocked either way.
 
 alter table public.notifications drop constraint notifications_type_check;
 alter table public.notifications
@@ -11,7 +11,7 @@ alter table public.notifications
   ));
 
 -- People whose username contains `term`, for the viewer to mention: never the
--- viewer, nor anyone they've blocked or who has blocked them
+-- viewer, banned people, nor anyone they've blocked or who has blocked them
 create function public.mentionable_people(term text)
 returns table (id uuid, username text, avatar_path text)
 language sql
@@ -22,6 +22,7 @@ as $$
   from public.profiles p
   where p.username ilike '%' || term || '%'
     and p.id <> auth.uid()
+    and p.banned_at is null
     and not exists (
       select 1 from public.blocks b
       where (b.blocker_id = auth.uid() and b.blocked_id = p.id)
@@ -36,8 +37,10 @@ grant execute on function public.mentionable_people(text)
   to authenticated, service_role;
 
 -- Notifies the first 10 people mentioned in `body` ([[@<id>|name]]), except
--- the author, anyone in `already_notified`, people blocked either way, and
--- anyone already told about this same mention
+-- the author, anyone in `already_notified`, banned people, people blocked
+-- either way, and anyone already told about this same mention. Nobody is told
+-- about a mention on a review or list the moderators removed, which only its
+-- author can still see.
 create function public.notify_mentions(
   author uuid,
   body text,
@@ -52,6 +55,14 @@ language plpgsql
 security definer set search_path = ''
 as $$
 begin
+  if exists (
+    select 1 from public.logs where id = on_log and removed_at is not null
+  ) or exists (
+    select 1 from public.lists where id = on_list and removed_at is not null
+  ) then
+    return;
+  end if;
+
   insert into public.notifications
     (recipient_id, actor_id, type, log_id, list_id, comment_id, list_comment_id)
   select p.id, author, 'mention', on_log, on_list, on_comment, on_list_comment
@@ -68,6 +79,7 @@ begin
   ) mentioned
   join public.profiles p on p.id = mentioned.id
   where p.id <> author
+    and p.banned_at is null
     and not (p.id = any(array_remove(coalesce(already_notified, '{}'), null)))
     and not exists (
       select 1 from public.blocks b

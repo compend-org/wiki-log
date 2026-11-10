@@ -5,9 +5,11 @@ import ItemPicker from "@/components/ItemPicker";
 import PersonPicker from "@/components/PersonPicker";
 import { LINK_COLOR } from "@/components/ReviewText";
 import {
+  type Draft,
   findChange,
-  insertLink,
+  insertDraft,
   replaceText,
+  sliceDraft,
   toDraft,
   toStored,
 } from "@/lib/draftText";
@@ -16,6 +18,10 @@ import { mentionToken } from "@/lib/format";
 // What you type to link to an item, and to mention a person
 const LINK_TRIGGER = "::link";
 const MENTION_TRIGGER = "@";
+
+// Where a copy or cut puts the stored text, links and all, for a paste back
+// into one of these boxes. Other apps get the text as shown.
+const CLIPBOARD_TYPE = "application/x-compend-text";
 
 // Which search is open, and where its trigger sits in the shown text
 type Picking = { kind: "item" | "person"; at: number; trigger: string };
@@ -78,6 +84,46 @@ export default function ReviewTextarea({
     });
   }
 
+  // Shows `next` with the caret at `caret`
+  function apply({ draft: next, caret }: { draft: Draft; caret: number }) {
+    onChange(toStored(next));
+    setNotice("");
+    placeCaret(caret);
+  }
+
+  // Puts the selection on the clipboard, links and all. Returns what was
+  // copied, or null when nothing is selected.
+  function copySelection(
+    e: React.ClipboardEvent<HTMLTextAreaElement>,
+  ): { start: number; end: number } | null {
+    const { selectionStart: start, selectionEnd: end } = e.currentTarget;
+    if (start === end) return null;
+    e.preventDefault();
+    e.clipboardData.setData("text/plain", draft.text.slice(start, end));
+    e.clipboardData.setData(
+      CLIPBOARD_TYPE,
+      toStored(sliceDraft(draft, start, end)),
+    );
+    return { start, end };
+  }
+
+  function handleCut(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const copied = copySelection(e);
+    if (copied) apply(replaceText(draft, copied.start, copied.end, ""));
+  }
+
+  // Text copied from one of these boxes pastes back with its links. Anything
+  // else, or a paste too long to fit, pastes as plain text.
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const stored = e.clipboardData.getData(CLIPBOARD_TYPE);
+    if (!stored) return;
+    const { selectionStart: start, selectionEnd: end } = e.currentTarget;
+    const pasted = insertDraft(draft, start, end, toDraft(stored));
+    if (toStored(pasted.draft).length > maxLength) return;
+    e.preventDefault();
+    apply(pasted);
+  }
+
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const shown = e.target.value;
     const shownCaret = e.target.selectionStart;
@@ -129,7 +175,12 @@ export default function ReviewTextarea({
     const inPlace = draft.text.slice(at, at + trigger.length) === trigger;
     const start = inPlace ? at : draft.text.length;
     const end = inPlace ? at + trigger.length : start;
-    const { draft: next, caret } = insertLink(draft, start, end, token);
+    const { draft: next, caret } = insertDraft(
+      draft,
+      start,
+      end,
+      toDraft(token),
+    );
     const stored = toStored(next);
 
     if (stored.length > maxLength) {
@@ -178,6 +229,9 @@ export default function ReviewTextarea({
           ref={ref}
           value={draft.text}
           onChange={handleChange}
+          onCopy={copySelection}
+          onCut={handleCut}
+          onPaste={handlePaste}
           onScroll={(e) => {
             if (backdrop.current) {
               backdrop.current.scrollTop = e.currentTarget.scrollTop;

@@ -81,20 +81,40 @@ export function replaceText(
   };
 }
 
-// Puts a link (its stored token) in place of the text from `start` to `end`
-export function insertLink(
+// The part of the draft from `start` to `end`, keeping the links wholly
+// inside it. A link only partly inside becomes plain text.
+export function sliceDraft(draft: Draft, start: number, end: number): Draft {
+  return {
+    text: draft.text.slice(start, end),
+    links: draft.links
+      .filter((link) => link.start >= start && link.end <= end)
+      .map((link) => ({
+        ...link,
+        start: link.start - start,
+        end: link.end - start,
+      })),
+  };
+}
+
+// Puts `piece` (text with its own links, such as a picked link or a paste) in
+// place of the draft's text from `start` to `end`
+export function insertDraft(
   draft: Draft,
   start: number,
   end: number,
-  token: string,
+  piece: Draft,
 ): { draft: Draft; caret: number } {
-  const label = toDraft(token).text;
-  const { draft: next, caret } = replaceText(draft, start, end, label);
-  const link = { start: caret - label.length, end: caret, token };
+  const { draft: next, caret } = replaceText(draft, start, end, piece.text);
+  const at = caret - piece.text.length;
+  const added = piece.links.map((link) => ({
+    ...link,
+    start: link.start + at,
+    end: link.end + at,
+  }));
   return {
     draft: {
       text: next.text,
-      links: [...next.links, link].sort((a, b) => a.start - b.start),
+      links: [...next.links, ...added].sort((a, b) => a.start - b.start),
     },
     caret,
   };
