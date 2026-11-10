@@ -7,6 +7,7 @@ import CommentLikeButton from "@/components/buttons/CommentLikeButton";
 import ReportButton from "@/components/buttons/ReportButton";
 import ReviewText from "@/components/ReviewText";
 import { track } from "@/lib/analytics";
+import { mentionToken } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 import AdminBadge from "./AdminBadge";
@@ -167,7 +168,11 @@ export default function Comments({
               type="button"
               onClick={() => {
                 setReplyTo(rootId);
-                setReplyText(c.parentId ? `@${c.authorName} ` : "");
+                setReplyText(
+                  c.parentId
+                    ? `${mentionToken(c.authorId, c.authorName)} `
+                    : "",
+                );
                 setError("");
               }}
               className="underline"

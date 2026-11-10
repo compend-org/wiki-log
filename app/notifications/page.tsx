@@ -27,11 +27,15 @@ type NotificationRow = {
     | "list_share"
     | "moderation"
     | "comment_like"
-    | "list_comment_like";
+    | "list_comment_like"
+    | "mention";
   read: boolean;
   created_at: string;
   log_id: string | null;
   list_id: string | null;
+  // Set when the notice is about a comment, on a review or on a list
+  comment_id: string | null;
+  list_comment_id: string | null;
   // Moderators' messages have no actor, just a body
   actor_id: string | null;
   body: string | null;
@@ -140,7 +144,7 @@ export default function NotificationsPage() {
       const { data, error } = await supabase
         .from("notifications")
         .select(
-          "id, type, read, created_at, log_id, list_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path)",
+          "id, type, read, created_at, log_id, list_id, comment_id, list_comment_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path)",
         )
         .eq("recipient_id", userId)
         .order("created_at", { ascending: false })
@@ -362,6 +366,37 @@ export default function NotificationsPage() {
           href: listHref,
           subject: listSubject,
         };
+      case "mention":
+        if (n.list_id) {
+          return {
+            rest: ` mentioned you in a comment on the list “${listTitle}”`,
+            href: listHref,
+            subject: listSubject,
+          };
+        }
+        if (!n.comment_id) {
+          return {
+            rest: ` mentioned you in their review of ${title}`,
+            href: reviewHref,
+            subject: itemSubject,
+          };
+        }
+        if (entry?.owner === myId || entry?.owner === n.actor_id) {
+          return {
+            rest: ` mentioned you in a comment on ${entry.owner === myId ? "your" : "their"} review of ${title}`,
+            href: reviewHref,
+            subject: itemSubject,
+          };
+        }
+        return {
+          rest: ` mentioned you in a comment on a review of ${title} by ${ownerName ? "" : "someone"}`,
+          href: reviewHref,
+          reviewOwner:
+            entry && ownerName
+              ? { id: entry.owner, username: ownerName }
+              : undefined,
+          subject: itemSubject,
+        };
       case "moderation":
         return {
           rest: n.body ?? "",
@@ -391,8 +426,8 @@ export default function NotificationsPage() {
 
       {loaded && signedIn && !error && rows.length === 0 && (
         <p className="text-muted">
-          Nothing yet. You&apos;ll see likes, shares, comments, replies and new
-          followers here.
+          Nothing yet. You&apos;ll see likes, shares, comments, replies,
+          mentions and new followers here.
         </p>
       )}
 
