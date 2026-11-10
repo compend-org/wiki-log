@@ -156,16 +156,13 @@ export default function AddToList({
     const page = await fetchPickerLists(createClient(), itemId, query, offset);
     if (request !== listRequest.current) return;
     setLoadingMore(false);
+    if (offset === 0) setShownSearch(query);
     if (page.error) {
       setError(page.error);
-      if (offset === 0) {
-        setShownSearch(query);
-        setLists([]);
-      }
+      if (offset === 0) setLists([]);
       return;
     }
     if (page.total !== null) setListTotal(page.total);
-    if (offset === 0) setShownSearch(query);
     setLists((shown) =>
       offset === 0 || !shown ? page.lists : appendLists(shown, page.lists),
     );
@@ -326,6 +323,10 @@ export default function AddToList({
   // Nothing to offer signed-out visitors (the review form already says so)
   if (!signedIn) return null;
 
+  // Lists not loaded yet, once the shown ones belong to the search typed
+  const moreLists =
+    lists !== null && search === shownSearch ? listTotal - lists.length : 0;
+
   return (
     <div className="flex flex-col gap-2">
       <button
@@ -482,20 +483,18 @@ export default function AddToList({
                   </span>
                 </button>
               ))}
-              {lists !== null &&
-                search === shownSearch &&
-                lists.length < listTotal && (
-                  <button
-                    type="button"
-                    onClick={showMoreLists}
-                    disabled={loadingMore}
-                    className="self-start text-sm underline disabled:opacity-60"
-                  >
-                    {loadingMore
-                      ? "Loading…"
-                      : `Show more lists (${(listTotal - lists.length).toLocaleString("en-US")} more)`}
-                  </button>
-                )}
+              {moreLists > 0 && (
+                <button
+                  type="button"
+                  onClick={showMoreLists}
+                  disabled={loadingMore}
+                  className="self-start text-sm underline disabled:opacity-60"
+                >
+                  {loadingMore
+                    ? "Loading…"
+                    : `Show more lists (${moreLists.toLocaleString("en-US")} more)`}
+                </button>
+              )}
               <Link href="/list/new" className="self-start text-sm underline">
                 New list
               </Link>

@@ -78,31 +78,34 @@ export class SavedListEditing {
     });
   }
 
+  // A request's error, if it was refused or never got an answer
+  private async send(
+    request: () => Promise<{ error?: string }>,
+  ): Promise<string | undefined> {
+    try {
+      return (await request()).error;
+    } catch {
+      return UNREACHABLE;
+    }
+  }
+
   // Shows `wanted`, or the list's last page if it has got shorter than that
   private async load(wanted: number): Promise<void> {
-    const result = await this.requests.fetchPage(wanted);
-    if (result.error) {
-      this.set({ error: result.error });
-      return;
+    try {
+      const result = await this.requests.fetchPage(wanted);
+      if (result.error) return this.set({ error: result.error });
+      const last = pageCount(result.total);
+      if (wanted > last) return this.load(last);
+      this.set({ items: result.entries, total: result.total, page: wanted });
+      this.requests.pageShown?.(wanted);
+    } catch {
+      this.set({ error: UNREACHABLE });
     }
-    const last = pageCount(result.total);
-    if (wanted > last) {
-      await this.load(last);
-      return;
-    }
-    this.set({ items: result.entries, total: result.total, page: wanted });
-    this.requests.pageShown?.(wanted);
   }
 
   goToPage(wanted: number): Promise<void> {
     this.set({ error: "", notice: null });
-    return this.run(async () => {
-      try {
-        await this.load(wanted);
-      } catch {
-        this.set({ error: UNREACHABLE });
-      }
-    });
+    return this.run(() => this.load(wanted));
   }
 
   // A drag within the page on screen. It shows at once, and is ignored while
@@ -121,12 +124,7 @@ export class SavedListEditing {
     this.set({ items: next, error: "", notice: null });
 
     return this.run(async () => {
-      let error: string | undefined;
-      try {
-        ({ error } = await this.requests.move(itemId, position));
-      } catch {
-        error = UNREACHABLE;
-      }
+      const error = await this.send(() => this.requests.move(itemId, position));
       if (error) {
         // Nothing else could start meanwhile, so this page is still on screen
         this.set({ items: previous, error });
@@ -150,12 +148,7 @@ export class SavedListEditing {
       const index = this.state.items.findIndex((i) => i.itemId === itemId);
       if (index >= 0 && this.offset + index + 1 === rank) return false;
 
-      let error: string | undefined;
-      try {
-        ({ error } = await this.requests.move(itemId, rank));
-      } catch {
-        error = UNREACHABLE;
-      }
+      const error = await this.send(() => this.requests.move(itemId, rank));
       if (error) {
         this.set({ error });
         return false;
@@ -171,11 +164,7 @@ export class SavedListEditing {
               },
       });
       // Everything between the old and new places shifted by one
-      try {
-        await this.load(this.state.page);
-      } catch {
-        this.set({ error: UNREACHABLE });
-      }
+      await this.load(this.state.page);
       return true;
     });
   }
@@ -187,12 +176,7 @@ export class SavedListEditing {
       if (!previous.some((i) => i.itemId === itemId)) return false;
       this.set({ items: previous.filter((i) => i.itemId !== itemId) });
 
-      let error: string | undefined;
-      try {
-        ({ error } = await this.requests.remove(itemId));
-      } catch {
-        error = UNREACHABLE;
-      }
+      const error = await this.send(() => this.requests.remove(itemId));
       if (error) {
         this.set({ items: previous, error });
         return false;
@@ -205,11 +189,7 @@ export class SavedListEditing {
         this.offset + previous.length < totalBefore ||
         previous.length === 1
       ) {
-        try {
-          await this.load(this.state.page);
-        } catch {
-          this.set({ error: UNREACHABLE });
-        }
+        await this.load(this.state.page);
       }
       return true;
     });
@@ -243,9 +223,5 @@ export class SavedListEditing {
       }
       return { added };
     });
-  }
-
-  dismissError() {
-    this.set({ error: "" });
   }
 }

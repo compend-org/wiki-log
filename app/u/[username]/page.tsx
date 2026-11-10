@@ -160,10 +160,8 @@ export default async function ProfilePage({
     pinnedLogIds: new Set(pinnedLogIds),
     pinnedListIds: new Set(pinnedListIds),
   };
-  // Pinning or unpinning refreshes the page. The lists and reviews below keep
-  // what they loaded in the browser, so they start again from the refreshed
-  // first page whenever the pins change: the pinned card moves out of them or
-  // back in, and Pin shows or hides on every card as the pin count allows.
+  // The lists and reviews below start again from the first page when the pins
+  // change, since the pinned cards move out of them or back in
   const pinsKey = pinRows.map((p) => p.log_id ?? p.list_id).join(",");
   const [pinnedLogsRes, pinnedListsRes, listRows, logRows] = await Promise.all([
     pinnedLogIds.length > 0

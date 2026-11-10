@@ -149,6 +149,9 @@ export default function ListEditor({
   // A saved list is shown a page at a time. Its changes and page loads go
   // through one queue, which reads the page and count as they are when each
   // one runs, so nothing acts on a page that has since changed.
+  const rpc = async (fn: string, args: Record<string, unknown>) => ({
+    error: (await createClient().rpc(fn, args)).error?.message,
+  });
   const [editing] = useState<SavedListEditing | null>(() =>
     listId === null
       ? null
@@ -156,21 +159,14 @@ export default function ListEditor({
           {
             fetchPage: (wanted) =>
               fetchListPage(createClient(), listId, wanted),
-            move: async (itemId, position) => {
-              const { error } = await createClient().rpc("move_list_item", {
+            move: (itemId, position) =>
+              rpc("move_list_item", {
                 p_list: listId,
                 p_item: itemId,
                 p_position: position,
-              });
-              return { error: error?.message };
-            },
-            remove: async (itemId) => {
-              const { error } = await createClient().rpc("remove_list_item", {
-                p_list: listId,
-                p_item: itemId,
-              });
-              return { error: error?.message };
-            },
+              }),
+            remove: (itemId) =>
+              rpc("remove_list_item", { p_list: listId, p_item: itemId }),
             add: (itemId) => addToList({ listId, itemId }),
             // Keeps the page in the address, so reloading comes back to it
             pageShown: (wanted) => {
@@ -206,13 +202,8 @@ export default function ListEditor({
   const movingEntry = items.find((i) => i.itemId === moving) ?? null;
   const movingRank = movingEntry ? offset + items.indexOf(movingEntry) + 1 : 0;
 
-  function clearMessages() {
-    setError("");
-    editing?.dismissError();
-  }
-
   function goToPage(wanted: number) {
-    clearMessages();
+    setError("");
     editing?.goToPage(wanted);
   }
 
@@ -231,7 +222,7 @@ export default function ListEditor({
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    clearMessages();
+    setError("");
 
     if (!editing) {
       const from = draftItems.findIndex((i) => i.itemId === active.id);
@@ -246,7 +237,7 @@ export default function ListEditor({
   }
 
   function openMove(itemId: string) {
-    clearMessages();
+    setError("");
     if (moving === itemId) {
       setMoving(null);
       return;
@@ -260,7 +251,7 @@ export default function ListEditor({
   async function moveToPosition() {
     if (!movingEntry) return;
     const rank = Number(moveTarget);
-    clearMessages();
+    setError("");
     setMoving(null);
 
     if (!editing) {
@@ -281,7 +272,7 @@ export default function ListEditor({
   // then. If the request fails outright, this rejects, so the picker keeps
   // the choice and says it couldn't reach the server.
   async function handleAdd(itemId: string) {
-    clearMessages();
+    setError("");
     if (!editing) {
       const result = await stageItem(itemId);
       if (result.error || !result.item) {
@@ -304,7 +295,7 @@ export default function ListEditor({
 
   async function handleRemove(itemId: string) {
     if (moving === itemId) setMoving(null);
-    clearMessages();
+    setError("");
     if (!editing) {
       setDraftItems((prev) => prev.filter((i) => i.itemId !== itemId));
       return;
@@ -541,7 +532,6 @@ export default function ListEditor({
             <button
               type="button"
               onClick={() => goToPage(notice.page)}
-              disabled={loading}
               className="underline"
             >
               Go to page {notice.page}

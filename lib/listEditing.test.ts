@@ -340,15 +340,3 @@ test("a page past the end of a list that got shorter shows its last page", async
   assert.equal(editing.snapshot.page, 2);
   assert.equal(editing.snapshot.total, 200);
 });
-
-test("an error can be cleared without changing anything else", async () => {
-  const { list, editing, shown } = editorOn(300, 1);
-  list.fail("remove");
-  await editing.remove("Q2");
-  assert.equal(editing.snapshot.error, UNREACHABLE);
-  const before = shown();
-  editing.dismissError();
-  assert.equal(editing.snapshot.error, "");
-  assert.deepEqual(shown(), before);
-  assert.equal(editing.snapshot.busy, false);
-});
