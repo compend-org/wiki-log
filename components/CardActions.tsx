@@ -33,12 +33,12 @@ export default function CardActions({
         {share}
       </span>
 
-      {commentHref && (
+       {commentHref && (
         <Link
           href={commentHref}
           aria-label={commentLabel(commentCount)}
           title={commentLabel(commentCount)}
-          className="relative z-10 mr-2.5 inline-flex h-5 items-center gap-1min-w-[1.7rem] text-sm hover:text-foreground"
+          className="relative z-10 mr-2.5 inline-flex h-5 min-w-[1.5rem] items-center gap-1 text-sm hover:text-foreground hover:no-underline"
         >
           <CommentIcon className="h-4 w-4" />
           {commentCount > 0 && <span>{commentCount}</span>}
@@ -48,7 +48,7 @@ export default function CardActions({
       {logHref && (
         <Link
           href={logHref}
-          className="relative z-10 ml-[0.3rem] hover:underline"
+          className="relative z-10 hover:underline"
         >
           Log
         </Link>
