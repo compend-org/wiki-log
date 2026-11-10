@@ -160,6 +160,11 @@ export default async function ProfilePage({
     pinnedLogIds: new Set(pinnedLogIds),
     pinnedListIds: new Set(pinnedListIds),
   };
+  // Pinning or unpinning refreshes the page. The lists and reviews below keep
+  // what they loaded in the browser, so they start again from the refreshed
+  // first page whenever the pins change: the pinned card moves out of them or
+  // back in, and Pin shows or hides on every card as the pin count allows.
+  const pinsKey = pinRows.map((p) => p.log_id ?? p.list_id).join(",");
   const [pinnedLogsRes, pinnedListsRes, listRows, logRows] = await Promise.all([
     pinnedLogIds.length > 0
       ? supabase.from("logs").select(LOG_FIELDS).in("id", pinnedLogIds)
@@ -357,6 +362,7 @@ export default async function ProfilePage({
           </div>
           {listCount === 0 && <p className="text-muted">No lists yet.</p>}
           <ProfilePages
+            key={`lists:${pinsKey}`}
             profileId={profile.id}
             kind="lists"
             first={firstLists}
@@ -371,7 +377,12 @@ export default async function ProfilePage({
 
       {logCount === 0 && <p className="text-muted">Nothing logged yet.</p>}
 
-      <ProfilePages profileId={profile.id} kind="reviews" first={firstLogs} />
+      <ProfilePages
+        key={`reviews:${pinsKey}`}
+        profileId={profile.id}
+        kind="reviews"
+        first={firstLogs}
+      />
     </main>
   );
 }

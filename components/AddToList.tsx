@@ -126,6 +126,9 @@ export default function AddToList({
   // How many of the person's lists match the search, loaded or not
   const [listTotal, setListTotal] = useState<number>(0);
   const [search, setSearch] = useState<string>("");
+  // The search the shown lists are for. Until a new search comes back, the
+  // shown lists still belong to this one, and so does "Show more".
+  const [shownSearch, setShownSearch] = useState<string>("");
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   // Only the latest request for lists is shown, as searches can overtake
   const listRequest = useRef(0);
@@ -155,10 +158,14 @@ export default function AddToList({
     setLoadingMore(false);
     if (page.error) {
       setError(page.error);
-      if (offset === 0) setLists([]);
+      if (offset === 0) {
+        setShownSearch(query);
+        setLists([]);
+      }
       return;
     }
     if (page.total !== null) setListTotal(page.total);
+    if (offset === 0) setShownSearch(query);
     setLists((shown) =>
       offset === 0 || !shown ? page.lists : appendLists(shown, page.lists),
     );
@@ -182,7 +189,7 @@ export default function AddToList({
   function showMoreLists() {
     if (!lists) return;
     setLoadingMore(true);
-    loadListPage(search, lists.length);
+    loadListPage(shownSearch, lists.length);
   }
 
   function toggleOpen() {
@@ -475,18 +482,20 @@ export default function AddToList({
                   </span>
                 </button>
               ))}
-              {lists !== null && lists.length < listTotal && (
-                <button
-                  type="button"
-                  onClick={showMoreLists}
-                  disabled={loadingMore}
-                  className="self-start text-sm underline disabled:opacity-60"
-                >
-                  {loadingMore
-                    ? "Loading…"
-                    : `Show more lists (${(listTotal - lists.length).toLocaleString("en-US")} more)`}
-                </button>
-              )}
+              {lists !== null &&
+                search === shownSearch &&
+                lists.length < listTotal && (
+                  <button
+                    type="button"
+                    onClick={showMoreLists}
+                    disabled={loadingMore}
+                    className="self-start text-sm underline disabled:opacity-60"
+                  >
+                    {loadingMore
+                      ? "Loading…"
+                      : `Show more lists (${(listTotal - lists.length).toLocaleString("en-US")} more)`}
+                  </button>
+                )}
               <Link href="/list/new" className="self-start text-sm underline">
                 New list
               </Link>
