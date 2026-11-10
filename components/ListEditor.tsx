@@ -137,6 +137,9 @@ export default function ListEditor({
   const [savedTotal, setSavedTotal] = useState<number>(
     initialTotal ?? initialItems.length,
   );
+  // True while a page loads or a change to a saved list is being saved. The
+  // pager is disabled meanwhile, so each change finishes on the page it
+  // started on, and other changes wait (they read the page and total).
   const [loading, setLoading] = useState<boolean>(false);
   // The item whose "Move to position" box is open, and what's typed in it
   const [moving, setMoving] = useState<string | null>(null);
@@ -241,11 +244,13 @@ export default function ListEditor({
 
     // Just the one move, so a long list isn't sent back in full. Positions
     // count from the top of the whole list, not this page.
+    setLoading(true);
     const { error } = await createClient().rpc("move_list_item", {
       p_list: listId,
       p_item: String(active.id),
       p_position: offset + newIndex + 1,
     });
+    setLoading(false);
     if (error) {
       setItems(previous);
       setError(error.message);
@@ -309,12 +314,18 @@ export default function ListEditor({
   }
 
   async function handleAdd(itemId: string) {
+    if (loading) {
+      setError("Wait a moment for the list to finish saving, then add it.");
+      return;
+    }
     setError("");
     setNotice(null);
+    if (listId !== null) setLoading(true);
     const result =
       listId === null
         ? await stageItem(itemId)
         : await addToList({ listId, itemId });
+    setLoading(false);
     if (result.error || !result.item) {
       setError(result.error ?? "Something went wrong.");
       return;
@@ -344,6 +355,7 @@ export default function ListEditor({
   }
 
   async function handleRemove(itemId: string) {
+    if (loading) return;
     const previous = items;
     setItems(items.filter((i) => i.itemId !== itemId));
     if (moving === itemId) setMoving(null);
@@ -351,11 +363,13 @@ export default function ListEditor({
     setNotice(null);
     if (listId === null) return;
 
+    setLoading(true);
     const { error } = await createClient().rpc("remove_list_item", {
       p_list: listId,
       p_item: itemId,
     });
     if (error) {
+      setLoading(false);
       setItems(previous);
       setError(error.message);
       return;
@@ -365,6 +379,8 @@ export default function ListEditor({
     // now empty, the one before is shown
     if (offset + previous.length < savedTotal || previous.length === 1) {
       await loadPage(page);
+    } else {
+      setLoading(false);
     }
     track("list_item_removed");
   }
@@ -598,6 +614,7 @@ export default function ListEditor({
             <button
               type="button"
               onClick={() => goToPage(notice.page)}
+              disabled={loading}
               className="underline"
             >
               Go to page {notice.page}
