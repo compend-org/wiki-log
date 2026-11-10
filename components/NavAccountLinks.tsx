@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isCurrentPage, useNavLinkTone } from "@/lib/useNavLinkTone";
 import SignInButton from "./buttons/SignInButton";
 import SignOutButton from "./buttons/SignOutButton";
-import NotificationIcon from "./NotificationIcon";
+import NotificationIcon from "./icons/NotificationIcon";
 
 export type NavAccountDetails = {
   userId: string;
