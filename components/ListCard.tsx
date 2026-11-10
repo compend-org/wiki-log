@@ -2,6 +2,7 @@
 // ABOUTME: Shown wherever lists appear among other content, such as feeds and item pages.
 import Link from "next/link";
 import { connection } from "next/server";
+import type { ReactNode } from "react";
 import CardActions from "@/components/CardActions";
 import ListLikeButton from "@/components/ListLikeButton";
 import ListPreview from "@/components/ListPreview";
@@ -20,6 +21,8 @@ export default async function ListCard({
   shared,
   sharers = [],
   showActivity = true,
+  showAuthor = true,
+  controls,
 }: {
   list: ListRow;
   thumbs: Thumb[];
@@ -30,6 +33,10 @@ export default async function ListCard({
   sharers?: Sharer[];
   // Whether to say "made a list" after the author, as an activity feed does
   showActivity?: boolean;
+  // Whether to name the author, which a page about that person doesn't need
+  showAuthor?: boolean;
+  // Extra controls beside the title, such as Pin
+  controls?: ReactNode;
 }) {
   await connection();
   const renderedAt = Date.now();
@@ -51,17 +58,28 @@ export default async function ListCard({
         </span>
       )}
       <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
-        <UserName
-          userId={l.user_id}
-          username={author}
-          avatarPath={avatarPath}
-        />
-        {showActivity && <span>made a {l.ranked ? "ranked " : ""}list</span>}
+        {showAuthor && (
+          <>
+            <UserName
+              userId={l.user_id}
+              username={author}
+              avatarPath={avatarPath}
+            />
+            {showActivity && (
+              <span>made a {l.ranked ? "ranked " : ""}list</span>
+            )}
+          </>
+        )}
+        {!showAuthor && l.ranked && <span>Ranked list ·</span>}
         <span className="whitespace-nowrap">
-          · {timeAgo(l.created_at, renderedAt)}
+          {showAuthor && "· "}
+          {timeAgo(l.created_at, renderedAt)}
         </span>
       </span>
-      <span className="font-semibold">{l.title}</span>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="font-semibold">{l.title}</span>
+        {controls}
+      </div>
       {preview.length > 0 && (
         <ListPreview
           thumbs={preview}

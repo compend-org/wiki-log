@@ -1,15 +1,8 @@
 // ABOUTME: Loads one page of a home page feed and renders its cards for the viewer.
 // ABOUTME: Kept apart from Feed so server actions can use it without importing FeedPages.
-import Link from "next/link";
 import type { ReactNode } from "react";
-import CardActions from "@/components/CardActions";
-import ItemImage from "@/components/ItemImage";
-import LikeButton from "@/components/LikeButton";
 import ListCard from "@/components/ListCard";
-import ShareButton from "@/components/ShareButton";
-import ShareIcon from "@/components/ShareIcon";
-import Stars from "@/components/Stars";
-import UserName from "@/components/UserName";
+import LogCard from "@/components/LogCard";
 import { FEATURES } from "@/lib/features";
 import {
   getFollowingFeed,
@@ -20,7 +13,6 @@ import {
   type PublicFeed,
   type Thumb,
 } from "@/lib/feedData";
-import { timeAgo } from "@/lib/format";
 import {
   type ColumnEnd,
   type FeedCursor,
@@ -29,8 +21,7 @@ import {
 } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
-import ReviewText from "./ReviewText";
-import SharedLabel, { type Sharer } from "./SharedLabel";
+import type { Sharer } from "./SharedLabel";
 
 export type FeedMode = "following" | "everyone" | "trending";
 
@@ -71,7 +62,6 @@ export async function loadFeedPage(
   asOf: string,
   cursor: FeedCursor,
 ): Promise<FeedPage> {
-  const renderedAt = Date.now();
   const supabase = await createClient();
 
   const { data: claimsData } = await supabase.auth.getClaims();
@@ -204,100 +194,16 @@ export async function loadFeedPage(
     />
   );
 
-  const renderLog = (row: LogRow, sharers: Sharer[]) => {
-    const title = row.items?.title ?? "Unknown item";
-    const author = row.profiles?.username;
-    const avatarPath = row.profiles?.avatar_path ?? null;
-    const reviewHref = author
-      ? `/u/${encodeURIComponent(author)}/${row.id}`
-      : null;
-
-    return (
-      <div
-        key={`log-${row.id}`}
-        className={`card relative grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-3 p-3 hover-or-tap:border-accent/60 ${
-          row.review ? "@xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.2fr)]" : ""
-        }`}
-      >
-        {reviewHref && (
-          <Link
-            href={reviewHref}
-            aria-label={`Open ${author}'s review of ${title}`}
-            className="absolute inset-0 rounded-[inherit]"
-          />
-        )}
-
-        <Link
-          href={`/item/${row.item_id}`}
-          className="relative z-10 shrink-0 self-center"
-        >
-          <ItemImage
-            src={row.items?.image_url}
-            alt={title}
-            className="h-20 w-20 rounded"
-            sourceWidth={250}
-          />
-        </Link>
-
-        <div className="flex min-w-0 flex-col gap-1">
-          {sharers.length > 0 && (
-            <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
-              <ShareIcon className="h-3.5 w-3.5" />
-              <SharedLabel sharers={sharers} />
-            </span>
-          )}
-          <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
-            <UserName
-              userId={row.user_id}
-              username={author}
-              avatarPath={avatarPath}
-            />
-            <span>logged</span>
-            <span className="whitespace-nowrap">
-              · {timeAgo(row.logged_at, renderedAt)}
-            </span>
-          </span>
-          <Link
-            href={`/item/${row.item_id}`}
-            className="relative z-10 w-fit font-semibold"
-          >
-            {title}
-          </Link>
-          <Stars rating={row.rating} />
-          <CardActions
-            like={
-              <LikeButton
-                viewerId={viewerId ?? null}
-                authorId={row.user_id}
-                logId={row.id}
-                initialCount={row.likes?.[0]?.count ?? 0}
-                initiallyLiked={likedSet.has(row.id)}
-              />
-            }
-            share={
-              <ShareButton
-                viewerId={viewerId ?? null}
-                ownerId={row.user_id}
-                kind="log"
-                targetId={row.id}
-                initialCount={row.shares?.[0]?.count ?? 0}
-                initiallyShared={sharedSet.has(row.id)}
-              />
-            }
-            commentHref={reviewHref}
-            commentCount={row.comments?.[0]?.count ?? 0}
-            logHref={`/item/${row.item_id}#log`}
-          />
-        </div>
-
-        {row.review && (
-          <p className="col-span-2 line-clamp-6 whitespace-pre-wrap break-words text-sm @xl:col-span-1 @xl:border-l @xl:border-dashed @xl:border-line @xl:pl-4">
-            {<ReviewText text={row.review} />}
-          </p>
-        )}
-      </div>
-    );
-  };
+  const renderLog = (row: LogRow, sharers: Sharer[]) => (
+    <LogCard
+      key={`log-${row.id}`}
+      log={row}
+      viewerId={viewerId}
+      liked={likedSet.has(row.id)}
+      shared={sharedSet.has(row.id)}
+      sharers={sharers}
+    />
+  );
 
   const renderEntry = (entry: Entry) =>
     entry.kind === "log"
