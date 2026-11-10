@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export type PostKind = "log" | "list" | "comment" | "list_comment";
+// What a report can be about: a post, or the account itself
+export type ReportKind = PostKind | "profile";
 export type ReportStatus = "open" | "actioned" | "dismissed";
 
 export type AdminPost = {
@@ -18,6 +20,7 @@ export type AdminPost = {
   item_count?: number;
   item_titles?: string[];
   href_log?: { username: string; id: string };
+  href_profile?: string;
 };
 
 export type QueueAccount = {
@@ -37,7 +40,7 @@ export type QueueAccount = {
   comment_count: number;
   last_active_at: string | null;
   top_posts: {
-    kind: PostKind;
+    kind: ReportKind;
     id: string;
     report_count: number;
     note: string | null;
@@ -77,7 +80,7 @@ export type ReportedAccount = {
   blocked_by_count: number;
   filed: { total: number; dismissed: number; actioned: number };
   flagged: {
-    kind: PostKind;
+    kind: ReportKind;
     id: string;
     post: AdminPost;
     reports: AccountReport[];
@@ -134,7 +137,7 @@ export type ModerationAction = {
   admin: string | null;
   reason: string | null;
   note: string | null;
-  target_type: PostKind | null;
+  target_type: ReportKind | null;
   target_id: string | null;
   report_status: ReportStatus | null;
   report_count: number;
@@ -174,8 +177,9 @@ export async function getBannedAccounts(): Promise<BannedAccount[]> {
   return data as BannedAccount[];
 }
 
-// The public page a post appears on, when it still exists
+// The public page a post or profile appears on, when it still exists
 export function postHref(post: AdminPost): string | null {
+  if (post.href_profile) return `/u/${encodeURIComponent(post.href_profile)}`;
   if (post.href_log) {
     const { username, id } = post.href_log;
     return `/u/${encodeURIComponent(username)}/${id}`;

@@ -1,18 +1,19 @@
-// ABOUTME: Shows a review, list or comment on the admin reports pages as plain text.
+// ABOUTME: Shows a review, list, comment or profile on the admin reports pages as plain text.
 // ABOUTME: Never loads images, and can clamp long posts so the queue stays easy to scan.
 import Link from "next/link";
 import {
   type AdminPost as Post,
-  type PostKind,
   postHref,
+  type ReportKind,
 } from "@/lib/adminReports";
 import { plainReview, timeAgo } from "@/lib/format";
 
-const KIND_LABELS: Record<PostKind, string> = {
+const KIND_LABELS: Record<ReportKind, string> = {
   log: "Review",
   list: "List",
   comment: "Comment",
   list_comment: "List comment",
+  profile: "Profile",
 };
 
 export default function AdminPost({
@@ -21,7 +22,7 @@ export default function AdminPost({
   now,
   clamp = false,
 }: {
-  kind: PostKind;
+  kind: ReportKind;
   post: Post;
   now: number;
   clamp?: boolean;

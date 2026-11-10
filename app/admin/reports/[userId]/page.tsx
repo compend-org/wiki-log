@@ -177,12 +177,15 @@ function FlaggedPost({
           setStatus={setReportStatus.bind(null, flagged.kind, flagged.id)}
           status={status}
         />
-        <PostRemovalButton
-          kind={flagged.kind}
-          id={flagged.id}
-          post={flagged.post}
-          banned={banned}
-        />
+        {/* A profile can't be removed, only its account warned, suspended or banned */}
+        {flagged.kind !== "profile" && (
+          <PostRemovalButton
+            kind={flagged.kind}
+            id={flagged.id}
+            post={flagged.post}
+            banned={banned}
+          />
+        )}
       </div>
     </li>
   );
