@@ -160,6 +160,9 @@ export default async function ProfilePage({
     pinnedLogIds: new Set(pinnedLogIds),
     pinnedListIds: new Set(pinnedListIds),
   };
+  // The lists and reviews below start again from the first page when the pins
+  // change, since the pinned cards move out of them or back in
+  const pinsKey = pinRows.map((p) => p.log_id ?? p.list_id).join(",");
   const [pinnedLogsRes, pinnedListsRes, listRows, logRows] = await Promise.all([
     pinnedLogIds.length > 0
       ? supabase.from("logs").select(LOG_FIELDS).in("id", pinnedLogIds)
@@ -357,6 +360,7 @@ export default async function ProfilePage({
           </div>
           {listCount === 0 && <p className="text-muted">No lists yet.</p>}
           <ProfilePages
+            key={`lists:${pinsKey}`}
             profileId={profile.id}
             kind="lists"
             first={firstLists}
@@ -371,7 +375,12 @@ export default async function ProfilePage({
 
       {logCount === 0 && <p className="text-muted">Nothing logged yet.</p>}
 
-      <ProfilePages profileId={profile.id} kind="reviews" first={firstLogs} />
+      <ProfilePages
+        key={`reviews:${pinsKey}`}
+        profileId={profile.id}
+        kind="reviews"
+        first={firstLogs}
+      />
     </main>
   );
 }

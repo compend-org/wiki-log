@@ -126,6 +126,9 @@ export default function AddToList({
   // How many of the person's lists match the search, loaded or not
   const [listTotal, setListTotal] = useState<number>(0);
   const [search, setSearch] = useState<string>("");
+  // The search the shown lists are for. Until a new search comes back, the
+  // shown lists still belong to this one, and so does "Show more".
+  const [shownSearch, setShownSearch] = useState<string>("");
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   // Only the latest request for lists is shown, as searches can overtake
   const listRequest = useRef(0);
@@ -153,6 +156,7 @@ export default function AddToList({
     const page = await fetchPickerLists(createClient(), itemId, query, offset);
     if (request !== listRequest.current) return;
     setLoadingMore(false);
+    if (offset === 0) setShownSearch(query);
     if (page.error) {
       setError(page.error);
       if (offset === 0) setLists([]);
@@ -182,7 +186,7 @@ export default function AddToList({
   function showMoreLists() {
     if (!lists) return;
     setLoadingMore(true);
-    loadListPage(search, lists.length);
+    loadListPage(shownSearch, lists.length);
   }
 
   function toggleOpen() {
@@ -318,6 +322,10 @@ export default function AddToList({
 
   // Nothing to offer signed-out visitors (the review form already says so)
   if (!signedIn) return null;
+
+  // Lists not loaded yet, once the shown ones belong to the search typed
+  const moreLists =
+    lists !== null && search === shownSearch ? listTotal - lists.length : 0;
 
   return (
     <div className="flex flex-col gap-2">
@@ -475,7 +483,7 @@ export default function AddToList({
                   </span>
                 </button>
               ))}
-              {lists !== null && lists.length < listTotal && (
+              {moreLists > 0 && (
                 <button
                   type="button"
                   onClick={showMoreLists}
@@ -484,7 +492,7 @@ export default function AddToList({
                 >
                   {loadingMore
                     ? "Loading…"
-                    : `Show more lists (${(listTotal - lists.length).toLocaleString("en-US")} more)`}
+                    : `Show more lists (${moreLists.toLocaleString("en-US")} more)`}
                 </button>
               )}
               <Link href="/list/new" className="self-start text-sm underline">
