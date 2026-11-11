@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
-import { requireEnv } from "@/lib/env";
 import { FEATURES } from "@/lib/features";
+import { supabasePublishableKey, supabaseUrl } from "@/lib/supabase/connection";
 import { reportFailedResponses } from "@/lib/supabase/reportFailedResponses";
 import { escapeLike } from "@/lib/username";
 
@@ -16,17 +16,9 @@ type Hit = {
 // Compounds are stored in our own database, in every language
 async function findCompounds(q: string): Promise<Hit[]> {
   try {
-    const supabase = createClient(
-      requireEnv(
-        "NEXT_PUBLIC_SUPABASE_URL",
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-      ),
-      requireEnv(
-        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-      ),
-      { global: { fetch: reportFailedResponses } },
-    );
+    const supabase = createClient(supabaseUrl(), supabasePublishableKey(), {
+      global: { fetch: reportFailedResponses },
+    });
     const { data } = await supabase
       .from("items")
       .select("id, title, description, image_url")

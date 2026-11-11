@@ -1,17 +1,9 @@
 import { createBrowserClient } from "@supabase/ssr";
-import { requireEnv } from "@/lib/env";
+import { supabasePublishableKey, supabaseUrl } from "@/lib/supabase/connection";
 import { reportFailedResponses } from "@/lib/supabase/reportFailedResponses";
 
 export function createClient() {
-  return createBrowserClient(
-    requireEnv(
-      "NEXT_PUBLIC_SUPABASE_URL",
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-    ),
-    requireEnv(
-      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-    ),
-    { global: { fetch: reportFailedResponses } },
-  );
+  return createBrowserClient(supabaseUrl(), supabasePublishableKey(), {
+    global: { fetch: reportFailedResponses },
+  });
 }
