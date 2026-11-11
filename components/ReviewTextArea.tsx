@@ -2,8 +2,29 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import ItemPicker from "@/components/ItemPicker";
+import PersonPicker from "@/components/PersonPicker";
+import { LINK_COLOR } from "@/components/ReviewText";
+import {
+  type Draft,
+  findChange,
+  insertDraft,
+  replaceText,
+  sliceDraft,
+  toDraft,
+  toStored,
+} from "@/lib/draftText";
+import { mentionToken } from "@/lib/format";
 
-const TRIGGER = "::link";
+// What you type to link to an item, and to mention a person
+const LINK_TRIGGER = "::link";
+const MENTION_TRIGGER = "@";
+
+// Where a copy or cut puts the stored text, links and all, for a paste back
+// into one of these boxes. Other apps get the text as shown.
+const CLIPBOARD_TYPE = "application/x-compend-text";
+
+// Which search is open, and where its trigger sits in the shown text
+type Picking = { kind: "item" | "person"; at: number; trigger: string };
 
 // What gets stored in the review text for a link to an item
 function linkToken(id: string, title: string): string {
@@ -16,7 +37,11 @@ function linkToken(id: string, title: string): string {
   return `[[${id}|${clean}]]`;
 }
 
-// A review box where typing ::link opens a search to pick an item to link to
+// A review box where typing ::link opens a search to pick an item to link to,
+// and typing @ at the start of a word opens one to pick a person to mention.
+// `value` is the stored text, with links as tokens. The box shows each link
+// by its label, coloured like a link, and an edit that reaches into a link
+// removes the whole link.
 export default function ReviewTextarea({
   value,
   onChange,
@@ -35,7 +60,8 @@ export default function ReviewTextarea({
   autoFocus?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
-  const [picking, setPicking] = useState<boolean>(false);
+  const backdrop = useRef<HTMLDivElement>(null);
+  const [picking, setPicking] = useState<Picking | null>(null);
   const [notice, setNotice] = useState<string>("");
 
   // Focuses the box when it opens, with the caret after any prefilled text.
@@ -48,56 +74,174 @@ export default function ReviewTextarea({
     box.setSelectionRange(box.value.length, box.value.length);
   }, [autoFocus]);
 
-  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    const next = e.target.value;
-    const caret = e.target.selectionStart;
-    onChange(next);
-    setNotice("");
-    if (next.slice(caret - TRIGGER.length, caret) === TRIGGER) {
-      setPicking(true);
-    }
-  }
+  const draft = toDraft(value);
 
-  function close() {
-    setPicking(false);
-    ref.current?.focus();
-  }
-
-  function insert(id: string, title: string) {
-    const token = linkToken(id, title);
-    // Swap the typed ::link for the link (the last one, in case of several)
-    const at = value.lastIndexOf(TRIGGER);
-    const next =
-      at >= 0
-        ? value.slice(0, at) + token + value.slice(at + TRIGGER.length)
-        : value + token;
-
-    if (next.length > maxLength) {
-      setNotice("There isn't room for that link in the review.");
-      setPicking(false);
-      return;
-    }
-
-    onChange(next);
-    setPicking(false);
-    const caret = (at >= 0 ? at : value.length) + token.length;
+  // Puts the caret at `caret` once the box shows the latest text
+  function placeCaret(caret: number) {
     requestAnimationFrame(() => {
       ref.current?.focus();
       ref.current?.setSelectionRange(caret, caret);
     });
   }
 
+  // Shows `next` with the caret at `caret`
+  function apply({ draft: next, caret }: { draft: Draft; caret: number }) {
+    onChange(toStored(next));
+    setNotice("");
+    placeCaret(caret);
+  }
+
+  // Puts the selection on the clipboard, links and all. Returns what was
+  // copied, or null when nothing is selected.
+  function copySelection(
+    e: React.ClipboardEvent<HTMLTextAreaElement>,
+  ): { start: number; end: number } | null {
+    const { selectionStart: start, selectionEnd: end } = e.currentTarget;
+    if (start === end) return null;
+    e.preventDefault();
+    e.clipboardData.setData("text/plain", draft.text.slice(start, end));
+    e.clipboardData.setData(
+      CLIPBOARD_TYPE,
+      toStored(sliceDraft(draft, start, end)),
+    );
+    return { start, end };
+  }
+
+  function handleCut(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const copied = copySelection(e);
+    if (copied) apply(replaceText(draft, copied.start, copied.end, ""));
+  }
+
+  // Text copied from one of these boxes pastes back with its links. Anything
+  // else, or a paste too long to fit, pastes as plain text.
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const stored = e.clipboardData.getData(CLIPBOARD_TYPE);
+    if (!stored) return;
+    const { selectionStart: start, selectionEnd: end } = e.currentTarget;
+    const pasted = insertDraft(draft, start, end, toDraft(stored));
+    if (toStored(pasted.draft).length > maxLength) return;
+    e.preventDefault();
+    apply(pasted);
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const shown = e.target.value;
+    const shownCaret = e.target.selectionStart;
+    const change = findChange(draft.text, shown, shownCaret);
+    // Like a text box's maxLength, but counting the text as it's stored
+    const room =
+      maxLength -
+      toStored(replaceText(draft, change.start, change.end, "").draft).length;
+    const inserted = change.inserted.slice(0, Math.max(0, room));
+    const { draft: next, caret } = replaceText(
+      draft,
+      change.start,
+      change.end,
+      inserted,
+    );
+
+    onChange(toStored(next));
+    setNotice("");
+    if (next.text !== shown || caret !== shownCaret) placeCaret(caret);
+
+    // Only typing (not deleting) opens a search
+    if (inserted.length === 0) return;
+    const before = next.text.slice(0, caret);
+    if (before.endsWith(LINK_TRIGGER)) {
+      setPicking({
+        kind: "item",
+        at: caret - LINK_TRIGGER.length,
+        trigger: LINK_TRIGGER,
+      });
+    } else if (/(^|\s)@$/.test(before)) {
+      setPicking({
+        kind: "person",
+        at: caret - MENTION_TRIGGER.length,
+        trigger: MENTION_TRIGGER,
+      });
+    }
+  }
+
+  function close() {
+    setPicking(null);
+    ref.current?.focus();
+  }
+
+  function insert(token: string) {
+    if (!picking) return;
+    // Swap the typed trigger for the token, or add the token at the end if
+    // the trigger is no longer where it was typed
+    const { at, trigger } = picking;
+    const inPlace = draft.text.slice(at, at + trigger.length) === trigger;
+    const start = inPlace ? at : draft.text.length;
+    const end = inPlace ? at + trigger.length : start;
+    const { draft: next, caret } = insertDraft(
+      draft,
+      start,
+      end,
+      toDraft(token),
+    );
+    const stored = toStored(next);
+
+    if (stored.length > maxLength) {
+      setNotice(
+        picking.kind === "item"
+          ? "There isn't room for that link in the review."
+          : "There isn't room for that mention.",
+      );
+      setPicking(null);
+      return;
+    }
+
+    onChange(stored);
+    setPicking(null);
+    placeCaret(caret);
+  }
+
+  // The shown text with its links coloured, drawn behind the box's own
+  // see-through text so the two line up exactly
+  const coloured: React.ReactNode[] = [];
+  let last = 0;
+  for (const link of draft.links) {
+    coloured.push(draft.text.slice(last, link.start));
+    coloured.push(
+      <span key={link.start} className={LINK_COLOR}>
+        {draft.text.slice(link.start, link.end)}
+      </span>,
+    );
+    last = link.end;
+  }
+  coloured.push(draft.text.slice(last));
+  // A line break at the very end only takes up a line once something follows
+  if (draft.text.endsWith("\n")) coloured.push(" ");
+
   return (
     <div className="flex flex-col gap-2">
-      <textarea
-        ref={ref}
-        value={value}
-        onChange={handleChange}
-        maxLength={maxLength}
-        rows={rows}
-        placeholder={placeholder}
-        className={className}
-      />
+      <div className="relative">
+        <div
+          ref={backdrop}
+          aria-hidden
+          className={`${className} pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words [scrollbar-gutter:stable]`}
+        >
+          {coloured}
+        </div>
+        <textarea
+          ref={ref}
+          value={draft.text}
+          onChange={handleChange}
+          onCopy={copySelection}
+          onCut={handleCut}
+          onPaste={handlePaste}
+          onScroll={(e) => {
+            if (backdrop.current) {
+              backdrop.current.scrollTop = e.currentTarget.scrollTop;
+            }
+          }}
+          rows={rows}
+          placeholder={placeholder}
+          className={`${className} relative block w-full bg-transparent! text-transparent! caret-foreground [scrollbar-gutter:stable]`}
+        />
+      </div>
       {picking && (
         // biome-ignore lint/a11y/noStaticElementInteractions: Escape from the picker inside closes it
         <div
@@ -107,13 +251,23 @@ export default function ReviewTextarea({
           className="flex flex-col gap-2 border border-dashed border-line bg-surface p-2"
         >
           <span className="text-xs text-muted">
-            Pick an item to link to (Esc to cancel)
+            {picking.kind === "item"
+              ? "Pick an item to link to (Esc to cancel)"
+              : "Pick a person to mention (Esc to cancel)"}
           </span>
-          <ItemPicker
-            autoFocus
-            placeholder="Search for an item to link…"
-            onPick={(id, hit) => insert(id, hit.title)}
-          />
+          {picking.kind === "item" ? (
+            <ItemPicker
+              autoFocus
+              placeholder="Search for an item to link…"
+              onPick={(id, hit) => insert(linkToken(id, hit.title))}
+            />
+          ) : (
+            <PersonPicker
+              autoFocus
+              placeholder="Search for a person to mention…"
+              onPick={(p) => insert(mentionToken(p.id, p.username))}
+            />
+          )}
         </div>
       )}
       {notice && <p className="text-sm text-danger">{notice}</p>}

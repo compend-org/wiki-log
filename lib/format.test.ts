@@ -2,7 +2,13 @@
 // ABOUTME: Covers each unit, the boundaries between them, and times just ahead of the clock.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { shownImage, timeAgo } from "./format";
+import {
+  mentionToken,
+  plainReview,
+  REVIEW_LINK,
+  shownImage,
+  timeAgo,
+} from "./format";
 
 const now = Date.parse("2026-11-05T12:00:00.000Z");
 const before = (ms: number) => new Date(now - ms).toISOString();
@@ -43,4 +49,22 @@ test("shows an item's image unless it is hidden", () => {
   assert.equal(shownImage({ image_url: url }), url);
   assert.equal(shownImage({ image_url: url, image_hidden: true }), null);
   assert.equal(shownImage({ image_url: null, image_hidden: false }), null);
+});
+
+test("shows item links and mentions as plain text", () => {
+  const id = "65617370-d22f-4d75-9bf4-456e8caee319";
+  const text = `Loved [[Q42|Douglas Adams]], ${mentionToken(id, "Ann Lee")}!`;
+  assert.equal(plainReview(text), "Loved Douglas Adams, @Ann Lee!");
+});
+
+test("finds each link's id and text", () => {
+  const id = "65617370-d22f-4d75-9bf4-456e8caee319";
+  const text = `[[Q42|Douglas Adams]] ${mentionToken(id, "Ann")} [[@nope|Bob]]`;
+  assert.deepEqual(
+    [...text.matchAll(REVIEW_LINK)].map((m) => [m[1], m[2]]),
+    [
+      ["Q42", "Douglas Adams"],
+      [`@${id}`, "Ann"],
+    ],
+  );
 });

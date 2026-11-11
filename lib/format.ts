@@ -77,10 +77,20 @@ export function freeImage(url: string | undefined | null): string | null {
   return full.includes("/wikipedia/commons/") ? full : null;
 }
 
-// Links to items are stored inside the review text as [[Q123|Title]]
-export const REVIEW_LINK = /\[\[([QC]\d+)\|([^\]|]{1,200})\]\]/g;
+// Links are stored inside review and comment text: to items as [[Q123|Title]],
+// and to people (mentions) as [[@<their id>|username]]
+export const REVIEW_LINK =
+  /\[\[([QC]\d+|@[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\|([^\]|]{1,200})\]\]/g;
+
+// What gets stored in the text for a mention of a person
+export function mentionToken(id: string, username: string): string {
+  return `[[@${id}|${username}]]`;
+}
 
 // A review as plain text, with each item link replaced by the item's title
+// and each mention by @username
 export function plainReview(text: string): string {
-  return text.replace(REVIEW_LINK, (_, _id, title) => title);
+  return text.replace(REVIEW_LINK, (_, id: string, title: string) =>
+    id.startsWith("@") ? `@${title}` : title,
+  );
 }
