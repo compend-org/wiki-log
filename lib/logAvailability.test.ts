@@ -1,13 +1,13 @@
 // ABOUTME: Tests exact log foreign-key detection and shared missing-log state.
-// ABOUTME: Verifies stale-log and unexpected reaction errors remain reportable to Sentry.
+// ABOUTME: Verifies stale-log errors skip Sentry while unexpected reaction errors are reported.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   isLogUnavailable,
-  isMissingLogError,
   markLogUnavailable,
   subscribeToLogAvailability,
 } from "./logAvailability";
+import { isMissingLogError } from "./missingLogError";
 import { describeFailedRequest } from "./supabase/reportFailedResponses";
 
 function foreignKeyError(table: string, column: string) {
@@ -75,9 +75,20 @@ test("missing log state reaches every subscriber and persists after unsubscribin
   assert.equal(isLogUnavailable(id), true);
 });
 
-test("stale log and unexpected reaction errors remain reportable to Sentry", async () => {
+test("stale log errors are not reported to Sentry", async () => {
   for (const table of ["likes", "shares"] as const) {
-    for (const column of ["log_id", "user_id", "list_id"]) {
+    const failure = await describeFailedRequest(
+      `https://example.supabase.co/rest/v1/${table}`,
+      "POST",
+      Response.json(foreignKeyError(table, "log_id"), { status: 409 }),
+    );
+    assert.equal(failure, null);
+  }
+});
+
+test("unexpected reaction errors remain reportable to Sentry", async () => {
+  for (const table of ["likes", "shares"] as const) {
+    for (const column of ["user_id", "list_id"]) {
       const error = foreignKeyError(table, column);
       const failure = await describeFailedRequest(
         `https://example.supabase.co/rest/v1/${table}`,

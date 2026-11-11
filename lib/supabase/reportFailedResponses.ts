@@ -1,6 +1,7 @@
 // ABOUTME: A fetch for Supabase clients that reports failed database requests to Sentry.
 // ABOUTME: Supabase returns errors instead of throwing them, so they would otherwise go unseen.
 import * as Sentry from "@sentry/nextjs";
+import { isMissingLogError } from "@/lib/missingLogError";
 
 // Failures the app already explains to the person, as "table:code"
 const HANDLED_FAILURES = new Set([
@@ -37,12 +38,21 @@ export async function describeFailedRequest(
   const table = pathname.slice("/rest/v1/".length);
   if (HANDLED_FAILURES.has(`${table}:${code}`)) return null;
 
+  const message = body.message ?? "No error message";
+  // A like or share on a deleted review, which the button explains
+  if (
+    (table === "likes" || table === "shares") &&
+    isMissingLogError({ code, message }, table)
+  ) {
+    return null;
+  }
+
   return {
     method,
     table,
     status: response.status,
     code,
-    message: body.message ?? "No error message",
+    message,
   };
 }
 

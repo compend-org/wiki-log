@@ -8,11 +8,11 @@ import ShareIcon from "@/components/icons/ShareIcon";
 import { track } from "@/lib/analytics";
 import {
   isLogUnavailable,
-  isMissingLogError,
   MISSING_LOG_MESSAGE,
   markLogUnavailable,
   useLogUnavailable,
 } from "@/lib/logAvailability";
+import { isMissingLogError } from "@/lib/missingLogError";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 
