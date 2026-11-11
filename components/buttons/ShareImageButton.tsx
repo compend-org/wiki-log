@@ -95,7 +95,7 @@ export default function ShareImageButton({
       {waiting ? (
         <span
           aria-hidden="true"
-          className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+          className="round h-4 w-4 animate-spin border-2 border-current border-t-transparent"
         />
       ) : (
         <ExternalShareIcon className="h-4 w-4" />
