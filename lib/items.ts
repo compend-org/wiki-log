@@ -1,9 +1,14 @@
-// ABOUTME: Reads items from the database cache and refreshes stale ones from Wikipedia.
+// ABOUTME: Reads items from the database cache and refreshes stale ones, or ones whose image broke, from Wikipedia.
 // ABOUTME: Holds the rules for how a Wikipedia lookup becomes an `items` row.
 import { ITEM_ID_PATTERN, isCompoundId } from "@/lib/ids";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getItemById, type ItemData, type LookupResult } from "@/lib/wikipedia";
+import {
+  getItemById,
+  HEADERS,
+  type ItemData,
+  type LookupResult,
+} from "@/lib/wikipedia";
 
 // A cached item is trusted for a week, then refreshed from Wikipedia
 export const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -84,23 +89,34 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
     return { item: toItem(cached) };
   }
 
+  if (!cached) return getItemById(id);
+
   // With a stale copy to fall back on, the page doesn't wait long on Wikipedia
-  const fresh = await getItemById(
+  const fresh = await refreshItem(
     id,
-    cached ? Date.now() + STALE_COPY_WAIT_MS : undefined,
+    cached.image_hidden,
+    Date.now() + STALE_COPY_WAIT_MS,
   );
 
-  if ("error" in fresh) {
-    // Wikipedia is down or the article was removed: a stale copy beats an error
-    return cached ? { item: toItem(cached) } : fresh;
-  }
+  // Wikipedia is down or the article was removed: a stale copy beats an error
+  return "error" in fresh ? { item: toItem(cached) } : fresh;
+}
+
+// Looks a cached item up on Wikipedia again and saves it over its row
+async function refreshItem(
+  id: string,
+  imageHidden: boolean,
+  deadline?: number,
+): Promise<LookupResult> {
+  const fresh = await getItemById(id, deadline);
+  if ("error" in fresh) return fresh;
 
   // A hidden image stays hidden, however often the item is refreshed
-  const item = applyImageHidden(fresh.item, cached?.image_hidden === true);
+  const item = applyImageHidden(fresh.item, imageHidden);
 
   // Don't mark an alias fresh with another item's data: future visits must
   // resolve it again so the page can redirect to the resolved ID.
-  if (cached && item.id === id) {
+  if (item.id === id) {
     await createAdminClient()
       .from("items")
       .update(itemColumns(item))
@@ -108,4 +124,37 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
   }
 
   return { item };
+}
+
+// Where Wikimedia serves the images we store for items
+const WIKIMEDIA_IMAGE = /^https:\/\/(upload|thumb)\.wikimedia\.org\//;
+
+// Wikimedia can rename or delete a file, and the image address we stored then
+// stops working. For an image a browser couldn't load, checks that it is
+// really gone, then refreshes the items that show it. Returns the image to
+// show instead, or null when there isn't one.
+export async function replaceBrokenImage(url: string): Promise<string | null> {
+  if (!WIKIMEDIA_IMAGE.test(url)) return null;
+
+  const { data } = await createAdminClient()
+    .from("items")
+    .select("id, image_hidden")
+    .eq("image_url", url)
+    .limit(5);
+  const rows = (data ?? []) as Pick<ItemRow, "id" | "image_hidden">[];
+  if (rows.length === 0) return null;
+
+  // Only an image Wikimedia says is missing is replaced, so a browser's
+  // network trouble can't make us look items up again
+  const check = await fetch(url, { method: "HEAD", headers: HEADERS }).catch(
+    () => null,
+  );
+  if (check?.status !== 404) return null;
+
+  let replacement: string | null = null;
+  for (const row of rows) {
+    const fresh = await refreshItem(row.id, row.image_hidden);
+    if ("item" in fresh) replacement ??= fresh.item.imageUrl;
+  }
+  return replacement;
 }

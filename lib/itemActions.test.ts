@@ -8,6 +8,7 @@ import {
   addToList,
   createCompound,
   logItem,
+  reportBrokenImage,
   setFavourite,
 } from "../app/actions";
 import ItemPage, { generateMetadata } from "../app/item/[id]/page";
@@ -20,12 +21,15 @@ const userId = "11111111-1111-4111-8111-111111111111";
 const listId = "22222222-2222-4222-8222-222222222222";
 const title = "Traditional folk music";
 const imageUrl = "https://upload.wikimedia.org/wikipedia/commons/a/ab/Folk.jpg";
+const renamedImageUrl =
+  "https://upload.wikimedia.org/wikipedia/commons/c/cd/Folk_old_name.jpg";
 
 type Row = {
   id: string;
   fetched_at?: string;
   title: string;
   image_url: string | null;
+  image_hidden?: boolean;
 };
 type Write = {
   table: string;
@@ -41,6 +45,7 @@ function setup({
   lookupFails = false,
   upsertFails = false,
   writeFails = false,
+  imageStatus = 200,
 } = {}) {
   const previousEnv = { ...process.env };
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
@@ -78,6 +83,7 @@ function setup({
   );
   const items = new Map(cached.map((row) => [row.id, row]));
   const writes: Write[] = [];
+  const imageChecks: string[] = [];
   let lookups = 0;
   mock.method(
     globalThis,
@@ -122,6 +128,12 @@ function setup({
           return new Response(null, { status: 201 });
         }
         if (table === "items") {
+          const image = url.searchParams.get("image_url")?.replace(/^eq\./, "");
+          if (image !== undefined) {
+            return Response.json(
+              [...items.values()].filter((row) => row.image_url === image),
+            );
+          }
           const item = items.get(
             url.searchParams.get("id")?.replace(/^eq\./, "") ?? "",
           );
@@ -135,6 +147,10 @@ function setup({
         return Response.json(
           lastPosition === null ? [] : [{ position: lastPosition }],
         );
+      }
+      if (init?.method === "HEAD") {
+        imageChecks.push(url.href);
+        return new Response(null, { status: imageStatus });
       }
       if (url.searchParams.get("action") === "wbgetentities") {
         lookups++;
@@ -159,6 +175,7 @@ function setup({
   );
   return {
     writes,
+    imageChecks,
     lookups: () => lookups,
     restore: () => {
       FEATURES.compounds = compounds;
@@ -338,6 +355,44 @@ test("a successful stale refresh references the newly stored resolved ID", async
     fixture.writes.find((w) => w.table === "logs")?.body.item_id,
     resolvedId,
   );
+});
+
+const renamedImageItem = {
+  id: resolvedId,
+  title,
+  image_url: renamedImageUrl,
+  image_hidden: false,
+  fetched_at: new Date().toISOString(),
+};
+
+test("an image Wikimedia no longer has is replaced by refreshing its item", async () => {
+  fixture = setup({ cached: [renamedImageItem], imageStatus: 404 });
+  assert.equal(await reportBrokenImage(renamedImageUrl), imageUrl);
+  assert.deepEqual(fixture.imageChecks, [renamedImageUrl]);
+  const write = fixture.writes.find((w) => w.table === "items");
+  assert.equal(write?.method, "PATCH");
+  assert.equal(write?.id, resolvedId);
+  assert.equal(write?.body.image_url, imageUrl);
+});
+
+test("an image that still loads for the server isn't replaced", async () => {
+  fixture = setup({ cached: [renamedImageItem] });
+  assert.equal(await reportBrokenImage(renamedImageUrl), null);
+  assert.equal(fixture.lookups(), 0);
+  assert.deepEqual(fixture.writes, []);
+});
+
+test("only stored Wikimedia images are checked", async () => {
+  fixture = setup({ cached: [renamedImageItem], imageStatus: 404 });
+  assert.equal(await reportBrokenImage("https://example.com/a.jpg"), null);
+  assert.equal(
+    await reportBrokenImage(
+      "https://upload.wikimedia.org/wikipedia/commons/0/00/Unknown.jpg",
+    ),
+    null,
+  );
+  assert.deepEqual(fixture.imageChecks, []);
+  assert.deepEqual(fixture.writes, []);
 });
 
 test("a failed item upsert prevents the dependent write and returns the error", async () => {

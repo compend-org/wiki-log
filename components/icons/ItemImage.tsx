@@ -1,4 +1,5 @@
-import { shortLabel, thumbUrl } from "@/lib/format";
+import ItemPicture from "@/components/ItemPicture";
+import { shortLabel } from "@/lib/format";
 
 const CHAR_WIDTH = 0.66; // average width of a bold character, in em (a little generous)
 const LINE_HEIGHT = 1.15;
@@ -114,9 +115,9 @@ export default function ItemImage({
   }
 
   return (
-    // biome-ignore lint/performance/noImgElement: a plain img is intended
-    <img
-      src={thumbUrl(src, sourceWidth)}
+    <ItemPicture
+      src={src}
+      sourceWidth={sourceWidth}
       alt={alt}
       loading="lazy"
       draggable={false}

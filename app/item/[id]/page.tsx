@@ -6,6 +6,7 @@ import { cache } from "react";
 import AddToList from "@/components/AddToList";
 import ItemLists from "@/components/ItemLists";
 import ItemLogs from "@/components/ItemLogs";
+import ItemPicture from "@/components/ItemPicture";
 import ItemImage from "@/components/icons/ItemImage";
 import LogForm from "@/components/LogForm";
 import MyEntries, { type MyEntry } from "@/components/MyEntries";
@@ -185,9 +186,9 @@ export default async function ItemPage({
           {random && <RandomAgain />}
           {item.imageUrl ? (
             <figure className="flex flex-col items-center gap-1">
-              {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
-              <img
+              <ItemPicture
                 src={item.imageUrl}
+                fullSize
                 alt={item.title}
                 className="item-img h-auto w-auto max-w-full border-2 border-dashed border-line bg-clip-padding [[data-theme=dark]_&]:bg-foreground"
               />

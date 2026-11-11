@@ -11,6 +11,7 @@ import {
   applyImageHidden,
   itemColumns,
   MAX_AGE_MS,
+  replaceBrokenImage,
   STALE_COPY_WAIT_MS,
 } from "@/lib/items";
 import {
@@ -79,6 +80,12 @@ async function ensureItem(itemId: string): Promise<StoredItem> {
   return error
     ? { error: error.message }
     : { id: item.id, title: item.title, imageUrl: item.imageUrl };
+}
+
+// For an item image the browser couldn't load: the image to show instead, if any
+export async function reportBrokenImage(url: string): Promise<string | null> {
+  if (typeof url !== "string") return null;
+  return replaceBrokenImage(url);
 }
 
 export async function logItem(input: {
