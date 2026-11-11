@@ -20,7 +20,10 @@ export default function Favourites({
   const [editing, setEditing] = useState<number | null>(null);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const [removing, setRemoving] = useState<boolean>(false);
   const router = useRouter();
+  const hasFavourites = slots.some(Boolean);
+  const showRemove = removing && hasFavourites;
 
   async function handlePick(itemId: string) {
     if (editing === null) return;
@@ -40,7 +43,13 @@ export default function Favourites({
   async function handleRemove(position: number) {
     setBusy(true);
     setError("");
-    const result = await removeFavourite(position);
+    let result: { error?: string };
+    try {
+      result = await removeFavourite(position);
+    } catch {
+      // The request can fail outright, e.g. when it races a page change
+      result = { error: "Couldn't remove it. Reload the page to try again." };
+    }
     setBusy(false);
     if (result.error) {
       setError(result.error);
@@ -52,9 +61,23 @@ export default function Favourites({
 
   return (
     <section>
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">
-        Top 5
-      </h2>
+      <div className="mb-2 flex items-baseline justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+          Top 5
+        </h2>
+        {isOwner && hasFavourites && (
+          <button
+            type="button"
+            onClick={() => {
+              setRemoving((r) => !r);
+              setError("");
+            }}
+            className="text-sm text-muted hover:text-accent"
+          >
+            {showRemove ? "Done" : "Edit"}
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-5 gap-2">
         {slots.map((slot, i) => {
@@ -63,25 +86,35 @@ export default function Favourites({
           if (slot) {
             return (
               <div key={position} className="relative min-w-0">
-                <Link
-                  href={`/item/${slot.itemId}`}
-                  title={slot.title}
-                  className="block transition-transform hover:-translate-y-0.5"
-                >
+                {/* While removing, the image isn't a link, so a missed tap
+                    can't navigate away mid-request */}
+                {showRemove ? (
                   <ItemImage
                     src={slot.imageUrl}
                     alt={slot.title}
                     className="aspect-square w-full rounded"
                   />
-                </Link>
+                ) : (
+                  <Link
+                    href={`/item/${slot.itemId}`}
+                    title={slot.title}
+                    className="block transition-transform hover:-translate-y-0.5"
+                  >
+                    <ItemImage
+                      src={slot.imageUrl}
+                      alt={slot.title}
+                      className="aspect-square w-full rounded"
+                    />
+                  </Link>
+                )}
 
-                {isOwner && (
+                {showRemove && (
                   <button
                     type="button"
                     onClick={() => handleRemove(position)}
                     disabled={busy}
                     aria-label={`Remove ${slot.title}`}
-                    className="absolute right-0.5 top-0.5 rounded bg-background/80 px-1.5 text-xs text-foreground"
+                    className="absolute -right-1.5 -top-1.5 flex h-7 w-7 items-center justify-center rounded-full border border-line bg-background text-sm text-foreground shadow disabled:opacity-40"
                   >
                     ×
                   </button>
