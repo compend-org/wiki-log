@@ -9,6 +9,7 @@ import ItemLogs from "@/components/ItemLogs";
 import ItemImage from "@/components/icons/ItemImage";
 import LogForm from "@/components/LogForm";
 import MyEntries, { type MyEntry } from "@/components/MyEntries";
+import RandomAgain from "@/components/RandomAgain";
 import RatingHistogram from "@/components/RatingsHistogram";
 import { BUSY_ERROR } from "@/lib/articleSummary";
 import { FEATURES } from "@/lib/features";
@@ -19,6 +20,7 @@ import { getItemRatings } from "@/lib/itemRatings";
 import { getItemForPage } from "@/lib/items";
 import { pageMetadata } from "@/lib/metadata";
 import { parseLimit } from "@/lib/paging";
+import { RANDOM_PARAM } from "@/lib/randomItem";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
@@ -60,11 +62,11 @@ export default async function ItemPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ limit?: string }>;
+  searchParams: Promise<{ limit?: string; [RANDOM_PARAM]?: string }>;
 }) {
   await connection();
   const { id } = await params;
-  const { limit } = await searchParams;
+  const { limit, [RANDOM_PARAM]: random } = await searchParams;
 
   const result = await getItem(id);
   if (isCompoundId(id) && !FEATURES.compounds) notFound();
@@ -179,6 +181,8 @@ export default async function ItemPage({
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
         <div className="flex flex-col gap-3">
+          {/* Reached by rolling a random article, so offer another roll */}
+          {random && <RandomAgain />}
           {item.imageUrl ? (
             <figure className="flex flex-col items-center gap-1">
               {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
