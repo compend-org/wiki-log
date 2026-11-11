@@ -5,7 +5,13 @@ import { connection } from "next/server";
 import { getDailyPicks, type Pick } from "@/lib/dailyPicks";
 import { FEATURES } from "@/lib/features";
 import { absolute, shortLabel, thumbUrl } from "@/lib/format";
-import { COLORS, embeddable, loadSerifFonts, Star } from "@/lib/shareImage";
+import {
+  COLORS,
+  embeddable,
+  loadSerifFonts,
+  Star,
+  smallerPng,
+} from "@/lib/shareImage";
 import { SITE_NAME } from "@/lib/site";
 import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia";
 
@@ -159,7 +165,7 @@ export async function GET(request: Request) {
     embeddable(siteFile("/logo-light.png")),
   ]);
 
-  return new ImageResponse(
+  const image = new ImageResponse(
     <div
       style={{
         width: "100%",
@@ -219,8 +225,10 @@ export async function GET(request: Request) {
       width: WIDTH,
       height: HEIGHT,
       fonts,
-      // The picks change through the day, so the image is drawn fresh each time
-      headers: { "Cache-Control": "no-store" },
+      // The picks change through the day, so a drawn image is reused by
+      // everyone for a minute and then drawn again
+      headers: { "Cache-Control": "public, s-maxage=60" },
     },
   );
+  return smallerPng(image);
 }
