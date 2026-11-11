@@ -123,13 +123,15 @@ function filePageFor(lang: LangCode, url: string, fileName: string): string {
     : `https://${lang}.wikipedia.org/wiki/File:${name}`;
 }
 
-// Wikidata's curated "image" property: always a Commons file, so always free
+// A file from one of Wikidata's curated image properties, like "image" (P18)
+// or "logo image" (P154): always a Commons file, so always free
 async function wikidataImage(
   qid: string,
+  property: string,
   deadline: number,
 ): Promise<{ url: string; filePage: string | null } | null> {
   try {
-    const values = await getClaimValues(qid, "P18", deadline);
+    const values = await getClaimValues(qid, property, deadline);
     const file = values?.find((v) => typeof v === "string") as
       | string
       | undefined;
@@ -258,8 +260,9 @@ async function firstArticleImage(
 }
 
 // Relevance comes before licence: use Wikipedia's representative image, then
-// Wikidata's curated image, then the first suitable article image. A free body
-// image never replaces a lead.
+// Wikidata's curated image, then its logo, then the first suitable article
+// image. A free body image never replaces a lead. PageImages never picks a
+// very wide image, so an article led by a wordmark logo reaches the logo step.
 async function chooseImage(
   lang: LangCode,
   qid: string,
@@ -272,8 +275,11 @@ async function chooseImage(
   const representative = await representativeImage(lang, title, deadline);
   if (representative) return representative;
 
-  const fromWikidata = await wikidataImage(qid, deadline);
+  const fromWikidata = await wikidataImage(qid, "P18", deadline);
   if (fromWikidata) return { ...fromWikidata, nonFree: false };
+
+  const logo = await wikidataImage(qid, "P154", deadline);
+  if (logo) return { ...logo, nonFree: false };
   return firstArticleImage(lang, title, deadline);
 }
 

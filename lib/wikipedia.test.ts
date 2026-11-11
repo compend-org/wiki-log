@@ -9,6 +9,9 @@ const portrait =
   "https://upload.wikimedia.org/wikipedia/commons/1/12/Hirohiko_Araki.jpg";
 const filePage = "https://en.wikipedia.org/wiki/File:Steel_Ball_Run_1.jpg";
 
+const logo =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Deltarune_vector_logo.svg/960px-Deltarune_vector_logo.svg.png";
+
 const joniImage =
   "https://upload.wikimedia.org/wikipedia/en/1/1c/Joni_Mitchell_in_blackface.png";
 
@@ -43,6 +46,7 @@ function mockWikipedia({
   metadataStatus = 200,
   metadataThrows = false,
   wikidataFile = "Hirohiko Araki.jpg" as string | null,
+  wikidataLogo = null as string | null,
 }: {
   title?: string;
   qid?: string;
@@ -57,6 +61,7 @@ function mockWikipedia({
   metadataStatus?: number;
   metadataThrows?: boolean;
   wikidataFile?: string | null;
+  wikidataLogo?: string | null;
 } = {}) {
   return mock.method(
     globalThis,
@@ -97,19 +102,25 @@ function mockWikipedia({
             },
           });
         }
+        const property = url.searchParams.get("property") as string;
+        const file = property === "P154" ? wikidataLogo : wikidataFile;
         return Response.json({
           claims: {
-            P18: wikidataFile
-              ? [{ mainsnak: { datavalue: { value: wikidataFile } } }]
+            [property]: file
+              ? [{ mainsnak: { datavalue: { value: file } } }]
               : [],
           },
         });
       }
       if (url.hostname === "commons.wikimedia.org") {
+        const source =
+          url.searchParams.get("titles") === `File:${wikidataLogo}`
+            ? logo
+            : portrait;
         return Response.json({
           query: {
             pages: [
-              { imageinfo: [{ thumburl: portrait, descriptionurl: portrait }] },
+              { imageinfo: [{ thumburl: source, descriptionurl: source }] },
             ],
           },
         });
@@ -223,7 +234,28 @@ test("no representative or suitable article image leaves the image empty", async
   assert.equal(result.item.imageUrl, null);
   assert.equal(result.item.imageNonFree, false);
   assert.equal(result.item.imageFilePage, null);
-  assert.equal(imageLookups(fetch), 4);
+  assert.equal(imageLookups(fetch), 5);
+});
+
+test("Wikidata's logo stands in when there is no lead or curated image", async () => {
+  mockWikipedia({
+    lead: null,
+    wikidataFile: null,
+    wikidataLogo: "Deltarune vector logo.svg",
+    bodyPages: [articlePicture("Toby Fox 2017 (cropped 3).jpg", portrait)],
+  });
+  const result = await getItemByKey("Steel_Ball_Run");
+  assert.ok("item" in result);
+  assert.equal(result.item.imageUrl, logo);
+  assert.equal(result.item.imageNonFree, false);
+  assert.equal(result.item.imageFilePage, logo);
+});
+
+test("Wikidata's curated image wins over its logo", async () => {
+  mockWikipedia({ lead: null, wikidataLogo: "Deltarune vector logo.svg" });
+  const result = await getItemByKey("Steel_Ball_Run");
+  assert.ok("item" in result);
+  assert.equal(result.item.imageUrl, portrait);
 });
 
 test("the Joni Mitchell controversy can use its sole non-free body image", async () => {
