@@ -83,9 +83,6 @@ export default function ShareButton({
     setBusy(false);
   }
 
-  // Nothing to show on your own post until someone shares it
-  if (count === 0) return null;
-
   if (unavailable) {
     return <span role="status">{MISSING_LOG_MESSAGE}</span>;
   }
