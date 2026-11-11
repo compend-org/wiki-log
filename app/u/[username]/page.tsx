@@ -246,13 +246,13 @@ export default async function ProfilePage({
             path={profile.avatar_path}
             size={72}
           />
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
             <h1 className="break-words text-3xl font-bold">
               {profile.username}
             </h1>
             {profileIsAdmin && <AdminBadge />}
             {followsViewer && (
-              <span className="ml-2 rounded border border-line bg-surface px-2 py-0.5 text-xs text-muted">
+              <span className="ml-2 self-center rounded border border-line bg-surface px-2 py-0.5 text-xs text-muted">
                 Follows you
               </span>
             )}
