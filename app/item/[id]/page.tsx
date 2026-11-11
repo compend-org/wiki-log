@@ -14,6 +14,7 @@ import RandomAgain from "@/components/RandomAgain";
 import RatingHistogram from "@/components/RatingsHistogram";
 import { BUSY_ERROR } from "@/lib/articleSummary";
 import { FEATURES } from "@/lib/features";
+import { timeAgo } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
 import { getItemLists } from "@/lib/itemLists";
 import { getItemLogs } from "@/lib/itemLogs";
@@ -66,6 +67,7 @@ export default async function ItemPage({
   searchParams: Promise<{ limit?: string; [RANDOM_PARAM]?: string }>;
 }) {
   await connection();
+  const renderedAt = Date.now();
   const { id } = await params;
   const { limit, [RANDOM_PARAM]: random } = await searchParams;
 
@@ -97,7 +99,7 @@ export default async function ItemPage({
     id: r.id,
     rating: Number(r.rating ?? 0),
     review: r.review,
-    loggedAt: r.logged_at,
+    loggedAgo: timeAgo(r.logged_at, renderedAt),
   }));
   // The viewer's own latest rating (entries are newest first; 0 means none)
   const myRating = myEntries.find((e) => e.rating > 0)?.rating ?? null;

@@ -22,6 +22,7 @@ import {
   threadsHref,
   toCommentItems,
 } from "@/lib/comments";
+import { timeAgo } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { fetchOwnerLatestLogs } from "@/lib/listOwnerLogs";
 import { fetchListPage, pageCount, parsePage } from "@/lib/listPages";
@@ -117,6 +118,7 @@ export default async function ListPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await connection();
+  const renderedAt = Date.now();
   const { id } = await params;
   if (!isUuid(id)) notFound();
   const query = await searchParams;
@@ -158,6 +160,7 @@ export default async function ListPage({
     commentPage.rows,
     adminIds,
     viewer.likedListComments,
+    renderedAt,
   );
 
   // Comments by people the viewer has blocked are left out
@@ -264,7 +267,7 @@ export default async function ListPage({
                 >
                   <span className="text-xs text-muted">
                     {owner ? `${owner}'s latest` : "Latest"} ·{" "}
-                    {info.latest.logged_at.slice(0, 10)}
+                    {timeAgo(info.latest.logged_at, renderedAt)}
                   </span>
                   <Stars rating={info.latest.rating} />
                   {info.latest.review && (

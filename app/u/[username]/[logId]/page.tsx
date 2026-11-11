@@ -25,6 +25,7 @@ import {
   threadsHref,
   toCommentItems,
 } from "@/lib/comments";
+import { timeAgo } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { likeKey } from "@/lib/likes";
 import { pageMetadata, starText } from "@/lib/metadata";
@@ -67,6 +68,7 @@ export default async function ReviewPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await connection();
+  const renderedAt = Date.now();
   const { username: rawName, logId } = await params;
   const query = await searchParams;
   const threads = parseThreads(query.comments);
@@ -120,6 +122,7 @@ export default async function ReviewPage({
     commentRows,
     adminIds,
     viewer.likedComments,
+    renderedAt,
   );
 
   // Comments by people the viewer has blocked are left out
@@ -166,7 +169,7 @@ export default async function ReviewPage({
             {adminIds.has(log.user_id) && <AdminBadge />}
           </span>
           <span className="relative before:absolute before:right-full before:mr-1 before:content-['·']">
-            {log.logged_at.slice(0, 10)}
+            {timeAgo(log.logged_at, renderedAt)}
           </span>
         </p>
         <Stars rating={log.rating} />

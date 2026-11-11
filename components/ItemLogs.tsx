@@ -9,6 +9,7 @@ import ItemLogSummary from "@/components/ItemLogSummary";
 import LoadMore from "@/components/LoadMore";
 import Stars from "@/components/Stars";
 import { getAdminIds } from "@/lib/admin";
+import { timeAgo } from "@/lib/format";
 import type { ItemLogRow } from "@/lib/itemLogs";
 import { getItemRatings } from "@/lib/itemRatings";
 import { PAGE_SIZE } from "@/lib/paging";
@@ -37,6 +38,7 @@ export default async function ItemLogs({
   viewer: ViewerState;
 }) {
   await connection();
+  const renderedAt = Date.now();
   const adminIds = await getAdminIds();
   const { ratings, logCount } = await getItemRatings(itemId);
 
@@ -104,7 +106,7 @@ export default async function ItemLogs({
           {adminIds.has(row.user_id) && <AdminBadge />}
           <Stars rating={row.rating} />
           <span className="ml-auto text-sm text-muted">
-            {new Date(row.logged_at).toLocaleDateString()}
+            {timeAgo(row.logged_at, renderedAt)}
           </span>
         </div>
         {row.review && (
