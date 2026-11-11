@@ -1,5 +1,5 @@
 // ABOUTME: A heart that likes or unlikes one list.
-// ABOUTME: Sends signed-out visitors to log in and shows nothing on your own list until it has likes.
+// ABOUTME: Sends signed-out visitors to log in.
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -10,7 +10,6 @@ import { useLoginHref } from "@/lib/useLoginHref";
 export default function ListLikeButton({
   viewerId,
   listId,
-  ownerId,
   initialCount,
   initiallyLiked,
 }: {
@@ -35,29 +34,22 @@ export default function ListLikeButton({
   });
   const router = useRouter();
 
-  const own = viewerId === ownerId;
-
   async function toggle() {
     if (!viewerId) {
       router.push(loginHref);
       return;
     }
-    if (own) return;
 
     await toggleLike();
   }
-
-  // Nothing to show on your own list until someone likes it
-  if (own && count === 0) return null;
 
   return (
     <button
       type="button"
       onClick={toggle}
-      disabled={own}
       aria-pressed={liked}
       aria-label={liked ? "Unlike this list" : "Like this list"}
-      className={`inline-flex h-5 items-center gap-1 text-sm disabled:cursor-default ${
+      className={`inline-flex h-5 items-center gap-1 text-sm ${
         liked ? "text-like" : "text-muted enabled:hover:text-like"
       }`}
     >

@@ -19,7 +19,6 @@ import { useLoginHref } from "@/lib/useLoginHref";
 // Shares (reposts) a review or a list to the people who follow you
 export default function ShareButton({
   viewerId,
-  ownerId,
   kind,
   targetId,
   initialCount,
@@ -41,7 +40,6 @@ export default function ShareButton({
   const logId = kind === "log" ? targetId : null;
   const unavailable = useLogUnavailable(logId);
 
-  const own = viewerId === ownerId;
   const column = kind === "log" ? "log_id" : "list_id";
 
   async function toggle() {
@@ -49,7 +47,7 @@ export default function ShareButton({
       router.push(loginHref);
       return;
     }
-    if (own || busy || isLogUnavailable(logId)) return;
+    if (busy || isLogUnavailable(logId)) return;
 
     setBusy(true);
     setErrorMessage("");
@@ -86,7 +84,7 @@ export default function ShareButton({
   }
 
   // Nothing to show on your own post until someone shares it
-  if (own && count === 0) return null;
+  if (count === 0) return null;
 
   if (unavailable) {
     return <span role="status">{MISSING_LOG_MESSAGE}</span>;
@@ -97,7 +95,7 @@ export default function ShareButton({
       <button
         type="button"
         onClick={toggle}
-        disabled={own || busy}
+        disabled={busy}
         aria-pressed={shared}
         aria-label={shared ? "Undo share" : "Share to your followers"}
         title={shared ? "Undo share" : "Share to your followers"}

@@ -1,5 +1,5 @@
 // ABOUTME: A heart that likes or unlikes one review.
-// ABOUTME: Sends signed-out visitors to log in and shows nothing on your own review until it has likes.
+// ABOUTME: Sends signed-out visitors to log in.
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -14,7 +14,6 @@ import { useLoginHref } from "@/lib/useLoginHref";
 
 export default function LikeButton({
   viewerId,
-  authorId,
   logId,
   initialCount,
   initiallyLiked,
@@ -43,21 +42,15 @@ export default function LikeButton({
   const router = useRouter();
   const unavailable = useLogUnavailable(logId);
 
-  const own = viewerId === authorId;
-
   async function toggle() {
     if (!viewerId) {
       router.push(loginHref);
       return;
     }
-    if (own) return;
 
     await toggleLike();
     if (isLogUnavailable(logId)) router.refresh();
   }
-
-  // Nothing to show on your own review until someone likes it
-  if (own && count === 0) return null;
 
   if (unavailable) {
     return <span role="status">{MISSING_LOG_MESSAGE}</span>;
@@ -68,7 +61,7 @@ export default function LikeButton({
       <button
         type="button"
         onClick={toggle}
-        disabled={own || busy}
+        disabled={busy}
         aria-pressed={liked}
         aria-label={liked ? "Unlike this review" : "Like this review"}
         className={`inline-flex h-5 items-center gap-1 text-sm disabled:cursor-default ${
