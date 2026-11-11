@@ -9,6 +9,7 @@ import LoadMore from "@/components/LoadMore";
 import ReviewText from "@/components/ReviewText";
 import Stars from "@/components/Stars";
 import { track } from "@/lib/analytics";
+import { timeAgo } from "@/lib/format";
 import { type Keyset, olderThan, PAGE_SIZE, takeNewest } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
@@ -78,6 +79,8 @@ export default function DiaryPage() {
   // The page being asked for: bumped to load the next one
   const [wanted, setWanted] = useState<Cursors>({});
   const [loaded, setLoaded] = useState<boolean>(false);
+  // When the latest page arrived, which the times shown are relative to
+  const [loadedAt, setLoadedAt] = useState<number>(0);
   const [error, setError] = useState<string>("");
   // The log whose edit form is open
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -237,6 +240,7 @@ export default function DiaryPage() {
             }
           : null,
       );
+      setLoadedAt(Date.now());
       setLoaded(true);
     }
 
@@ -317,7 +321,7 @@ export default function DiaryPage() {
 
       <ul className="flex flex-col gap-3">
         {entries.map((e) => {
-          const date = new Date(e.date).toLocaleDateString();
+          const date = timeAgo(e.date, loadedAt);
 
           if (e.kind === "list") {
             return (

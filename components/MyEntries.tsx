@@ -14,7 +14,8 @@ export type MyEntry = {
   id: string;
   rating: number;
   review: string;
-  loggedAt: string;
+  // When it was logged, as shown: "5m ago", or the date once it's a day old
+  loggedAgo: string;
 };
 
 export default function MyEntries({ entries }: { entries: MyEntry[] }) {
@@ -101,9 +102,7 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
             <>
               <div className="flex items-center gap-3">
                 <Stars rating={e.rating} />
-                <span className="text-xs text-muted">
-                  {e.loggedAt.slice(0, 10)}
-                </span>
+                <span className="text-xs text-muted">{e.loggedAgo}</span>
               </div>
               {e.review && (
                 <p className="whitespace-pre-wrap text-sm">
