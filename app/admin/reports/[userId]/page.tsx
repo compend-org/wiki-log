@@ -226,7 +226,7 @@ export default async function ReportedAccountPage({
         >
           ← Reports
         </Link>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="break-all text-3xl font-bold">{account.username}</h1>
           {account.is_admin && <AdminBadge />}
         </div>

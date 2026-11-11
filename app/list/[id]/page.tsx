@@ -190,7 +190,7 @@ export default async function ListPage({
           {adminIds.has(list.user_id) && (
             <>
               {" "}
-              <AdminBadge inline />
+              <AdminBadge />
             </>
           )}{" "}
           · {total.toLocaleString("en-US")} {total === 1 ? "item" : "items"}

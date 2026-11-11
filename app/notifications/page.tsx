@@ -96,7 +96,7 @@ function PersonLink({
       {isAdmin && (
         <>
           {" "}
-          <AdminBadge inline />
+          <AdminBadge />
         </>
       )}
     </>
