@@ -9,16 +9,6 @@ const listeners = new Set<() => void>();
 
 export const MISSING_LOG_MESSAGE = "This review is no longer available.";
 
-export function isMissingLogError(
-  error: { code?: string; message: string },
-  table: "likes" | "shares",
-): boolean {
-  return (
-    error.code === "23503" &&
-    error.message.includes(`foreign key constraint "${table}_log_id_fkey"`)
-  );
-}
-
 export function isLogUnavailable(logId: string | null): boolean {
   return logId !== null && missingLogs.has(logId);
 }

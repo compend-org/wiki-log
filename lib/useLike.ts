@@ -4,11 +4,8 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { track } from "@/lib/analytics";
-import {
-  isLogUnavailable,
-  isMissingLogError,
-  markLogUnavailable,
-} from "@/lib/logAvailability";
+import { isLogUnavailable, markLogUnavailable } from "@/lib/logAvailability";
+import { isMissingLogError } from "@/lib/missingLogError";
 import { createClient } from "@/lib/supabase/client";
 
 const UNIQUE_VIOLATION = "23505";
