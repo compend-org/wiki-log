@@ -9,7 +9,13 @@ import { absolute, plainReview, shortLabel, thumbUrl } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { getProfileByName } from "@/lib/profiles";
 import { getReview } from "@/lib/reviews";
-import { COLORS, embeddable, loadSerifFonts, Stars } from "@/lib/shareImage";
+import {
+  COLORS,
+  embeddable,
+  loadSerifFonts,
+  Stars,
+  smallerPng,
+} from "@/lib/shareImage";
 import { SITE_NAME } from "@/lib/site";
 import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia";
 
@@ -60,7 +66,7 @@ export async function GET(
   const frame = `${px(1)}px solid ${COLORS.line}`;
   const imageSize = px(105);
 
-  return new ImageResponse(
+  const image = new ImageResponse(
     <div
       style={{
         width: "100%",
@@ -224,8 +230,13 @@ export async function GET(
       width: WIDTH,
       height: HEIGHT,
       fonts,
-      // The like and share counts change, so the image is drawn fresh each time
-      headers: { "Cache-Control": "no-store" },
+      // The like and share counts change, so a drawn image is reused by
+      // everyone for a minute and then drawn again. A removed review is only
+      // visible to its author, so its image is never shared with others.
+      headers: {
+        "Cache-Control": log.removed_at ? "no-store" : "public, s-maxage=60",
+      },
     },
   );
+  return smallerPng(image);
 }

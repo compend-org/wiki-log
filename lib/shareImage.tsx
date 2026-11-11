@@ -87,6 +87,20 @@ export async function embeddable(
   }
 }
 
+// A drawn image with its PNG stored as a palette of colours, which makes it
+// about a third of the size with no difference anyone can see
+export async function smallerPng(image: Response): Promise<Response> {
+  const png = await sharp(Buffer.from(await image.arrayBuffer()))
+    .png({ palette: true, quality: 90 })
+    .toBuffer();
+  const headers = new Headers(image.headers);
+  headers.delete("Content-Length");
+  return new Response(new Uint8Array(png), {
+    status: image.status,
+    headers,
+  });
+}
+
 // A five-pointed star, or its left half
 export function Star({ size, half = false }: { size: number; half?: boolean }) {
   const points = half

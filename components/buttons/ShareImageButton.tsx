@@ -2,7 +2,7 @@
 // ABOUTME: Downloads the picture instead on browsers that can't share files.
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import ExternalShareIcon from "@/components/icons/ExternalShareIcon";
 import { track } from "@/lib/analytics";
 
@@ -15,43 +15,64 @@ export default function ShareImageButton({
   fileName: string;
   className?: string;
 }) {
-  // A picture that's fetched but still waiting for a tap to share it
-  const ready = useRef<File | null>(null);
-  const busy = useRef<boolean>(false);
+  const button = useRef<HTMLButtonElement>(null);
+  // The picture while it's being fetched, and once it's here
+  const fetching = useRef<Promise<File | null> | null>(null);
+  const fetched = useRef<File | null>(null);
+  const [waiting, setWaiting] = useState(false);
 
-  async function share(file: File) {
-    try {
-      await navigator.share({ files: [file] });
-      ready.current = null;
-      track("share_image_created", { method: "share_sheet" });
-    } catch (error) {
-      // Some browsers only open the share sheet straight after a tap, which
-      // fetching the picture can outlast. Then the next tap shares it.
-      const name = error instanceof DOMException ? error.name : "";
-      ready.current = name === "NotAllowedError" ? file : null;
-    }
+  function fetchPicture(): Promise<File | null> {
+    fetching.current ??= fetch(imageHref)
+      .then((res) => (res.ok ? res.blob() : null))
+      .then((blob) => blob && new File([blob], fileName, { type: blob.type }))
+      .catch(() => null)
+      .then((file) => {
+        fetched.current = file;
+        // A failed fetch is tried again on the next tap
+        if (!file) fetching.current = null;
+        return file;
+      });
+    return fetching.current;
   }
 
+  // Drawing the picture takes a few seconds, so it starts as soon as the
+  // button is on screen. The button is hidden on wide screens, so they
+  // never fetch it.
+  useEffect(() => {
+    const element = button.current;
+    if (!element || fetching.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        observer.disconnect();
+        fetchPicture();
+      }
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  });
+
   async function onClick() {
-    if (ready.current) {
-      await share(ready.current);
-      return;
+    let file = fetched.current;
+    if (!file) {
+      setWaiting(true);
+      file = await fetchPicture();
+      setWaiting(false);
     }
-    if (busy.current) return;
+    if (!file) return;
 
-    busy.current = true;
-    const res = await fetch(imageHref).catch(() => null);
-    const blob = res?.ok ? await res.blob() : null;
-    busy.current = false;
-    if (!blob) return;
-
-    const file = new File([blob], fileName, { type: blob.type });
     if (navigator.canShare?.({ files: [file] })) {
-      await share(file);
+      try {
+        await navigator.share({ files: [file] });
+        track("share_image_created", { method: "share_sheet" });
+      } catch {
+        // Cancelled, or the browser only opens the share sheet straight
+        // after a tap, which waiting for the picture can outlast. The
+        // picture is kept, so the next tap shares it right away.
+      }
       return;
     }
 
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(file);
     const link = document.createElement("a");
     link.href = url;
     link.download = fileName;
@@ -62,13 +83,23 @@ export default function ShareImageButton({
 
   return (
     <button
+      ref={button}
       type="button"
       onClick={onClick}
+      disabled={waiting}
+      aria-busy={waiting}
       aria-label="Share as image"
       title="Share as image"
       className={`inline-flex h-5 items-center text-muted hover:text-foreground ${className}`}
     >
-      <ExternalShareIcon className="h-4 w-4" />
+      {waiting ? (
+        <span
+          aria-hidden="true"
+          className="round h-4 w-4 animate-spin border-2 border-current border-t-transparent"
+        />
+      ) : (
+        <ExternalShareIcon className="h-4 w-4" />
+      )}
     </button>
   );
 }
