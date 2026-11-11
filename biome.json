@@ -21,6 +21,14 @@
         "noUnusedVariables": "error",
         "noUnusedImports": "error",
         "noUnusedFunctionParameters": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "error",
+        "useImportType": "error"
+      },
+      "complexity": {
+        "noImportantStyles": "error",
+        "useMathMinMax": "error"
       }
     }
   },

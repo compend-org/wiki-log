@@ -149,6 +149,7 @@ body {
 *,
 *::before,
 *::after {
+  /* biome-ignore lint/complexity/noImportantStyles: squares every corner site-wide, overriding component styles */
   border-radius: 0 !important;
 }
 
@@ -166,11 +167,13 @@ body {
 
 /* Profile pictures stay round */
 .avatar {
+  /* biome-ignore lint/complexity/noImportantStyles: must beat the site-wide square-corner rule */
   border-radius: 9999px !important;
 }
 
 /* Round buttons, such as back to top */
 .round {
+  /* biome-ignore lint/complexity/noImportantStyles: must beat the site-wide square-corner rule */
   border-radius: 9999px !important;
 }
 

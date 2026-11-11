@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
+import { requireEnv } from "@/lib/env";
 import { FEATURES } from "@/lib/features";
 import { reportFailedResponses } from "@/lib/supabase/reportFailedResponses";
 import { escapeLike } from "@/lib/username";
@@ -16,8 +17,14 @@ type Hit = {
 async function findCompounds(q: string): Promise<Hit[]> {
   try {
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      requireEnv(
+        "NEXT_PUBLIC_SUPABASE_URL",
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+      ),
+      requireEnv(
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+      ),
       { global: { fetch: reportFailedResponses } },
     );
     const { data } = await supabase

@@ -196,7 +196,7 @@ export default function ItemPicker({
     } else if (e.key === "Enter") {
       if (listOpen && ready && shownHits.length > 0 && !busy) {
         e.preventDefault();
-        choose(shownHits[active >= 0 ? active : 0]);
+        choose(shownHits[Math.max(active, 0)]);
       }
     } else if (e.key === "Escape") {
       setOpen(false);

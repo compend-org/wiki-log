@@ -2,6 +2,7 @@
 // ABOUTME: The result is cached in the shared remote cache for all server instances.
 import { createClient } from "@supabase/supabase-js";
 import { cacheLife, cacheTag } from "next/cache";
+import { requireEnv } from "@/lib/env";
 import { reportFailedResponses } from "@/lib/supabase/reportFailedResponses";
 import { POSTS_CACHE_TAG } from "./cacheTags";
 
@@ -47,8 +48,14 @@ export async function getDailyPicks(): Promise<DailyPicks> {
   const none: DailyPicks = { popular: null, unpopular: null };
 
   const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    requireEnv(
+      "NEXT_PUBLIC_SUPABASE_URL",
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+    ),
+    requireEnv(
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    ),
     { global: { fetch: reportFailedResponses } },
   );
 
