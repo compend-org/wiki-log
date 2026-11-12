@@ -1,12 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { starText } from "@/lib/format";
 import {
   barHeight,
   MIN_HISTOGRAM_RATINGS,
   RATING_STEPS,
   ratingHistogram,
   ratingStep,
-  starText,
 } from "@/lib/ratingHistogram";
 
 const PEOPLE = { one: "person", other: "people" };

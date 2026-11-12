@@ -7,9 +7,10 @@ import { connection } from "next/server";
 import { loadMoreProfileRated } from "@/app/profileActions";
 import CardPages from "@/components/CardPages";
 import { loadProfilePage } from "@/components/loadProfilePage";
+import { starText } from "@/lib/format";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
-import { parseRatingStep, starText } from "@/lib/ratingHistogram";
+import { parseRatingStep } from "@/lib/ratingHistogram";
 
 export const instant = false;
 

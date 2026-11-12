@@ -1,3 +1,13 @@
+// A rating out of 5 as plain text, like "★★★½". No rating gives "".
+export function starText(rating: number | null | undefined): string {
+  const clamped = Math.max(0, Math.min(5, rating ?? 0));
+  const full = Math.floor(clamped);
+  const half = clamped - full >= 0.5;
+  // A lone half needs a star beside it to read as a rating
+  if (full === 0) return half ? "½★" : "";
+  return "★".repeat(full) + (half ? "½" : "");
+}
+
 export function commentLabel(n: number): string {
   return n === 0 ? "Comment" : `${n} ${n === 1 ? "comment" : "comments"}`;
 }

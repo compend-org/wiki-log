@@ -97,7 +97,7 @@ test("unexpected reaction errors remain reportable to Sentry", async () => {
       );
       assert.deepEqual(failure, {
         method: "POST",
-        table,
+        resource: table,
         status: 409,
         ...error,
       });

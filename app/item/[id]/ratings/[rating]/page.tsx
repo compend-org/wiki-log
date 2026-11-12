@@ -7,9 +7,10 @@ import { connection } from "next/server";
 import { loadMoreRatedReviews } from "@/app/itemPagesActions";
 import CardPages from "@/components/CardPages";
 import { loadRatedReviewsPage } from "@/components/loadItemPages";
+import { starText } from "@/lib/format";
 import { ITEM_ID_PATTERN } from "@/lib/ids";
 import { pageMetadata } from "@/lib/metadata";
-import { parseRatingStep, starText } from "@/lib/ratingHistogram";
+import { parseRatingStep } from "@/lib/ratingHistogram";
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
