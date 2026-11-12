@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useRemoveCard } from "@/components/CardPages";
 import DeleteIcon from "@/components/icons/DeleteIcon";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
@@ -14,12 +15,15 @@ export default function DeleteButton({
 }: {
   kind: "log" | "list";
   targetId: string;
-  // What to do once it's gone. Refreshes the page when left out.
+  // What to do once it's gone. Refreshes the page when left out. A card in a
+  // CardPages is taken off the list either way, as the list doesn't follow
+  // the refreshed page.
   onDeleted?: () => void;
 }) {
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const router = useRouter();
+  const removeCard = useRemoveCard();
   const noun = kind === "log" ? "entry" : "list";
 
   async function handleDelete() {
@@ -49,6 +53,8 @@ export default function DeleteButton({
       return;
     }
     track(kind === "log" ? "log_deleted" : "list_deleted");
+    // Cards are keyed by the id of their review or list
+    removeCard?.(targetId);
     if (onDeleted) onDeleted();
     else router.refresh();
   }

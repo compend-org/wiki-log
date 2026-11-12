@@ -19,6 +19,9 @@ export default function PinButton({
 }) {
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  // Kept here as well, since a card in a CardPages isn't re-rendered when
+  // the page refreshes
+  const [isPinned, setIsPinned] = useState<boolean>(pinned);
   const router = useRouter();
 
   async function toggle() {
@@ -28,7 +31,7 @@ export default function PinButton({
 
     const column = kind === "log" ? "log_id" : "list_id";
     const supabase = createClient();
-    const { error } = pinned
+    const { error } = isPinned
       ? await supabase
           .from("pins")
           .delete()
@@ -42,7 +45,8 @@ export default function PinButton({
       setError(error.message);
       return;
     }
-    track(pinned ? "unpinned" : "pinned", { target: kind });
+    track(isPinned ? "unpinned" : "pinned", { target: kind });
+    setIsPinned(!isPinned);
     router.refresh();
   }
 
@@ -52,11 +56,11 @@ export default function PinButton({
         type="button"
         onClick={toggle}
         disabled={busy}
-        aria-label={pinned ? "Unpin" : "Pin"}
-        title={pinned ? "Unpin" : "Pin"}
+        aria-label={isPinned ? "Unpin" : "Pin"}
+        title={isPinned ? "Unpin" : "Pin"}
         className="flex text-accent hover:text-foreground disabled:opacity-60"
       >
-        <PinIcon className="h-4 w-4" filled={pinned} />
+        <PinIcon className="h-4 w-4" filled={isPinned} />
       </button>
       {error && <span className="text-xs text-danger">{error}</span>}
     </span>

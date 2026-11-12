@@ -190,12 +190,24 @@ export function renderProfileCards(
   kind: ProfileKind,
   rows: (ProfileListRow | LogRow)[],
 ): Card[] {
+  // Pinned ones only come up here among reviews with one rating; the
+  // profile itself shows them in their own section instead
   return rows.map((row) => ({
     key: row.id,
     card:
       kind === "lists"
-        ? renderProfileList(ctx, viewer, row as ProfileListRow, false)
-        : renderProfileLog(ctx, viewer, row as LogRow, false),
+        ? renderProfileList(
+            ctx,
+            viewer,
+            row as ProfileListRow,
+            ctx.pinnedListIds.has(row.id),
+          )
+        : renderProfileLog(
+            ctx,
+            viewer,
+            row as LogRow,
+            ctx.pinnedLogIds.has(row.id),
+          ),
   }));
 }
 

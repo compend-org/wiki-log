@@ -3,7 +3,15 @@
 // ABOUTME: Shows a list of cards and loads the next page as the bottom nears, or with a button.
 // ABOUTME: The first page comes from the server; later pages from a server action it is given.
 
-import { Fragment, type ReactNode, startTransition, useState } from "react";
+import {
+  createContext,
+  Fragment,
+  type ReactNode,
+  startTransition,
+  useCallback,
+  useContext,
+  useState,
+} from "react";
 import LoadMore from "@/components/LoadMore";
 import type { Keyset } from "@/lib/paging";
 
@@ -15,6 +23,15 @@ export type CardsPage<Cursor = Keyset> = {
   next: Cursor | null;
   error: string;
 };
+
+// Lets a card take itself off the list, such as once it has been deleted.
+// The cards are rendered on the server, so they can't be handed a callback.
+const RemoveCardContext = createContext<((key: string) => void) | null>(null);
+
+// Takes the card with this key off the CardPages it is in. Null outside one.
+export function useRemoveCard(): ((key: string) => void) | null {
+  return useContext(RemoveCardContext);
+}
 
 // A card can come again if things were added while paging; it stays where it
 // was first shown
@@ -42,6 +59,11 @@ export default function CardPages<Cursor>({
   const [error, setError] = useState(first.error);
   const [loading, setLoading] = useState(false);
   const [pageCount, setPageCount] = useState(1);
+  // The list keeps what it has shown rather than following `first`, so it
+  // doesn't lose the pages it loaded when the server page refreshes
+  const removeCard = useCallback((key: string) => {
+    setCards((shown) => shown.filter((c) => c.key !== key));
+  }, []);
 
   async function loadNextPage() {
     if (!next) return;
@@ -65,7 +87,7 @@ export default function CardPages<Cursor>({
   }
 
   return (
-    <>
+    <RemoveCardContext value={removeCard}>
       {cards.map((c) => (
         <Fragment key={c.key}>{c.card}</Fragment>
       ))}
@@ -84,6 +106,6 @@ export default function CardPages<Cursor>({
         ) : (
           <LoadMore key={pageCount} onLoad={loadNextPage} />
         ))}
-    </>
+    </RemoveCardContext>
   );
 }
