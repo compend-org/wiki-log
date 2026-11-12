@@ -14,6 +14,7 @@ import ReportButton from "@/components/buttons/ReportButton";
 import SignOutButton from "@/components/buttons/SignOutButton";
 import CardPages, { type CardsPage } from "@/components/CardPages";
 import Favourites, { type Slot } from "@/components/Favourites";
+import SettingsIcon from "@/components/icons/SettingsIcon";
 import {
   fetchProfileRows,
   LIST_FIELDS,
@@ -298,10 +299,19 @@ export default async function ProfilePage({
               </Link>
             ) : isOwner ? (
               <div className="flex items-center gap-4">
-                <Link href="/settings" className="underline">
-                  Profile settings
+                <Link
+                  href="/settings"
+                  className="group inline-flex items-center gap-1.5"
+                >
+                  <SettingsIcon size={16} />
+                  <span className="group-hover:underline">
+                    Profile settings
+                  </span>
                 </Link>
-                <SignOutButton className="inline-flex sm:hidden" />
+                <SignOutButton
+                  className="group inline-flex text-foreground! sm:hidden"
+                  labelClassName="group-hover:underline"
+                />
               </div>
             ) : (
               <div className="flex items-start gap-3">

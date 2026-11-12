@@ -19,7 +19,7 @@ export default function Nav({ account }: { account: ReactNode }) {
       <Link
         href="/"
         prefetch={false}
-        className="sm:mr-2 flex items-center gap-2 text-xl font-bold text-foreground no-underline"
+        className={`sm:mr-2 flex items-center gap-2 text-xl font-bold no-underline ${tone("/")}`}
       >
         {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
         <img

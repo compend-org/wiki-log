@@ -190,7 +190,9 @@ export default function NavAccountLinks({
             href={`/u/${encodeURIComponent(username)}`}
             aria-label={`${username}'s profile`}
             prefetch={false}
-            className="flex items-center gap-2 text-accent underline hover:no-underline"
+            className={`flex items-center gap-2 hover:underline ${tone(
+              `/u/${encodeURIComponent(username)}`,
+            )}`}
           >
             <Avatar name={username} path={avatarPath} size={40} />
             <span className="hidden max-w-[8rem] truncate sm:inline">
