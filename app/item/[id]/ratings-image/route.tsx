@@ -1,11 +1,13 @@
 // ABOUTME: Draws an item with its ratings histogram as a 1080×1350 PNG, sized for an Instagram post.
 // ABOUTME: Shows the item's picture, title and description above the histogram, with the site's logo.
+
+import { redirect } from "next/navigation";
 import { ImageResponse } from "next/og";
 import { connection } from "next/server";
 import { FEATURES } from "@/lib/features";
 import { absolute, shortLabel, thumbUrl } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
-import { getItemRatings } from "@/lib/itemRatings";
+import { getPublicItemRatings } from "@/lib/itemRatings";
 import { getItemForPage } from "@/lib/items";
 import {
   barHeight,
@@ -17,10 +19,10 @@ import {
   COLORS,
   embeddable,
   loadSerifFonts,
+  SiteSignature,
   Star,
   smallerPng,
 } from "@/lib/shareImage";
-import { SITE_NAME } from "@/lib/site";
 import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia";
 
 const WIDTH = 1080;
@@ -44,15 +46,19 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  const [result, { ratings }] = await Promise.all([
+  const [result, ratings] = await Promise.all([
     getItemForPage(id),
-    getItemRatings(id),
+    getPublicItemRatings(id),
   ]);
+  if ("error" in result) return new Response("Not found", { status: 404 });
+  const { item } = result;
+  // Like the page, an item that now goes by another id is drawn under that
+  // id, with that id's ratings
+  if (item.id !== id) redirect(`/item/${item.id}/ratings-image`);
   // Like the page, the histogram is only drawn once there are enough ratings
-  if ("error" in result || ratings.length < MIN_HISTOGRAM_RATINGS) {
+  if (ratings.length < MIN_HISTOGRAM_RATINGS) {
     return new Response("Not found", { status: 404 });
   }
-  const { item } = result;
   const { counts, tallest, average, people } = ratingHistogram(ratings);
   const siteFile = (path: string) => new URL(path, request.url).toString();
 
@@ -225,21 +231,8 @@ export async function GET(
         </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          gap: px(6),
-          fontSize: px(15),
-          fontWeight: 700,
-        }}
-      >
-        {logo && (
-          // biome-ignore lint/performance/noImgElement: drawn into a PNG, not shown on a page
-          <img src={logo} alt="" width={px(26)} height={px(26)} />
-        )}
-        {SITE_NAME}
+      <div style={{ display: "flex" }}>
+        <SiteSignature logo={logo} />
       </div>
     </div>,
     {
@@ -247,7 +240,8 @@ export async function GET(
       height: HEIGHT,
       fonts,
       // New ratings change the histogram, so a drawn image is reused by
-      // everyone for a minute and then drawn again
+      // everyone for a minute and then drawn again. The ratings are read as
+      // an anonymous visitor, so the image is the same for everyone.
       headers: { "Cache-Control": "public, s-maxage=60" },
     },
   );
