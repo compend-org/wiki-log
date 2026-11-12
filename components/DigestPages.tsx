@@ -10,7 +10,8 @@ import { track } from "@/lib/analytics";
 
 export default function DigestPages({ first }: { first: DigestPage }) {
   return (
-    <div className="flex flex-col gap-4">
+    // One column, kept narrow in the wide feed area
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
       <CardPages
         first={first}
         loadMore={loadMoreDigest}

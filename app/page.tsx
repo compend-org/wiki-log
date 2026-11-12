@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import ShareImageButton from "@/components/buttons/ShareImageButton";
+import Digest from "@/components/Digest";
 import Feed from "@/components/Feed";
-import FeedTabs from "@/components/FeedTabs";
+import FeedTabs, { type FeedTab } from "@/components/FeedTabs";
 import ItemSearch from "@/components/ItemSearch";
 import PickSquare from "@/components/PickSquare";
 import { getDailyPicks } from "@/lib/dailyPicks";
@@ -10,8 +11,6 @@ import { FEATURES } from "@/lib/features";
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
-
-type Tab = "following" | "everyone" | "trending";
 
 export default async function Home({
   searchParams,
@@ -38,8 +37,8 @@ export default async function Home({
   );
 
   // Signed-in visitors start on Following, signed-out ones on Everyone
-  const initialTab: Tab =
-    tab === "following" || tab === "everyone"
+  const initialTab: FeedTab =
+    tab === "following" || tab === "everyone" || tab === "digest"
       ? tab
       : tab === "trending" && FEATURES.trending
         ? "trending"
@@ -111,7 +110,9 @@ export default async function Home({
       <FeedTabs
         key={viewerId ?? ""}
         initial={initialTab}
-        initialFeed={<Feed mode={initialTab} />}
+        initialFeed={
+          initialTab === "digest" ? <Digest /> : <Feed mode={initialTab} />
+        }
       />
     </main>
   );
