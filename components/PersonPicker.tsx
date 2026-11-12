@@ -6,7 +6,6 @@ import { useEffect, useId, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
 import { createClient } from "@/lib/supabase/client";
 import { useDropdownRoom } from "@/lib/useDropdownRoom";
-import { escapeLike } from "@/lib/username";
 
 type Person = { id: string; username: string; avatar_path: string | null };
 
@@ -38,8 +37,9 @@ export default function PersonPicker({
 
     let cancelled = false;
     const timer = setTimeout(async () => {
+      // The database escapes the term itself, as it matches it several ways
       const { data, error } = await createClient().rpc("mentionable_people", {
-        term: escapeLike(term),
+        term,
       });
       if (cancelled) return;
       setPeople(error || !data ? [] : (data as Person[]));
