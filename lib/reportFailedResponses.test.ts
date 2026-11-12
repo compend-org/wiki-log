@@ -3,7 +3,10 @@
 import assert from "node:assert/strict";
 import { afterEach, mock, test } from "node:test";
 import * as Sentry from "@sentry/nextjs";
-import { reportFailedResponses } from "./supabase/reportFailedResponses";
+import {
+  describeFailedRequest,
+  reportFailedResponses,
+} from "./supabase/reportFailedResponses";
 
 const sent: Sentry.ErrorEvent[] = [];
 Sentry.init({
@@ -73,6 +76,31 @@ test("asking for a page past the end of a list is not reported", async () => {
 
   assert.equal(response.status, 416);
   assert.equal(sent.length, 0);
+});
+
+test("database refusals the app explains to the person are not reported", async () => {
+  const refusal = (code: string) =>
+    Response.json({ code, message: "refused" }, { status: 409 });
+
+  for (const [table, code] of [
+    ["likes", "23505"],
+    ["list_likes", "23505"],
+    ["pins", "P0001"],
+    ["reports", "23505"],
+  ]) {
+    const failure = await describeFailedRequest(
+      `https://test.supabase.co/rest/v1/${table}`,
+      "POST",
+      refusal(code),
+    );
+    assert.equal(failure, null, `${table}:${code}`);
+  }
+  const unexplained = await describeFailedRequest(
+    "https://test.supabase.co/rest/v1/pins",
+    "POST",
+    refusal("23505"),
+  );
+  assert.equal(unexplained?.code, "23505");
 });
 
 test("an auth outage is reported under its route, without the user id", async () => {

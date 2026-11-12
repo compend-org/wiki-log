@@ -1,6 +1,7 @@
 // ABOUTME: Starts Sentry on the server when a Next.js server instance boots.
 // ABOUTME: Also reports errors thrown while handling a request.
 import * as Sentry from "@sentry/nextjs";
+import { limitRepeatedErrors } from "@/lib/repeatedErrors";
 
 export function register() {
   Sentry.init({
@@ -14,6 +15,7 @@ export function register() {
     // Request bodies are sent unfiltered. Server action bodies hold
     // passwords and review text, so no bodies are sent.
     dataCollection: { httpBodies: [] },
+    beforeSend: limitRepeatedErrors(),
   });
 }
 
