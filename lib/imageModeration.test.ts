@@ -1,4 +1,4 @@
-// ABOUTME: Tests for deciding whether a comment's images are removed, from moderation scores.
+// ABOUTME: Tests for deciding whether a post with images is removed, from moderation scores.
 // ABOUTME: Covers thresholds, combining several images and GIF frames, and the report's wording.
 import assert from "node:assert/strict";
 import { test } from "node:test";

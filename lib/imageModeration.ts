@@ -1,10 +1,10 @@
-// ABOUTME: Decides from OpenAI moderation scores whether a comment's images should be removed.
+// ABOUTME: Decides from OpenAI moderation scores whether a post's images should get it removed.
 // ABOUTME: Only categories OpenAI scores for images count; the rest always read 0 for them.
 
 // OpenAI's score for each category, from 0 to 1
 export type CategoryScores = Record<string, number>;
 
-// The score at or above which a category gets a comment's images removed.
+// The score at or above which a category gets a post with images removed.
 // OpenAI's own "flagged" is stricter than we want: an ordinary photo of a cut
 // leg scores 0.61 for violence and it flags that.
 const IMAGE_THRESHOLDS: Record<string, number> = {

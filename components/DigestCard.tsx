@@ -5,6 +5,7 @@ import LikeButton from "@/components/buttons/LikeButton";
 import ShareButton from "@/components/buttons/ShareButton";
 import CardActions from "@/components/CardActions";
 import ItemImage from "@/components/icons/ItemImage";
+import PostImage from "@/components/PostImage";
 import ReviewText from "@/components/ReviewText";
 import Stars from "@/components/Stars";
 import UserName from "@/components/UserName";
@@ -73,6 +74,15 @@ export default function DigestCard({
       <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
         <ReviewText text={row.review} />
       </p>
+      {row.images.map((path) => (
+        <PostImage
+          key={path}
+          path={path}
+          checked={row.images_checked_at !== null}
+          size="medium"
+          className="max-h-80 w-full border border-line object-cover"
+        />
+      ))}
 
       <CardActions
         like={

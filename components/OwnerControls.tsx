@@ -8,20 +8,26 @@ import EditIcon from "./icons/EditIcon";
 
 export default function OwnerControls({
   logId,
+  userId,
   rating,
   review,
+  images,
   profileHref,
   header,
   body,
 }: {
   logId: string;
+  // The entry's author, who is the one viewing it
+  userId: string;
   rating: number | null;
   review: string;
+  // Paths of the entry's image in the post-images bucket
+  images: string[];
   // Where to go once the entry is deleted
   profileHref: string;
   // Always shown (the picture, the title, the byline)
   header: ReactNode;
-  // Shown until Edit is pressed, then replaced by the form (stars and text)
+  // Shown until Edit is pressed, then replaced by the form (stars, text and image)
   body: ReactNode;
 }) {
   const [editing, setEditing] = useState<boolean>(false);
@@ -56,8 +62,10 @@ export default function OwnerControls({
       {editing ? (
         <EditEntryForm
           logId={logId}
+          userId={userId}
           initialRating={rating}
           initialReview={review}
+          initialImages={images}
           onCancel={() => setEditing(false)}
           onSaved={() => {
             setEditing(false);

@@ -4,11 +4,6 @@
 
 import { updateTag } from "next/cache";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
-import {
-  COMMENT_IMAGE_BUCKETS,
-  commentImagePaths,
-  deleteCommentImageFiles,
-} from "@/lib/commentImageFiles";
 import { COMMENT_TABLES, type CommentTable } from "@/lib/comments";
 import { withErrorContext } from "@/lib/errorContext";
 import { FEATURES } from "@/lib/features";
@@ -25,6 +20,12 @@ import {
   isReportReason,
   type ModerationInput,
 } from "@/lib/moderation";
+import {
+  deletePostImageFiles,
+  POST_IMAGE_BUCKETS,
+  postImageFiles,
+} from "@/lib/postImageFiles";
+import { storedFiles } from "@/lib/postImages";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { cleanName, isValidName } from "@/lib/username";
@@ -94,10 +95,31 @@ export async function reportBrokenImage(url: string): Promise<string | null> {
   return replaceBrokenImage(url);
 }
 
+// Whether a rating is one the stars can show: half steps from 0.5 to 5, or none
+function isValidRating(rating: number | null): boolean {
+  return (
+    rating === null ||
+    (Number.isFinite(rating) &&
+      rating >= 0.5 &&
+      rating <= 5 &&
+      (rating * 2) % 1 === 0)
+  );
+}
+
+// Whether the browser sent a list of image paths. The database checks the
+// paths themselves.
+function isPathList(images: unknown): images is string[] {
+  return (
+    Array.isArray(images) && images.every((path) => typeof path === "string")
+  );
+}
+
 export async function logItem(input: {
   itemId: string;
   rating: number | null;
   review: string;
+  // The uploaded image's path, if one is attached
+  images: string[];
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -105,15 +127,8 @@ export async function logItem(input: {
   if (!userId) return { error: "You need to sign in to log items." };
 
   if (!ITEM_ID.test(input.itemId)) return { error: "Invalid item." };
-  if (
-    input.rating !== null &&
-    (!Number.isFinite(input.rating) ||
-      input.rating < 0.5 ||
-      input.rating > 5 ||
-      (input.rating * 2) % 1 !== 0)
-  ) {
-    return { error: "Invalid rating." };
-  }
+  if (!isValidRating(input.rating)) return { error: "Invalid rating." };
+  if (!isPathList(input.images)) return { error: "Invalid image." };
 
   // The server looks the item up itself instead of trusting the browser
   const stored = await ensureItem(input.itemId);
@@ -129,10 +144,76 @@ export async function logItem(input: {
         item_id: stored.id,
         rating: input.rating,
         review: input.review.slice(0, 5000),
+        images: input.images,
       }),
   );
   if (error) return { error: error.message };
 
+  return {};
+}
+
+// Changes your own review. An image it no longer shows is deleted.
+export async function updateReview(
+  logId: string,
+  input: { rating: number | null; review: string; images: string[] },
+): Promise<{ error?: string }> {
+  if (!isUuid(logId)) return { error: "Invalid entry." };
+  if (!isValidRating(input.rating)) return { error: "Invalid rating." };
+  if (!isPathList(input.images)) return { error: "Invalid image." };
+
+  // Read and saved as the signed-in user, so RLS limits both to their own
+  const supabase = await createClient();
+  const { data: before, error: readError } = await supabase
+    .from("logs")
+    .select("images")
+    .eq("id", logId)
+    .maybeSingle();
+  if (readError) return { error: readError.message };
+  if (!before) return { error: "Couldn't save that change." };
+
+  const { data: saved, error } = await supabase
+    .from("logs")
+    .update({
+      rating: input.rating,
+      review: input.review.slice(0, 5000),
+      images: input.images,
+    })
+    .eq("id", logId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!saved || saved.length === 0) {
+    return { error: "Couldn't save that change." };
+  }
+
+  const dropped = (before.images as string[]).filter(
+    (path) => !input.images.includes(path),
+  );
+  if (dropped.length > 0) {
+    await deletePostImageFiles(dropped.flatMap(storedFiles));
+    // The feeds keep a copy for a few minutes, which would show the
+    // deleted image
+    updateTag(POSTS_CACHE_TAG);
+  }
+  return {};
+}
+
+// Deletes your own review, with its image
+export async function deleteReview(logId: string): Promise<{ error?: string }> {
+  if (!isUuid(logId)) return { error: "Invalid entry." };
+
+  const images = await postImageFiles("logs", logId, false);
+  if (images.error) return { error: images.error };
+
+  // Deleted as the signed-in user, so RLS decides who may
+  const supabase = await createClient();
+  const { error, count } = await supabase
+    .from("logs")
+    .delete({ count: "exact" })
+    .eq("id", logId);
+  if (error) return { error: error.message };
+  // Row-level security refuses silently when it isn't yours
+  if (!count) return { error: "Couldn't delete that entry." };
+  await deletePostImageFiles(images.files);
   return {};
 }
 
@@ -149,13 +230,13 @@ async function emptyStorageFolder(bucket: string, userId: string) {
   }
 }
 
-// Deletes someone's avatar and comment image files and their auth user
+// Deletes someone's avatar and post image files and their auth user
 async function removeAccount(userId: string): Promise<{ error?: string }> {
   // Deleting the auth user also deletes their profile, logs, favourites and
   // follows (the foreign keys use "on delete cascade")
   const admin = createAdminClient();
   await emptyStorageFolder("avatars", userId);
-  for (const bucket of COMMENT_IMAGE_BUCKETS) {
+  for (const bucket of POST_IMAGE_BUCKETS) {
     await emptyStorageFolder(bucket, userId);
   }
   const { error } = await admin.auth.admin.deleteUser(userId);
@@ -221,7 +302,7 @@ export async function deleteComment(
   }
 
   // Read first: once the comment is gone, so are its replies' rows
-  const images = await commentImagePaths(table, commentId, true);
+  const images = await postImageFiles(table, commentId, true);
   if (images.error) return { error: images.error };
 
   // Deleted as the signed-in user, so RLS decides who may
@@ -231,7 +312,7 @@ export async function deleteComment(
     .delete({ count: "exact" })
     .eq("id", commentId);
   if (error) return { error: error.message };
-  if (count) await deleteCommentImageFiles(images.paths);
+  if (count) await deletePostImageFiles(images.files);
   return {};
 }
 

@@ -14,6 +14,10 @@ export type DigestLog = {
   item_id: string;
   rating: number | null;
   review: string;
+  // Paths of its image in the post-images bucket
+  images: string[];
+  // When the automatic check passed its image
+  images_checked_at: string | null;
   logged_at: string;
   items: { title: string; image_url: string | null } | null;
   profiles: { username: string; avatar_path: string | null } | null;
@@ -23,7 +27,7 @@ export type DigestLog = {
 };
 
 const SELECT =
-  "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
+  "id, user_id, item_id, rating, review, images, images_checked_at, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
 
 // Where the next page starts: the time of the last review shown. Null means
 // the first page. Anything that isn't a real time is turned away (undefined).

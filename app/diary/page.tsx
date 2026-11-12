@@ -25,6 +25,8 @@ type LogEntry = {
   imageUrl: string | null;
   rating: number | null;
   review: string;
+  // Paths of its image in the post-images bucket, for the edit form
+  images: string[];
 };
 
 type ListEntry = {
@@ -44,6 +46,7 @@ type LogRow = {
   item_id: string;
   rating: number | null;
   review: string;
+  images: string[];
   logged_at: string;
   items: { title: string; image_url: string | null } | null;
 };
@@ -114,7 +117,7 @@ export default function DiaryPage() {
       let logsQuery = supabase
         .from("logs")
         .select(
-          "id, item_id, rating, review, logged_at, items(title, image_url)",
+          "id, item_id, rating, review, images, logged_at, items(title, image_url)",
         )
         .eq("user_id", userId);
       if (wanted.logs) {
@@ -159,6 +162,7 @@ export default function DiaryPage() {
           imageUrl: l.items?.image_url ?? null,
           rating: l.rating === null ? null : Number(l.rating),
           review: l.review,
+          images: l.images,
         } satisfies LogEntry,
       }));
 
@@ -378,14 +382,16 @@ export default function DiaryPage() {
               {editingId === e.id ? (
                 <EditEntryForm
                   logId={e.id}
+                  userId={userId}
                   initialRating={e.rating}
                   initialReview={e.review}
+                  initialImages={e.images}
                   onCancel={() => setEditingId(null)}
-                  onSaved={(rating, review) => {
+                  onSaved={(rating, review, images) => {
                     setEntries((prev) =>
                       prev.map((x) =>
                         x.kind === "log" && x.id === e.id
-                          ? { ...x, rating, review }
+                          ? { ...x, rating, review, images }
                           : x,
                       ),
                     );

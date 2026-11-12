@@ -1,26 +1,32 @@
-// ABOUTME: A small preview of the image or GIF attached to a comment being written, with a button to drop it.
-// ABOUTME: The file stays in the browser until the comment is posted.
+// ABOUTME: A small preview of the image or GIF attached to a review or comment being written, with a button to drop it.
+// ABOUTME: A newly picked file stays in the browser until the post is saved.
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { postImageUrl } from "@/lib/postImages";
 
-export default function CommentImagePreview({
-  file,
+export default function PostImagePreview({
+  image,
   onRemove,
   disabled = false,
 }: {
-  file: File | null;
+  // A file just picked, or the path of the image the post already has
+  image: File | string | null;
   onRemove: () => void;
   disabled?: boolean;
 }) {
-  const url = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  const fileUrl = useMemo(
+    () => (image instanceof File ? URL.createObjectURL(image) : null),
+    [image],
+  );
   useEffect(
     () => () => {
-      if (url) URL.revokeObjectURL(url);
+      if (fileUrl) URL.revokeObjectURL(fileUrl);
     },
-    [url],
+    [fileUrl],
   );
 
+  const url = typeof image === "string" ? postImageUrl(image) : fileUrl;
   if (!url) return null;
   return (
     <div className="relative self-start">

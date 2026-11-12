@@ -1,57 +1,40 @@
+// ABOUTME: The signed-in person's own entries for an item, on the item's page.
+// ABOUTME: Each can be edited in place or deleted.
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import RatingInput from "@/components/RatingInput";
+import EditEntryForm from "@/components/EditEntryForm";
+import PostImage from "@/components/PostImage";
 import Stars from "@/components/Stars";
-import { track } from "@/lib/analytics";
-import { updateLog } from "@/lib/logs";
 import DeleteButton from "./buttons/DeleteButton";
 import EditIcon from "./icons/EditIcon";
 import ReviewText from "./ReviewText";
-import ReviewTextarea from "./ReviewTextArea";
 
 export type MyEntry = {
   id: string;
   rating: number;
   review: string;
+  // Paths of its image in the post-images bucket
+  images: string[];
+  // Whether the automatic check has passed its image
+  imagesChecked: boolean;
   // When it was logged, as shown: "5m ago", or the date once it's a day old
   loggedAgo: string;
 };
 
-export default function MyEntries({ entries }: { entries: MyEntry[] }) {
+export default function MyEntries({
+  entries,
+  userId,
+}: {
+  entries: MyEntry[];
+  // Whose entries these are: the signed-in person
+  userId: string | null;
+}) {
   const [editing, setEditing] = useState<string | null>(null);
-  const [rating, setRating] = useState<number>(0);
-  const [review, setReview] = useState<string>("");
-  const [busy, setBusy] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
   const router = useRouter();
 
-  if (entries.length === 0) return null;
-
-  function startEdit(e: MyEntry) {
-    setEditing(e.id);
-    setRating(e.rating);
-    setReview(e.review);
-    setError("");
-  }
-
-  async function save(id: string) {
-    setBusy(true);
-    setError("");
-    const message = await updateLog(id, rating > 0 ? rating : null, review);
-    setBusy(false);
-    if (message) {
-      setError(message);
-      return;
-    }
-    track("log_edited", {
-      has_rating: rating > 0,
-      has_review: review.trim() !== "",
-    });
-    setEditing(null);
-    router.refresh();
-  }
+  if (entries.length === 0 || !userId) return null;
 
   return (
     <section className="flex flex-col gap-3">
@@ -62,27 +45,18 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
       {entries.map((e) => (
         <div key={e.id} className="card flex flex-col gap-2 p-3">
           {editing === e.id ? (
-            <>
-              <RatingInput value={rating} onChange={setRating} />
-              <ReviewTextarea value={review} onChange={setReview} />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => save(e.id)}
-                  disabled={busy}
-                  className="bg-accent px-3 py-1.5 text-sm text-background disabled:opacity-40"
-                >
-                  {busy ? "Saving…" : "Save"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditing(null)}
-                  className="border border-line px-3 py-1.5 text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
+            <EditEntryForm
+              logId={e.id}
+              userId={userId}
+              initialRating={e.rating > 0 ? e.rating : null}
+              initialReview={e.review}
+              initialImages={e.images}
+              onCancel={() => setEditing(null)}
+              onSaved={() => {
+                setEditing(null);
+                router.refresh();
+              }}
+            />
           ) : (
             <>
               <div className="flex items-center gap-3">
@@ -94,10 +68,20 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
                   <ReviewText text={e.review} />
                 </p>
               )}
+              {e.images.map((path) => (
+                <PostImage
+                  key={path}
+                  path={path}
+                  checked={e.imagesChecked}
+                  size="small"
+                  className="h-20 w-auto max-w-full border border-line object-cover"
+                  linkToFull
+                />
+              ))}
               <div className="flex gap-3 text-xs">
                 <button
                   type="button"
-                  onClick={() => startEdit(e)}
+                  onClick={() => setEditing(e.id)}
                   aria-label="Edit this entry"
                   title="Edit this entry"
                   className="flex text-accent hover:opacity-70 hover:text-foreground"
@@ -110,8 +94,6 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
           )}
         </div>
       ))}
-
-      {error && <p className="text-sm text-danger">{error}</p>}
     </section>
   );
 }

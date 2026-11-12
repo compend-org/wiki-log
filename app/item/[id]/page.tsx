@@ -99,6 +99,8 @@ export default async function ItemPage({
     id: r.id,
     rating: Number(r.rating ?? 0),
     review: r.review,
+    images: r.images,
+    imagesChecked: r.images_checked_at !== null,
     loggedAgo: timeAgo(r.logged_at, renderedAt),
   }));
   // The viewer's own latest rating (entries are newest first; 0 means none)
@@ -180,7 +182,7 @@ export default async function ItemPage({
   // edits or deletes one of their entries, or the most liked ones change,
   // since the pages it already loaded no longer match
   const logsKey = JSON.stringify([
-    myEntries.map((e) => [e.id, e.rating, e.review]),
+    myEntries.map((e) => [e.id, e.rating, e.review, e.images]),
     mostLiked.rows.map((r) => r.id),
   ]);
   const viewer = await getViewerState(supabase, viewerId, {
@@ -331,11 +333,11 @@ export default async function ItemPage({
         <div id="log" className="scroll-mt-4">
           <LogForm
             id={id}
-            signedIn={Boolean(viewerId)}
+            viewerId={viewerId ?? null}
             alreadyLogged={myEntries.length > 0}
           />
         </div>
-        <MyEntries entries={myEntries} />
+        <MyEntries entries={myEntries} userId={viewerId ?? null} />
         <div className="sm:hidden">
           <RatingHistogram
             ratings={ratings}

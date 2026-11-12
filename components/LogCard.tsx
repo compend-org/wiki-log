@@ -8,6 +8,7 @@ import ShareButton from "@/components/buttons/ShareButton";
 import CardActions from "@/components/CardActions";
 import ItemImage from "@/components/icons/ItemImage";
 import ShareIcon from "@/components/icons/ShareIcon";
+import PostImage from "@/components/PostImage";
 import Stars from "@/components/Stars";
 import UserName from "@/components/UserName";
 import type { LogRow } from "@/lib/feedData";
@@ -47,11 +48,15 @@ export default async function LogCard({
   const reviewHref = author
     ? `/u/${encodeURIComponent(author)}/${row.id}`
     : null;
+  const image = row.images?.[0];
+  const imageChecked = row.images_checked_at !== null;
 
   return (
     <div
       className={`card relative grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-3 p-3 hover-or-tap:border-accent/60 ${
-        row.review ? "@xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.2fr)]" : ""
+        row.review || image
+          ? "@xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.2fr)]"
+          : ""
       }`}
     >
       {reviewHref && (
@@ -136,10 +141,33 @@ export default async function LogCard({
         />
       </div>
 
-      {row.review && (
-        <p className="col-span-2 line-clamp-6 whitespace-pre-wrap break-words text-sm @xl:col-span-1 @xl:border-l @xl:border-dashed @xl:border-line @xl:pl-4">
-          {<ReviewText text={row.review} />}
-        </p>
+      {(row.review || image) && (
+        <div className="col-span-2 flex min-w-0 flex-col gap-2 @xl:col-span-1 @xl:border-l @xl:border-dashed @xl:border-line @xl:pl-4">
+          {row.review && (
+            <p className="line-clamp-6 whitespace-pre-wrap break-words text-sm">
+              {<ReviewText text={row.review} />}
+            </p>
+          )}
+          {/* In a wide column, a thumbnail centred under the text */}
+          {image && (
+            <PostImage
+              path={image}
+              checked={imageChecked}
+              size="small"
+              className="hidden h-20 w-auto max-w-full self-center border border-line object-cover @xl:block"
+            />
+          )}
+        </div>
+      )}
+      {/* In a narrow column, the image across the whole card. Lazy images
+          that aren't displayed aren't downloaded, so each width loads one. */}
+      {image && (
+        <PostImage
+          path={image}
+          checked={imageChecked}
+          size="medium"
+          className="col-span-2 max-h-80 w-full border border-line object-cover @xl:hidden"
+        />
       )}
     </div>
   );

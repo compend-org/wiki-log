@@ -22,8 +22,11 @@ export type CommentRow = {
   id: string;
   parent_id: string | null;
   body: string;
-  // Paths in the comment-images bucket
+  // Paths in the post-images bucket
   images: string[];
+  // When the automatic check passed its images, which is when their smaller
+  // copies are made
+  images_checked_at: string | null;
   created_at: string;
   user_id: string;
   // Only ever set on the viewer's own comments: other removed ones are hidden
@@ -34,9 +37,9 @@ export type CommentRow = {
 
 const SELECT: Record<CommentTable, string> = {
   comments:
-    "id, parent_id, body, images, created_at, user_id, removed_at, profiles!comments_user_id_profiles_fkey(username), likes:comment_likes(count)",
+    "id, parent_id, body, images, images_checked_at, created_at, user_id, removed_at, profiles!comments_user_id_profiles_fkey(username), likes:comment_likes(count)",
   list_comments:
-    "id, parent_id, body, images, created_at, user_id, removed_at, profiles!list_comments_user_id_profiles_fkey(username), likes:list_comment_likes(count)",
+    "id, parent_id, body, images, images_checked_at, created_at, user_id, removed_at, profiles!list_comments_user_id_profiles_fkey(username), likes:list_comment_likes(count)",
 };
 
 // What the comments hang off: a review for "comments", a list for
@@ -167,6 +170,7 @@ export function toCommentItems(
     parentId: c.parent_id,
     body: c.body,
     images: c.images,
+    imagesChecked: c.images_checked_at !== null,
     date: timeAgo(c.created_at, renderedAt),
     authorId: c.user_id,
     authorName: c.profiles?.username ?? "Someone",

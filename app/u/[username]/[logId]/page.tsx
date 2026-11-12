@@ -12,6 +12,7 @@ import ShareImageButton from "@/components/buttons/ShareImageButton";
 import Comments from "@/components/Comments";
 import ItemImage from "@/components/icons/ItemImage";
 import OwnerControls from "@/components/OwnerControls";
+import PostImage from "@/components/PostImage";
 import RemovedNotice from "@/components/RemovedNotice";
 import ReviewText from "@/components/ReviewText";
 import Stars from "@/components/Stars";
@@ -185,6 +186,20 @@ export default async function ReviewPage({
           <ReviewText text={log.review} />
         </p>
       )}
+      {log.removed_at
+        ? log.images.length > 0 && (
+            <p className="text-xs text-muted">Image hidden by the moderators</p>
+          )
+        : log.images.map((path) => (
+            <PostImage
+              key={path}
+              path={path}
+              checked={log.images_checked_at !== null}
+              size="full"
+              className="max-h-[32rem] w-auto max-w-full border border-line object-contain"
+              linkToFull
+            />
+          ))}
     </>
   );
 
@@ -195,8 +210,10 @@ export default async function ReviewPage({
         {isOwner ? (
           <OwnerControls
             logId={log.id}
+            userId={log.user_id}
             rating={log.rating === null ? null : Number(log.rating)}
             review={log.review}
+            images={log.images}
             profileHref={`/u/${encodeURIComponent(profile.username)}`}
             header={header}
             body={body}

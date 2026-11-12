@@ -5,6 +5,7 @@ import AdminBadge from "@/components/AdminBadge";
 import LikeButton from "@/components/buttons/LikeButton";
 import ShareButton from "@/components/buttons/ShareButton";
 import CardActions from "@/components/CardActions";
+import PostImage from "@/components/PostImage";
 import ReviewText from "@/components/ReviewText";
 import Stars from "@/components/Stars";
 import { timeAgo } from "@/lib/format";
@@ -60,6 +61,15 @@ export default function ItemLogCard({
           <ReviewText text={row.review} />
         </p>
       )}
+      {row.images.map((path) => (
+        <PostImage
+          key={path}
+          path={path}
+          checked={row.images_checked_at !== null}
+          size="small"
+          className="h-20 w-auto max-w-full self-start border border-line object-cover"
+        />
+      ))}
       <CardActions
         like={
           row.review ? (

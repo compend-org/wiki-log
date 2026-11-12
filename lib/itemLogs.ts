@@ -15,6 +15,10 @@ export type ItemLogRow = {
   item_id: string;
   rating: number | null;
   review: string;
+  // Paths of its image in the post-images bucket
+  images: string[];
+  // When the automatic check passed its image
+  images_checked_at: string | null;
   logged_at: string;
   profiles: { username: string } | null;
   likes: { count: number }[];
@@ -23,7 +27,7 @@ export type ItemLogRow = {
 };
 
 const ITEM_LOG_SELECT =
-  "id, user_id, item_id, rating, review, logged_at, profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count), shares(count)";
+  "id, user_id, item_id, rating, review, images, images_checked_at, logged_at, profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count), shares(count)";
 
 // How many of the most-liked logs show at the top of an item's logs
 const MOST_LIKED = 3;

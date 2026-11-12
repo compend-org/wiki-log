@@ -9,6 +9,9 @@ type ViewerEntry = {
   id: string;
   rating: number | null;
   review: string;
+  // Paths of its image in the post-images bucket
+  images: string[];
+  images_checked_at: string | null;
   logged_at: string;
 };
 

@@ -1,40 +1,40 @@
-// ABOUTME: Prepares and uploads, from the browser, the image someone attaches to a comment.
+// ABOUTME: Prepares and uploads, from the browser, the image someone attaches to a review or comment.
 // ABOUTME: Photos are shrunk and re-encoded as JPEG; GIFs go up unchanged so they keep moving.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  COMMENT_IMAGE_MAX_SIDE,
-  COMMENT_IMAGES_BUCKET,
-  commentImagePath,
-  fitWithin,
-} from "@/lib/commentImages";
 import { encodeJpeg } from "@/lib/jpeg";
+import {
+  fitWithin,
+  POST_IMAGE_MAX_SIDE,
+  POST_IMAGES_BUCKET,
+  postImagePath,
+} from "@/lib/postImages";
 
 type PreparedImage = { path: string; blob: Blob; contentType: string };
 
 async function prepare(file: File, userId: string): Promise<PreparedImage> {
   if (file.type === "image/gif") {
     return {
-      path: commentImagePath(userId, "gif"),
+      path: postImagePath(userId, "gif"),
       blob: file,
       contentType: "image/gif",
     };
   }
   const bitmap = await createImageBitmap(file);
-  const size = fitWithin(bitmap.width, bitmap.height, COMMENT_IMAGE_MAX_SIDE);
+  const size = fitWithin(bitmap.width, bitmap.height, POST_IMAGE_MAX_SIDE);
   const whole = { x: 0, y: 0, width: bitmap.width, height: bitmap.height };
   const blob = await encodeJpeg(bitmap, whole, size.width, size.height);
   bitmap.close();
   return {
-    path: commentImagePath(userId, "jpg"),
+    path: postImagePath(userId, "jpg"),
     blob,
     contentType: "image/jpeg",
   };
 }
 
 // Uploads the file into the user's folder and returns where it went. A file
-// whose comment then fails to save stays behind: people can't delete their
+// whose post then fails to save stays behind: people can't delete their
 // files, so a checked image can never be swapped for another.
-export async function uploadCommentImage(
+export async function uploadPostImage(
   supabase: SupabaseClient,
   userId: string,
   file: File,
@@ -47,7 +47,7 @@ export async function uploadCommentImage(
   }
 
   const { error } = await supabase.storage
-    .from(COMMENT_IMAGES_BUCKET)
+    .from(POST_IMAGES_BUCKET)
     .upload(prepared.path, prepared.blob, {
       contentType: prepared.contentType,
       // Short, so a removed image stops being served from caches soon

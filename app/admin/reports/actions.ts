@@ -5,12 +5,6 @@
 import { updateTag } from "next/cache";
 import type { PostKind, ReportKind, ReportStatus } from "@/lib/adminReports";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
-import {
-  commentImagePaths,
-  hideCommentImageFiles,
-  showCommentImageFiles,
-} from "@/lib/commentImageFiles";
-import type { CommentTable } from "@/lib/comments";
 import { isUuid } from "@/lib/ids";
 import {
   cleanNote,
@@ -18,13 +12,20 @@ import {
   type ModerationInput,
   SUSPENSION_DAYS,
 } from "@/lib/moderation";
+import {
+  hidePostImageFiles,
+  postImageFiles,
+  showPostImageFiles,
+} from "@/lib/postImageFiles";
+import type { PostImageTable } from "@/lib/postImages";
 import { createClient } from "@/lib/supabase/server";
 
 const KINDS: PostKind[] = ["log", "list", "comment", "list_comment"];
 const REPORT_KINDS: ReportKind[] = [...KINDS, "profile"];
 const STATUSES: ReportStatus[] = ["open", "actioned", "dismissed"];
 // Where each kind of comment is stored
-const COMMENT_TABLE_OF: Partial<Record<PostKind, CommentTable>> = {
+const IMAGE_TABLE_OF: Partial<Record<PostKind, PostImageTable>> = {
+  log: "logs",
   comment: "comments",
   list_comment: "list_comments",
 };
@@ -96,13 +97,13 @@ export async function removePost(
   // The feeds keep a copy of public posts for a few minutes
   updateTag(POSTS_CACHE_TAG);
 
-  // Images are served by public URL, so hiding the comment isn't enough.
+  // Images are served by public URL, so hiding the post isn't enough.
   // The database has checked this is an admin acting.
-  const table = COMMENT_TABLE_OF[kind];
+  const table = IMAGE_TABLE_OF[kind];
   if (table) {
-    const images = await commentImagePaths(table, postId, false);
+    const images = await postImageFiles(table, postId, false);
     if (images.error) return { error: `Removed, but ${images.error}` };
-    const failed = await hideCommentImageFiles(images.paths);
+    const failed = await hidePostImageFiles(images.files);
     if (failed > 0) {
       return { error: `Removed, but ${failed} image(s) are still public.` };
     }
@@ -128,11 +129,11 @@ export async function restorePost(
   updateTag(POSTS_CACHE_TAG);
 
   // The database has checked this is an admin acting
-  const table = COMMENT_TABLE_OF[kind];
+  const table = IMAGE_TABLE_OF[kind];
   if (table) {
-    const images = await commentImagePaths(table, postId, false);
+    const images = await postImageFiles(table, postId, false);
     if (images.error) return { error: `Restored, but ${images.error}` };
-    const failed = await showCommentImageFiles(images.paths);
+    const failed = await showPostImageFiles(images.files);
     if (failed > 0) {
       return { error: `Restored, but ${failed} image(s) didn't come back.` };
     }
@@ -190,7 +191,7 @@ export async function liftSuspension(
   return error ? { error: error.message } : {};
 }
 
-// Stops someone attaching images to comments, until lifted. Their images
+// Stops someone attaching images to reviews and comments, until lifted. Their images
 // already posted stay up, and they aren't told.
 export async function blockImages(
   userId: string,

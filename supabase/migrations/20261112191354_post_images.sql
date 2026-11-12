@@ -1,9 +1,9 @@
--- ABOUTME: Lets comments on reviews and lists carry one uploaded image or GIF, from accounts 3+ days old and not blocked.
--- ABOUTME: Each new comment's images are sent to /api/moderate-comment-images, which removes flagged ones.
+-- ABOUTME: Lets reviews and comments on reviews and lists carry one uploaded image or GIF, from accounts 3+ days old and not blocked.
+-- ABOUTME: Each new image is sent to /api/moderate-post-images, which makes its smaller copies and removes flagged posts.
 
 -- Whether every path is a file the browser names when uploading, inside
 -- `folder`. Strict, so a stored path can never point outside that folder.
-create function public.comment_image_paths_valid(paths text[], folder uuid)
+create function public.post_image_paths_valid(paths text[], folder uuid)
 returns boolean
 language sql
 immutable
@@ -15,6 +15,17 @@ as $$
   )
   from unnest(paths) p;
 $$;
+
+alter table public.logs
+  add column images text[] not null default '{}';
+alter table public.logs
+  add constraint logs_images_check
+  check (
+    cardinality(images) <= 1
+    and public.post_image_paths_valid(images, user_id)
+  );
+-- Editing a review can add, replace or remove its image
+grant update (images) on public.logs to authenticated;
 
 alter table public.comments
   add column images text[] not null default '{}';
@@ -29,7 +40,7 @@ alter table public.comments
   add constraint comments_images_check
   check (
     cardinality(images) <= 1
-    and public.comment_image_paths_valid(images, user_id)
+    and public.post_image_paths_valid(images, user_id)
   );
 
 alter table public.list_comments
@@ -45,24 +56,25 @@ alter table public.list_comments
   add constraint list_comments_images_check
   check (
     cardinality(images) <= 1
-    and public.comment_image_paths_valid(images, user_id)
+    and public.post_image_paths_valid(images, user_id)
   );
 
 -- A public bucket: 5 MB limit. Photos arrive as JPEG (the browser converts
--- them), GIFs as they are so they keep moving.
+-- them), GIFs as they are so they keep moving. Beside each photo the server
+-- keeps smaller copies, named <id>-small.jpg and <id>-medium.jpg.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('comment-images', 'comment-images', true, 5242880, array['image/jpeg', 'image/gif'])
+values ('post-images', 'post-images', true, 5242880, array['image/jpeg', 'image/gif'])
 on conflict (id) do nothing;
 
--- While the moderators have a comment removed, its files wait here instead,
+-- While the moderators have a post removed, its files wait here instead,
 -- at the same paths. Private and without policies: only the server reads it.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('removed-comment-images', 'removed-comment-images', false, 5242880, array['image/jpeg', 'image/gif'])
+values ('removed-post-images', 'removed-post-images', false, 5242880, array['image/jpeg', 'image/gif'])
 on conflict (id) do nothing;
 
--- Whether one of the person's comments already uses this path, including a
--- comment the moderators removed
-create function public.comment_image_in_use(p_path text, p_user_id uuid)
+-- Whether one of the person's posts already uses this path, including a post
+-- the moderators removed
+create function public.post_image_in_use(p_path text, p_user_id uuid)
 returns boolean
 language sql
 stable
@@ -70,6 +82,9 @@ security definer
 set search_path = ''
 as $$
   select exists (
+    select 1 from public.logs
+    where user_id = p_user_id and images @> array[p_path]
+  ) or exists (
     select 1 from public.comments
     where user_id = p_user_id and images @> array[p_path]
   ) or exists (
@@ -78,31 +93,32 @@ as $$
   );
 $$;
 
-revoke execute on function public.comment_image_in_use(text, uuid)
+revoke execute on function public.post_image_in_use(text, uuid)
   from public, anon;
 
 -- Files are served by their public URL. Through the API, people only see
 -- their own folder, so nobody can list everyone's images.
-create policy "users see their own comment image files"
+create policy "users see their own post image files"
   on storage.objects for select to authenticated
   using (
-    bucket_id = 'comment-images'
+    bucket_id = 'post-images'
     and (storage.foldername(name))[1] = (select auth.uid())::text
   );
 
 -- Nobody can delete or overwrite their files, and nobody can upload to a path
--- a comment already uses: the image a comment shows stays the one the
--- automatic check looked at. Only the server deletes files.
-create policy "users upload into their own comment image folder"
+-- a post already uses: the image a post shows stays the one the automatic
+-- check looked at. Only names a post can use are allowed, so the smaller
+-- copies, which only the server writes, can't be uploaded either.
+create policy "users upload into their own post image folder"
   on storage.objects for insert to authenticated
   with check (
-    bucket_id = 'comment-images'
-    and (storage.foldername(name))[1] = (select auth.uid())::text
-    and not public.comment_image_in_use(name, (select auth.uid()))
+    bucket_id = 'post-images'
+    and public.post_image_paths_valid(array[name], (select auth.uid()))
+    and not public.post_image_in_use(name, (select auth.uid()))
   );
 
--- Comments also say how many images they have. The admin pages never load
--- images, so this is how a moderator knows a comment had some.
+-- Posts also say how many images they have. The admin pages never load
+-- images, so this is how a moderator knows a post had some.
 create or replace function public.admin_post(p_kind text, p_id uuid)
 returns jsonb
 language sql
@@ -117,6 +133,7 @@ as $$
         'removed_at', l.removed_at,
         'at', l.logged_at,
         'body', l.review,
+        'image_count', cardinality(l.images),
         'rating', l.rating,
         'item_id', l.item_id,
         'title', i.title,
@@ -199,22 +216,32 @@ as $$
   );
 $$;
 
--- When the automatic image check last finished with a comment's images, and
--- the scores it gave, kept for tuning its thresholds. Also when the retry job
--- last asked about it, so it takes turns between unchecked comments.
+-- When the automatic image check last finished with a post's images, and the
+-- scores it gave, kept for tuning its thresholds. Also when the post got its
+-- current images, which a review can change, and when the retry job last
+-- asked about it, so it takes turns between unchecked posts.
+alter table public.logs
+  add column images_added_at timestamptz,
+  add column images_checked_at timestamptz,
+  add column image_scores jsonb,
+  add column image_check_retried_at timestamptz;
 alter table public.comments
+  add column images_added_at timestamptz,
   add column images_checked_at timestamptz,
   add column image_scores jsonb,
   add column image_check_retried_at timestamptz;
 alter table public.list_comments
+  add column images_added_at timestamptz,
   add column images_checked_at timestamptz,
   add column image_scores jsonb,
   add column image_check_retried_at timestamptz;
 
--- The retry job's queue: recent comments with images not checked yet
-create index comments_unchecked_images_idx on public.comments (created_at)
+-- The retry job's queue: recent posts with images not checked yet
+create index logs_unchecked_images_idx on public.logs (images_added_at)
   where images_checked_at is null and cardinality(images) > 0;
-create index list_comments_unchecked_images_idx on public.list_comments (created_at)
+create index comments_unchecked_images_idx on public.comments (images_added_at)
+  where images_checked_at is null and cardinality(images) > 0;
+create index list_comments_unchecked_images_idx on public.list_comments (images_added_at)
   where images_checked_at is null and cardinality(images) > 0;
 
 -- Accounts a moderator has stopped from attaching images, until lifted. Their
@@ -248,7 +275,7 @@ as $$
   end;
 $$;
 
--- The signed-in person's own status, for the comment form. Nobody can ask
+-- The signed-in person's own status, for the review and comment forms. Nobody can ask
 -- about anyone else, so a block stays private.
 create function public.my_image_attach_status()
 returns text
@@ -265,7 +292,8 @@ revoke execute on function public.image_attach_status(uuid)
 revoke execute on function public.my_image_attach_status() from public, anon;
 grant execute on function public.my_image_attach_status() to authenticated;
 
--- Values sent from the site for the check's columns are ignored
+-- Values sent from the site for the check's columns are ignored. New images
+-- start unchecked, whether a post is new or a review's image changed.
 -- Not security definer, so current_user is whoever is writing
 create function public.keep_image_check_columns()
 returns trigger
@@ -274,11 +302,13 @@ set search_path = ''
 as $$
 begin
   if current_user in ('anon', 'authenticated') then
-    if tg_op = 'INSERT' then
+    if tg_op = 'INSERT' or new.images is distinct from old.images then
+      new.images_added_at := case when cardinality(new.images) > 0 then now() end;
       new.images_checked_at := null;
       new.image_scores := null;
       new.image_check_retried_at := null;
     else
+      new.images_added_at := old.images_added_at;
       new.images_checked_at := old.images_checked_at;
       new.image_scores := old.image_scores;
       new.image_check_retried_at := old.image_check_retried_at;
@@ -288,6 +318,9 @@ begin
 end;
 $$;
 
+create trigger logs_keep_image_check
+  before insert or update on public.logs
+  for each row execute function public.keep_image_check_columns();
 create trigger comments_keep_image_check
   before insert or update on public.comments
   for each row execute function public.keep_image_check_columns();
@@ -295,8 +328,10 @@ create trigger list_comments_keep_image_check
   before insert or update on public.list_comments
   for each row execute function public.keep_image_check_columns();
 
--- New and blocked accounts can't attach images
-create function public.check_comment_images()
+-- New and blocked accounts can't attach images, and a post the moderators
+-- removed can't get a new one: its files are hidden, so restoring it would
+-- leave the new one out
+create function public.check_post_images()
 returns trigger
 language plpgsql
 security definer
@@ -312,7 +347,10 @@ begin
       raise exception 'Accounts can attach images once they''re 3 days old'
         using errcode = '42501';
     elsif v_status = 'blocked' then
-      raise exception 'You can''t attach images to comments'
+      raise exception 'You can''t attach images'
+        using errcode = '42501';
+    elsif new.removed_at is not null then
+      raise exception 'The moderators removed this, so its image can''t change'
         using errcode = '42501';
     end if;
   end if;
@@ -320,19 +358,22 @@ begin
 end;
 $$;
 
+create trigger logs_check_images
+  before insert or update on public.logs
+  for each row execute function public.check_post_images();
 create trigger comments_check_images
   before insert or update on public.comments
-  for each row execute function public.check_comment_images();
+  for each row execute function public.check_post_images();
 create trigger list_comments_check_images
   before insert or update on public.list_comments
-  for each row execute function public.check_comment_images();
+  for each row execute function public.check_post_images();
 
--- The site is asked to check a comment's images. pg_net sends the request
--- after the transaction commits, so posting never waits on it. The site's
--- address and the shared secret live in Vault; without them nothing is sent.
+-- The site is asked to check a post's images. pg_net sends the request after
+-- the transaction commits, so posting never waits on it. The site's address
+-- and the shared secret live in Vault; without them nothing is sent.
 create extension if not exists pg_net;
 
-create function public.request_comment_image_check(p_table text, p_id uuid)
+create function public.request_post_image_check(p_table text, p_id uuid)
 returns void
 language plpgsql
 security definer
@@ -341,11 +382,11 @@ as $$
 declare
   v_url text := (
     select decrypted_secret from vault.decrypted_secrets
-    where name = 'comment_image_check_url'
+    where name = 'post_image_check_url'
   );
   v_secret text := (
     select decrypted_secret from vault.decrypted_secrets
-    where name = 'comment_image_check_secret'
+    where name = 'post_image_check_secret'
   );
 begin
   if v_url is null or v_secret is null then
@@ -356,103 +397,104 @@ begin
     body := jsonb_build_object('table', p_table, 'id', p_id),
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'X-Comment-Image-Check-Secret', v_secret
+      'X-Post-Image-Check-Secret', v_secret
     ),
     timeout_milliseconds := 60000
   );
 end;
 $$;
 
-create function public.request_comment_image_check_on_insert()
+create function public.request_post_image_check_on_change()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
 begin
-  perform public.request_comment_image_check(tg_table_name, new.id);
+  perform public.request_post_image_check(tg_table_name, new.id);
   return null;
 end;
 $$;
 
+create trigger logs_request_image_check
+  after insert on public.logs
+  for each row when (cardinality(new.images) > 0)
+  execute function public.request_post_image_check_on_change();
+-- Editing a review can give it a different image
+create trigger logs_request_image_check_on_edit
+  after update of images on public.logs
+  for each row when (
+    cardinality(new.images) > 0 and new.images is distinct from old.images
+  )
+  execute function public.request_post_image_check_on_change();
 create trigger comments_request_image_check
   after insert on public.comments
   for each row when (cardinality(new.images) > 0)
-  execute function public.request_comment_image_check_on_insert();
+  execute function public.request_post_image_check_on_change();
 create trigger list_comments_request_image_check
   after insert on public.list_comments
   for each row when (cardinality(new.images) > 0)
-  execute function public.request_comment_image_check_on_insert();
+  execute function public.request_post_image_check_on_change();
 
 -- Asks again about images whose check hasn't finished, such as when OpenAI was
--- down. The ones asked about longest ago go first, so a comment that keeps
--- failing doesn't hold up the rest. Gives up after a day; until then the
--- images stay up.
-create function public.retry_comment_image_checks()
+-- down. The ones asked about longest ago go first, so a post that keeps
+-- failing doesn't hold up the rest. Gives up a day after the images were
+-- added; until then they stay up.
+create function public.retry_post_image_checks()
 returns void
 language plpgsql
 security definer
 set search_path = ''
 as $$
 declare
+  v_table text;
   r record;
 begin
-  for r in
-    with asked as (
-      update public.comments set image_check_retried_at = now()
-      where id in (
-        select id from public.comments
-        where images_checked_at is null and cardinality(images) > 0
-          and removed_at is null
-          and created_at between now() - interval '1 day'
-                             and now() - interval '3 minutes'
-        order by image_check_retried_at nulls first, created_at
-        limit 20
-      )
-      returning id
+  foreach v_table in array array['logs', 'comments', 'list_comments'] loop
+    for r in execute format(
+      $sql$
+        with asked as (
+          update public.%1$I set image_check_retried_at = now()
+          where id in (
+            select id from public.%1$I
+            where images_checked_at is null and cardinality(images) > 0
+              and removed_at is null
+              and images_added_at between now() - interval '1 day'
+                                      and now() - interval '3 minutes'
+            order by image_check_retried_at nulls first, images_added_at
+            limit 20
+          )
+          returning id
+        )
+        select id from asked
+      $sql$,
+      v_table
     )
-    select 'comments' as tbl, id from asked
-  loop
-    perform public.request_comment_image_check(r.tbl, r.id);
-  end loop;
-
-  for r in
-    with asked as (
-      update public.list_comments set image_check_retried_at = now()
-      where id in (
-        select id from public.list_comments
-        where images_checked_at is null and cardinality(images) > 0
-          and removed_at is null
-          and created_at between now() - interval '1 day'
-                             and now() - interval '3 minutes'
-        order by image_check_retried_at nulls first, created_at
-        limit 20
-      )
-      returning id
-    )
-    select 'list_comments' as tbl, id from asked
-  loop
-    perform public.request_comment_image_check(r.tbl, r.id);
+    loop
+      perform public.request_post_image_check(v_table, r.id);
+    end loop;
   end loop;
 end;
 $$;
 
 select cron.schedule(
-  'retry-comment-image-checks',
+  'retry-post-image-checks',
   '*/5 * * * *',
-  $$select public.retry_comment_image_checks()$$
+  $$select public.retry_post_image_checks()$$
 );
 
 -- An automatic report has no reporter
 alter table public.reports alter column reporter_id drop not null;
 
--- Records the check of a comment whose images it flagged, removes the comment,
--- and files an open report saying why so a moderator can review it, all at
--- once. The author isn't notified. Says whether this call did it: false when
--- another check finished first. Only the site's server can call it.
-create function public.auto_remove_comment(
+-- Records the check of a post whose images it flagged, removes the post, and
+-- files an open report saying why so a moderator can review it, all at once.
+-- The author isn't notified. Says whether this call did it: false when
+-- another check finished first, or the post's images changed since this one
+-- looked. Only the site's server can call it.
+create function public.auto_remove_post(
   p_kind text,
   p_id uuid,
+  p_images text[],
   p_reason text,
   p_details text,
   p_scores jsonb
@@ -462,24 +504,30 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_table text := case p_kind
+    when 'log' then 'logs'
+    when 'comment' then 'comments'
+    when 'list_comment' then 'list_comments'
+  end;
+  v_removed integer;
 begin
-  if p_kind not in ('comment', 'list_comment') then
-    raise exception 'Unknown comment kind';
+  if v_table is null then
+    raise exception 'Unknown post kind';
   end if;
   perform public.assert_moderation_reason(p_reason);
 
-  if p_kind = 'comment' then
-    update public.comments
-    set images_checked_at = now(), image_scores = p_scores,
-        removed_at = coalesce(removed_at, now())
-    where id = p_id and images_checked_at is null;
-  else
-    update public.list_comments
-    set images_checked_at = now(), image_scores = p_scores,
-        removed_at = coalesce(removed_at, now())
-    where id = p_id and images_checked_at is null;
-  end if;
-  if not found then
+  execute format(
+    $sql$
+      update public.%I
+      set images_checked_at = now(), image_scores = $1,
+          removed_at = coalesce(removed_at, now())
+      where id = $2 and images_checked_at is null and images = $3
+    $sql$,
+    v_table
+  ) using p_scores, p_id, p_images;
+  get diagnostics v_removed = row_count;
+  if v_removed = 0 then
     return false;
   end if;
 
@@ -489,13 +537,13 @@ begin
 end;
 $$;
 
-revoke execute on function public.auto_remove_comment(text, uuid, text, text, jsonb)
+revoke execute on function public.auto_remove_post(text, uuid, text[], text, text, jsonb)
   from public, anon, authenticated;
-grant execute on function public.auto_remove_comment(text, uuid, text, text, jsonb)
+grant execute on function public.auto_remove_post(text, uuid, text[], text, text, jsonb)
   to service_role;
-revoke execute on function public.request_comment_image_check(text, uuid)
+revoke execute on function public.request_post_image_check(text, uuid)
   from public, anon, authenticated;
-revoke execute on function public.retry_comment_image_checks()
+revoke execute on function public.retry_post_image_checks()
   from public, anon, authenticated;
 
 -- Automatic reports, which have no reporter, are listed too
@@ -759,4 +807,54 @@ begin
     ), '[]'::jsonb)
   );
 end;
+$$;
+
+-- The viewer's own entries also carry their image
+create or replace function public.item_ratings(p_item_id text)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'ratings', coalesce((
+      select jsonb_agg(
+        jsonb_build_object('rating', latest.rating, 'people', latest.people)
+        order by latest.rating
+      )
+      from (
+        select per_person.rating, count(*) as people
+        from (
+          select distinct on (l.user_id) l.rating
+          from public.logs l
+          -- Removed logs stay readable by their author, so skipping them
+          -- here makes the ratings the same for every viewer
+          where l.item_id = p_item_id
+            and l.rating is not null
+            and l.removed_at is null
+          order by l.user_id, l.logged_at desc
+        ) per_person
+        group by per_person.rating
+      ) latest
+    ), '[]'::jsonb),
+    'log_count', (
+      select count(*) from public.logs l where l.item_id = p_item_id
+    ),
+    'viewer_entries', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'id', l.id,
+          'rating', l.rating,
+          'review', l.review,
+          'images', l.images,
+          'images_checked_at', l.images_checked_at,
+          'logged_at', l.logged_at
+        )
+        order by l.logged_at desc
+      )
+      from public.logs l
+      where l.item_id = p_item_id and l.user_id = (select auth.uid())
+    ), '[]'::jsonb)
+  );
 $$;

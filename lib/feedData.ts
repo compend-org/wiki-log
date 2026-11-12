@@ -23,6 +23,11 @@ export type LogRow = {
   item_id: string;
   rating: number | null;
   review: string;
+  // Paths of its image in the post-images bucket
+  images: string[];
+  // When the automatic check passed its image, which is when its smaller
+  // copies are made
+  images_checked_at: string | null;
   logged_at: string;
   items: {
     title: string;
@@ -84,7 +89,7 @@ type PreviewRow = {
 type RankRow = { row_id: string; recent_likes: number | string };
 
 const LOG_SELECT =
-  "id, user_id, item_id, rating, review, logged_at, items(title, image_url, image_hidden), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
+  "id, user_id, item_id, rating, review, images, images_checked_at, logged_at, items(title, image_url, image_hidden), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
 export const LIST_SELECT =
   "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count)";
 

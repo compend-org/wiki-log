@@ -1,15 +1,12 @@
-// ABOUTME: The picture icon inside the comment box that picks an image or GIF to attach.
+// ABOUTME: The picture icon inside a review or comment box that picks an image or GIF to attach.
 // ABOUTME: Accounts under 3 days old get a tooltip saying why instead; blocked accounts don't see it.
 "use client";
 
 import { useId, useRef, useState } from "react";
 import ImageIcon from "@/components/icons/ImageIcon";
-import {
-  commentImageProblem,
-  type ImageAttachStatus,
-} from "@/lib/commentImages";
+import { type ImageAttachStatus, postImageProblem } from "@/lib/postImages";
 
-export default function CommentImageButton({
+export default function PostImageButton({
   status,
   onPick,
   onError,
@@ -35,7 +32,7 @@ export default function CommentImageButton({
     const file = e.target.files?.[0];
     e.target.value = ""; // so choosing the same file again still triggers this
     if (!file) return;
-    const problem = commentImageProblem(file);
+    const problem = postImageProblem(file);
     if (problem) onError(problem);
     else onPick(file);
   }

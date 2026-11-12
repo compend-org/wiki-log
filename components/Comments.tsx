@@ -2,19 +2,19 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { deleteComment } from "@/app/actions";
 import CommentLikeButton from "@/components/buttons/CommentLikeButton";
 import ReportButton from "@/components/buttons/ReportButton";
-import CommentImageButton from "@/components/CommentImageButton";
-import CommentImagePreview from "@/components/CommentImagePreview";
-import CommentImages from "@/components/CommentImages";
+import PostImage from "@/components/PostImage";
+import PostImageButton from "@/components/PostImageButton";
+import PostImagePreview from "@/components/PostImagePreview";
 import ReviewText from "@/components/ReviewText";
 import { track } from "@/lib/analytics";
-import type { ImageAttachStatus } from "@/lib/commentImages";
-import { uploadCommentImage } from "@/lib/commentImageUpload";
 import { mentionToken } from "@/lib/format";
+import { uploadPostImage } from "@/lib/postImageUpload";
 import { createClient } from "@/lib/supabase/client";
+import { useImageAttachStatus } from "@/lib/useImageAttachStatus";
 import { useLoginHref } from "@/lib/useLoginHref";
 import AdminBadge from "./AdminBadge";
 import ConfirmDialog from "./ConfirmDialog";
@@ -24,8 +24,11 @@ export type CommentItem = {
   id: string;
   parentId: string | null;
   body: string;
-  // Paths of its images and GIFs in the comment-images bucket
+  // Paths of its images and GIFs in the post-images bucket
   images: string[];
+  // Whether the automatic check has passed them, which is when their smaller
+  // copies are made
+  imagesChecked: boolean;
   date: string;
   authorId: string;
   authorName: string;
@@ -64,22 +67,12 @@ export default function Comments({
   const [replyText, setReplyText] = useState<string>("");
   const [topImage, setTopImage] = useState<File | null>(null);
   const [replyImage, setReplyImage] = useState<File | null>(null);
-  const [imageStatus, setImageStatus] = useState<ImageAttachStatus | null>(
-    null,
-  );
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [deleting, setDeleting] = useState<CommentItem | null>(null);
   const router = useRouter();
 
-  // New and blocked accounts can't attach images; the database enforces the
-  // same rule
-  useEffect(() => {
-    if (!viewerId) return;
-    createClient()
-      .rpc("my_image_attach_status")
-      .then(({ data }) => setImageStatus(data as ImageAttachStatus));
-  }, [viewerId]);
+  const imageStatus = useImageAttachStatus(viewerId);
 
   const topLevel = comments.filter((c) => c.parentId === null);
   const repliesOf = (id: string) => comments.filter((c) => c.parentId === id);
@@ -105,7 +98,7 @@ export default function Comments({
     const supabase = createClient();
     const images: string[] = [];
     if (image) {
-      const uploaded = await uploadCommentImage(supabase, viewerId, image);
+      const uploaded = await uploadPostImage(supabase, viewerId, image);
       if (uploaded.error !== undefined) {
         setBusy(false);
         setError(uploaded.error);
@@ -206,16 +199,23 @@ export default function Comments({
             <ReviewText text={c.body} />
           </p>
         )}
-        {c.removed ? (
-          c.images.length > 0 && (
-            <p className="text-xs text-muted">
-              {c.images.length === 1 ? "Image" : "Images"} hidden by the
-              moderators
-            </p>
-          )
-        ) : (
-          <CommentImages paths={c.images} />
-        )}
+        {c.removed
+          ? c.images.length > 0 && (
+              <p className="text-xs text-muted">
+                {c.images.length === 1 ? "Image" : "Images"} hidden by the
+                moderators
+              </p>
+            )
+          : c.images.map((path) => (
+              <PostImage
+                key={path}
+                path={path}
+                checked={c.imagesChecked}
+                size="small"
+                className="h-40 w-auto max-w-full rounded-lg border border-line object-contain"
+                linkToFull
+              />
+            ))}
         <div className="flex gap-3 text-xs text-muted">
           <CommentLikeButton
             viewerId={viewerId}
@@ -315,7 +315,7 @@ export default function Comments({
                   placeholder="Write a reply"
                   className={inputClass}
                   accessory={
-                    <CommentImageButton
+                    <PostImageButton
                       status={imageStatus}
                       onPick={setReplyImage}
                       onError={setError}
@@ -323,8 +323,8 @@ export default function Comments({
                     />
                   }
                 />
-                <CommentImagePreview
-                  file={replyImage}
+                <PostImagePreview
+                  image={replyImage}
                   onRemove={() => setReplyImage(null)}
                   disabled={busy}
                 />
@@ -365,7 +365,7 @@ export default function Comments({
             placeholder="Add a comment"
             className={inputClass}
             accessory={
-              <CommentImageButton
+              <PostImageButton
                 status={imageStatus}
                 onPick={setTopImage}
                 onError={setError}
@@ -373,8 +373,8 @@ export default function Comments({
               />
             }
           />
-          <CommentImagePreview
-            file={topImage}
+          <PostImagePreview
+            image={topImage}
             onRemove={() => setTopImage(null)}
             disabled={busy}
           />

@@ -201,7 +201,12 @@ afterEach(() => {
 test("logging a requested ID stores and references the resolved Wikipedia ID", async () => {
   fixture = setup();
   assert.deepEqual(
-    await logItem({ itemId: requestedId, rating: 4, review: "Good" }),
+    await logItem({
+      itemId: requestedId,
+      rating: 4,
+      review: "Good",
+      images: [],
+    }),
     {},
   );
   assert.deepEqual(
@@ -330,7 +335,10 @@ for (const mode of ["fresh", "stale", "compound"] as const) {
       ],
       lookupFails: true,
     });
-    assert.deepEqual(await logItem({ itemId, rating: null, review: "" }), {});
+    assert.deepEqual(
+      await logItem({ itemId, rating: null, review: "", images: [] }),
+      {},
+    );
     assert.equal(fixture.writes[0].body.item_id, itemId);
     assert.equal(fixture.lookups(), mode === "stale" ? 1 : 0);
   });
@@ -348,7 +356,12 @@ test("a successful stale refresh references the newly stored resolved ID", async
     ],
   });
   assert.deepEqual(
-    await logItem({ itemId: requestedId, rating: null, review: "" }),
+    await logItem({
+      itemId: requestedId,
+      rating: null,
+      review: "",
+      images: [],
+    }),
     {},
   );
   assert.equal(
@@ -398,7 +411,12 @@ test("only stored Wikimedia images are checked", async () => {
 test("a failed item upsert prevents the dependent write and returns the error", async () => {
   fixture = setup({ upsertFails: true });
   assert.deepEqual(
-    await logItem({ itemId: requestedId, rating: null, review: "" }),
+    await logItem({
+      itemId: requestedId,
+      rating: null,
+      review: "",
+      images: [],
+    }),
     { error: "Item storage denied" },
   );
   assert.deepEqual(
@@ -410,7 +428,12 @@ test("a failed item upsert prevents the dependent write and returns the error", 
 test("dependent write failures still reach the caller", async () => {
   fixture = setup({ writeFails: true });
   assert.deepEqual(
-    await logItem({ itemId: requestedId, rating: null, review: "" }),
+    await logItem({
+      itemId: requestedId,
+      rating: null,
+      review: "",
+      images: [],
+    }),
     { error: "Write denied" },
   );
 });

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { deleteReview } from "@/app/actions";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import DeleteIcon from "@/components/icons/DeleteIcon";
 import { track } from "@/lib/analytics";
@@ -24,23 +25,28 @@ export default function DeleteButton({
   const router = useRouter();
   const noun = kind === "log" ? "entry" : "list";
 
+  // Deletes it, or says why it couldn't. A review's image goes with it,
+  // which only the server can delete.
+  async function deleteTarget(): Promise<string | null> {
+    if (kind === "log") return (await deleteReview(targetId)).error ?? null;
+    const { data, error } = await createClient()
+      .from("lists")
+      .delete()
+      .eq("id", targetId)
+      .select("id");
+    if (error) return error.message;
+    // Row-level security refuses silently when it isn't yours
+    return data && data.length > 0 ? null : `Couldn't delete that ${noun}.`;
+  }
+
   async function handleDelete() {
     if (busy) return;
     setBusy(true);
     setError("");
-    const { data, error } = await createClient()
-      .from(kind === "log" ? "logs" : "lists")
-      .delete()
-      .eq("id", targetId)
-      .select("id");
+    const message = await deleteTarget();
     setBusy(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    // Row-level security refuses silently when it isn't yours
-    if (!data || data.length === 0) {
-      setError(`Couldn't delete that ${noun}.`);
+    if (message) {
+      setError(message);
       return;
     }
     track(kind === "log" ? "log_deleted" : "list_deleted");
