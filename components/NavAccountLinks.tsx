@@ -6,6 +6,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
+import {
+  fetchNotifications,
+  keepNotificationsOnlyFor,
+} from "@/lib/notificationsFeed";
 import { createClient } from "@/lib/supabase/client";
 import { isCurrentPage, useNavLinkTone } from "@/lib/useNavLinkTone";
 import SignInButton from "./buttons/SignInButton";
@@ -136,6 +140,13 @@ export default function NavAccountLinks({
       // then stays empty until the server's version arrives
     }
   });
+
+  // Fetches the notifications ahead of a visit when there are new ones, so
+  // the page opens with them
+  useEffect(() => {
+    keepNotificationsOnlyFor(userId);
+    if (userId && unread > 0) fetchNotifications(userId);
+  }, [userId, unread]);
 
   // The notifications page tells us when everything has been read
   useEffect(() => {

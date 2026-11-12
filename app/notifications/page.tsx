@@ -4,76 +4,36 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import AdminBadge from "@/components/AdminBadge";
 import NotificationThumb, {
-  MOSAIC_SIZE,
   type NotificationSubject,
 } from "@/components/NotificationThumb";
 import { track } from "@/lib/analytics";
-import type { Thumb } from "@/lib/feedData";
-import { shownImage, timeAgo } from "@/lib/format";
+import { timeAgo } from "@/lib/format";
+import {
+  fetchNotifications,
+  latestNotifications,
+  markNotificationsRead,
+  type NotificationRow,
+  type NotificationsFeed,
+} from "@/lib/notificationsFeed";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
-
-type NotificationRow = {
-  id: string;
-  type:
-    | "like"
-    | "comment"
-    | "reply"
-    | "follow"
-    | "list_like"
-    | "list_comment"
-    | "list_reply"
-    | "share"
-    | "list_share"
-    | "moderation"
-    | "comment_like"
-    | "list_comment_like"
-    | "mention";
-  read: boolean;
-  created_at: string;
-  log_id: string | null;
-  list_id: string | null;
-  // Set when the notice is about a comment, on a review or on a list
-  comment_id: string | null;
-  list_comment_id: string | null;
-  // Moderators' messages have no actor, just a body
-  actor_id: string | null;
-  body: string | null;
-  profiles: { username: string; avatar_path: string | null } | null;
-};
-
-type LogInfo = { owner: string; item: string };
-type ListInfo = { title: string; items: Thumb[] };
-
-type ItemRow = {
-  title: string;
-  image_url: string | null;
-  image_hidden: boolean;
-};
-
-type ListQueryRow = {
-  id: string;
-  title: string;
-  list_items: { items: ItemRow | null }[];
-};
-
-function toThumb(item: ItemRow): Thumb {
-  return { title: item.title, image_url: shownImage(item) };
-}
 
 type NotificationsState = {
   loaded: boolean;
   signedIn: boolean;
   error: string;
-  rows: NotificationRow[];
-  logs: Record<string, LogInfo>;
-  items: Record<string, Thumb>;
-  lists: Record<string, ListInfo>;
-  owners: Record<string, string>;
-  adminIds: Set<string>;
-  myId: string;
-  // When the data arrived, which is what the times on the cards count from
-  loadedAt: number;
+  feed: NotificationsFeed;
+};
+
+const EMPTY_FEED: NotificationsFeed = {
+  rows: [],
+  logs: {},
+  items: {},
+  lists: {},
+  owners: {},
+  adminIds: new Set(),
+  myId: "",
+  loadedAt: 0,
 };
 
 // A person's name linked to their profile, above the card's full-card link,
@@ -105,147 +65,54 @@ function PersonLink({
 
 export default function NotificationsPage() {
   const loginHref = useLoginHref();
-  const [state, setState] = useState<NotificationsState>({
-    loaded: false,
-    signedIn: false,
-    error: "",
-    rows: [],
-    logs: {},
-    items: {},
-    lists: {},
-    owners: {},
-    adminIds: new Set(),
-    myId: "",
-    loadedAt: 0,
+  // Opens with the feed last fetched in this tab, if any, while a fresh one
+  // loads
+  const [state, setState] = useState<NotificationsState>(() => {
+    const kept = latestNotifications();
+    return kept
+      ? { loaded: true, signedIn: true, error: "", feed: kept }
+      : { loaded: false, signedIn: false, error: "", feed: EMPTY_FEED };
   });
-  const {
-    loaded,
-    signedIn,
-    error,
-    rows,
-    logs,
-    items,
-    lists,
-    owners,
-    adminIds,
-    myId,
-    loadedAt,
-  } = state;
+  const { loaded, signedIn, error, feed } = state;
+  const { rows, logs, items, lists, owners, adminIds, myId, loadedAt } = feed;
 
   useEffect(() => {
     async function load() {
       const supabase = createClient();
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) {
-        setState((previous) => ({ ...previous, loaded: true }));
+        setState({
+          loaded: true,
+          signedIn: false,
+          error: "",
+          feed: EMPTY_FEED,
+        });
         return;
       }
       const userId = userData.user.id;
-      const { data, error } = await supabase
-        .from("notifications")
-        .select(
-          "id, type, read, created_at, log_id, list_id, comment_id, list_comment_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path)",
-        )
-        .eq("recipient_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) {
+      const result = await fetchNotifications(userId);
+      if ("error" in result) {
+        // Keeps showing the kept feed only if it is this person's
         setState((previous) => ({
-          ...previous,
           loaded: true,
           signedIn: true,
-          error: error.message,
+          error: result.error,
+          feed: previous.feed.myId === userId ? previous.feed : EMPTY_FEED,
         }));
         return;
       }
-      const list = (data ?? []) as unknown as NotificationRow[];
-      // The entries these refer to, then their items and owners
-      const logIds = [
-        ...new Set(list.map((n) => n.log_id).filter((v): v is string => !!v)),
-      ];
-      const listIds = [
-        ...new Set(list.map((n) => n.list_id).filter((v): v is string => !!v)),
-      ];
-
-      const logRes = logIds.length
-        ? await supabase
-            .from("logs")
-            .select("id, user_id, item_id")
-            .in("id", logIds)
-        : { data: [] as { id: string; user_id: string; item_id: string }[] };
-      const logRows = logRes.data ?? [];
-
-      const itemIds = [...new Set(logRows.map((l) => l.item_id))];
-      const ownerIds = [...new Set(logRows.map((l) => l.user_id))];
-
-      // Everyone who could be named on a card, to badge the admins among them.
-      // Notices from the moderators have no actor.
-      const actorIds = list.flatMap((n) => (n.actor_id ? [n.actor_id] : []));
-      const peopleIds = [...new Set([...actorIds, ...ownerIds])];
-
-      const [itemRes, listRes, profs, admins] = await Promise.all([
-        itemIds.length
-          ? supabase
-              .from("items")
-              .select("id, title, image_url, image_hidden")
-              .in("id", itemIds)
-          : Promise.resolve({ data: [] as (ItemRow & { id: string })[] }),
-        listIds.length
-          ? supabase
-              .from("lists")
-              .select(
-                "id, title, list_items(position, items(title, image_url, image_hidden))",
-              )
-              .in("id", listIds)
-              .order("position", { referencedTable: "list_items" })
-              .limit(MOSAIC_SIZE, { referencedTable: "list_items" })
-          : Promise.resolve({ data: [] as ListQueryRow[] }),
-        ownerIds.length
-          ? supabase.from("profiles").select("id, username").in("id", ownerIds)
-          : Promise.resolve({ data: [] as { id: string; username: string }[] }),
-        peopleIds.length
-          ? supabase.from("admins").select("user_id").in("user_id", peopleIds)
-          : Promise.resolve({ data: [] as { user_id: string }[] }),
-      ]);
 
       // Publish the notifications and all their display data together.
-      setState({
-        loaded: true,
-        signedIn: true,
-        error: "",
-        rows: list,
-        logs: Object.fromEntries(
-          logRows.map((l) => [l.id, { owner: l.user_id, item: l.item_id }]),
-        ),
-        items: Object.fromEntries(
-          (itemRes.data ?? []).map((v) => [v.id, toThumb(v)]),
-        ),
-        lists: Object.fromEntries(
-          ((listRes.data ?? []) as unknown as ListQueryRow[]).map((v) => [
-            v.id,
-            {
-              title: v.title,
-              items: v.list_items.flatMap((e) =>
-                e.items ? [toThumb(e.items)] : [],
-              ),
-            },
-          ]),
-        ),
-        owners: Object.fromEntries(
-          (profs.data ?? []).map((p) => [p.id, p.username]),
-        ),
-        adminIds: new Set((admins.data ?? []).map((a) => a.user_id)),
-        myId: userId,
-        loadedAt: Date.now(),
-      });
+      setState({ loaded: true, signedIn: true, error: "", feed: result.feed });
 
       // Opening the page marks everything as read
-      if (list.some((n) => !n.read)) {
-        await supabase
+      if (result.feed.rows.some((n) => !n.read)) {
+        const { error: markError } = await supabase
           .from("notifications")
           .update({ read: true })
           .eq("recipient_id", userId)
           .eq("read", false);
+        if (!markError) markNotificationsRead(result.feed);
         window.dispatchEvent(new Event("notifications-read"));
       }
     }
