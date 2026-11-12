@@ -4,14 +4,6 @@ import type { Metadata } from "next";
 import { absolute } from "@/lib/format";
 import { SITE_NAME } from "@/lib/site";
 
-// A rating out of 5 as plain text, like "★★★½". No rating gives "".
-export function starText(rating: number | null | undefined): string {
-  const clamped = Math.max(0, Math.min(5, rating ?? 0));
-  const full = Math.floor(clamped);
-  const half = clamped - full >= 0.5;
-  return "★".repeat(full) + (half ? "½" : "");
-}
-
 // A square image, like an avatar, is shown as a small thumbnail beside the
 // text; any other image is shown large above it
 export function pageMetadata({

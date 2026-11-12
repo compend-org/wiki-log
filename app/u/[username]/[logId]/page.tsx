@@ -25,10 +25,10 @@ import {
   threadsHref,
   toCommentItems,
 } from "@/lib/comments";
-import { timeAgo } from "@/lib/format";
+import { starText, timeAgo } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { likeKey } from "@/lib/likes";
-import { pageMetadata, starText } from "@/lib/metadata";
+import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { getReview } from "@/lib/reviews";
 import { createClient } from "@/lib/supabase/server";

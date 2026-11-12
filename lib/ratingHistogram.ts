@@ -29,14 +29,6 @@ export function barHeight(count: number, tallest: number): string {
   return count > 0 ? `${Math.max(8, (count / tallest) * 100)}%` : "2px";
 }
 
-// A half-star rating written as stars, like ★★★½
-export function starText(step: number): string {
-  const whole = Math.floor(step);
-  const half = step % 1 !== 0;
-  if (whole === 0) return "½★";
-  return "★".repeat(whole) + (half ? "½" : "");
-}
-
 // A rating from a URL, if it is one of the half-star steps
 export function parseRatingStep(value: unknown): number | null {
   if (typeof value !== "string") return null;

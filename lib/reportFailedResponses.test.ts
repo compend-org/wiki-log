@@ -74,3 +74,77 @@ test("asking for a page past the end of a list is not reported", async () => {
   assert.equal(response.status, 416);
   assert.equal(sent.length, 0);
 });
+
+test("an auth outage is reported under its route, without the user id", async () => {
+  mock.method(globalThis, "fetch", async () =>
+    Response.json(
+      {
+        code: 504,
+        error_code: "request_timeout",
+        msg: "Processing this request timed out, please retry after a moment.",
+      },
+      { status: 504 },
+    ),
+  );
+
+  const response = await reportFailedResponses(
+    "https://test.supabase.co/auth/v1/admin/users/35255498-ad17-42a2-9fed-07ebb4afd72f",
+    { method: "DELETE" },
+  );
+  await Sentry.flush();
+
+  assert.equal(response.status, 504);
+  assert.equal(sent.length, 1);
+  const [event] = sent;
+  assert.equal(
+    event.exception?.values?.[0]?.value,
+    "Supabase DELETE auth/admin/users: Processing this request timed out, please retry after a moment.",
+  );
+  assert.deepEqual(event.fingerprint, [
+    "supabase",
+    "auth/admin/users",
+    "request_timeout",
+  ]);
+});
+
+test("a storage outage is reported under its bucket, without the file path", async () => {
+  mock.method(globalThis, "fetch", async () =>
+    Response.json(
+      { statusCode: "500", error: "internal", message: "Internal error" },
+      { status: 500 },
+    ),
+  );
+
+  await reportFailedResponses(
+    "https://test.supabase.co/storage/v1/object/avatars/35255498-ad17-42a2-9fed-07ebb4afd72f/me.png",
+    { method: "DELETE" },
+  );
+  await Sentry.flush();
+
+  assert.equal(sent.length, 1);
+  assert.deepEqual(sent[0].fingerprint, [
+    "supabase",
+    "storage/object/avatars",
+    "internal",
+  ]);
+});
+
+test("auth and storage errors the app shows the person are not reported", async () => {
+  mock.method(globalThis, "fetch", async () =>
+    Response.json(
+      { code: 400, error_code: "invalid_credentials", msg: "Invalid login" },
+      { status: 400 },
+    ),
+  );
+
+  await reportFailedResponses(
+    "https://test.supabase.co/auth/v1/token?grant_type=password",
+    { method: "POST" },
+  );
+  await reportFailedResponses(
+    "https://test.supabase.co/storage/v1/object/avatars/x/me.png",
+  );
+  await Sentry.flush();
+
+  assert.equal(sent.length, 0);
+});

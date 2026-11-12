@@ -7,6 +7,7 @@ import {
   plainReview,
   REVIEW_LINK,
   shownImage,
+  starText,
   timeAgo,
 } from "./format";
 
@@ -67,4 +68,11 @@ test("finds each link's id and text", () => {
       [`@${id}`, "Ann"],
     ],
   );
+});
+
+test("a rating is written as stars, with a lone half shown beside a star", () => {
+  assert.equal(starText(3.5), "★★★½");
+  assert.equal(starText(5), "★★★★★");
+  assert.equal(starText(0.5), "½★");
+  assert.equal(starText(null), "");
 });
