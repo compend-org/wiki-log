@@ -11,7 +11,7 @@ import { timeAgo } from "@/lib/format";
 import {
   fetchNotifications,
   latestNotifications,
-  markLatestNotificationsRead,
+  markNotificationsRead,
   type NotificationRow,
   type NotificationsFeed,
 } from "@/lib/notificationsFeed";
@@ -92,11 +92,12 @@ export default function NotificationsPage() {
       const userId = userData.user.id;
       const result = await fetchNotifications(userId);
       if ("error" in result) {
+        // Keeps showing the kept feed only if it is this person's
         setState((previous) => ({
-          ...previous,
           loaded: true,
           signedIn: true,
           error: result.error,
+          feed: previous.feed.myId === userId ? previous.feed : EMPTY_FEED,
         }));
         return;
       }
@@ -106,12 +107,12 @@ export default function NotificationsPage() {
 
       // Opening the page marks everything as read
       if (result.feed.rows.some((n) => !n.read)) {
-        await supabase
+        const { error: markError } = await supabase
           .from("notifications")
           .update({ read: true })
           .eq("recipient_id", userId)
           .eq("read", false);
-        markLatestNotificationsRead();
+        if (!markError) markNotificationsRead(result.feed);
         window.dispatchEvent(new Event("notifications-read"));
       }
     }

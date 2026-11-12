@@ -79,8 +79,11 @@ export function latestNotifications(): NotificationsFeed | null {
 // Fetches the feed, sharing a fetch already under way for the same person
 export function fetchNotifications(userId: string): Promise<FeedResult> {
   if (pending?.userId === userId) return pending.result;
+  // A fetch dropped by keepNotificationsOnlyFor, or replaced by another,
+  // leaves the kept feed alone
   const result = loadFeed(userId).then((outcome) => {
-    if (pending?.result === result) pending = null;
+    if (pending?.result !== result) return outcome;
+    pending = null;
     if ("feed" in outcome) latest = outcome.feed;
     return outcome;
   });
@@ -94,13 +97,11 @@ export function keepNotificationsOnlyFor(userId: string | null) {
   if (pending && pending.userId !== userId) pending = null;
 }
 
-// Records that every notification in the kept feed has been read
-export function markLatestNotificationsRead() {
-  if (latest) {
-    latest = {
-      ...latest,
-      rows: latest.rows.map((n) => ({ ...n, read: true })),
-    };
+// Records that every notification in this feed has been read, if it is still
+// the kept one
+export function markNotificationsRead(feed: NotificationsFeed) {
+  if (latest === feed) {
+    latest = { ...feed, rows: feed.rows.map((n) => ({ ...n, read: true })) };
   }
 }
 
