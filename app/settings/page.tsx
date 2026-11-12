@@ -1,4 +1,4 @@
-// ABOUTME: The signed-in person's settings: picture, bio, username, email, theme and blocks.
+// ABOUTME: The signed-in person's settings: picture, bio, username, email, theme, SFW mode and blocks.
 // ABOUTME: Loads everything on the server first, so the page arrives complete.
 import Link from "next/link";
 import { connection } from "next/server";
@@ -11,6 +11,7 @@ import SfwSetting from "@/components/SfwSetting";
 import ThemeSetting from "@/components/ThemeSetting";
 import UsernameEditor from "@/components/UsernameEditor";
 import { loginHref } from "@/lib/redirect";
+import { parseSfwMode } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
@@ -19,6 +20,7 @@ type SettingsProfile = {
   username: string;
   avatar_path: string | null;
   bio: string | null;
+  user_settings: { sfw_mode: string } | null;
   blocked: {
     blocked_id: string;
     profiles: { username: string } | null;
@@ -39,7 +41,7 @@ export default async function SettingsPage() {
         supabase
           .from("profiles")
           .select(
-            "username, avatar_path, bio, blocked:blocks!blocks_blocker_id_fkey(blocked_id, profiles!blocks_blocked_id_fkey(username))",
+            "username, avatar_path, bio, user_settings(sfw_mode), blocked:blocks!blocks_blocker_id_fkey(blocked_id, profiles!blocks_blocked_id_fkey(username))",
           )
           .eq("id", userId)
           .order("created_at", { referencedTable: "blocked", ascending: false })
@@ -109,7 +111,10 @@ export default async function SettingsPage() {
 
       <ThemeSetting />
 
-      <SfwSetting userId={userId} />
+      <SfwSetting
+        userId={userId}
+        savedMode={parseSfwMode(profile.user_settings?.sfw_mode)}
+      />
 
       <BlockedPeople viewerId={userId} people={blockedPeople} />
 

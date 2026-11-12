@@ -3,10 +3,11 @@
 // ABOUTME: The profile setting for SFW mode: off, blur adult images, or hide adult posts.
 // ABOUTME: Saved to the account, and applied to this page as soon as it is chosen.
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { track } from "@/lib/analytics";
-import { applySfw, parseSfwMode, type SfwMode, setStoredSfw } from "@/lib/sfw";
+import { applySfw, type SfwMode, setStoredSfw } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/client";
+import { useLocalCopy } from "@/lib/useLocalCopy";
 
 const OPTIONS: { value: SfwMode; label: string }[] = [
   { value: "off", label: "Off" },
@@ -14,23 +15,17 @@ const OPTIONS: { value: SfwMode; label: string }[] = [
   { value: "hide", label: "Hide adult posts" },
 ];
 
-export default function SfwSetting({ userId }: { userId: string }) {
-  const [mode, setMode] = useState<SfwMode>("off");
+export default function SfwSetting({
+  userId,
+  savedMode,
+}: {
+  userId: string;
+  savedMode: SfwMode;
+}) {
+  const [mode, setMode] = useLocalCopy(savedMode);
   const [error, setError] = useState("");
-  // Choices wait until the saved mode has loaded and while one is saving
-  const [busy, setBusy] = useState(true);
-
-  useEffect(() => {
-    createClient()
-      .from("user_settings")
-      .select("sfw_mode")
-      .eq("user_id", userId)
-      .maybeSingle()
-      .then(({ data }) => {
-        setMode(parseSfwMode(data?.sfw_mode));
-        setBusy(false);
-      });
-  }, [userId]);
+  // Choices wait while one is saving
+  const [busy, setBusy] = useState(false);
 
   async function choose(next: SfwMode) {
     const before = mode;
