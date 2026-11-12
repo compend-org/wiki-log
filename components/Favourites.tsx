@@ -8,7 +8,12 @@ import ItemPicker from "@/components/ItemPicker";
 import ItemImage from "@/components/icons/ItemImage";
 import { track } from "@/lib/analytics";
 
-export type Slot = { itemId: string; title: string; imageUrl: string | null };
+export type Slot = {
+  itemId: string;
+  title: string;
+  imageUrl: string | null;
+  nsfw: boolean;
+};
 
 export default function Favourites({
   slots,
@@ -91,6 +96,7 @@ export default function Favourites({
                 {showRemove ? (
                   <ItemImage
                     src={slot.imageUrl}
+                    nsfw={slot.nsfw}
                     alt={slot.title}
                     className="aspect-square w-full rounded"
                   />
@@ -102,6 +108,7 @@ export default function Favourites({
                   >
                     <ItemImage
                       src={slot.imageUrl}
+                      nsfw={slot.nsfw}
                       alt={slot.title}
                       className="aspect-square w-full rounded"
                     />

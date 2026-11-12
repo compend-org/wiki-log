@@ -2,6 +2,7 @@
 // ABOUTME: so the top bar's account section arrives with the page, and tells analytics who it is.
 import { connection } from "next/server";
 import { isAdmin } from "@/lib/admin";
+import { parseSfwMode } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
 import AnalyticsIdentity from "./AnalyticsIdentity";
 import NavAccountLinks, { type NavAccountDetails } from "./NavAccountLinks";
@@ -18,7 +19,7 @@ async function getSignedInAccount(): Promise<NavAccountDetails | null> {
   const [{ data: profile }, { count }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("username, avatar_path")
+      .select("username, avatar_path, user_settings(sfw_mode)")
       .eq("id", userId)
       .maybeSingle(),
     supabase
@@ -35,6 +36,10 @@ async function getSignedInAccount(): Promise<NavAccountDetails | null> {
     userId,
     username: profile.username,
     avatarPath: profile.avatar_path,
+    sfwMode: parseSfwMode(
+      (profile.user_settings as unknown as { sfw_mode: string } | null)
+        ?.sfw_mode,
+    ),
     unread: count ?? 0,
   };
 }

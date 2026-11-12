@@ -142,6 +142,7 @@ export default async function ReviewPage({
       <Link href={`/item/${log.item_id}`} className="shrink-0">
         <ItemImage
           src={log.items?.image_url}
+          nsfw={log.items?.nsfw}
           alt={title}
           className="h-28 w-28 rounded"
         />

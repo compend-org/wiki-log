@@ -29,7 +29,12 @@ import { getViewerState } from "@/lib/viewerState";
 
 export const instant = false;
 
-type Part = { id: string; title: string; imageUrl: string | null };
+type Part = {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  nsfw: boolean;
+};
 
 // Cached per request, so the page and its metadata share one lookup
 const getItem = cache(async (id: string) => {
@@ -128,12 +133,21 @@ export default async function ItemPage({
     if (partIds.length > 0) {
       const { data: partItems } = await supabase
         .from("items")
-        .select("id, title, image_url")
+        .select("id, title, image_url, nsfw")
         .in("id", partIds);
       const byId = new Map((partItems ?? []).map((i) => [i.id as string, i]));
       madeFrom = partIds.flatMap((pid) => {
         const it = byId.get(pid);
-        return it ? [{ id: pid, title: it.title, imageUrl: it.image_url }] : [];
+        return it
+          ? [
+              {
+                id: pid,
+                title: it.title,
+                imageUrl: it.image_url,
+                nsfw: it.nsfw,
+              },
+            ]
+          : [];
       });
     }
 
@@ -204,6 +218,7 @@ export default async function ItemPage({
                 src={item.imageUrl}
                 fullSize
                 alt={item.title}
+                nsfw={item.nsfw}
                 className="item-img h-auto w-auto max-w-full border-2 border-dashed border-line bg-clip-padding [[data-theme=dark]_&]:bg-foreground"
               />
               <figcaption className="text-center text-xs text-muted">
@@ -283,6 +298,7 @@ export default async function ItemPage({
                   >
                     <ItemImage
                       src={p.imageUrl}
+                      nsfw={p.nsfw}
                       alt={p.title}
                       className="aspect-square w-full"
                     />

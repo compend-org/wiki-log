@@ -67,6 +67,7 @@ export default function ItemImage({
   ratio = 1,
   placeholder = alt,
   sourceWidth,
+  nsfw = false,
 }: {
   src: string | null | undefined;
   alt: string;
@@ -77,6 +78,8 @@ export default function ItemImage({
   placeholder?: string;
   // The widest image to fetch, in pixels, for boxes that only show it small
   sourceWidth?: number;
+  // Adult content, blurred and labelled in SFW mode until tapped
+  nsfw?: boolean;
 }) {
   if (!src) {
     const width = 100 * ratio;
@@ -91,7 +94,8 @@ export default function ItemImage({
         aria-label={alt}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMidYMid meet"
-        className={`block border border-line bg-surface text-muted ${className}`}
+        // An adult item's title, blurred like its caption where that is
+        className={`block border border-line bg-surface text-muted ${nsfw ? "nsfw-title" : ""} ${className}`}
       >
         <text
           textAnchor="middle"
@@ -119,6 +123,7 @@ export default function ItemImage({
       src={src}
       sourceWidth={sourceWidth}
       alt={alt}
+      nsfw={nsfw}
       loading="lazy"
       draggable={false}
       className={`item-img object-cover [[data-theme=dark]_&]:bg-foreground ${className}`}

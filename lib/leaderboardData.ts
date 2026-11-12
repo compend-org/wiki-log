@@ -13,6 +13,7 @@ export type LeaderboardEntry = {
   itemId: string;
   title: string;
   imageUrl: string | null;
+  nsfw: boolean;
   average: number;
   count: number;
 };
@@ -28,6 +29,7 @@ type ItemRow = {
   title: string;
   image_url: string | null;
   image_hidden: boolean;
+  nsfw: boolean;
 };
 
 // The ranked items of the leaderboard with this slug, best first. Null if
@@ -56,7 +58,7 @@ export async function getLeaderboard(
 
   const { data: itemData } = await supabase
     .from("items")
-    .select("id, title, image_url, image_hidden")
+    .select("id, title, image_url, image_hidden, nsfw")
     .in(
       "id",
       rows.map((r) => r.item_id),
@@ -71,6 +73,7 @@ export async function getLeaderboard(
       itemId: item.id,
       title: item.title,
       imageUrl: item.image_hidden ? null : item.image_url,
+      nsfw: item.nsfw,
       average: Number(row.avg_rating),
       count: Number(row.n),
     });

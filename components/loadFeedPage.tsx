@@ -19,6 +19,7 @@ import {
   type FeedOrder,
   startOfMinute,
 } from "@/lib/paging";
+import { aboutAdultItem, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
 import type { Sharer } from "./SharedLabel";
@@ -145,6 +146,8 @@ export async function loadFeedPage(
     // shared by people the viewer follows
     logs = logs.filter((l) => !viewer.blocked.has(l.user_id));
     lists = lists.filter((l) => !viewer.blocked.has(l.user_id));
+    // So are reviews of adult items, when the viewer hides them
+    logs = shownEntries(logs, viewer.sfwMode, aboutAdultItem);
 
     // Every entry gets a date to sort by. On Following, something that was
     // shared counts from the moment it was last shared (if that is later

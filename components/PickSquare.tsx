@@ -33,7 +33,9 @@ export default function PickSquare({
   return (
     <Link
       href={`/item/${pick.itemId}`}
-      title={pick.title}
+      // An adult item's hover text would show the title SFW mode blurs
+      title={pick.nsfw ? undefined : pick.title}
+      data-adult={pick.nsfw || undefined}
       className={`${box} no-underline`}
       onClick={() => track("daily_pick_clicked", { kind })}
     >
@@ -43,19 +45,21 @@ export default function PickSquare({
         // Natural proportions, never taller than 10rem or wider than the box
         <ItemImage
           src={pick.imageUrl}
+          nsfw={pick.nsfw}
           alt={pick.title}
           className="h-auto max-h-40 w-auto max-w-full"
         />
       ) : (
         <ItemImage
           src={null}
+          nsfw={pick.nsfw}
           alt={pick.title}
           ratio={1.5}
           className="h-28 w-full"
         />
       )}
 
-      <span className="w-full truncate text-sm font-semibold">
+      <span className="nsfw-title w-full truncate text-sm font-semibold">
         {pick.title}
       </span>
       <span className="text-xs text-muted">

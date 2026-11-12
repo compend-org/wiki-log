@@ -1,6 +1,8 @@
 // ABOUTME: Every product analytics event the site sends, with the properties each one carries.
 // ABOUTME: Properties never include anything people type, like reviews, comments or bios.
 
+import type { SfwMode } from "@/lib/sfw";
+
 type Target = "log" | "list";
 type NoProperties = Record<string, never>;
 
@@ -61,6 +63,7 @@ export type AnalyticsEvents = {
   // Profile and settings
   profile_updated: { field: "username" | "bio" | "avatar" };
   theme_changed: { theme: string };
+  sfw_mode_changed: { mode: SfwMode };
 
   // Safety
   report_submitted: {

@@ -24,7 +24,12 @@ export default function ItemSearch({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold">Log.</h1>
+        <h1 className="text-3xl font-bold">
+          Log.
+          <span className="sfw-tag ml-2 text-xl font-normal text-muted">
+            [SFW]
+          </span>
+        </h1>
         {headingAction}
       </div>
       <p className="text-sm text-muted">

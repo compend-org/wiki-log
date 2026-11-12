@@ -16,10 +16,19 @@ export const MOSAIC_SIZE = 4;
 // In pixels, not rem, to match the avatar, whose size is always in pixels
 const SIZE = "h-[56px] w-[56px] shrink-0";
 
-function Single({ title, image }: { title: string; image: string | null }) {
+function Single({
+  title,
+  image,
+  nsfw = false,
+}: {
+  title: string;
+  image: string | null;
+  nsfw?: boolean;
+}) {
   return (
     <ItemImage
       src={image}
+      nsfw={nsfw}
       alt=""
       placeholder={firstLetter(title)}
       className={SIZE}
@@ -40,13 +49,25 @@ export default function NotificationThumb({
   }
 
   if (subject.kind === "item") {
-    return <Single title={subject.item.title} image={subject.item.image_url} />;
+    return (
+      <Single
+        title={subject.item.title}
+        image={subject.item.image_url}
+        nsfw={subject.item.nsfw}
+      />
+    );
   }
 
   const { title, items } = subject;
   if (items.length === 0) return <Single title={title} image={null} />;
   if (items.length === 1) {
-    return <Single title={items[0].title} image={items[0].image_url} />;
+    return (
+      <Single
+        title={items[0].title}
+        image={items[0].image_url}
+        nsfw={items[0].nsfw}
+      />
+    );
   }
 
   // Two or three items leave gaps in a 2×2 grid, so some tiles take a full
@@ -61,6 +82,7 @@ export default function NotificationThumb({
           // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
           key={i}
           src={item.image_url}
+          nsfw={item.nsfw}
           alt=""
           placeholder={firstLetter(item.title)}
           ratio={isTall(i) ? 0.5 : 1}

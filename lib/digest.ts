@@ -15,7 +15,7 @@ export type DigestLog = {
   rating: number | null;
   review: string;
   logged_at: string;
-  items: { title: string; image_url: string | null } | null;
+  items: { title: string; image_url: string | null; nsfw: boolean } | null;
   profiles: { username: string; avatar_path: string | null } | null;
   likes: { count: number }[];
   comments: { count: number }[];
@@ -23,7 +23,7 @@ export type DigestLog = {
 };
 
 const SELECT =
-  "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
+  "id, user_id, item_id, rating, review, logged_at, items(title, image_url, nsfw), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
 
 // Where the next page starts: the time of the last review shown. Null means
 // the first page. Anything that isn't a real time is turned away (undefined).
