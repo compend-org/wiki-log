@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import DeleteButton from "@/components/buttons/DeleteButton";
 import EditEntryForm from "@/components/EditEntryForm";
+import EditIcon from "@/components/icons/EditIcon";
 import ItemImage from "@/components/icons/ItemImage";
 import LoadMore from "@/components/LoadMore";
 import ReviewText from "@/components/ReviewText";
@@ -63,9 +64,6 @@ type PreviewRow = {
 
 // Where the logs and the lists each got to: the last of each shown so far
 type Cursors = { logs?: Keyset; lists?: Keyset };
-
-// The same small controls sit at the top right of every card
-const actionClass = "text-xs text-accent underline hover:no-underline";
 
 export default function DiaryPage() {
   const loginHref = useLoginHref();
@@ -289,8 +287,13 @@ export default function DiaryPage() {
                     {date} · You made a {e.ranked ? "ranked " : ""}list
                   </span>
                   <span className="flex items-center gap-3">
-                    <Link href={`/list/${e.id}/edit`} className={actionClass}>
-                      Edit
+                    <Link
+                      href={`/list/${e.id}/edit`}
+                      aria-label="Edit this list"
+                      title="Edit this list"
+                      className="flex text-accent hover:text-foreground hover:opacity-70 hover:no-underline"
+                    >
+                      <EditIcon className="h-4 w-4" />
                     </Link>
                     <DeleteButton
                       kind="list"
@@ -352,9 +355,11 @@ export default function DiaryPage() {
                   <button
                     type="button"
                     onClick={() => setEditingId(e.id)}
-                    className={actionClass}
+                    aria-label="Edit this entry"
+                    title="Edit this entry"
+                    className="flex text-accent hover:opacity-70 hover:text-foreground"
                   >
-                    Edit
+                    <EditIcon className="h-4 w-4" />
                   </button>
                   <DeleteButton
                     kind="log"
