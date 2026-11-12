@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { FEATURES } from "@/lib/features";
 import { reportFailedResponses } from "@/lib/supabase/reportFailedResponses";
 import { escapeLike } from "@/lib/username";

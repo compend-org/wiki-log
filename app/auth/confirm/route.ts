@@ -1,4 +1,4 @@
-import { type EmailOtpType } from "@supabase/supabase-js";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { safeNext } from "@/lib/redirect";
 import { trackForPerson } from "@/lib/serverAnalytics";
