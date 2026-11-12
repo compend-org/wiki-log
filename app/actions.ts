@@ -19,6 +19,7 @@ import {
   isReportReason,
   type ModerationInput,
 } from "@/lib/moderation";
+import { parseSfwMode, type SfwMode } from "@/lib/sfw";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { cleanName, isValidName } from "@/lib/username";
@@ -271,7 +272,7 @@ export async function signIn(input: {
   identifier: string;
   password: string;
   captchaToken?: string;
-}): Promise<{ error?: string; userId?: string }> {
+}): Promise<{ error?: string; userId?: string; sfwMode?: SfwMode }> {
   const generic = "Invalid sign-in credentials";
   let email = input.identifier.trim();
 
@@ -303,7 +304,13 @@ export async function signIn(input: {
       error: error.code === "invalid_credentials" ? generic : error.message,
     };
   }
-  return { userId: data.user.id };
+  // The account's SFW mode, so the browser applies it from the first page on
+  const { data: settings } = await supabase
+    .from("user_settings")
+    .select("sfw_mode")
+    .eq("user_id", data.user.id)
+    .maybeSingle();
+  return { userId: data.user.id, sfwMode: parseSfwMode(settings?.sfw_mode) };
 }
 
 export async function setFavourite(input: {
