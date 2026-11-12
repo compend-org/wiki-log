@@ -72,10 +72,12 @@ export default async function SettingsPage() {
     username: r.profiles?.username ?? "Someone",
   }));
 
-  // Visited pages stay mounted while hidden, so each section starts over when
-  // its saved data changes, rather than keeping what it showed last time
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-4 p-4 sm:p-8">
+    // A different account starts over, rather than keeping the last one's drafts
+    <main
+      key={userId}
+      className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-4 p-4 sm:p-8"
+    >
       <h1 className="text-3xl font-bold">Profile settings</h1>
       <p className="text-sm text-muted">
         Your username, bio, picture and logs are public. You can also sign in
@@ -83,18 +85,13 @@ export default async function SettingsPage() {
       </p>
 
       <AvatarUpload
-        key={profile.avatar_path}
         userId={userId}
         username={profile.username}
-        initialPath={profile.avatar_path}
+        path={profile.avatar_path}
       />
-      <BioEditor
-        key={profile.bio}
-        userId={userId}
-        initialBio={profile.bio ?? ""}
-      />
+      <BioEditor userId={userId} savedBio={profile.bio ?? ""} />
 
-      <UsernameEditor userId={userId} initialUsername={profile.username} />
+      <UsernameEditor userId={userId} savedUsername={profile.username} />
       <Link
         href={`/u/${encodeURIComponent(profile.username)}`}
         className="underline"
@@ -111,11 +108,7 @@ export default async function SettingsPage() {
 
       <ThemeSetting />
 
-      <BlockedPeople
-        key={blockedPeople.map((p) => p.id).join()}
-        viewerId={userId}
-        initialPeople={blockedPeople}
-      />
+      <BlockedPeople viewerId={userId} people={blockedPeople} />
 
       <DeleteAccount username={profile.username} />
     </main>

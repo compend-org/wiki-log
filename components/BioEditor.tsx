@@ -1,21 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
+import { useDraft } from "@/lib/useDraft";
 
 const MAX = 300;
 
 export default function BioEditor({
   userId,
-  initialBio,
+  savedBio,
 }: {
   userId: string;
-  initialBio: string;
+  savedBio: string;
 }) {
-  const [bio, setBio] = useState<string>(initialBio);
-  const [saved, setSaved] = useState<string>(initialBio);
+  const router = useRouter();
+  const [bio, setBio] = useDraft(savedBio);
   const [busy, setBusy] = useState<boolean>(false);
+  const [refreshing, startRefresh] = useTransition();
   const [message, setMessage] = useState<string>("");
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
@@ -41,8 +44,9 @@ export default function BioEditor({
     }
     track("profile_updated", { field: "bio" });
     setBio(clean);
-    setSaved(clean);
     setMessage("Saved.");
+    // Brings the saved bio back from the server
+    startRefresh(() => router.refresh());
   }
 
   return (
@@ -65,7 +69,7 @@ export default function BioEditor({
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          disabled={busy || bio === saved}
+          disabled={busy || refreshing || bio === savedBio}
           className="bg-accent px-4 py-2 text-background disabled:opacity-40"
         >
           {busy ? "Saving…" : "Save bio"}

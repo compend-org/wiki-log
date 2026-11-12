@@ -3,7 +3,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import Avatar from "@/components/Avatar";
 import { track } from "@/lib/analytics";
 import { AVATAR_SIZE, AVATAR_SMALL_SIZE, smallAvatarPath } from "@/lib/avatar";
@@ -39,14 +39,14 @@ async function toSquareJpeg(bitmap: ImageBitmap, size: number): Promise<Blob> {
 export default function AvatarUpload({
   userId,
   username,
-  initialPath,
+  path,
 }: {
   userId: string;
   username: string;
-  initialPath: string | null;
+  path: string | null;
 }) {
-  const [path, setPath] = useState<string | null>(initialPath);
   const [busy, setBusy] = useState<boolean>(false);
+  const [refreshing, startRefresh] = useTransition();
   const [error, setError] = useState<string>("");
   const fileInput = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -122,9 +122,9 @@ export default function AvatarUpload({
     }
 
     track("profile_updated", { field: "avatar" });
-    setPath(newPath);
     setBusy(false);
-    router.refresh();
+    // Brings the new picture back from the server, for here and the top bar
+    startRefresh(() => router.refresh());
   }
 
   async function handleRemove() {
@@ -147,9 +147,8 @@ export default function AvatarUpload({
       .from("avatars")
       .remove([path, smallAvatarPath(path)]);
     track("profile_updated", { field: "avatar" });
-    setPath(null);
     setBusy(false);
-    router.refresh();
+    startRefresh(() => router.refresh());
   }
 
   return (
@@ -167,16 +166,20 @@ export default function AvatarUpload({
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
-            disabled={busy}
+            disabled={busy || refreshing}
             className="rounded-lg border border-line px-3 py-1.5 text-sm hover:border-accent disabled:opacity-40"
           >
-            {busy ? "Working…" : path ? "Change picture" : "Upload picture"}
+            {busy || refreshing
+              ? "Working…"
+              : path
+                ? "Change picture"
+                : "Upload picture"}
           </button>
           {path && (
             <button
               type="button"
               onClick={handleRemove}
-              disabled={busy}
+              disabled={busy || refreshing}
               className="text-sm text-muted underline disabled:opacity-40"
             >
               Remove

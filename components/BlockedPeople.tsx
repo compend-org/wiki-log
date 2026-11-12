@@ -3,7 +3,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
@@ -11,13 +12,14 @@ export type BlockedPerson = { id: string; username: string };
 
 export default function BlockedPeople({
   viewerId,
-  initialPeople,
+  people,
 }: {
   viewerId: string;
-  initialPeople: BlockedPerson[];
+  people: BlockedPerson[];
 }) {
-  const [people, setPeople] = useState<BlockedPerson[]>(initialPeople);
+  const router = useRouter();
   const [busy, setBusy] = useState<boolean>(false);
+  const [refreshing, startRefresh] = useTransition();
   const [error, setError] = useState<string>("");
 
   async function unblock(person: BlockedPerson) {
@@ -34,7 +36,8 @@ export default function BlockedPeople({
       return;
     }
     track("user_unblocked");
-    setPeople((current) => current.filter((p) => p.id !== person.id));
+    // Brings the shorter list back from the server
+    startRefresh(() => router.refresh());
   }
 
   return (
@@ -59,7 +62,7 @@ export default function BlockedPeople({
           <button
             type="button"
             onClick={() => unblock(p)}
-            disabled={busy}
+            disabled={busy || refreshing}
             className="rounded-lg border border-line px-3 py-1.5 text-sm disabled:opacity-40"
           >
             Unblock

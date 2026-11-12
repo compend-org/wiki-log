@@ -6,25 +6,18 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
+import { useDraft } from "@/lib/useDraft";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
 
 export default function UsernameEditor({
   userId,
-  initialUsername,
+  savedUsername,
 }: {
   userId: string;
-  initialUsername: string;
+  savedUsername: string;
 }) {
   const router = useRouter();
-  const [username, setUsername] = useState<string>(initialUsername);
-  // The page stays mounted while hidden, so a username saved elsewhere arrives
-  // as a new prop. The field follows it without starting over, which would
-  // also clear the "Saved." message after this form's own refresh.
-  const [shownUsername, setShownUsername] = useState<string>(initialUsername);
-  if (initialUsername !== shownUsername) {
-    setShownUsername(initialUsername);
-    setUsername(initialUsername);
-  }
+  const [username, setUsername] = useDraft(savedUsername);
   const [message, setMessage] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
 
