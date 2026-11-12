@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useRemoveCard } from "@/components/CardPages";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import DeleteIcon from "@/components/icons/DeleteIcon";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
@@ -20,6 +21,7 @@ export default function DeleteButton({
   // the refreshed page.
   onDeleted?: () => void;
 }) {
+  const [open, setOpen] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const router = useRouter();
@@ -28,13 +30,6 @@ export default function DeleteButton({
 
   async function handleDelete() {
     if (busy) return;
-    if (
-      !window.confirm(
-        `Delete this ${noun}? Its likes and comments are deleted with it, and this can't be undone.`,
-      )
-    ) {
-      return;
-    }
     setBusy(true);
     setError("");
     const { data, error } = await createClient()
@@ -53,6 +48,7 @@ export default function DeleteButton({
       return;
     }
     track(kind === "log" ? "log_deleted" : "list_deleted");
+    setOpen(false);
     // Cards are keyed by the id of their review or list
     removeCard?.(targetId);
     if (onDeleted) onDeleted();
@@ -61,17 +57,35 @@ export default function DeleteButton({
 
   return (
     <span className="relative z-10 inline-flex items-center gap-2">
-      {error && <span className="text-xs text-danger">{error}</span>}
       <button
         type="button"
-        onClick={handleDelete}
-        disabled={busy}
+        onClick={() => {
+          setError("");
+          setOpen(true);
+        }}
         aria-label={`Delete this ${noun}`}
         title={`Delete this ${noun}`}
-        className="flex text-danger hover:opacity-70 disabled:opacity-40"
+        className="flex text-danger hover:opacity-70"
       >
         <DeleteIcon className="h-4 w-4" />
       </button>
+
+      {open && (
+        <ConfirmDialog
+          title={`Delete this ${noun}?`}
+          confirmLabel="Delete"
+          busyLabel="Deleting…"
+          busy={busy}
+          error={error}
+          onConfirm={handleDelete}
+          onCancel={() => setOpen(false)}
+        >
+          <p>
+            Its likes and comments are deleted with it, and this can&apos;t be
+            undone.
+          </p>
+        </ConfirmDialog>
+      )}
     </span>
   );
 }

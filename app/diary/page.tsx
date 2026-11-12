@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import DeleteButton from "@/components/buttons/DeleteButton";
 import EditEntryForm from "@/components/EditEntryForm";
-import DeleteIcon from "@/components/icons/DeleteIcon";
 import ItemImage from "@/components/icons/ItemImage";
 import LoadMore from "@/components/LoadMore";
 import ReviewText from "@/components/ReviewText";
 import Stars from "@/components/Stars";
-import { track } from "@/lib/analytics";
 import { timeAgo } from "@/lib/format";
 import { type Keyset, olderThan, PAGE_SIZE, takeNewest } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/client";
@@ -250,47 +249,6 @@ export default function DiaryPage() {
     };
   }, [userId, wanted]);
 
-  async function handleDelete(id: string) {
-    if (!window.confirm("Delete this entry?")) return;
-    const { error } = await createClient().from("logs").delete().eq("id", id);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    track("log_deleted");
-    setEntries((prev) =>
-      prev.filter((e) => !(e.kind === "log" && e.id === id)),
-    );
-  }
-
-  async function handleDeleteList(id: string) {
-    if (
-      !window.confirm(
-        "Delete this list? Its likes and comments are deleted with it, and this can't be undone.",
-      )
-    ) {
-      return;
-    }
-    const { data, error } = await createClient()
-      .from("lists")
-      .delete()
-      .eq("id", id)
-      .select("id");
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    // Row-level security refuses silently when the list isn't yours
-    if (!data || data.length === 0) {
-      setError("Couldn't delete that list.");
-      return;
-    }
-    track("list_deleted");
-    setEntries((prev) =>
-      prev.filter((e) => !(e.kind === "list" && e.id === id)),
-    );
-  }
-
   if (!ready) {
     return <main className="p-8 text-center text-muted">Loading…</main>;
   }
@@ -334,15 +292,17 @@ export default function DiaryPage() {
                     <Link href={`/list/${e.id}/edit`} className={actionClass}>
                       Edit
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteList(e.id)}
-                      aria-label="Delete this list"
-                      title="Delete this list"
-                      className="flex text-danger hover:opacity-70"
-                    >
-                      <DeleteIcon className="h-4 w-4" />
-                    </button>
+                    <DeleteButton
+                      kind="list"
+                      targetId={e.id}
+                      onDeleted={() =>
+                        setEntries((prev) =>
+                          prev.filter(
+                            (x) => !(x.kind === "list" && x.id === e.id),
+                          ),
+                        )
+                      }
+                    />
                   </span>
                 </div>
                 <Link
@@ -396,15 +356,17 @@ export default function DiaryPage() {
                   >
                     Edit
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(e.id)}
-                    aria-label="Delete this entry"
-                    title="Delete this entry"
-                    className="flex text-danger hover:opacity-70"
-                  >
-                    <DeleteIcon className="h-4 w-4" />
-                  </button>
+                  <DeleteButton
+                    kind="log"
+                    targetId={e.id}
+                    onDeleted={() =>
+                      setEntries((prev) =>
+                        prev.filter(
+                          (x) => !(x.kind === "log" && x.id === e.id),
+                        ),
+                      )
+                    }
+                  />
                 </span>
               </div>
 

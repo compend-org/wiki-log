@@ -3,6 +3,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 export default function Dialog({
   label,
@@ -21,7 +22,7 @@ export default function Dialog({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <>
       <button
         type="button"
@@ -37,6 +38,7 @@ export default function Dialog({
       >
         {children}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }

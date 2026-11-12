@@ -3,9 +3,7 @@
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import EditEntryForm from "@/components/EditEntryForm";
-import DeleteIcon from "@/components/icons/DeleteIcon";
-import { track } from "@/lib/analytics";
-import { createClient } from "@/lib/supabase/client";
+import DeleteButton from "./buttons/DeleteButton";
 
 export default function OwnerControls({
   logId,
@@ -26,35 +24,7 @@ export default function OwnerControls({
   body: ReactNode;
 }) {
   const [editing, setEditing] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
   const router = useRouter();
-
-  async function handleDelete() {
-    if (
-      !window.confirm(
-        "Delete this entry? Its likes and comments are deleted with it, and this can't be undone.",
-      )
-    ) {
-      return;
-    }
-    const { data, error } = await createClient()
-      .from("logs")
-      .delete()
-      .eq("id", logId)
-      .select("id");
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    // Row-level security refuses silently when the entry isn't yours
-    if (!data || data.length === 0) {
-      setError("Couldn't delete that entry.");
-      return;
-    }
-    track("log_deleted");
-    router.push(profileHref);
-    router.refresh();
-  }
 
   return (
     <div className="relative flex flex-col gap-3">
@@ -68,20 +38,17 @@ export default function OwnerControls({
             Edit
           </button>
         )}
-        <button
-          type="button"
-          onClick={handleDelete}
-          aria-label="Delete this entry"
-          title="Delete this entry"
-          className="flex text-danger hover:opacity-70"
-        >
-          <DeleteIcon className="h-4 w-4" />
-        </button>
+        <DeleteButton
+          kind="log"
+          targetId={logId}
+          onDeleted={() => {
+            router.push(profileHref);
+            router.refresh();
+          }}
+        />
       </div>
 
       {header}
-
-      {error && <p className="text-sm text-danger">{error}</p>}
 
       {editing ? (
         <EditEntryForm
