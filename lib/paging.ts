@@ -49,11 +49,15 @@ export type FeedCursor = {
 
 export const FIRST_PAGE: FeedCursor = { reviews: {}, lists: {} };
 
-// A filter for the rows after `position` when sorted by `column` and then id,
-// both newest first
-export function olderThan(column: string, position: Keyset): string {
+// A filter for the rows after `position` when sorted by `column` and then by
+// `idColumn`, both newest first
+export function olderThan(
+  column: string,
+  position: Keyset,
+  idColumn = "id",
+): string {
   const at = `"${position.at}"`;
-  return `${column}.lt.${at},and(${column}.eq.${at},id.lt.${position.id})`;
+  return `${column}.lt.${at},and(${column}.eq.${at},${idColumn}.lt.${position.id})`;
 }
 
 // Merges streams that are each sorted newest first and takes the newest

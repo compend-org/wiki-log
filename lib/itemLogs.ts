@@ -1,5 +1,6 @@
 // ABOUTME: Loads every log of one item for the logs section of an item page, newest first.
 // ABOUTME: Also loads the ones one person liked; both come with each author and social counts.
+import { type Keyset, olderThan, PAGE_SIZE } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
 
 export type ItemLogRow = {
@@ -31,21 +32,38 @@ export async function getItemLogs(itemId: string) {
   };
 }
 
-// The logs of one item that one person has liked, most recently liked first
-export async function getItemLogsLikedBy(itemId: string, userId: string) {
+// One page of the logs of one item that one person has liked, most recently
+// liked first, after `after`, and where the next page starts
+export async function getItemLogsLikedBy(
+  itemId: string,
+  userId: string,
+  after: Keyset | null,
+) {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("logs")
-    .select(`${ITEM_LOG_SELECT}, liked:likes!inner(user_id, created_at)`)
-    .eq("item_id", itemId)
-    .eq("liked.user_id", userId);
-  const rows = (data ?? []) as unknown as (ItemLogRow & {
-    liked: { created_at: string }[];
-  })[];
-  const likedAt = (r: (typeof rows)[number]) =>
-    new Date(r.liked[0]?.created_at ?? 0).getTime();
+  let query = supabase
+    .from("likes")
+    .select(`created_at, log_id, logs!inner(${ITEM_LOG_SELECT})`)
+    .eq("user_id", userId)
+    .eq("logs.item_id", itemId);
+  if (after) query = query.or(olderThan("created_at", after, "log_id"));
+  const { data, error } = await query
+    .order("created_at", { ascending: false })
+    .order("log_id", { ascending: false })
+    .limit(PAGE_SIZE + 1);
+
+  const rows = (data ?? []) as unknown as {
+    created_at: string;
+    log_id: string;
+    logs: ItemLogRow;
+  }[];
+  const page = rows.slice(0, PAGE_SIZE);
+  const last = page.at(-1);
   return {
-    rows: rows.sort((a, b) => likedAt(b) - likedAt(a)) as ItemLogRow[],
+    rows: page.map((r) => r.logs),
+    next:
+      rows.length > PAGE_SIZE && last
+        ? { at: last.created_at, id: last.log_id }
+        : null,
     error: error?.message ?? "",
   };
 }

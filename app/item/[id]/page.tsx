@@ -66,26 +66,20 @@ export default async function ItemPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{
     limit?: string;
-    lists?: string;
     [RANDOM_PARAM]?: string;
   }>;
 }) {
   await connection();
   const renderedAt = Date.now();
   const { id } = await params;
-  const { limit, lists, [RANDOM_PARAM]: random } = await searchParams;
+  const { limit, [RANDOM_PARAM]: random } = await searchParams;
   const logLimit = parseLimit(limit);
-  const listLimit = parseLimit(lists);
-  // Each section loads more on its own, keeping how far the other one got
-  // and whether the item was reached by rolling a random article
-  const pageHref = (logCount: number, listCount: number) => {
-    const query = new URLSearchParams({
-      limit: String(logCount),
-      lists: String(listCount),
-    });
-    if (random) query.set(RANDOM_PARAM, random);
-    return `/item/${id}?${query}`;
-  };
+  // Loading more reviews keeps whether the item was reached by rolling a
+  // random article
+  const moreLogsQuery = new URLSearchParams({
+    limit: String(logLimit + PAGE_SIZE),
+  });
+  if (random) moreLogsQuery.set(RANDOM_PARAM, random);
 
   const result = await getItem(id);
   if (isCompoundId(id) && !FEATURES.compounds) notFound();
@@ -185,7 +179,7 @@ export default async function ItemPage({
   // answer what the viewer has liked, shared and blocked in both of them
   const [itemLogs, itemLists] = await Promise.all([
     getItemLogs(id),
-    getItemLists(id, listLimit),
+    getItemLists(id, null),
   ]);
   const viewer = await getViewerState(supabase, viewerId, {
     logIds: itemLogs.rows.map((r) => r.id),
@@ -337,7 +331,7 @@ export default async function ItemPage({
           <ItemLogs
             itemId={id}
             limit={logLimit}
-            moreHref={pageHref(logLimit + PAGE_SIZE, listLimit)}
+            moreHref={`/item/${id}?${moreLogsQuery}`}
             rows={itemLogs.rows}
             error={itemLogs.error}
             viewerId={viewerId}
@@ -346,13 +340,10 @@ export default async function ItemPage({
         </div>
         <div className="min-w-0">
           <ItemLists
+            itemId={id}
             lists={itemLists.lists}
+            next={itemLists.next}
             error={itemLists.error}
-            moreHref={
-              itemLists.hasMore
-                ? pageHref(logLimit, listLimit + PAGE_SIZE)
-                : null
-            }
             viewerId={viewerId}
             viewer={viewer}
           />

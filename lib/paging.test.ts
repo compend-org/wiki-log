@@ -45,6 +45,13 @@ test("filters for rows after a position, ties broken by id", () => {
   );
 });
 
+test("breaks ties by another id column when asked", () => {
+  assert.equal(
+    olderThan("added_at", { at: at(30), id: ID }, "list_id"),
+    `added_at.lt."${at(30)}",and(added_at.eq."${at(30)}",list_id.lt.${ID})`,
+  );
+});
+
 test("accepts cursors the feed hands out", () => {
   const cursor = {
     reviews: { posts: { at: at(30), id: ID }, shares: undefined },

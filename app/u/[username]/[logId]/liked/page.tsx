@@ -1,18 +1,16 @@
-// ABOUTME: Every review of the same item that a reviewer liked, as a scrolling list of cards.
+// ABOUTME: Every review of the same item that a reviewer liked, as cards that load as you scroll.
 // ABOUTME: Reached from the "Liked by" row under a review.
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import ItemLogCard from "@/components/ItemLogCard";
-import { getAdminIds } from "@/lib/admin";
+import { loadMoreLikedReviews } from "@/app/itemPagesActions";
+import CardPages from "@/components/CardPages";
+import { loadLikedReviewsPage } from "@/components/loadItemPages";
 import { isUuid } from "@/lib/ids";
-import { getItemLogsLikedBy } from "@/lib/itemLogs";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { getReview } from "@/lib/reviews";
-import { createClient } from "@/lib/supabase/server";
-import { getViewerState } from "@/lib/viewerState";
 
 export const instant = false;
 
@@ -41,7 +39,6 @@ export default async function LikedReviewsPage({
   params: Promise<{ username: string; logId: string }>;
 }) {
   await connection();
-  const renderedAt = Date.now();
   const { username, logId } = await params;
   if (!isUuid(logId)) notFound();
 
@@ -50,19 +47,7 @@ export default async function LikedReviewsPage({
   const log = await getReview(logId, profile.id);
   if (!log) notFound();
 
-  const supabase = await createClient();
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const viewerId: string | undefined = claimsData?.claims?.sub;
-
-  const { rows, error } = await getItemLogsLikedBy(log.item_id, log.user_id);
-
-  const viewer = await getViewerState(supabase, viewerId, {
-    logIds: rows.map((r) => r.id),
-  });
-  const adminIds = await getAdminIds();
-
-  // Reviews by people the viewer has blocked aren't shown
-  const visible = rows.filter((r) => !viewer.blocked.has(r.user_id));
+  const first = await loadLikedReviewsPage(log.item_id, log.user_id, null);
   const title = log.items?.title ?? "Unknown item";
 
   return (
@@ -80,20 +65,13 @@ export default async function LikedReviewsPage({
           {title}
         </Link>
       </p>
-      {error && <p className="text-danger">{error}</p>}
-      {visible.length === 0 && !error && (
+      {first.cards.length === 0 && !first.error && (
         <p className="text-muted">Nothing here yet.</p>
       )}
-      {visible.map((row) => (
-        <ItemLogCard
-          key={row.id}
-          row={row}
-          isAdmin={adminIds.has(row.user_id)}
-          renderedAt={renderedAt}
-          viewerId={viewerId}
-          viewer={viewer}
-        />
-      ))}
+      <CardPages
+        first={first}
+        loadMore={loadMoreLikedReviews.bind(null, log.item_id, log.user_id)}
+      />
     </main>
   );
 }
