@@ -17,6 +17,14 @@ export default function UsernameEditor({
 }) {
   const router = useRouter();
   const [username, setUsername] = useState<string>(initialUsername);
+  // The page stays mounted while hidden, so a username saved elsewhere arrives
+  // as a new prop. The field follows it without starting over, which would
+  // also clear the "Saved." message after this form's own refresh.
+  const [shownUsername, setShownUsername] = useState<string>(initialUsername);
+  if (initialUsername !== shownUsername) {
+    setShownUsername(initialUsername);
+    setUsername(initialUsername);
+  }
   const [message, setMessage] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
 

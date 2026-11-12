@@ -72,6 +72,8 @@ export default async function SettingsPage() {
     username: r.profiles?.username ?? "Someone",
   }));
 
+  // Visited pages stay mounted while hidden, so each section starts over when
+  // its saved data changes, rather than keeping what it showed last time
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-4 p-4 sm:p-8">
       <h1 className="text-3xl font-bold">Profile settings</h1>
@@ -81,11 +83,16 @@ export default async function SettingsPage() {
       </p>
 
       <AvatarUpload
+        key={profile.avatar_path}
         userId={userId}
         username={profile.username}
         initialPath={profile.avatar_path}
       />
-      <BioEditor userId={userId} initialBio={profile.bio ?? ""} />
+      <BioEditor
+        key={profile.bio}
+        userId={userId}
+        initialBio={profile.bio ?? ""}
+      />
 
       <UsernameEditor userId={userId} initialUsername={profile.username} />
       <Link
@@ -104,7 +111,11 @@ export default async function SettingsPage() {
 
       <ThemeSetting />
 
-      <BlockedPeople viewerId={userId} initialPeople={blockedPeople} />
+      <BlockedPeople
+        key={blockedPeople.map((p) => p.id).join()}
+        viewerId={userId}
+        initialPeople={blockedPeople}
+      />
 
       <DeleteAccount username={profile.username} />
     </main>
