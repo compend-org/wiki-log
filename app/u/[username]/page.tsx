@@ -373,15 +373,15 @@ export default async function ProfilePage({
           )}
         </section>
       )}
-
-      <div className="sm:hidden">
+      {/* Hiding this for the time being because it is ugly on mobile */}
+      {/* <div className="sm:hidden">
         <RatingHistogram
           ratings={ratings}
           highlight={null}
           unit={{ one: "rating", other: "ratings" }}
           hrefBase={`${profileHref}/ratings`}
         />
-      </div>
+      </div> */}
 
       {(firstLists.cards.length > 0 ||
         firstLists.next ||
