@@ -51,7 +51,7 @@ export default function PinButton({
         type="button"
         onClick={toggle}
         disabled={busy}
-        className="text-xs text-accent underline hover:no-underline disabled:opacity-60"
+        className="text-xs text-accent hover:underline disabled:opacity-60"
       >
         {pinned ? "Unpin" : "Pin"}
       </button>

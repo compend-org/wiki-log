@@ -25,6 +25,7 @@ export default async function LogCard({
   sharers = [],
   showAuthor = true,
   controls,
+  topControls,
 }: {
   log: LogRow;
   viewerId: string | undefined;
@@ -36,6 +37,7 @@ export default async function LogCard({
   showAuthor?: boolean;
   // Extra controls beside the title, such as Pin
   controls?: ReactNode;
+  topControls?: ReactNode;
 }) {
   await connection();
   const renderedAt = Date.now();
@@ -79,22 +81,25 @@ export default async function LogCard({
             <SharedLabel sharers={sharers} />
           </span>
         )}
-        <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
-          {showAuthor && (
-            <>
-              <UserName
-                userId={row.user_id}
-                username={author}
-                avatarPath={avatarPath}
-              />
-              <span>logged</span>
-            </>
-          )}
-          <span className="whitespace-nowrap">
-            {showAuthor && "· "}
-            {timeAgo(row.logged_at, renderedAt)}
+        <div className="flex items-center justify-between gap-3">
+          <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
+            {showAuthor && (
+              <>
+                <UserName
+                  userId={row.user_id}
+                  username={author}
+                  avatarPath={avatarPath}
+                />
+                <span>logged</span>
+              </>
+            )}
+            <span className="whitespace-nowrap">
+              {showAuthor && "· "}
+              {timeAgo(row.logged_at, renderedAt)}
+            </span>
           </span>
-        </span>
+          {topControls}
+        </div>
         <div className="flex items-baseline justify-between gap-3">
           <Link
             href={`/item/${row.item_id}`}

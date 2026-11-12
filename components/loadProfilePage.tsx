@@ -10,6 +10,7 @@ import type { ListRow as ListCardRow, LogRow } from "@/lib/feedData";
 import { type Keyset, olderThan, PAGE_SIZE } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState, type ViewerState } from "@/lib/viewerState";
+import DeleteButton from "./buttons/DeleteButton";
 
 type ItemInfo = { title: string; image_url: string | null } | null;
 
@@ -77,6 +78,16 @@ function pinControl(
   ) : null;
 }
 
+function deleteControl(
+  ctx: ProfileContext,
+  kind: "log" | "list",
+  id: string,
+): ReactNode {
+  return ctx.viewerId && ctx.viewerId === ctx.profileId ? (
+    <DeleteButton kind={kind} targetId={id} />
+  ) : null;
+}
+
 export function renderProfileList(
   ctx: ProfileContext,
   viewer: ViewerState,
@@ -96,6 +107,7 @@ export function renderProfileList(
       shared={viewer.sharedLists.has(l.id)}
       showAuthor={false}
       controls={pinControl(ctx, "list", l.id, isPinned)}
+      topControls={deleteControl(ctx, "list", l.id)}
     />
   );
 }
@@ -115,6 +127,7 @@ export function renderProfileLog(
       shared={viewer.sharedLogs.has(log.id)}
       showAuthor={false}
       controls={pinControl(ctx, "log", log.id, isPinned)}
+      topControls={deleteControl(ctx, "log", log.id)}
     />
   );
 }

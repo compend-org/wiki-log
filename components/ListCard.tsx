@@ -23,6 +23,7 @@ export default async function ListCard({
   showActivity = true,
   showAuthor = true,
   controls,
+  topControls,
 }: {
   list: ListRow;
   thumbs: Thumb[];
@@ -37,6 +38,7 @@ export default async function ListCard({
   showAuthor?: boolean;
   // Extra controls beside the title, such as Pin
   controls?: ReactNode;
+  topControls?: ReactNode;
 }) {
   await connection();
   const renderedAt = Date.now();
@@ -57,25 +59,28 @@ export default async function ListCard({
           <SharedLabel sharers={sharers} />
         </span>
       )}
-      <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
-        {showAuthor && (
-          <>
-            <UserName
-              userId={l.user_id}
-              username={author}
-              avatarPath={avatarPath}
-            />
-            {showActivity && (
-              <span>made a {l.ranked ? "ranked " : ""}list</span>
-            )}
-          </>
-        )}
-        {!showAuthor && l.ranked && <span>Ranked list ·</span>}
-        <span className="whitespace-nowrap">
-          {showAuthor && "· "}
-          {timeAgo(l.created_at, renderedAt)}
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
+          {showAuthor && (
+            <>
+              <UserName
+                userId={l.user_id}
+                username={author}
+                avatarPath={avatarPath}
+              />
+              {showActivity && (
+                <span>made a {l.ranked ? "ranked " : ""}list</span>
+              )}
+            </>
+          )}
+          {!showAuthor && l.ranked && <span>Ranked list ·</span>}
+          <span className="whitespace-nowrap">
+            {showAuthor && "· "}
+            {timeAgo(l.created_at, renderedAt)}
+          </span>
         </span>
-      </span>
+        {topControls}
+      </div>
       <div className="flex items-baseline justify-between gap-3">
         <span className="font-semibold">{l.title}</span>
         {controls}

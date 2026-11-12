@@ -400,7 +400,7 @@ export default async function ProfilePage({
           </div>
           {listCount === 0 && <p className="text-muted">No lists yet.</p>}
           <CardPages
-            key={`lists:${pinsKey}`}
+            key={`lists:${pinsKey}:${listCount}`}
             first={firstLists}
             loadMore={loadMoreProfile.bind(null, profile.id, "lists")}
             moreButton="Show more lists"
@@ -416,7 +416,7 @@ export default async function ProfilePage({
       {logCount === 0 && <p className="text-muted">Nothing logged yet.</p>}
 
       <CardPages
-        key={`reviews:${pinsKey}`}
+        key={`reviews:${pinsKey}:${logCount}`}
         first={firstLogs}
         loadMore={loadMoreProfile.bind(null, profile.id, "reviews")}
       />
