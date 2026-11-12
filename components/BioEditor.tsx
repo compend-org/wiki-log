@@ -61,6 +61,9 @@ export default function BioEditor({
           setBio(e.target.value);
           setMessage("");
         }}
+        // Saving replaces the text with the tidied one, so typing waits until
+        // the saved bio is back
+        readOnly={busy || refreshing}
         maxLength={MAX}
         rows={4}
         placeholder="A few words about yourself (optional)"

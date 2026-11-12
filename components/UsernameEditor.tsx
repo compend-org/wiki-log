@@ -3,7 +3,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 import { useDraft } from "@/lib/useDraft";
@@ -20,6 +20,7 @@ export default function UsernameEditor({
   const [username, setUsername] = useDraft(savedUsername);
   const [message, setMessage] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
+  const [refreshing, startRefresh] = useTransition();
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -49,7 +50,7 @@ export default function UsernameEditor({
     setMessage("Saved.");
     // Redraws the top bar, the profile link and account deletion with the new
     // username
-    router.refresh();
+    startRefresh(() => router.refresh());
   }
 
   return (
@@ -60,12 +61,15 @@ export default function UsernameEditor({
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            // Saving replaces the text with the cleaned-up name, so typing
+            // waits until the saved name is back
+            readOnly={busy || refreshing}
             className="border border-line bg-surface px-4 py-2 text-foreground"
           />
         </label>
         <button
           type="submit"
-          disabled={busy}
+          disabled={busy || refreshing}
           className="bg-accent px-4 py-2 text-background disabled:opacity-40"
         >
           {busy ? "Saving…" : "Save username"}
