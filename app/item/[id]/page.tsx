@@ -77,8 +77,15 @@ export default async function ItemPage({
   const logLimit = parseLimit(limit);
   const listLimit = parseLimit(lists);
   // Each section loads more on its own, keeping how far the other one got
-  const pageHref = (logCount: number, listCount: number) =>
-    `/item/${id}?limit=${logCount}&lists=${listCount}`;
+  // and whether the item was reached by rolling a random article
+  const pageHref = (logCount: number, listCount: number) => {
+    const query = new URLSearchParams({
+      limit: String(logCount),
+      lists: String(listCount),
+    });
+    if (random) query.set(RANDOM_PARAM, random);
+    return `/item/${id}?${query}`;
+  };
 
   const result = await getItem(id);
   if (isCompoundId(id) && !FEATURES.compounds) notFound();

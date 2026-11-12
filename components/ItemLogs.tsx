@@ -105,7 +105,9 @@ export default async function ItemLogs({
         </>
       )}
 
-      {recentAll.length > limit && <LoadMore key={limit} href={moreHref} />}
+      {/* Keyed by its href, which changes when either section of the page
+          loads more, so it watches again even if its own load was replaced */}
+      {recentAll.length > limit && <LoadMore key={moreHref} href={moreHref} />}
     </section>
   );
 }

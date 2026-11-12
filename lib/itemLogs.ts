@@ -1,5 +1,5 @@
 // ABOUTME: Loads every log of one item for the logs section of an item page, newest first.
-// ABOUTME: Also loads chosen logs; both come with each author and social counts.
+// ABOUTME: Also loads the ones one person liked; both come with each author and social counts.
 import { createClient } from "@/lib/supabase/server";
 
 export type ItemLogRow = {
@@ -31,22 +31,21 @@ export async function getItemLogs(itemId: string) {
   };
 }
 
-// The logs with these ids, in the order the ids are given
-export async function getLogsByIds(ids: string[]) {
-  if (ids.length === 0) return { rows: [] as ItemLogRow[], error: "" };
+// The logs of one item that one person has liked, most recently liked first
+export async function getItemLogsLikedBy(itemId: string, userId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("logs")
-    .select(ITEM_LOG_SELECT)
-    .in("id", ids);
-  const byId = new Map(
-    ((data ?? []) as unknown as ItemLogRow[]).map((r) => [r.id, r]),
-  );
+    .select(`${ITEM_LOG_SELECT}, liked:likes!inner(user_id, created_at)`)
+    .eq("item_id", itemId)
+    .eq("liked.user_id", userId);
+  const rows = (data ?? []) as unknown as (ItemLogRow & {
+    liked: { created_at: string }[];
+  })[];
+  const likedAt = (r: (typeof rows)[number]) =>
+    new Date(r.liked[0]?.created_at ?? 0).getTime();
   return {
-    rows: ids.flatMap((id) => {
-      const row = byId.get(id);
-      return row ? [row] : [];
-    }),
+    rows: rows.sort((a, b) => likedAt(b) - likedAt(a)) as ItemLogRow[],
     error: error?.message ?? "",
   };
 }

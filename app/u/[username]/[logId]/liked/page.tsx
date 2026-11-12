@@ -6,10 +6,8 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import ItemLogCard from "@/components/ItemLogCard";
 import { getAdminIds } from "@/lib/admin";
-import { getAlsoLiked } from "@/lib/alsoLiked";
 import { isUuid } from "@/lib/ids";
-import { getLogsByIds } from "@/lib/itemLogs";
-import { likeKey } from "@/lib/likes";
+import { getItemLogsLikedBy } from "@/lib/itemLogs";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { getReview } from "@/lib/reviews";
@@ -56,9 +54,7 @@ export default async function LikedReviewsPage({
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
 
-  const alsoLiked = await getAlsoLiked(supabase, [log]);
-  const likes = alsoLiked.get(likeKey(log.user_id, log.item_id)) ?? [];
-  const { rows, error } = await getLogsByIds(likes.map((l) => l.logId));
+  const { rows, error } = await getItemLogsLikedBy(log.item_id, log.user_id);
 
   const viewer = await getViewerState(supabase, viewerId, {
     logIds: rows.map((r) => r.id),
