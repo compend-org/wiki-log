@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import posthog from "posthog-js";
 import { ANALYTICS_PROXY_PATH, ANALYTICS_TOKEN } from "@/lib/analyticsEvents";
 import { IGNORED_BROWSER_ERRORS } from "@/lib/ignoredBrowserErrors";
+import { limitRepeatedErrors } from "@/lib/repeatedErrors";
 import { tolerateTranslatedPage } from "@/lib/translatedPage";
 
 if (ANALYTICS_TOKEN) {
@@ -37,6 +38,7 @@ Sentry.init({
   ignoreErrors: IGNORED_BROWSER_ERRORS,
   // Server action requests carry passwords and review text in their bodies
   dataCollection: { httpBodies: [] },
+  beforeSend: limitRepeatedErrors(),
 });
 
 tolerateTranslatedPage(Node.prototype);
