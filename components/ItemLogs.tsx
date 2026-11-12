@@ -1,34 +1,34 @@
 // ABOUTME: The logs section of an item page: rating summary, most-liked reviews, then recent ones.
 // ABOUTME: Each review is a card linking to its own page, with like, share and comment actions.
+
 import { connection } from "next/server";
-import ItemLogCard from "@/components/ItemLogCard";
+import { Fragment } from "react";
+import { loadMoreItemLogs } from "@/app/itemPagesActions";
+import CardPages from "@/components/CardPages";
 import ItemLogSummary from "@/components/ItemLogSummary";
-import LoadMore from "@/components/LoadMore";
+import { renderItemLogCards } from "@/components/loadItemPages";
 import { getAdminIds } from "@/lib/admin";
 import type { ItemLogRow } from "@/lib/itemLogs";
 import { getItemRatings } from "@/lib/itemRatings";
-import { PAGE_SIZE } from "@/lib/paging";
+import type { Keyset } from "@/lib/paging";
 import type { ViewerState } from "@/lib/viewerState";
-
-// How many of the most-liked reviews to show on top
-const MOST_LIKED = 3;
-
-type Row = ItemLogRow;
 
 export default async function ItemLogs({
   itemId,
-  limit = PAGE_SIZE,
-  moreHref,
-  rows,
+  popular,
+  recent,
+  next,
   error,
   viewerId,
   viewer,
 }: {
   itemId: string;
-  limit?: number;
-  // Where a longer list of recent reviews comes from
-  moreHref: string;
-  rows: Row[];
+  // The most-liked reviews, shown on top
+  popular: ItemLogRow[];
+  // The first page of the newest reviews, without the most-liked ones, and
+  // where the next page starts
+  recent: ItemLogRow[];
+  next: Keyset | null;
   error: string;
   viewerId: string | undefined;
   viewer: ViewerState;
@@ -42,27 +42,12 @@ export default async function ItemLogs({
     return <p className="text-danger">{error}</p>;
   }
 
-  const likeCount = (r: Row) => r.likes?.[0]?.count ?? 0;
-
   // Reviews by people the viewer has blocked aren't shown, though their
   // ratings still count towards the average
-  const visible = rows.filter((r) => !viewer.blocked.has(r.user_id));
-
-  // The most-liked reviews: written ones with at least one like, most likes
-  // first, newer first when tied
-  const popular = visible
-    .filter((r) => likeCount(r) > 0)
-    .sort(
-      (a, b) =>
-        likeCount(b) - likeCount(a) ||
-        new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime(),
-    )
-    .slice(0, MOST_LIKED);
-
-  // Everything else, newest first. Reviews shown above don't repeat here.
-  const popularIds = new Set(popular.map((r) => r.id));
-  const recentAll = visible.filter((r) => !popularIds.has(r.id));
-  const recent = recentAll.slice(0, limit);
+  const cards = (rows: ItemLogRow[]) =>
+    renderItemLogCards(rows, viewerId, viewer, adminIds, renderedAt);
+  const popularCards = cards(popular);
+  const recentCards = cards(recent);
 
   // The average counts each person's latest rating once, skipping entries
   // that have none
@@ -70,42 +55,36 @@ export default async function ItemLogs({
   const average =
     people > 0 ? ratings.reduce((sum, v) => sum + v, 0) / people : 0;
 
-  const renderRow = (row: Row) => (
-    <ItemLogCard
-      key={row.id}
-      row={row}
-      isAdmin={adminIds.has(row.user_id)}
-      renderedAt={renderedAt}
-      viewerId={viewerId}
-      viewer={viewer}
-    />
-  );
-
   const label = "text-sm font-semibold uppercase tracking-wide text-muted";
 
   return (
     <section className="flex w-full flex-col gap-3">
       <h2 className="text-xl font-bold">
-        {rows.length === 0 ? "No logs yet" : "Logs"}
+        {popular.length + recent.length === 0 ? "No logs yet" : "Logs"}
       </h2>
 
       <ItemLogSummary people={people} average={average} logCount={logCount} />
 
-      {popular.length > 0 && (
+      {popularCards.length > 0 && (
         <>
           <h3 className={label}>Most liked</h3>
-          {popular.map(renderRow)}
+          {popularCards.map((c) => (
+            <Fragment key={c.key}>{c.card}</Fragment>
+          ))}
         </>
       )}
 
-      {recent.length > 0 && (
-        <>
-          {popular.length > 0 && <h3 className={label}>Recent</h3>}
-          {recent.map(renderRow)}
-        </>
+      {(recentCards.length > 0 || next) && popularCards.length > 0 && (
+        <h3 className={label}>Recent</h3>
       )}
-
-      {recentAll.length > limit && <LoadMore key={limit} href={moreHref} />}
+      <CardPages
+        first={{ cards: recentCards, next, error }}
+        loadMore={loadMoreItemLogs.bind(
+          null,
+          itemId,
+          popular.map((r) => r.id),
+        )}
+      />
     </section>
   );
 }

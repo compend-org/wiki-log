@@ -1,19 +1,13 @@
 // ABOUTME: Loads one page of the Digest and renders its cards for the viewer.
 // ABOUTME: Kept apart from Digest so the server action can use it without importing DigestPages.
-import type { ReactNode } from "react";
+import type { CardsPage } from "@/components/CardPages";
 import DigestCard from "@/components/DigestCard";
 import { getDigest } from "@/lib/digest";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
 
-export type DigestCardItem = { key: string; card: ReactNode };
-
-export type DigestPage = {
-  cards: DigestCardItem[];
-  // Where the next page starts, or null when this was the last one
-  next: string | null;
-  error: string;
-};
+// A page of the digest; the next one starts before the time in `next`
+export type DigestPage = CardsPage<string>;
 
 // One page of the digest, rendered for the viewer: the reviews are the same
 // for everyone (and cached), but the hearts and shares are the viewer's own.

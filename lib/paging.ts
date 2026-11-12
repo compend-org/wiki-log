@@ -4,12 +4,6 @@ import { isUuid } from "@/lib/ids";
 
 export const PAGE_SIZE = 30;
 
-export function parseLimit(value: string | undefined): number {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return PAGE_SIZE;
-  return Math.min(Math.max(Math.floor(n), PAGE_SIZE), 300);
-}
-
 // The moment a feed was first loaded. Later pages leave out anything newer, so
 // new posts can't push down what someone is reading.
 export function parseSnapshot(value: string | undefined): string | undefined {
@@ -58,6 +52,20 @@ export function olderThan(
 ): string {
   const at = `"${position.at}"`;
   return `${column}.lt.${at},and(${column}.eq.${at},${idColumn}.lt.${position.id})`;
+}
+
+// Splits the up to PAGE_SIZE + 1 rows a query returned into one page, and
+// where the next page starts when there was a row left over
+export function pageOf<Row>(
+  rows: Row[],
+  keyset: (row: Row) => Keyset,
+): { page: Row[]; next: Keyset | null } {
+  const page = rows.slice(0, PAGE_SIZE);
+  const last = page.at(-1);
+  return {
+    page,
+    next: rows.length > PAGE_SIZE && last ? keyset(last) : null,
+  };
 }
 
 // Merges streams that are each sorted newest first and takes the newest

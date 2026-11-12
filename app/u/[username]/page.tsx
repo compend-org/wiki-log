@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { loadMoreProfile } from "@/app/profileActions";
 import AdminBadge from "@/components/AdminBadge";
 import Avatar from "@/components/Avatar";
 import BanButton from "@/components/buttons/BanButton";
@@ -11,19 +12,18 @@ import BlockButton from "@/components/buttons/BlockButton";
 import FollowButton from "@/components/buttons/FollowButton";
 import ReportButton from "@/components/buttons/ReportButton";
 import SignOutButton from "@/components/buttons/SignOutButton";
+import CardPages, { type CardsPage } from "@/components/CardPages";
 import Favourites, { type Slot } from "@/components/Favourites";
 import {
   fetchProfileRows,
   LIST_FIELDS,
   LOG_FIELDS,
-  type ProfileCardsPage,
   type ProfileContext,
   type ProfileListRow,
   renderProfileCards,
   renderProfileList,
   renderProfileLog,
 } from "@/components/loadProfilePage";
-import ProfilePages from "@/components/ProfilePages";
 import { isAdmin } from "@/lib/admin";
 import { avatarUrl } from "@/lib/avatar";
 import type { LogRow } from "@/lib/feedData";
@@ -200,12 +200,12 @@ export default async function ProfilePage({
     logIds: [...pinnedLogs.keys(), ...logRows.rows.map((l) => l.id)],
     listIds: [...pinnedLists.keys(), ...listRows.rows.map((l) => l.id)],
   });
-  const firstLists: ProfileCardsPage = {
+  const firstLists: CardsPage = {
     cards: renderProfileCards(ctx, viewer, "lists", listRows.rows),
     next: listRows.next,
     error: listRows.error,
   };
-  const firstLogs: ProfileCardsPage = {
+  const firstLogs: CardsPage = {
     cards: renderProfileCards(ctx, viewer, "reviews", logRows.rows),
     next: logRows.next,
     error: logRows.error,
@@ -359,11 +359,11 @@ export default async function ProfilePage({
             )} */}
           </div>
           {listCount === 0 && <p className="text-muted">No lists yet.</p>}
-          <ProfilePages
+          <CardPages
             key={`lists:${pinsKey}`}
-            profileId={profile.id}
-            kind="lists"
             first={firstLists}
+            loadMore={loadMoreProfile.bind(null, profile.id, "lists")}
+            moreButton="Show more lists"
           />
         </section>
       )}
@@ -375,11 +375,10 @@ export default async function ProfilePage({
 
       {logCount === 0 && <p className="text-muted">Nothing logged yet.</p>}
 
-      <ProfilePages
+      <CardPages
         key={`reviews:${pinsKey}`}
-        profileId={profile.id}
-        kind="reviews"
         first={firstLogs}
+        loadMore={loadMoreProfile.bind(null, profile.id, "reviews")}
       />
     </main>
   );

@@ -1,7 +1,7 @@
 // ABOUTME: Loads the lists that include one item, most recently added first.
 // ABOUTME: Shown in the "In Lists" section of an item page, a page at a time.
 import { LIST_SELECT, type ListRow, type Thumb } from "@/lib/feedData";
-import { type Keyset, olderThan, PAGE_SIZE } from "@/lib/paging";
+import { type Keyset, olderThan, PAGE_SIZE, pageOf } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
 
 // How many of each list's first items to show on its card
@@ -28,20 +28,18 @@ export async function getItemLists(itemId: string, after: Keyset | null) {
     .order("position", { referencedTable: "lists.preview" })
     .limit(PAGE_SIZE + 1);
 
-  const rows = (data ?? []) as unknown as {
-    added_at: string;
-    list_id: string;
-    lists: ItemListRow | null;
-  }[];
-  const page = rows.slice(0, PAGE_SIZE);
-  const last = page.at(-1);
+  const { page, next } = pageOf(
+    (data ?? []) as unknown as {
+      added_at: string;
+      list_id: string;
+      lists: ItemListRow | null;
+    }[],
+    (r) => ({ at: r.added_at, id: r.list_id }),
+  );
   return {
     // Lists the viewer can't see come back empty and are left out
     lists: page.flatMap((r) => (r.lists ? [r.lists] : [])),
-    next:
-      rows.length > PAGE_SIZE && last
-        ? { at: last.added_at, id: last.list_id }
-        : null,
+    next,
     error: error?.message ?? "",
   };
 }

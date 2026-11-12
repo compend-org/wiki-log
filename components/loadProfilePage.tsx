@@ -3,6 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ReactNode } from "react";
 import PinButton from "@/components/buttons/PinButton";
+import type { Card, CardsPage } from "@/components/CardPages";
 import ListCard from "@/components/ListCard";
 import LogCard from "@/components/LogCard";
 import type { ListRow as ListCardRow, LogRow } from "@/lib/feedData";
@@ -36,15 +37,6 @@ export type ProfileContext = {
   viewerId: string | undefined;
   pinnedLogIds: Set<string>;
   pinnedListIds: Set<string>;
-};
-
-export type ProfileCard = { key: string; card: ReactNode };
-
-export type ProfileCardsPage = {
-  cards: ProfileCard[];
-  // Where the next page starts, or null when there's nothing more
-  next: Keyset | null;
-  error: string;
 };
 
 const KINDS: Record<
@@ -176,7 +168,7 @@ export function renderProfileCards(
   viewer: ViewerState,
   kind: ProfileKind,
   rows: (ProfileListRow | LogRow)[],
-): ProfileCard[] {
+): Card[] {
   return rows.map((row) => ({
     key: row.id,
     card:
@@ -191,7 +183,7 @@ export async function loadProfilePage(
   profileId: string,
   kind: ProfileKind,
   cursor: Keyset,
-): Promise<ProfileCardsPage> {
+): Promise<CardsPage> {
   const supabase = await createClient();
   const [{ data: claimsData }, { data: pins }] = await Promise.all([
     supabase.auth.getClaims(),

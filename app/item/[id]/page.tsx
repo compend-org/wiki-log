@@ -17,11 +17,10 @@ import { FEATURES } from "@/lib/features";
 import { timeAgo } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
 import { getItemLists } from "@/lib/itemLists";
-import { getItemLogs } from "@/lib/itemLogs";
+import { getItemLogs, getMostLikedLogs } from "@/lib/itemLogs";
 import { getItemRatings } from "@/lib/itemRatings";
 import { getItemForPage } from "@/lib/items";
 import { pageMetadata } from "@/lib/metadata";
-import { PAGE_SIZE, parseLimit } from "@/lib/paging";
 import { RANDOM_PARAM } from "@/lib/randomItem";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
@@ -64,22 +63,12 @@ export default async function ItemPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{
-    limit?: string;
-    [RANDOM_PARAM]?: string;
-  }>;
+  searchParams: Promise<{ [RANDOM_PARAM]?: string }>;
 }) {
   await connection();
   const renderedAt = Date.now();
   const { id } = await params;
-  const { limit, [RANDOM_PARAM]: random } = await searchParams;
-  const logLimit = parseLimit(limit);
-  // Loading more reviews keeps whether the item was reached by rolling a
-  // random article
-  const moreLogsQuery = new URLSearchParams({
-    limit: String(logLimit + PAGE_SIZE),
-  });
-  if (random) moreLogsQuery.set(RANDOM_PARAM, random);
+  const { [RANDOM_PARAM]: random } = await searchParams;
 
   const result = await getItem(id);
   if (isCompoundId(id) && !FEATURES.compounds) notFound();
@@ -177,12 +166,17 @@ export default async function ItemPage({
 
   // The logs and lists sections are loaded together so that one request can
   // answer what the viewer has liked, shared and blocked in both of them
-  const [itemLogs, itemLists] = await Promise.all([
-    getItemLogs(id),
+  const mostLiked = await getMostLikedLogs(id);
+  const [recentLogs, itemLists] = await Promise.all([
+    getItemLogs(
+      id,
+      mostLiked.rows.map((r) => r.id),
+      null,
+    ),
     getItemLists(id, null),
   ]);
   const viewer = await getViewerState(supabase, viewerId, {
-    logIds: itemLogs.rows.map((r) => r.id),
+    logIds: [...mostLiked.rows, ...recentLogs.rows].map((r) => r.id),
     listIds: itemLists.lists.map((l) => l.id),
   });
 
@@ -330,10 +324,10 @@ export default async function ItemPage({
         <div className="min-w-0">
           <ItemLogs
             itemId={id}
-            limit={logLimit}
-            moreHref={`/item/${id}?${moreLogsQuery}`}
-            rows={itemLogs.rows}
-            error={itemLogs.error}
+            popular={mostLiked.rows}
+            recent={recentLogs.rows}
+            next={recentLogs.next}
+            error={mostLiked.error || recentLogs.error}
             viewerId={viewerId}
             viewer={viewer}
           />
