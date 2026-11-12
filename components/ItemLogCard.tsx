@@ -42,7 +42,7 @@ export default function ItemLogCard({
         {author ? (
           <Link
             href={`/u/${encodeURIComponent(author)}`}
-            className="relative z-10 underline"
+            className="relative z-10 hover:underline font-semibold"
           >
             {author}
           </Link>
