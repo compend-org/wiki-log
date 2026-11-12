@@ -1,38 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 const MAX = 300;
 
-export default function BioEditor() {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [bio, setBio] = useState<string>("");
-  const [saved, setSaved] = useState<string>("");
+export default function BioEditor({
+  userId,
+  initialBio,
+}: {
+  userId: string;
+  initialBio: string;
+}) {
+  const [bio, setBio] = useState<string>(initialBio);
+  const [saved, setSaved] = useState<string>(initialBio);
   const [busy, setBusy] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
 
-  useEffect(() => {
-    async function load() {
-      const supabase = createClient();
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
-      setUserId(userData.user.id);
-      const { data } = await supabase
-        .from("profiles")
-        .select("bio")
-        .eq("id", userData.user.id)
-        .maybeSingle();
-      setBio(data?.bio ?? "");
-      setSaved(data?.bio ?? "");
-    }
-    load();
-  }, []);
-
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!userId) return;
 
     // Tidy up: trim the ends and allow at most one blank line in a row
     const clean = bio
@@ -57,8 +44,6 @@ export default function BioEditor() {
     setSaved(clean);
     setMessage("Saved.");
   }
-
-  if (!userId) return null;
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-2">

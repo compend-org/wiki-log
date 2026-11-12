@@ -3,46 +3,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
-type BlockedPerson = { id: string; username: string };
+export type BlockedPerson = { id: string; username: string };
 
-type BlockRow = {
-  blocked_id: string;
-  profiles: { username: string } | null;
-};
-
-export default function BlockedPeople() {
-  const [viewerId, setViewerId] = useState<string>("");
-  const [people, setPeople] = useState<BlockedPerson[]>([]);
-  const [loaded, setLoaded] = useState<boolean>(false);
+export default function BlockedPeople({
+  viewerId,
+  initialPeople,
+}: {
+  viewerId: string;
+  initialPeople: BlockedPerson[];
+}) {
+  const [people, setPeople] = useState<BlockedPerson[]>(initialPeople);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-
-  useEffect(() => {
-    async function load() {
-      const supabase = createClient();
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
-      const { data, error } = await supabase
-        .from("blocks")
-        .select("blocked_id, profiles!blocks_blocked_id_fkey(username)")
-        .eq("blocker_id", userData.user.id)
-        .order("created_at", { ascending: false });
-      if (error) setError(error.message);
-      setViewerId(userData.user.id);
-      setPeople(
-        ((data ?? []) as unknown as BlockRow[]).map((r) => ({
-          id: r.blocked_id,
-          username: r.profiles?.username ?? "Someone",
-        })),
-      );
-      setLoaded(true);
-    }
-    load();
-  }, []);
 
   async function unblock(person: BlockedPerson) {
     setBusy(true);
@@ -66,7 +42,7 @@ export default function BlockedPeople() {
       <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
         Blocked people
       </h2>
-      {loaded && people.length === 0 && (
+      {people.length === 0 && (
         <p className="text-sm text-muted">
           You haven&apos;t blocked anyone. You can block someone from their
           profile.

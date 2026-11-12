@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { track } from "@/lib/analytics";
 import {
   applyTheme,
@@ -14,16 +14,27 @@ const OPTIONS: { value: ThemePref; label: string }[] = [
   { value: "dark", label: "Dark" },
 ];
 
-export default function ThemeSetting() {
-  const [pref, setPref] = useState<ThemePref>("light");
+// The stored choice only changes through this setting, so there is nothing to
+// listen for
+function subscribeToNothing(): () => void {
+  return () => {};
+}
 
-  useEffect(() => {
-    setPref(getStoredTheme());
-  }, []);
+export default function ThemeSetting() {
+  // The stored choice is read while rendering in the browser, so it shows
+  // from the first paint. The server can't see it, so there neither option is
+  // picked.
+  const stored = useSyncExternalStore<ThemePref | null>(
+    subscribeToNothing,
+    getStoredTheme,
+    () => null,
+  );
+  const [chosen, setChosen] = useState<ThemePref | null>(null);
+  const pref = chosen ?? stored;
 
   function choose(next: ThemePref) {
     track("theme_changed", { theme: next });
-    setPref(next);
+    setChosen(next);
     setStoredTheme(next);
     applyTheme(next);
   }
