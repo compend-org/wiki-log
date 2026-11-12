@@ -60,6 +60,27 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('removed-comment-images', 'removed-comment-images', false, 5242880, array['image/jpeg', 'image/gif'])
 on conflict (id) do nothing;
 
+-- Whether one of the person's comments already uses this path, including a
+-- comment the moderators removed
+create function public.comment_image_in_use(p_path text, p_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.comments
+    where user_id = p_user_id and images @> array[p_path]
+  ) or exists (
+    select 1 from public.list_comments
+    where user_id = p_user_id and images @> array[p_path]
+  );
+$$;
+
+revoke execute on function public.comment_image_in_use(text, uuid)
+  from public, anon;
+
 -- Files are served by their public URL. Through the API, people only see
 -- their own folder, so nobody can list everyone's images.
 create policy "users see their own comment image files"
@@ -69,18 +90,15 @@ create policy "users see their own comment image files"
     and (storage.foldername(name))[1] = (select auth.uid())::text
   );
 
+-- Nobody can delete or overwrite their files, and nobody can upload to a path
+-- a comment already uses: the image a comment shows stays the one the
+-- automatic check looked at. Only the server deletes files.
 create policy "users upload into their own comment image folder"
   on storage.objects for insert to authenticated
   with check (
     bucket_id = 'comment-images'
     and (storage.foldername(name))[1] = (select auth.uid())::text
-  );
-
-create policy "users delete their own comment image files"
-  on storage.objects for delete to authenticated
-  using (
-    bucket_id = 'comment-images'
-    and (storage.foldername(name))[1] = (select auth.uid())::text
+    and not public.comment_image_in_use(name, (select auth.uid()))
   );
 
 -- Comments also say how many images they have. The admin pages never load
@@ -182,13 +200,22 @@ as $$
 $$;
 
 -- When the automatic image check last finished with a comment's images, and
--- the scores it gave, kept for tuning its thresholds
+-- the scores it gave, kept for tuning its thresholds. Also when the retry job
+-- last asked about it, so it takes turns between unchecked comments.
 alter table public.comments
   add column images_checked_at timestamptz,
-  add column image_scores jsonb;
+  add column image_scores jsonb,
+  add column image_check_retried_at timestamptz;
 alter table public.list_comments
   add column images_checked_at timestamptz,
-  add column image_scores jsonb;
+  add column image_scores jsonb,
+  add column image_check_retried_at timestamptz;
+
+-- The retry job's queue: recent comments with images not checked yet
+create index comments_unchecked_images_idx on public.comments (created_at)
+  where images_checked_at is null and cardinality(images) > 0;
+create index list_comments_unchecked_images_idx on public.list_comments (created_at)
+  where images_checked_at is null and cardinality(images) > 0;
 
 -- Accounts a moderator has stopped from attaching images, until lifted. Their
 -- images already posted stay up, and they aren't told.
@@ -250,9 +277,11 @@ begin
     if tg_op = 'INSERT' then
       new.images_checked_at := null;
       new.image_scores := null;
+      new.image_check_retried_at := null;
     else
       new.images_checked_at := old.images_checked_at;
       new.image_scores := old.image_scores;
+      new.image_check_retried_at := old.image_check_retried_at;
     end if;
   end if;
   return new;
@@ -356,7 +385,9 @@ create trigger list_comments_request_image_check
   execute function public.request_comment_image_check_on_insert();
 
 -- Asks again about images whose check hasn't finished, such as when OpenAI was
--- down. Gives up after a day; until then the images stay up.
+-- down. The ones asked about longest ago go first, so a comment that keeps
+-- failing doesn't hold up the rest. Gives up after a day; until then the
+-- images stay up.
 create function public.retry_comment_image_checks()
 returns void
 language plpgsql
@@ -367,25 +398,39 @@ declare
   r record;
 begin
   for r in
-    (
-      select 'comments' as tbl, id from public.comments
-      where images_checked_at is null and cardinality(images) > 0
-        and removed_at is null
-        and created_at between now() - interval '1 day'
-                           and now() - interval '3 minutes'
-      order by created_at
-      limit 20
+    with asked as (
+      update public.comments set image_check_retried_at = now()
+      where id in (
+        select id from public.comments
+        where images_checked_at is null and cardinality(images) > 0
+          and removed_at is null
+          and created_at between now() - interval '1 day'
+                             and now() - interval '3 minutes'
+        order by image_check_retried_at nulls first, created_at
+        limit 20
+      )
+      returning id
     )
-    union all
-    (
-      select 'list_comments', id from public.list_comments
-      where images_checked_at is null and cardinality(images) > 0
-        and removed_at is null
-        and created_at between now() - interval '1 day'
-                           and now() - interval '3 minutes'
-      order by created_at
-      limit 20
+    select 'comments' as tbl, id from asked
+  loop
+    perform public.request_comment_image_check(r.tbl, r.id);
+  end loop;
+
+  for r in
+    with asked as (
+      update public.list_comments set image_check_retried_at = now()
+      where id in (
+        select id from public.list_comments
+        where images_checked_at is null and cardinality(images) > 0
+          and removed_at is null
+          and created_at between now() - interval '1 day'
+                             and now() - interval '3 minutes'
+        order by image_check_retried_at nulls first, created_at
+        limit 20
+      )
+      returning id
     )
+    select 'list_comments' as tbl, id from asked
   loop
     perform public.request_comment_image_check(r.tbl, r.id);
   end loop;
@@ -401,16 +446,18 @@ select cron.schedule(
 -- An automatic report has no reporter
 alter table public.reports alter column reporter_id drop not null;
 
--- Removes a comment whose images the automatic check flagged, and files an
--- open report saying why so a moderator can review it. The author isn't
--- notified. Only the site's server, with the secret key, can call it.
+-- Records the check of a comment whose images it flagged, removes the comment,
+-- and files an open report saying why so a moderator can review it, all at
+-- once. The author isn't notified. Says whether this call did it: false when
+-- another check finished first. Only the site's server can call it.
 create function public.auto_remove_comment(
   p_kind text,
   p_id uuid,
   p_reason text,
-  p_details text
+  p_details text,
+  p_scores jsonb
 )
-returns void
+returns boolean
 language plpgsql
 security definer
 set search_path = ''
@@ -421,22 +468,30 @@ begin
   end if;
   perform public.assert_moderation_reason(p_reason);
 
+  if p_kind = 'comment' then
+    update public.comments
+    set images_checked_at = now(), image_scores = p_scores,
+        removed_at = coalesce(removed_at, now())
+    where id = p_id and images_checked_at is null;
+  else
+    update public.list_comments
+    set images_checked_at = now(), image_scores = p_scores,
+        removed_at = coalesce(removed_at, now())
+    where id = p_id and images_checked_at is null;
+  end if;
+  if not found then
+    return false;
+  end if;
+
   insert into public.reports (reporter_id, target_type, target_id, reason, details)
   values (null, p_kind, p_id, p_reason, p_details);
-
-  if p_kind = 'comment' then
-    update public.comments set removed_at = now()
-    where id = p_id and removed_at is null;
-  else
-    update public.list_comments set removed_at = now()
-    where id = p_id and removed_at is null;
-  end if;
+  return true;
 end;
 $$;
 
-revoke execute on function public.auto_remove_comment(text, uuid, text, text)
+revoke execute on function public.auto_remove_comment(text, uuid, text, text, jsonb)
   from public, anon, authenticated;
-grant execute on function public.auto_remove_comment(text, uuid, text, text)
+grant execute on function public.auto_remove_comment(text, uuid, text, text, jsonb)
   to service_role;
 revoke execute on function public.request_comment_image_check(text, uuid)
   from public, anon, authenticated;

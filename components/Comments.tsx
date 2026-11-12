@@ -11,12 +11,9 @@ import CommentImagePreview from "@/components/CommentImagePreview";
 import CommentImages from "@/components/CommentImages";
 import ReviewText from "@/components/ReviewText";
 import { track } from "@/lib/analytics";
-import { mentionToken } from "@/lib/format";
 import type { ImageAttachStatus } from "@/lib/commentImages";
-import {
-  removeOwnCommentImages,
-  uploadCommentImages,
-} from "@/lib/commentImageUpload";
+import { uploadCommentImage } from "@/lib/commentImageUpload";
+import { mentionToken } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 import AdminBadge from "./AdminBadge";
@@ -106,24 +103,23 @@ export default function Comments({
     setBusy(true);
     setError("");
     const supabase = createClient();
-    const uploaded = await uploadCommentImages(
-      supabase,
-      viewerId,
-      image ? [image] : [],
-    );
-    if (uploaded.error !== undefined) {
-      setBusy(false);
-      setError(uploaded.error);
-      return false;
+    const images: string[] = [];
+    if (image) {
+      const uploaded = await uploadCommentImage(supabase, viewerId, image);
+      if (uploaded.error !== undefined) {
+        setBusy(false);
+        setError(uploaded.error);
+        return false;
+      }
+      images.push(uploaded.path);
     }
     const { error } = await supabase.from(table).insert({
       ...scope,
       user_id: viewerId,
       parent_id: parentId,
       body: trimmed,
-      images: uploaded.paths,
+      images,
     });
-    if (error) await removeOwnCommentImages(supabase, uploaded.paths);
     setBusy(false);
 
     if (error) {

@@ -1,6 +1,7 @@
 // ABOUTME: Server-only handling of comment image files, whoever uploaded them.
 // ABOUTME: Deletes them with their comment, and hides them in a private bucket while the moderators have it removed.
 
+import { API_MAX_ROWS, chunks, fetchRows } from "@/lib/allRows";
 import { COMMENT_IMAGES_BUCKET } from "@/lib/commentImages";
 import type { CommentTable } from "@/lib/comments";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,29 +10,38 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // moving them back restores the comment's images as they were.
 const REMOVED_COMMENT_IMAGES_BUCKET = "removed-comment-images";
 
-// The image paths of a comment, and of its replies too when asked. Read past
-// RLS, so comments hidden by the moderators count.
+// The image paths of a comment, and of its replies too when asked, however
+// many there are. Read past RLS, so comments hidden by the moderators count.
 export async function commentImagePaths(
   table: CommentTable,
   commentId: string,
   withReplies: boolean,
 ): Promise<{ paths: string[]; error?: string }> {
-  const query = createAdminClient().from(table).select("images");
-  const { data, error } = await (withReplies
-    ? query.or(`id.eq.${commentId},parent_id.eq.${commentId}`)
-    : query.eq("id", commentId));
-  if (error) return { paths: [], error: error.message };
-  return { paths: (data ?? []).flatMap((row) => row.images as string[]) };
+  const admin = createAdminClient();
+  const { rows, error } = await fetchRows<{ images: string[] }>((from, to) => {
+    const query = admin
+      .from(table)
+      .select("images")
+      .not("images", "eq", "{}")
+      .order("id")
+      .range(from, to);
+    return withReplies
+      ? query.or(`id.eq.${commentId},parent_id.eq.${commentId}`)
+      : query.eq("id", commentId);
+  });
+  return { paths: rows.flatMap((row) => row.images), error };
 }
 
 // Deletes the files, whether they're shown or hidden
 export async function deleteCommentImageFiles(paths: string[]): Promise<void> {
   if (paths.length === 0) return;
   const storage = createAdminClient().storage;
-  await Promise.all([
-    storage.from(COMMENT_IMAGES_BUCKET).remove(paths),
-    storage.from(REMOVED_COMMENT_IMAGES_BUCKET).remove(paths),
-  ]);
+  for (const batch of chunks(paths, API_MAX_ROWS)) {
+    await Promise.all([
+      storage.from(COMMENT_IMAGES_BUCKET).remove(batch),
+      storage.from(REMOVED_COMMENT_IMAGES_BUCKET).remove(batch),
+    ]);
+  }
 }
 
 // Moves the files between buckets, keeping their paths. Returns how many

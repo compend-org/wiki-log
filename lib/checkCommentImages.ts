@@ -102,7 +102,35 @@ export async function checkCommentImages(
 
   const verdict = imageVerdict(scores);
 
-  // Only the first check to finish acts, if two ever run at once
+  if (verdict.reason) {
+    // Records the check, removes the comment and files the report together.
+    // Only the first check to finish acts, if two ever run at once.
+    const { data: removed, error: removeError } = await admin.rpc(
+      "auto_remove_comment",
+      {
+        p_kind: REPORT_KIND[table],
+        p_id: commentId,
+        p_reason: verdict.reason,
+        p_details: verdictDetails(verdict),
+        p_scores: verdict.maxScores,
+      },
+    );
+    if (removeError) return { outcome: "failed", error: removeError.message };
+    if (!removed) return { outcome: "skipped", why: "checked" };
+
+    // Nothing retries this, so a failure here is reported to Sentry by the
+    // route for someone to move the files by hand
+    const stillPublic = await hideCommentImageFiles(paths);
+    if (stillPublic > 0) {
+      return {
+        outcome: "failed",
+        error: `Removed, but ${stillPublic} image(s) are still public: ${paths.join(", ")}`,
+      };
+    }
+    return { outcome: "removed", scores: verdict.maxScores };
+  }
+
+  // Only the first check to finish records it, if two ever run at once
   const { data: claimed, error: saveError } = await admin
     .from(table)
     .update({
@@ -114,22 +142,5 @@ export async function checkCommentImages(
     .select("id");
   if (saveError) return { outcome: "failed", error: saveError.message };
   if (!claimed?.length) return { outcome: "skipped", why: "checked" };
-
-  if (!verdict.reason) return { outcome: "kept", scores: verdict.maxScores };
-
-  const { error: removeError } = await admin.rpc("auto_remove_comment", {
-    p_kind: REPORT_KIND[table],
-    p_id: commentId,
-    p_reason: verdict.reason,
-    p_details: verdictDetails(verdict),
-  });
-  if (removeError) return { outcome: "failed", error: removeError.message };
-  const stillPublic = await hideCommentImageFiles(paths);
-  if (stillPublic > 0) {
-    return {
-      outcome: "failed",
-      error: `Removed, but ${stillPublic} image(s) are still public`,
-    };
-  }
-  return { outcome: "removed", scores: verdict.maxScores };
+  return { outcome: "kept", scores: verdict.maxScores };
 }

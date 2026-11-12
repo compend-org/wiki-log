@@ -1,4 +1,4 @@
-// ABOUTME: Prepares and uploads, from the browser, the images someone attaches to a comment.
+// ABOUTME: Prepares and uploads, from the browser, the image someone attaches to a comment.
 // ABOUTME: Photos are shrunk and re-encoded as JPEG; GIFs go up unchanged so they keep moving.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -31,43 +31,27 @@ async function prepare(file: File, userId: string): Promise<PreparedImage> {
   };
 }
 
-// Deletes the signed-in user's own uploaded comment images
-export async function removeOwnCommentImages(
-  supabase: SupabaseClient,
-  paths: string[],
-): Promise<void> {
-  if (paths.length > 0)
-    await supabase.storage.from(COMMENT_IMAGES_BUCKET).remove(paths);
-}
-
-// Uploads the files into the user's folder and returns where they went. If
-// any fails, none are kept.
-export async function uploadCommentImages(
+// Uploads the file into the user's folder and returns where it went. A file
+// whose comment then fails to save stays behind: people can't delete their
+// files, so a checked image can never be swapped for another.
+export async function uploadCommentImage(
   supabase: SupabaseClient,
   userId: string,
-  files: File[],
-): Promise<{ paths: string[]; error?: undefined } | { error: string }> {
-  let prepared: PreparedImage[];
+  file: File,
+): Promise<{ path: string; error?: undefined } | { error: string }> {
+  let prepared: PreparedImage;
   try {
-    prepared = await Promise.all(files.map((f) => prepare(f, userId)));
+    prepared = await prepare(file, userId);
   } catch {
-    return { error: "Couldn't read an image. Try a JPEG, PNG or GIF." };
+    return { error: "Couldn't read that image. Try a JPEG, PNG or GIF." };
   }
 
-  const paths = prepared.map((p) => p.path);
-  const uploads = await Promise.all(
-    prepared.map((p) =>
-      supabase.storage.from(COMMENT_IMAGES_BUCKET).upload(p.path, p.blob, {
-        contentType: p.contentType,
-        // Short, so a removed image stops being served from caches soon
-        cacheControl: "3600",
-      }),
-    ),
-  );
-  const uploadError = uploads.find((u) => u.error)?.error;
-  if (uploadError) {
-    await removeOwnCommentImages(supabase, paths);
-    return { error: uploadError.message };
-  }
-  return { paths };
+  const { error } = await supabase.storage
+    .from(COMMENT_IMAGES_BUCKET)
+    .upload(prepared.path, prepared.blob, {
+      contentType: prepared.contentType,
+      // Short, so a removed image stops being served from caches soon
+      cacheControl: "3600",
+    });
+  return error ? { error: error.message } : { path: prepared.path };
 }
