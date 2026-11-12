@@ -211,8 +211,8 @@ export default async function ListPage({
             ownerId={list.user_id}
             kind="list"
             targetId={id}
-            initialCount={list.shares?.[0]?.count ?? 0}
-            initiallyShared={viewer.sharedLists.has(id)}
+            shareCount={list.shares?.[0]?.count ?? 0}
+            shared={viewer.sharedLists.has(id)}
           />
           <ReportButton
             viewerId={viewerId ?? null}

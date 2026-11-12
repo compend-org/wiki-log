@@ -5,6 +5,7 @@ import { useState } from "react";
 import HeartIcon from "@/components/HeartIcon";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
+import { useLocalCopy } from "@/lib/useLocalCopy";
 import { useLoginHref } from "@/lib/useLoginHref";
 
 // Where likes on each kind of comment are kept
@@ -18,20 +19,21 @@ export default function CommentLikeButton({
   commentTable,
   commentId,
   authorId,
-  initialCount,
-  initiallyLiked,
+  likeCount,
+  liked,
 }: {
   viewerId: string | null;
   // "comments" for reviews, "list_comments" for lists
   commentTable: keyof typeof LIKES;
   commentId: string;
   authorId: string;
-  initialCount: number;
-  initiallyLiked: boolean;
+  likeCount: number;
+  liked: boolean;
 }) {
   const loginHref = useLoginHref();
-  const [liked, setLiked] = useState<boolean>(initiallyLiked);
-  const [count, setCount] = useState<number>(initialCount);
+  const [shownLiked, setShownLiked] = useLocalCopy(liked);
+  // The server's count already includes the viewer's like when it says liked
+  const count = likeCount + Number(shownLiked) - Number(liked);
   const [busy, setBusy] = useState<boolean>(false);
   const router = useRouter();
 
@@ -45,10 +47,9 @@ export default function CommentLikeButton({
     if (own || busy) return;
 
     setBusy(true);
-    const next = !liked;
+    const next = !shownLiked;
     // Update the screen immediately, undo if the database refuses
-    setLiked(next);
-    setCount((c) => c + (next ? 1 : -1));
+    setShownLiked(next);
 
     const likes = LIKES[commentTable];
     const supabase = createClient();
@@ -63,8 +64,7 @@ export default function CommentLikeButton({
           .eq(likes.column, commentId);
 
     if (error) {
-      setLiked(!next);
-      setCount((c) => c + (next ? -1 : 1));
+      setShownLiked(!next);
     } else {
       track(next ? "liked" : "unliked", { target: "comment" });
     }
@@ -79,13 +79,13 @@ export default function CommentLikeButton({
       type="button"
       onClick={toggle}
       disabled={own}
-      aria-pressed={liked}
-      aria-label={liked ? "Unlike this comment" : "Like this comment"}
+      aria-pressed={shownLiked}
+      aria-label={shownLiked ? "Unlike this comment" : "Like this comment"}
       className={`inline-flex items-center gap-1 disabled:cursor-default ${
-        liked ? "text-like" : "text-muted enabled:hover:text-like"
+        shownLiked ? "text-like" : "text-muted enabled:hover:text-like"
       }`}
     >
-      <HeartIcon filled={liked} className="h-3.5 w-3.5" />
+      <HeartIcon filled={shownLiked} className="h-3.5 w-3.5" />
       {count > 0 && <span>{count}</span>}
     </button>
   );

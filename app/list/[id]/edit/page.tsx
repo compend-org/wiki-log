@@ -59,9 +59,23 @@ export default async function EditListPage({
     imageUrl: e.imageUrl,
   }));
 
+  // Visited pages stay mounted while hidden, and the editor works on its own
+  // copy of the list. It starts over from the saved list when that has changed
+  // since it was last shown, here or elsewhere. Its own changes don't redraw
+  // this page, so they don't start it over.
+  const savedKey = JSON.stringify([
+    list.title,
+    list.description,
+    list.ranked,
+    page,
+    total,
+    initialItems.map((i) => i.itemId),
+  ]);
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
       <ListEditor
+        key={savedKey}
         list={{
           id: list.id,
           title: list.title,

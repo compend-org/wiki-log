@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
-import { useDraft } from "@/lib/useDraft";
+import { useLocalCopy } from "@/lib/useLocalCopy";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
 
 export default function UsernameEditor({
@@ -17,7 +17,7 @@ export default function UsernameEditor({
   savedUsername: string;
 }) {
   const router = useRouter();
-  const [username, setUsername] = useDraft(savedUsername);
+  const [username, setUsername] = useLocalCopy(savedUsername);
   const [message, setMessage] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
   const [refreshing, startRefresh] = useTransition();

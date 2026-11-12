@@ -78,8 +78,8 @@ export default function ItemLogCard({
             ownerId={row.user_id}
             kind="log"
             targetId={row.id}
-            initialCount={row.shares?.[0]?.count ?? 0}
-            initiallyShared={viewer.sharedLogs.has(row.id)}
+            shareCount={row.shares?.[0]?.count ?? 0}
+            shared={viewer.sharedLogs.has(row.id)}
           />
         }
         commentHref={reviewHref}

@@ -113,7 +113,7 @@ export default function AddToList({
   itemId,
   title,
   imageUrl,
-  signedIn: initiallySignedIn,
+  signedIn,
   aside,
 }: {
   itemId: string;
@@ -122,7 +122,6 @@ export default function AddToList({
   signedIn: boolean;
   aside?: ReactNode;
 }) {
-  const [signedIn, setSignedIn] = useState<boolean>(initiallySignedIn);
   const [open, setOpen] = useState<boolean>(false);
   const [lists, setLists] = useState<ListOption[] | null>(null);
   // How many of the person's lists match the search, loaded or not
@@ -170,15 +169,6 @@ export default function AddToList({
     );
   }
 
-  async function loadLists() {
-    const { data: userData } = await createClient().auth.getUser();
-    if (!userData.user) {
-      setSignedIn(false);
-      return;
-    }
-    await loadListPage(search, 0);
-  }
-
   function changeSearch(value: string) {
     setSearch(value);
     clearTimeout(searchTimer.current);
@@ -197,7 +187,7 @@ export default function AddToList({
     setPlacing(null);
     setMessage("");
     setError("");
-    if (next) loadLists();
+    if (next) loadListPage(search, 0);
   }
 
   async function add(list: ListOption, position?: number): Promise<boolean> {

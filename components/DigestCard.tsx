@@ -90,8 +90,8 @@ export default function DigestCard({
             ownerId={row.user_id}
             kind="log"
             targetId={row.id}
-            initialCount={row.shares?.[0]?.count ?? 0}
-            initiallyShared={shared}
+            shareCount={row.shares?.[0]?.count ?? 0}
+            shared={shared}
           />
         }
         commentHref={reviewHref}

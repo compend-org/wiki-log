@@ -7,19 +7,20 @@ import { useState } from "react";
 import Dialog from "@/components/Dialog";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
+import { useLocalCopy } from "@/lib/useLocalCopy";
 
 export default function BlockButton({
   viewerId,
   targetId,
   targetName,
-  initiallyBlocked,
+  blocked,
 }: {
   viewerId: string;
   targetId: string;
   targetName: string;
-  initiallyBlocked: boolean;
+  blocked: boolean;
 }) {
-  const [blocked, setBlocked] = useState<boolean>(initiallyBlocked);
+  const [shownBlocked, setShownBlocked] = useLocalCopy(blocked);
   const [open, setOpen] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -31,7 +32,7 @@ export default function BlockButton({
     setBusy(true);
     setError("");
     const supabase = createClient();
-    const { error } = blocked
+    const { error } = shownBlocked
       ? await supabase
           .from("blocks")
           .delete()
@@ -45,8 +46,8 @@ export default function BlockButton({
       setError(error.message);
       return;
     }
-    track(blocked ? "user_unblocked" : "user_blocked");
-    setBlocked(!blocked);
+    track(shownBlocked ? "user_unblocked" : "user_blocked");
+    setShownBlocked(!shownBlocked);
     setOpen(false);
     router.refresh(); // updates the follow button and follower counts
   }
@@ -58,13 +59,13 @@ export default function BlockButton({
         onClick={() => {
           setError("");
           // Unblocking happens straight away; blocking asks first
-          if (blocked) toggle();
+          if (shownBlocked) toggle();
           else setOpen(true);
         }}
         disabled={busy}
         className="rounded-lg border border-line px-4 py-2 text-muted disabled:opacity-40"
       >
-        {blocked ? "Unblock" : "Block"}
+        {shownBlocked ? "Unblock" : "Block"}
       </button>
       {error && !open && <p className="text-sm text-danger">{error}</p>}
 
