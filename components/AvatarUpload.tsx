@@ -3,7 +3,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import Avatar from "@/components/Avatar";
 import { track } from "@/lib/analytics";
 import { AVATAR_SIZE, AVATAR_SMALL_SIZE, smallAvatarPath } from "@/lib/avatar";
@@ -36,36 +36,25 @@ async function toSquareJpeg(bitmap: ImageBitmap, size: number): Promise<Blob> {
   );
 }
 
-export default function AvatarUpload() {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [username, setUsername] = useState<string>("");
-  const [path, setPath] = useState<string | null>(null);
+export default function AvatarUpload({
+  userId,
+  username,
+  path,
+}: {
+  userId: string;
+  username: string;
+  path: string | null;
+}) {
   const [busy, setBusy] = useState<boolean>(false);
+  const [refreshing, startRefresh] = useTransition();
   const [error, setError] = useState<string>("");
   const fileInput = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    async function load() {
-      const supabase = createClient();
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
-      setUserId(userData.user.id);
-      const { data } = await supabase
-        .from("profiles")
-        .select("username, avatar_path")
-        .eq("id", userData.user.id)
-        .maybeSingle();
-      setUsername(data?.username ?? "");
-      setPath(data?.avatar_path ?? null);
-    }
-    load();
-  }, []);
-
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // so choosing the same file again still triggers this
-    if (!file || !userId) return;
+    if (!file) return;
 
     if (!file.type.startsWith("image/")) {
       setError("Please choose an image.");
@@ -133,13 +122,13 @@ export default function AvatarUpload() {
     }
 
     track("profile_updated", { field: "avatar" });
-    setPath(newPath);
     setBusy(false);
-    router.refresh();
+    // Brings the new picture back from the server, for here and the top bar
+    startRefresh(() => router.refresh());
   }
 
   async function handleRemove() {
-    if (!userId || !path) return;
+    if (!path) return;
     setBusy(true);
     setError("");
 
@@ -158,12 +147,9 @@ export default function AvatarUpload() {
       .from("avatars")
       .remove([path, smallAvatarPath(path)]);
     track("profile_updated", { field: "avatar" });
-    setPath(null);
     setBusy(false);
-    router.refresh();
+    startRefresh(() => router.refresh());
   }
-
-  if (!userId) return null;
 
   return (
     <section className="flex items-center gap-4">
@@ -180,16 +166,20 @@ export default function AvatarUpload() {
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
-            disabled={busy}
+            disabled={busy || refreshing}
             className="rounded-lg border border-line px-3 py-1.5 text-sm hover:border-accent disabled:opacity-40"
           >
-            {busy ? "Working…" : path ? "Change picture" : "Upload picture"}
+            {busy || refreshing
+              ? "Working…"
+              : path
+                ? "Change picture"
+                : "Upload picture"}
           </button>
           {path && (
             <button
               type="button"
               onClick={handleRemove}
-              disabled={busy}
+              disabled={busy || refreshing}
               className="text-sm text-muted underline disabled:opacity-40"
             >
               Remove

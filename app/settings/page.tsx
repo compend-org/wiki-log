@@ -1,139 +1,116 @@
-"use client";
-
+// ABOUTME: The signed-in person's settings: picture, bio, username, email, theme and blocks.
+// ABOUTME: Loads everything on the server first, so the page arrives complete.
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { connection } from "next/server";
 import AvatarUpload from "@/components/AvatarUpload";
 import BioEditor from "@/components/BioEditor";
-import BlockedPeople from "@/components/BlockedPeople";
+import BlockedPeople, { type BlockedPerson } from "@/components/BlockedPeople";
 import DeleteAccount from "@/components/DeleteAccount";
 import EmailVerification from "@/components/EmailVerification";
 import ThemeSetting from "@/components/ThemeSetting";
-import { track } from "@/lib/analytics";
-import { createClient } from "@/lib/supabase/client";
-import { useLoginHref } from "@/lib/useLoginHref";
-import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
+import UsernameEditor from "@/components/UsernameEditor";
+import { loginHref } from "@/lib/redirect";
+import { createClient } from "@/lib/supabase/server";
 
-export default function SettingsPage() {
-  const loginHref = useLoginHref();
-  const router = useRouter();
-  const [loaded, setLoaded] = useState<boolean>(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [username, setUsername] = useState<string>("");
-  const [savedUsername, setSavedUsername] = useState<string>("");
-  const [message, setMessage] = useState<string>("");
-  const [busy, setBusy] = useState<boolean>(false);
+export const instant = false;
 
-  useEffect(() => {
-    async function load() {
-      const supabase = createClient();
-      const { data } = await supabase.auth.getUser();
-      if (data.user) {
-        setUserId(data.user.id);
-        const { data: profile } = await supabase
+type SettingsProfile = {
+  username: string;
+  avatar_path: string | null;
+  bio: string | null;
+  blocked: {
+    blocked_id: string;
+    profiles: { username: string } | null;
+  }[];
+};
+
+export default async function SettingsPage() {
+  await connection();
+  const supabase = await createClient();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId: string | undefined = claimsData?.claims?.sub;
+  const email: string | undefined = claimsData?.claims?.email;
+
+  // The profile with the people it blocks, newest block first, and whether
+  // the email address is verified
+  const [profileRes, verificationRes] = userId
+    ? await Promise.all([
+        supabase
           .from("profiles")
-          .select("username")
-          .eq("id", data.user.id)
-          .maybeSingle();
-        if (profile) {
-          setUsername(profile.username);
-          setSavedUsername(profile.username);
-        }
-      }
-      setLoaded(true);
-    }
-    load();
-  }, []);
+          .select(
+            "username, avatar_path, bio, blocked:blocks!blocks_blocker_id_fkey(blocked_id, profiles!blocks_blocked_id_fkey(username))",
+          )
+          .eq("id", userId)
+          .order("created_at", { referencedTable: "blocked", ascending: false })
+          .maybeSingle(),
+        supabase
+          .from("email_verifications")
+          .select("user_id")
+          .eq("user_id", userId)
+          .maybeSingle(),
+      ])
+    : [
+        { data: null, error: null },
+        { data: null, error: null },
+      ];
+  const error = profileRes.error ?? verificationRes.error;
+  if (error) throw new Error(`Couldn't load settings: ${error.message}`);
+  const profile = profileRes.data as unknown as SettingsProfile | null;
 
-  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!userId) return;
-
-    const name = cleanName(username);
-    if (!isValidName(name)) {
-      setMessage(`Usernames are ${NAME_RULES}.`);
-      return;
-    }
-
-    setBusy(true);
-    setMessage("");
-    const { error } = await createClient()
-      .from("profiles")
-      .update({ username: name })
-      .eq("id", userId);
-    setBusy(false);
-
-    if (error) {
-      setMessage(
-        error.code === "23505" ? "That username is taken." : error.message,
-      );
-      return;
-    }
-    track("profile_updated", { field: "username" });
-    setUsername(name);
-    setSavedUsername(name);
-    setMessage("Saved.");
-    // Redraws the top bar with the new username
-    router.refresh();
-  }
-
-  if (!loaded) return <main className="p-8 text-muted">Loading…</main>;
-
-  if (!userId) {
+  if (!userId || !profile) {
     return (
       <main className="p-8">
-        <Link href={loginHref} className="underline">
+        <Link href={loginHref("/settings")} className="underline">
           Sign in to edit your profile
         </Link>
       </main>
     );
   }
 
+  const blockedPeople: BlockedPerson[] = profile.blocked.map((r) => ({
+    id: r.blocked_id,
+    username: r.profiles?.username ?? "Someone",
+  }));
+
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-4 p-4 sm:p-8">
+    // A different account starts over, rather than keeping the last one's drafts
+    <main
+      key={userId}
+      className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-4 p-4 sm:p-8"
+    >
       <h1 className="text-3xl font-bold">Profile settings</h1>
       <p className="text-sm text-muted">
         Your username, bio, picture and logs are public. You can also sign in
         with your username.
       </p>
 
-      <AvatarUpload />
-      <BioEditor />
+      <AvatarUpload
+        userId={userId}
+        username={profile.username}
+        path={profile.avatar_path}
+      />
+      <BioEditor userId={userId} savedBio={profile.bio ?? ""} />
 
-      <form onSubmit={handleSave} className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Username
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="border border-line bg-surface px-4 py-2 text-foreground"
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={busy}
-          className="bg-accent px-4 py-2 text-background disabled:opacity-40"
-        >
-          {busy ? "Saving…" : "Save username"}
-        </button>
-      </form>
-      {message && <p className="text-sm">{message}</p>}
-      {savedUsername && (
-        <Link
-          href={`/u/${encodeURIComponent(savedUsername)}`}
-          className="underline"
-        >
-          View your public profile
-        </Link>
+      <UsernameEditor userId={userId} savedUsername={profile.username} />
+      <Link
+        href={`/u/${encodeURIComponent(profile.username)}`}
+        className="underline"
+      >
+        View your public profile
+      </Link>
+
+      {email && (
+        <EmailVerification
+          email={email}
+          verified={Boolean(verificationRes.data)}
+        />
       )}
-
-      <EmailVerification />
 
       <ThemeSetting />
 
-      <BlockedPeople />
+      <BlockedPeople viewerId={userId} people={blockedPeople} />
 
-      {savedUsername && <DeleteAccount username={savedUsername} />}
+      <DeleteAccount username={profile.username} />
     </main>
   );
 }

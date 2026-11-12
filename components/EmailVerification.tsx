@@ -2,36 +2,24 @@
 // ABOUTME: Sends a verification link to anyone who hasn't yet.
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
-export default function EmailVerification() {
-  const [email, setEmail] = useState<string>("");
-  const [verified, setVerified] = useState<boolean>(false);
+export default function EmailVerification({
+  email,
+  verified,
+}: {
+  email: string;
+  verified: boolean;
+}) {
   const [busy, setBusy] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
   const [captcha, setCaptcha] = useState<string>("");
   const [captchaKey, setCaptchaKey] = useState<number>(0);
 
   const cannotSend = busy || (TURNSTILE_SITE_KEY !== "" && !captcha);
-
-  useEffect(() => {
-    async function load() {
-      const supabase = createClient();
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user?.email) return;
-      const { data } = await supabase
-        .from("email_verifications")
-        .select("user_id")
-        .eq("user_id", userData.user.id)
-        .maybeSingle();
-      setVerified(Boolean(data));
-      setEmail(userData.user.email);
-    }
-    load();
-  }, []);
 
   async function handleSend() {
     setBusy(true);
@@ -61,8 +49,6 @@ export default function EmailVerification() {
       `We sent a link to ${email}. It can take a minute, and it may land in spam.`,
     );
   }
-
-  if (!email) return null;
 
   return (
     <section className="flex flex-col gap-2 text-sm">
