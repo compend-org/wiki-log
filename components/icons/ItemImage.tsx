@@ -94,7 +94,8 @@ export default function ItemImage({
         aria-label={alt}
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMidYMid meet"
-        className={`block border border-line bg-surface text-muted ${className}`}
+        // An adult item's title, blurred like its caption where that is
+        className={`block border border-line bg-surface text-muted ${nsfw ? "nsfw-title" : ""} ${className}`}
       >
         <text
           textAnchor="middle"

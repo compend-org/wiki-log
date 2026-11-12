@@ -11,9 +11,10 @@ import ReviewText from "@/components/ReviewText";
 import Stars from "@/components/Stars";
 import { timeAgo } from "@/lib/format";
 import { type Keyset, olderThan, PAGE_SIZE, takeNewest } from "@/lib/paging";
-import { currentSfwMode, shownEntries } from "@/lib/sfw";
+import { shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
+import { useSfwMode } from "@/lib/useSfwMode";
 
 type Thumb = { title: string; imageUrl: string | null; nsfw: boolean };
 
@@ -69,6 +70,7 @@ type Cursors = { logs?: Keyset; lists?: Keyset };
 
 export default function DiaryPage() {
   const loginHref = useLoginHref();
+  const sfwMode = useSfwMode();
   const [ready, setReady] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
@@ -268,7 +270,7 @@ export default function DiaryPage() {
   // Logs of adult items are left out when the viewer hides them
   const shown = shownEntries(
     entries,
-    currentSfwMode(),
+    sfwMode,
     (e) => e.kind === "log" && e.nsfw,
   );
 

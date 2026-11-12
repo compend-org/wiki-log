@@ -52,6 +52,7 @@ export default function PickSquare({
       ) : (
         <ItemImage
           src={null}
+          nsfw={pick.nsfw}
           alt={pick.title}
           ratio={1.5}
           className="h-28 w-full"

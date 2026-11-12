@@ -38,15 +38,18 @@ export function setStoredSfw(mode: SfwMode): void {
   }
 }
 
+// Fired on window whenever the page's mode changes
+export const SFW_CHANGE_EVENT = "sfw-mode-change";
+
 export function applySfw(mode: SfwMode): void {
+  if (mode === currentSfwMode()) return;
   if (mode === "off") delete document.documentElement.dataset.sfw;
   else document.documentElement.dataset.sfw = mode;
+  window.dispatchEvent(new Event(SFW_CHANGE_EVENT));
 }
 
-// The mode the page is in, for code running in the browser. Drawn on the
-// server, where there is no page yet, it is off.
+// The mode the page is in, for code running in the browser
 export function currentSfwMode(): SfwMode {
-  if (typeof document === "undefined") return "off";
   return parseSfwMode(document.documentElement.dataset.sfw);
 }
 

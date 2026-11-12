@@ -33,7 +33,9 @@ export default function ItemPicture({
   const current = replaced?.from === src ? replaced.to : src;
   const reported = useRef(new Set<string>());
   const img = useRef<HTMLImageElement>(null);
-  const [revealed, setRevealed] = useState(false);
+  // The image that was tapped to show it; a different image starts hidden again
+  const [revealedSrc, setRevealedSrc] = useState<string>();
+  const revealed = revealedSrc === src;
 
   function replace() {
     // Each address is reported once, so a replacement that also fails can't loop
@@ -73,7 +75,7 @@ export default function ItemPicture({
     if (revealed || currentSfwMode() === "off") return;
     e.preventDefault();
     e.stopPropagation();
-    setRevealed(true);
+    setRevealedSrc(src);
   }
 
   return (

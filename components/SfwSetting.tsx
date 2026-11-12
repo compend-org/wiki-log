@@ -3,7 +3,6 @@
 // ABOUTME: The profile setting for SFW mode: off, blur adult images, or hide adult posts.
 // ABOUTME: Saved to the account, and applied to this page as soon as it is chosen.
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { track } from "@/lib/analytics";
 import { applySfw, parseSfwMode, type SfwMode, setStoredSfw } from "@/lib/sfw";
@@ -16,9 +15,10 @@ const OPTIONS: { value: SfwMode; label: string }[] = [
 ];
 
 export default function SfwSetting({ userId }: { userId: string }) {
-  const router = useRouter();
   const [mode, setMode] = useState<SfwMode>("off");
   const [error, setError] = useState("");
+  // Choices wait until the saved mode has loaded and while one is saving
+  const [busy, setBusy] = useState(true);
 
   useEffect(() => {
     createClient()
@@ -26,7 +26,10 @@ export default function SfwSetting({ userId }: { userId: string }) {
       .select("sfw_mode")
       .eq("user_id", userId)
       .maybeSingle()
-      .then(({ data }) => setMode(parseSfwMode(data?.sfw_mode)));
+      .then(({ data }) => {
+        setMode(parseSfwMode(data?.sfw_mode));
+        setBusy(false);
+      });
   }, [userId]);
 
   async function choose(next: SfwMode) {
@@ -36,6 +39,7 @@ export default function SfwSetting({ userId }: { userId: string }) {
     setStoredSfw(next);
     applySfw(next);
     setError("");
+    setBusy(true);
 
     const { error: saveError } = await createClient()
       .from("user_settings")
@@ -45,14 +49,16 @@ export default function SfwSetting({ userId }: { userId: string }) {
       setStoredSfw(before);
       applySfw(before);
       setError("Couldn't save that. Try again.");
+      setBusy(false);
       return;
     }
-    // Pages drawn on the server pick up the new mode
-    router.refresh();
+    // A full reload, because pages kept open in the background hold on to
+    // the posts they were first drawn with
+    window.location.reload();
   }
 
   return (
-    <fieldset className="flex flex-col gap-2">
+    <fieldset disabled={busy} className="flex flex-col gap-2">
       <legend className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
         SFW mode
       </legend>
