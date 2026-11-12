@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
 import AddToList from "@/components/AddToList";
+import ShareImageButton from "@/components/buttons/ShareImageButton";
 import ItemLists from "@/components/ItemLists";
 import ItemLogs from "@/components/ItemLogs";
 import ItemPicture from "@/components/ItemPicture";
@@ -325,7 +326,18 @@ export default async function ItemPage({
           />
         </div>
         <MyEntries entries={myEntries} />
-        <RatingHistogram ratings={ratings} highlight={myRating} />
+        <RatingHistogram
+          ratings={ratings}
+          highlight={myRating}
+          action={
+            // On phones, shares the item and its histogram as one picture
+            <ShareImageButton
+              imageHref={`/item/${item.id}/ratings-image`}
+              fileName={`${item.title}-ratings.png`}
+              className="sm:hidden"
+            />
+          }
+        />
       </div>
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0">
