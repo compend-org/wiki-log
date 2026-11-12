@@ -1,11 +1,16 @@
 // ABOUTME: Tests for loading pictures into the images people share from the site.
-// ABOUTME: Covers large pictures the renderer must still draw, photos stored on their side, and shrinking drawn images.
+// ABOUTME: Covers large pictures and Arabic titles the renderer must still draw, photos stored on their side, and shrinking drawn images.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ImageResponse } from "next/og";
 import { createElement } from "react";
 import sharp from "sharp";
-import { embeddable, smallerPng, stillImage } from "./shareImage";
+import {
+  embeddable,
+  loadSerifFonts,
+  smallerPng,
+  stillImage,
+} from "./shareImage";
 
 const dataUrl = (jpeg: Buffer) =>
   `data:image/jpeg;base64,${jpeg.toString("base64")}`;
@@ -67,4 +72,16 @@ test("shrinks a drawn image and keeps its size and headers", async () => {
     { width, height, format },
     { width: 1080, height: 1350, format: "png" },
   );
+});
+
+test("draws an Arabic title into a share image", async () => {
+  const image = new ImageResponse(
+    createElement(
+      "div",
+      { style: { display: "flex", fontFamily: "Tinos", fontSize: 50 } },
+      "الحضارة العربية",
+    ),
+    { width: 1080, height: 1350, fonts: await loadSerifFonts() },
+  );
+  assert.ok((await image.arrayBuffer()).byteLength > 0);
 });

@@ -13,10 +13,10 @@ import {
   COLORS,
   embeddable,
   loadSerifFonts,
+  SiteSignature,
   Stars,
   smallerPng,
 } from "@/lib/shareImage";
-import { SITE_NAME } from "@/lib/site";
 import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia";
 
 const WIDTH = 1080;
@@ -207,23 +207,7 @@ export async function GET(
           <ShareIcon size={px(16)} />
           {shares}
         </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: px(6),
-            marginLeft: "auto",
-            fontSize: px(15),
-            fontWeight: 700,
-            color: COLORS.foreground,
-          }}
-        >
-          {logo && (
-            // biome-ignore lint/performance/noImgElement: drawn into a PNG, not shown on a page
-            <img src={logo} alt="" width={px(26)} height={px(26)} />
-          )}
-          {SITE_NAME}
-        </div>
+        <SiteSignature logo={logo} />
       </div>
     </div>,
     {
