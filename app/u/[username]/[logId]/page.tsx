@@ -222,8 +222,8 @@ export default async function ReviewPage({
           ownerId={log.user_id}
           kind="log"
           targetId={log.id}
-          initialCount={log.shares?.[0]?.count ?? 0}
-          initiallyShared={viewer.sharedLogs.has(log.id)}
+          shareCount={log.shares?.[0]?.count ?? 0}
+          shared={viewer.sharedLogs.has(log.id)}
         />
         <ShareImageButton
           imageHref={`/u/${encodeURIComponent(profile.username)}/${log.id}/image`}

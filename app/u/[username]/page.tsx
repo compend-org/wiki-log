@@ -320,7 +320,7 @@ export default async function ProfilePage({
                   <FollowButton
                     viewerId={viewerId}
                     targetId={profile.id}
-                    initiallyFollowing={isFollowing}
+                    following={isFollowing}
                     followsViewer={followsViewer}
                   />
                 )}
@@ -328,7 +328,7 @@ export default async function ProfilePage({
                   viewerId={viewerId}
                   targetId={profile.id}
                   targetName={profile.username}
-                  initiallyBlocked={isBlocked}
+                  blocked={isBlocked}
                 />
                 <ReportButton
                   viewerId={viewerId}

@@ -19,21 +19,21 @@ export default function CommentLikeButton({
   commentTable,
   commentId,
   authorId,
-  initialCount,
-  initiallyLiked,
+  likeCount,
+  liked,
 }: {
   viewerId: string | null;
   // "comments" for reviews, "list_comments" for lists
   commentTable: keyof typeof LIKES;
   commentId: string;
   authorId: string;
-  initialCount: number;
-  initiallyLiked: boolean;
+  likeCount: number;
+  liked: boolean;
 }) {
   const loginHref = useLoginHref();
-  const [liked, setLiked] = useLocalCopy(initiallyLiked);
+  const [shownLiked, setShownLiked] = useLocalCopy(liked);
   // The server's count already includes the viewer's like when it says liked
-  const count = initialCount + Number(liked) - Number(initiallyLiked);
+  const count = likeCount + Number(shownLiked) - Number(liked);
   const [busy, setBusy] = useState<boolean>(false);
   const router = useRouter();
 
@@ -47,9 +47,9 @@ export default function CommentLikeButton({
     if (own || busy) return;
 
     setBusy(true);
-    const next = !liked;
+    const next = !shownLiked;
     // Update the screen immediately, undo if the database refuses
-    setLiked(next);
+    setShownLiked(next);
 
     const likes = LIKES[commentTable];
     const supabase = createClient();
@@ -64,7 +64,7 @@ export default function CommentLikeButton({
           .eq(likes.column, commentId);
 
     if (error) {
-      setLiked(!next);
+      setShownLiked(!next);
     } else {
       track(next ? "liked" : "unliked", { target: "comment" });
     }
@@ -79,13 +79,13 @@ export default function CommentLikeButton({
       type="button"
       onClick={toggle}
       disabled={own}
-      aria-pressed={liked}
-      aria-label={liked ? "Unlike this comment" : "Like this comment"}
+      aria-pressed={shownLiked}
+      aria-label={shownLiked ? "Unlike this comment" : "Like this comment"}
       className={`inline-flex items-center gap-1 disabled:cursor-default ${
-        liked ? "text-like" : "text-muted enabled:hover:text-like"
+        shownLiked ? "text-like" : "text-muted enabled:hover:text-like"
       }`}
     >
-      <HeartIcon filled={liked} className="h-3.5 w-3.5" />
+      <HeartIcon filled={shownLiked} className="h-3.5 w-3.5" />
       {count > 0 && <span>{count}</span>}
     </button>
   );
