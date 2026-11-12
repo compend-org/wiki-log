@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
+import PinIcon from "../icons/PinIcon";
 
 export default function PinButton({
   userId,
@@ -45,15 +46,17 @@ export default function PinButton({
     router.refresh();
   }
 
-  return (
+    return (
     <span className="relative z-10 inline-flex items-center gap-2">
       <button
         type="button"
         onClick={toggle}
         disabled={busy}
-        className="text-xs text-accent hover:underline disabled:opacity-60"
+        aria-label={pinned ? "Unpin" : "Pin"}
+        title={pinned ? "Unpin" : "Pin"}
+        className="flex text-accent hover:text-foreground disabled:opacity-60"
       >
-        {pinned ? "Unpin" : "Pin"}
+        <PinIcon className="h-4 w-4" filled={pinned} />
       </button>
       {error && <span className="text-xs text-danger">{error}</span>}
     </span>
