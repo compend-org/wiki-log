@@ -21,7 +21,7 @@ import { getItemLogs } from "@/lib/itemLogs";
 import { getItemRatings } from "@/lib/itemRatings";
 import { getItemForPage } from "@/lib/items";
 import { pageMetadata } from "@/lib/metadata";
-import { parseLimit } from "@/lib/paging";
+import { PAGE_SIZE, parseLimit } from "@/lib/paging";
 import { RANDOM_PARAM } from "@/lib/randomItem";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
@@ -64,12 +64,21 @@ export default async function ItemPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ limit?: string; [RANDOM_PARAM]?: string }>;
+  searchParams: Promise<{
+    limit?: string;
+    lists?: string;
+    [RANDOM_PARAM]?: string;
+  }>;
 }) {
   await connection();
   const renderedAt = Date.now();
   const { id } = await params;
-  const { limit, [RANDOM_PARAM]: random } = await searchParams;
+  const { limit, lists, [RANDOM_PARAM]: random } = await searchParams;
+  const logLimit = parseLimit(limit);
+  const listLimit = parseLimit(lists);
+  // Each section loads more on its own, keeping how far the other one got
+  const pageHref = (logCount: number, listCount: number) =>
+    `/item/${id}?limit=${logCount}&lists=${listCount}`;
 
   const result = await getItem(id);
   if (isCompoundId(id) && !FEATURES.compounds) notFound();
@@ -169,7 +178,7 @@ export default async function ItemPage({
   // answer what the viewer has liked, shared and blocked in both of them
   const [itemLogs, itemLists] = await Promise.all([
     getItemLogs(id),
-    getItemLists(id),
+    getItemLists(id, listLimit),
   ]);
   const viewer = await getViewerState(supabase, viewerId, {
     logIds: itemLogs.rows.map((r) => r.id),
@@ -320,7 +329,8 @@ export default async function ItemPage({
         <div className="min-w-0">
           <ItemLogs
             itemId={id}
-            limit={parseLimit(limit)}
+            limit={logLimit}
+            moreHref={pageHref(logLimit + PAGE_SIZE, listLimit)}
             rows={itemLogs.rows}
             error={itemLogs.error}
             viewerId={viewerId}
@@ -331,6 +341,11 @@ export default async function ItemPage({
           <ItemLists
             lists={itemLists.lists}
             error={itemLists.error}
+            moreHref={
+              itemLists.hasMore
+                ? pageHref(logLimit, listLimit + PAGE_SIZE)
+                : null
+            }
             viewerId={viewerId}
             viewer={viewer}
           />

@@ -2,17 +2,21 @@
 // ABOUTME: Shows the lists that include the item as cards, most recently added first.
 
 import ListCard from "@/components/ListCard";
+import LoadMore from "@/components/LoadMore";
 import type { ItemListRow } from "@/lib/itemLists";
 import type { ViewerState } from "@/lib/viewerState";
 
 export default function ItemLists({
   lists,
   error,
+  moreHref,
   viewerId,
   viewer,
 }: {
   lists: ItemListRow[];
   error: string;
+  // Where the next page of lists comes from, when there are more
+  moreHref: string | null;
   viewerId: string | undefined;
   viewer: ViewerState;
 }) {
@@ -39,6 +43,7 @@ export default function ItemLists({
           showActivity={false}
         />
       ))}
+      {moreHref && <LoadMore key={lists.length} href={moreHref} />}
     </section>
   );
 }
