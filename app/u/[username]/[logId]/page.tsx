@@ -241,6 +241,7 @@ export default async function ReviewPage({
       <AlsoLiked
         username={profile.username}
         likes={alsoLiked.get(likeKey(log.user_id, log.item_id)) ?? []}
+        allHref={`${reviewHref}/liked`}
       />
 
       <Comments

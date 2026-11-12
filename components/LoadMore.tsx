@@ -1,23 +1,16 @@
 "use client";
 
 // ABOUTME: Loads the next page of a list once the bottom of it scrolls into view.
-// ABOUTME: Takes an href that asks the server for more, or an onLoad callback.
+// ABOUTME: Calls onLoad to fetch it; the caller appends what comes back.
 
-import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useRef } from "react";
-
-type Props = { href: string } | { onLoad: () => void };
 
 // It loads once per mount, so give it a `key` that changes when the next page
 // has arrived. If the bottom is still in view then, it loads again.
-export default function LoadMore(props: Props) {
-  const router = useRouter();
+export default function LoadMore({ onLoad }: { onLoad: () => void }) {
   const ref = useRef<HTMLParagraphElement>(null);
 
-  const load = useEffectEvent(() => {
-    if ("href" in props) router.replace(props.href, { scroll: false });
-    else props.onLoad();
-  });
+  const load = useEffectEvent(() => onLoad());
 
   useEffect(() => {
     const el = ref.current;

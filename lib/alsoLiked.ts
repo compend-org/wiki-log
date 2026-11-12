@@ -7,6 +7,8 @@ export type AlsoLikedEntry = {
   username: string;
   avatarPath: string | null;
   rating: number;
+  // Whether the review has written text, not just a rating
+  hasText: boolean;
 };
 
 // Keyed by likeKey(reviewerId, itemId): the entries that reviewer has liked on
@@ -18,6 +20,7 @@ type Row = {
   user_id: string;
   item_id: string;
   rating: number;
+  review: string;
   logged_at: string;
   likes: { user_id: string; created_at: string }[];
 };
@@ -37,7 +40,7 @@ export async function getAlsoLiked(
   const { data } = await supabase
     .from("logs")
     .select(
-      "id, user_id, item_id, rating, logged_at, likes!inner(user_id, created_at)",
+      "id, user_id, item_id, rating, review, logged_at, likes!inner(user_id, created_at)",
     )
     .in("item_id", itemIds)
     .in("likes.user_id", reviewerIds);
@@ -82,6 +85,7 @@ export async function getAlsoLiked(
             username: person.username,
             avatarPath: person.avatar_path ?? null,
             rating: Number(log.rating),
+            hasText: log.review.trim() !== "",
           },
         });
       }

@@ -2,9 +2,9 @@
 // ABOUTME: Checks what the browser sent, then renders the page's cards for the viewer.
 "use server";
 
+import type { CardsPage } from "@/components/CardPages";
 import {
   loadProfilePage,
-  type ProfileCardsPage,
   type ProfileKind,
 } from "@/components/loadProfilePage";
 import { isUuid } from "@/lib/ids";
@@ -14,7 +14,7 @@ export async function loadMoreProfile(
   profileId: string,
   kind: ProfileKind,
   cursor: unknown,
-): Promise<ProfileCardsPage> {
+): Promise<CardsPage> {
   const after = parseKeyset(cursor);
   if (
     typeof profileId !== "string" ||

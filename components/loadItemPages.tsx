@@ -1,0 +1,123 @@
+// ABOUTME: Loads the paged sections about one item a page at a time, rendered as cards:
+// ABOUTME: its reviews, the lists that include it, and the reviews of it one person liked.
+import type { CardsPage } from "@/components/CardPages";
+import ItemLogCard from "@/components/ItemLogCard";
+import ListCard from "@/components/ListCard";
+import { getAdminIds } from "@/lib/admin";
+import { getItemLists, type ItemListRow } from "@/lib/itemLists";
+import {
+  getItemLogs,
+  getItemLogsLikedBy,
+  type ItemLogRow,
+} from "@/lib/itemLogs";
+import type { Keyset } from "@/lib/paging";
+import { createClient } from "@/lib/supabase/server";
+import { getViewerState, type ViewerState } from "@/lib/viewerState";
+
+export function renderItemListCards(
+  lists: ItemListRow[],
+  viewerId: string | undefined,
+  viewer: ViewerState,
+) {
+  return lists.map((l) => ({
+    key: l.id,
+    card: (
+      <ListCard
+        list={l}
+        thumbs={l.preview.map((p) => ({
+          title: p.items?.title ?? "Unknown item",
+          image_url: p.items?.image_url ?? null,
+        }))}
+        viewerId={viewerId}
+        liked={viewer.likedLists.has(l.id)}
+        shared={viewer.sharedLists.has(l.id)}
+        showActivity={false}
+      />
+    ),
+  }));
+}
+
+// Reviews by people the viewer has blocked aren't shown
+export function renderItemLogCards(
+  rows: ItemLogRow[],
+  viewerId: string | undefined,
+  viewer: ViewerState,
+  adminIds: Set<string>,
+  renderedAt: number,
+) {
+  return rows
+    .filter((r) => !viewer.blocked.has(r.user_id))
+    .map((row) => ({
+      key: row.id,
+      card: (
+        <ItemLogCard
+          row={row}
+          isAdmin={adminIds.has(row.user_id)}
+          renderedAt={renderedAt}
+          viewerId={viewerId}
+          viewer={viewer}
+        />
+      ),
+    }));
+}
+
+// The database client for this request, and who is looking
+async function requestViewer() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  return { supabase, viewerId: data?.claims?.sub as string | undefined };
+}
+
+// A later page of the lists that include an item, for the server action
+export async function loadItemListsPage(
+  itemId: string,
+  after: Keyset,
+): Promise<CardsPage> {
+  const { supabase, viewerId: id } = await requestViewer();
+  const { lists, next, error } = await getItemLists(itemId, after);
+  const viewer = await getViewerState(supabase, id, {
+    listIds: lists.map((l) => l.id),
+  });
+  return { cards: renderItemListCards(lists, id, viewer), next, error };
+}
+
+// Renders a page of reviews for whoever is looking
+async function reviewCardsPage(
+  load: () => Promise<{
+    rows: ItemLogRow[];
+    next: Keyset | null;
+    error: string;
+  }>,
+): Promise<CardsPage> {
+  const renderedAt = Date.now();
+  const { supabase, viewerId: id } = await requestViewer();
+  const { rows, next, error } = await load();
+  const [viewer, adminIds] = await Promise.all([
+    getViewerState(supabase, id, { logIds: rows.map((r) => r.id) }),
+    getAdminIds(),
+  ]);
+  return {
+    cards: renderItemLogCards(rows, id, viewer, adminIds, renderedAt),
+    next,
+    error,
+  };
+}
+
+// A later page of an item's newest reviews, for the server action. The ones
+// in `exclude` show above them, so they don't repeat.
+export function loadItemLogsPage(
+  itemId: string,
+  exclude: string[],
+  after: Keyset,
+): Promise<CardsPage> {
+  return reviewCardsPage(() => getItemLogs(itemId, exclude, after));
+}
+
+// A page of the reviews of an item that one person liked
+export function loadLikedReviewsPage(
+  itemId: string,
+  userId: string,
+  after: Keyset | null,
+): Promise<CardsPage> {
+  return reviewCardsPage(() => getItemLogsLikedBy(itemId, userId, after));
+}

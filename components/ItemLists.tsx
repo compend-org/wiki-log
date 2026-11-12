@@ -1,17 +1,25 @@
 // ABOUTME: The "In Lists" section of an item page.
 // ABOUTME: Shows the lists that include the item as cards, most recently added first.
 
-import ListCard from "@/components/ListCard";
+import { loadMoreItemLists } from "@/app/itemPagesActions";
+import CardPages from "@/components/CardPages";
+import { renderItemListCards } from "@/components/loadItemPages";
 import type { ItemListRow } from "@/lib/itemLists";
+import type { Keyset } from "@/lib/paging";
 import type { ViewerState } from "@/lib/viewerState";
 
 export default function ItemLists({
+  itemId,
   lists,
+  next,
   error,
   viewerId,
   viewer,
 }: {
+  itemId: string;
+  // The first page of lists, and where the next one starts
   lists: ItemListRow[];
+  next: Keyset | null;
   error: string;
   viewerId: string | undefined;
   viewer: ViewerState;
@@ -25,20 +33,14 @@ export default function ItemLists({
       <h2 className="text-xl font-bold">
         {lists.length === 0 ? "Not in any lists yet" : "In Lists"}
       </h2>
-      {lists.map((l) => (
-        <ListCard
-          key={l.id}
-          list={l}
-          thumbs={l.preview.map((p) => ({
-            title: p.items?.title ?? "Unknown item",
-            image_url: p.items?.image_url ?? null,
-          }))}
-          viewerId={viewerId}
-          liked={viewer.likedLists.has(l.id)}
-          shared={viewer.sharedLists.has(l.id)}
-          showActivity={false}
-        />
-      ))}
+      <CardPages
+        first={{
+          cards: renderItemListCards(lists, viewerId, viewer),
+          next,
+          error,
+        }}
+        loadMore={loadMoreItemLists.bind(null, itemId)}
+      />
     </section>
   );
 }
