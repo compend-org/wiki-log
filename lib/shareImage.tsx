@@ -20,33 +20,44 @@ type Font = {
   style: "normal";
 };
 
+// A Google Fonts family in regular and bold
+async function loadGoogleFont(family: string): Promise<Font[]> {
+  const css = await fetch(
+    `https://fonts.googleapis.com/css2?family=${family.replaceAll(" ", "+")}:wght@400;700`,
+  ).then((res) => res.text());
+  const faces = [
+    ...css.matchAll(/font-weight: (400|700);\s*src: url\((.+?)\)/g),
+  ];
+  if (faces.length === 0) throw new Error(`No ${family} fonts found`);
+  return Promise.all(
+    faces.map(async ([, weight, url]) => ({
+      name: family,
+      data: await fetch(url).then((res) => res.arrayBuffer()),
+      weight: Number(weight) as 400 | 700,
+      style: "normal" as const,
+    })),
+  );
+}
+
 // Tinos is a free serif drawn to the same measurements as Times New Roman,
-// the site's own font. It's fetched once per server and reused.
+// the site's own font. Tinos has no Arabic letters, so Arabic is drawn in
+// Markazi Text, a serif the renderer can join the letters of. Without it the
+// renderer fetches Noto Sans Arabic, which it fails to draw. They're fetched
+// once per server and reused.
 let serifFonts: Promise<Font[]> | null = null;
 
 export function loadSerifFonts(): Promise<Font[]> {
-  serifFonts ??= (async () => {
-    const css = await fetch(
-      "https://fonts.googleapis.com/css2?family=Tinos:wght@400;700",
-    ).then((res) => res.text());
-    const faces = [
-      ...css.matchAll(/font-weight: (400|700);\s*src: url\((.+?)\)/g),
-    ];
-    if (faces.length === 0) throw new Error("No Tinos fonts found");
-    return Promise.all(
-      faces.map(async ([, weight, url]) => ({
-        name: "Tinos",
-        data: await fetch(url).then((res) => res.arrayBuffer()),
-        weight: Number(weight) as 400 | 700,
-        style: "normal" as const,
-      })),
-    );
-  })().catch((error) => {
-    // Try again on the next image; this one uses the default font
-    console.error("Loading the share image font failed:", error);
-    serifFonts = null;
-    return [];
-  });
+  serifFonts ??= Promise.all([
+    loadGoogleFont("Tinos"),
+    loadGoogleFont("Markazi Text"),
+  ])
+    .then((families) => families.flat())
+    .catch((error) => {
+      // Try again on the next image; this one uses the default font
+      console.error("Loading the share image font failed:", error);
+      serifFonts = null;
+      return [];
+    });
   return serifFonts;
 }
 
