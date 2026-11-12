@@ -19,7 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { addToList } from "@/app/actions";
 import ItemImage from "@/components/icons/ItemImage";
 import { track } from "@/lib/analytics";
@@ -114,11 +114,13 @@ export default function AddToList({
   title,
   imageUrl,
   signedIn: initiallySignedIn,
+  aside,
 }: {
   itemId: string;
   title: string;
   imageUrl: string | null;
   signedIn: boolean;
+  aside?: ReactNode;
 }) {
   const [signedIn, setSignedIn] = useState<boolean>(initiallySignedIn);
   const [open, setOpen] = useState<boolean>(false);
@@ -320,8 +322,11 @@ export default function AddToList({
     if (ok) setPlacing(null);
   }
 
-  // Nothing to offer signed-out visitors (the review form already says so)
-  if (!signedIn) return null;
+  // Nothing to offer signed-out visitors (the review form already says so),
+  // but the aside still has its place
+  if (!signedIn) {
+    return aside ? <div className="flex justify-end">{aside}</div> : null;
+  }
 
   // Lists not loaded yet, once the shown ones belong to the search typed
   const moreLists =
@@ -329,14 +334,17 @@ export default function AddToList({
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        type="button"
-        onClick={toggleOpen}
-        aria-expanded={open}
-        className="self-start rounded-lg border border-line px-4 py-2 text-sm hover:border-accent"
-      >
-        Add to list
-      </button>
+      <div className="flex items-center justify-between gap-4">
+        <button
+          type="button"
+          onClick={toggleOpen}
+          aria-expanded={open}
+          className="rounded-lg border border-line px-4 py-2 text-sm hover:border-accent"
+        >
+          Add to list
+        </button>
+        {aside}
+      </div>
 
       {open && (
         <div className="card flex flex-col gap-3 p-3">

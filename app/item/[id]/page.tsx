@@ -317,6 +317,16 @@ export default async function ItemPage({
           title={item.title}
           imageUrl={item.imageUrl}
           signedIn={Boolean(viewerId)}
+          aside={
+            <div className="hidden shrink-0 sm:block">
+              <RatingHistogram
+                ratings={ratings}
+                highlight={myRating}
+                hrefBase={`/item/${item.id}/ratings`}
+                compact
+              />
+            </div>
+          }
         />
         <div id="log" className="scroll-mt-4">
           <LogForm
@@ -326,19 +336,20 @@ export default async function ItemPage({
           />
         </div>
         <MyEntries entries={myEntries} />
-        <RatingHistogram
-          ratings={ratings}
-          highlight={myRating}
-          action={
-            // On phones, shares the item and its histogram as one picture
-            <ShareImageButton
-              imageHref={`/item/${item.id}/ratings-image`}
-              fileName={`${item.title}-ratings.png`}
-              className="sm:hidden"
-            />
-          }
-          hrefBase={`/item/${item.id}/ratings`}
-        />
+        <div className="sm:hidden">
+          <RatingHistogram
+            ratings={ratings}
+            highlight={myRating}
+            action={
+              // Shares the item and its histogram as one picture
+              <ShareImageButton
+                imageHref={`/item/${item.id}/ratings-image`}
+                fileName={`${item.title}-ratings.png`}
+              />
+            }
+            hrefBase={`/item/${item.id}/ratings`}
+          />
+        </div>
       </div>
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0">
