@@ -24,6 +24,7 @@ import {
   renderProfileList,
   renderProfileLog,
 } from "@/components/loadProfilePage";
+import RatingHistogram from "@/components/RatingsHistogram";
 import { isAdmin } from "@/lib/admin";
 import { avatarUrl } from "@/lib/avatar";
 import type { LogRow } from "@/lib/feedData";
@@ -163,21 +164,30 @@ export default async function ProfilePage({
   // The lists and reviews below start again from the first page when the pins
   // change, since the pinned cards move out of them or back in
   const pinsKey = pinRows.map((p) => p.log_id ?? p.list_id).join(",");
-  const [pinnedLogsRes, pinnedListsRes, listRows, logRows] = await Promise.all([
-    pinnedLogIds.length > 0
-      ? supabase.from("logs").select(LOG_FIELDS).in("id", pinnedLogIds)
-      : { data: [] },
-    pinnedListIds.length > 0
-      ? supabase
-          .from("lists")
-          .select(LIST_FIELDS)
-          .in("id", pinnedListIds)
-          .lte("preview.position", 4)
-          .order("position", { referencedTable: "preview" })
-      : { data: [] },
-    fetchProfileRows(supabase, ctx, "lists", null),
-    fetchProfileRows(supabase, ctx, "reviews", null),
-  ]);
+  const [pinnedLogsRes, pinnedListsRes, listRows, logRows, ratingCountsRes] =
+    await Promise.all([
+      pinnedLogIds.length > 0
+        ? supabase.from("logs").select(LOG_FIELDS).in("id", pinnedLogIds)
+        : { data: [] },
+      pinnedListIds.length > 0
+        ? supabase
+            .from("lists")
+            .select(LIST_FIELDS)
+            .in("id", pinnedListIds)
+            .lte("preview.position", 4)
+            .order("position", { referencedTable: "preview" })
+        : { data: [] },
+      fetchProfileRows(supabase, ctx, "lists", null),
+      fetchProfileRows(supabase, ctx, "reviews", null),
+      supabase.rpc("profile_rating_counts", { p_user: profile.id }),
+    ]);
+  // One rating per item they rated, for the histogram
+  const ratings = (
+    (ratingCountsRes.data ?? []) as {
+      step: number | string;
+      n: number | string;
+    }[]
+  ).flatMap((r) => Array<number>(Number(r.n)).fill(Number(r.step)));
   const pinnedLogs = new Map(
     ((pinnedLogsRes.data ?? []) as unknown as LogRow[]).map((l) => [l.id, l]),
   );
@@ -240,7 +250,7 @@ export default async function ProfilePage({
         </p>
       )}
       <header className="flex flex-col gap-1">
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-4">
           <Avatar
             name={profile.username}
             path={profile.avatar_path}
@@ -280,51 +290,61 @@ export default async function ProfilePage({
             {profile.bio}
           </p>
         )}
-        <div className="mt-2 flex items-center gap-4">
-          {!viewerId ? (
-            <Link href={loginHref(profileHref)} className="underline">
-              Sign in to follow
-            </Link>
-          ) : isOwner ? (
-            <div className="flex items-center gap-4">
-              <Link href="/settings" className="underline">
-                Profile settings
+        <div className="mt-2 flex items-center justify-between gap-4">
+          <div className="mt-2 flex items-center gap-4">
+            {!viewerId ? (
+              <Link href={loginHref(profileHref)} className="underline">
+                Sign in to follow
               </Link>
-              <SignOutButton className="inline-flex sm:hidden" />
-            </div>
-          ) : (
-            <div className="flex items-start gap-3">
-              {/* Nobody can follow someone they have blocked */}
-              {!isBlocked && (
-                <FollowButton
+            ) : isOwner ? (
+              <div className="flex items-center gap-4">
+                <Link href="/settings" className="underline">
+                  Profile settings
+                </Link>
+                <SignOutButton className="inline-flex sm:hidden" />
+              </div>
+            ) : (
+              <div className="flex items-start gap-3">
+                {/* Nobody can follow someone they have blocked */}
+                {!isBlocked && (
+                  <FollowButton
+                    viewerId={viewerId}
+                    targetId={profile.id}
+                    initiallyFollowing={isFollowing}
+                    followsViewer={followsViewer}
+                  />
+                )}
+                <BlockButton
                   viewerId={viewerId}
                   targetId={profile.id}
-                  initiallyFollowing={isFollowing}
-                  followsViewer={followsViewer}
+                  targetName={profile.username}
+                  initiallyBlocked={isBlocked}
                 />
-              )}
-              <BlockButton
-                viewerId={viewerId}
-                targetId={profile.id}
-                targetName={profile.username}
-                initiallyBlocked={isBlocked}
+                <ReportButton
+                  viewerId={viewerId}
+                  ownerId={profile.id}
+                  kind="profile"
+                  targetId={profile.id}
+                  className="rounded-lg border border-line px-4 py-2 text-muted"
+                />
+              </div>
+            )}
+            {viewerIsAdmin && !profileIsAdmin && (
+              <BanButton
+                userId={profile.id}
+                username={profile.username}
+                redirectTo="/"
               />
-              <ReportButton
-                viewerId={viewerId}
-                ownerId={profile.id}
-                kind="profile"
-                targetId={profile.id}
-                className="rounded-lg border border-line px-4 py-2 text-muted"
-              />
-            </div>
-          )}
-          {viewerIsAdmin && !profileIsAdmin && (
-            <BanButton
-              userId={profile.id}
-              username={profile.username}
-              redirectTo="/"
+            )}
+          </div>
+          <div className="hidden shrink-0 sm:block">
+            <RatingHistogram
+              ratings={ratings}
+              highlight={null}
+              unit={{ one: "rating", other: "ratings" }}
+              compact
             />
-          )}
+          </div>
         </div>
       </header>
       {(isOwner || slots.some(Boolean)) && (
@@ -342,6 +362,14 @@ export default async function ProfilePage({
           )}
         </section>
       )}
+
+      <div className="sm:hidden">
+        <RatingHistogram
+          ratings={ratings}
+          highlight={null}
+          unit={{ one: "rating", other: "ratings" }}
+        />
+      </div>
 
       {(firstLists.cards.length > 0 ||
         firstLists.next ||
