@@ -175,6 +175,13 @@ export default async function ItemPage({
     ),
     getItemLists(id, null),
   ]);
+  // The reviews section starts over from its first page when the viewer adds,
+  // edits or deletes one of their entries, or the most liked ones change,
+  // since the pages it already loaded no longer match
+  const logsKey = JSON.stringify([
+    myEntries.map((e) => [e.id, e.rating, e.review]),
+    mostLiked.rows.map((r) => r.id),
+  ]);
   const viewer = await getViewerState(supabase, viewerId, {
     logIds: [...mostLiked.rows, ...recentLogs.rows].map((r) => r.id),
     listIds: itemLists.lists.map((l) => l.id),
@@ -323,6 +330,7 @@ export default async function ItemPage({
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0">
           <ItemLogs
+            key={logsKey}
             itemId={id}
             popular={mostLiked.rows}
             recent={recentLogs.rows}

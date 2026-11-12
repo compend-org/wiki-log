@@ -65,7 +65,7 @@ export default async function LikedReviewsPage({
           {title}
         </Link>
       </p>
-      {first.cards.length === 0 && !first.error && (
+      {first.cards.length === 0 && !first.next && !first.error && (
         <p className="text-muted">Nothing here yet.</p>
       )}
       <CardPages
