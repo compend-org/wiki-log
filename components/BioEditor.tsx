@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
-import { useDraft } from "@/lib/useDraft";
+import { useLocalCopy } from "@/lib/useLocalCopy";
 
 const MAX = 300;
 
@@ -16,7 +16,7 @@ export default function BioEditor({
   savedBio: string;
 }) {
   const router = useRouter();
-  const [bio, setBio] = useDraft(savedBio);
+  const [bio, setBio] = useLocalCopy(savedBio);
   const [busy, setBusy] = useState<boolean>(false);
   const [refreshing, startRefresh] = useTransition();
   const [message, setMessage] = useState<string>("");

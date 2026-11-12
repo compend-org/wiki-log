@@ -7,6 +7,7 @@ import { useState } from "react";
 import Dialog from "@/components/Dialog";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
+import { useLocalCopy } from "@/lib/useLocalCopy";
 
 export default function BlockButton({
   viewerId,
@@ -19,7 +20,7 @@ export default function BlockButton({
   targetName: string;
   initiallyBlocked: boolean;
 }) {
-  const [blocked, setBlocked] = useState<boolean>(initiallyBlocked);
+  const [blocked, setBlocked] = useLocalCopy(initiallyBlocked);
   const [open, setOpen] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");

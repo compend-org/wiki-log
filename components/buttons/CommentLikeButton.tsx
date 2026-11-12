@@ -5,6 +5,7 @@ import { useState } from "react";
 import HeartIcon from "@/components/HeartIcon";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
+import { useLocalCopy } from "@/lib/useLocalCopy";
 import { useLoginHref } from "@/lib/useLoginHref";
 
 // Where likes on each kind of comment are kept
@@ -30,8 +31,9 @@ export default function CommentLikeButton({
   initiallyLiked: boolean;
 }) {
   const loginHref = useLoginHref();
-  const [liked, setLiked] = useState<boolean>(initiallyLiked);
-  const [count, setCount] = useState<number>(initialCount);
+  const [liked, setLiked] = useLocalCopy(initiallyLiked);
+  // The server's count already includes the viewer's like when it says liked
+  const count = initialCount + Number(liked) - Number(initiallyLiked);
   const [busy, setBusy] = useState<boolean>(false);
   const router = useRouter();
 
@@ -48,7 +50,6 @@ export default function CommentLikeButton({
     const next = !liked;
     // Update the screen immediately, undo if the database refuses
     setLiked(next);
-    setCount((c) => c + (next ? 1 : -1));
 
     const likes = LIKES[commentTable];
     const supabase = createClient();
@@ -64,7 +65,6 @@ export default function CommentLikeButton({
 
     if (error) {
       setLiked(!next);
-      setCount((c) => c + (next ? -1 : 1));
     } else {
       track(next ? "liked" : "unliked", { target: "comment" });
     }

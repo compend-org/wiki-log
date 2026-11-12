@@ -14,6 +14,7 @@ import {
 } from "@/lib/logAvailability";
 import { isMissingLogError } from "@/lib/missingLogError";
 import { createClient } from "@/lib/supabase/client";
+import { useLocalCopy } from "@/lib/useLocalCopy";
 import { useLoginHref } from "@/lib/useLoginHref";
 
 // Shares (reposts) a review or a list to the people who follow you
@@ -32,8 +33,12 @@ export default function ShareButton({
   initiallyShared: boolean;
 }) {
   const loginHref = useLoginHref();
-  const [shared, setShared] = useState<boolean>(initiallyShared);
-  const [count, setCount] = useState<number>(initialCount);
+  const [shared, setShared] = useLocalCopy(initiallyShared);
+  // The server's count already includes the viewer's share when it says shared
+  const count = Math.max(
+    0,
+    initialCount + Number(shared) - Number(initiallyShared),
+  );
   const [busy, setBusy] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
@@ -54,7 +59,6 @@ export default function ShareButton({
     const next = !shared;
     // Update the screen immediately, undo if the database refuses
     setShared(next);
-    setCount((c) => Math.max(0, c + (next ? 1 : -1)));
 
     const supabase = createClient();
     const { error } = next
@@ -69,7 +73,6 @@ export default function ShareButton({
 
     if (error) {
       setShared(!next);
-      setCount((c) => Math.max(0, c + (next ? -1 : 1)));
       if (logId !== null && isMissingLogError(error, "shares")) {
         markLogUnavailable(logId);
         router.refresh();

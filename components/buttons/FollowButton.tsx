@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
+import { useLocalCopy } from "@/lib/useLocalCopy";
 
 export default function FollowButton({
   viewerId,
@@ -17,7 +18,7 @@ export default function FollowButton({
   // Whether the target already follows the viewer, so the button can offer to follow back
   followsViewer?: boolean;
 }) {
-  const [following, setFollowing] = useState<boolean>(initiallyFollowing);
+  const [following, setFollowing] = useLocalCopy(initiallyFollowing);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const router = useRouter();
