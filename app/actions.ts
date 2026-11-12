@@ -1,9 +1,15 @@
-// ABOUTME: Server actions for accounts, logs, favourites, lists and compounds.
+// ABOUTME: Server actions for accounts, logs, comments, favourites, lists and compounds.
 // ABOUTME: Caches items looked up from Wikipedia before anything refers to them.
 "use server";
 
 import { updateTag } from "next/cache";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
+import {
+  COMMENT_IMAGE_BUCKETS,
+  commentImagePaths,
+  deleteCommentImageFiles,
+} from "@/lib/commentImageFiles";
+import { COMMENT_TABLES, type CommentTable } from "@/lib/comments";
 import { withErrorContext } from "@/lib/errorContext";
 import { FEATURES } from "@/lib/features";
 import { ITEM_ID_PATTERN, isCompoundId, isUuid } from "@/lib/ids";
@@ -130,16 +136,27 @@ export async function logItem(input: {
   return {};
 }
 
-// Deletes someone's avatar files and their auth user
+// Deletes every file in someone's folder of a storage bucket, a page at a time
+async function emptyStorageFolder(bucket: string, userId: string) {
+  const storage = createAdminClient().storage.from(bucket);
+  for (;;) {
+    const { data: files } = await storage.list(userId, { limit: 1000 });
+    if (!files || files.length === 0) return;
+    const { error } = await storage.remove(
+      files.map((f) => `${userId}/${f.name}`),
+    );
+    if (error) return;
+  }
+}
+
+// Deletes someone's avatar and comment image files and their auth user
 async function removeAccount(userId: string): Promise<{ error?: string }> {
   // Deleting the auth user also deletes their profile, logs, favourites and
   // follows (the foreign keys use "on delete cascade")
   const admin = createAdminClient();
-  const { data: files } = await admin.storage.from("avatars").list(userId);
-  if (files && files.length > 0) {
-    await admin.storage
-      .from("avatars")
-      .remove(files.map((f) => `${userId}/${f.name}`));
+  await emptyStorageFolder("avatars", userId);
+  for (const bucket of COMMENT_IMAGE_BUCKETS) {
+    await emptyStorageFolder(bucket, userId);
   }
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) return { error: error.message };
@@ -191,6 +208,31 @@ async function setSignInBanned(
     { ban_duration: banned ? "876000h" : "none" },
   );
   return error ? { error: error.message } : {};
+}
+
+// Deletes a comment the viewer wrote, or one on their review or list, along
+// with its replies and the image files of them all
+export async function deleteComment(
+  table: CommentTable,
+  commentId: string,
+): Promise<{ error?: string }> {
+  if (!COMMENT_TABLES.includes(table) || !isUuid(commentId)) {
+    return { error: "Invalid comment." };
+  }
+
+  // Read first: once the comment is gone, so are its replies' rows
+  const images = await commentImagePaths(table, commentId, true);
+  if (images.error) return { error: images.error };
+
+  // Deleted as the signed-in user, so RLS decides who may
+  const supabase = await createClient();
+  const { error, count } = await supabase
+    .from(table)
+    .delete({ count: "exact" })
+    .eq("id", commentId);
+  if (error) return { error: error.message };
+  if (count) await deleteCommentImageFiles(images.paths);
+  return {};
 }
 
 // Admins only: hides the account and everything it posted, then blocks its

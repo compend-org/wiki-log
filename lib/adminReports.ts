@@ -13,6 +13,8 @@ export type AdminPost = {
   removed_at?: string | null;
   at?: string;
   body?: string | null;
+  // Comments only: how many images or GIFs it has
+  image_count?: number;
   rating?: number | null;
   item_id?: string;
   title?: string | null;
@@ -61,8 +63,9 @@ export type AccountReport = {
   details: string | null;
   status: ReportStatus;
   at: string;
-  reporter_id: string;
-  reporter: string;
+  // Null for reports filed by the automatic image check
+  reporter_id: string | null;
+  reporter: string | null;
 };
 
 export type ReportedAccount = {
@@ -132,7 +135,9 @@ export type ModerationAction = {
     | "ban"
     | "unban"
     | "close_reports"
-    | "reopen_reports";
+    | "reopen_reports"
+    | "block_images"
+    | "unblock_images";
   at: string;
   admin: string | null;
   reason: string | null;
@@ -147,6 +152,8 @@ export type ModerationAction = {
 export type AccountModeration = {
   banned_at: string | null;
   suspended_until: string | null;
+  // Since when a moderator has stopped them attaching images
+  images_blocked_at: string | null;
   actions: ModerationAction[];
 };
 

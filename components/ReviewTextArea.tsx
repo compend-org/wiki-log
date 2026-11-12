@@ -50,6 +50,7 @@ export default function ReviewTextarea({
   maxLength = 5000,
   className = "",
   autoFocus = false,
+  accessory,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -58,6 +59,8 @@ export default function ReviewTextarea({
   maxLength?: number;
   className?: string;
   autoFocus?: boolean;
+  // A small control shown inside the box, at its bottom left
+  accessory?: React.ReactNode;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const backdrop = useRef<HTMLDivElement>(null);
@@ -221,6 +224,8 @@ export default function ReviewTextarea({
         <div
           ref={backdrop}
           aria-hidden
+          // Room under the text for the control, on both layers so they line up
+          style={accessory ? { paddingBottom: "2.5rem" } : undefined}
           className={`${className} pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words [scrollbar-gutter:stable]`}
         >
           {coloured}
@@ -239,8 +244,13 @@ export default function ReviewTextarea({
           }}
           rows={rows}
           placeholder={placeholder}
+          // Room under the text for the control, on both layers so they line up
+          style={accessory ? { paddingBottom: "2.5rem" } : undefined}
           className={`${className} relative block w-full bg-transparent! text-transparent! caret-foreground [scrollbar-gutter:stable]`}
         />
+        {accessory && (
+          <div className="absolute bottom-1 left-1">{accessory}</div>
+        )}
       </div>
       {picking && (
         // biome-ignore lint/a11y/noStaticElementInteractions: Escape from the picker inside closes it

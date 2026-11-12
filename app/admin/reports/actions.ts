@@ -5,6 +5,12 @@
 import { updateTag } from "next/cache";
 import type { PostKind, ReportKind, ReportStatus } from "@/lib/adminReports";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
+import {
+  commentImagePaths,
+  hideCommentImageFiles,
+  showCommentImageFiles,
+} from "@/lib/commentImageFiles";
+import type { CommentTable } from "@/lib/comments";
 import { isUuid } from "@/lib/ids";
 import {
   cleanNote,
@@ -17,6 +23,11 @@ import { createClient } from "@/lib/supabase/server";
 const KINDS: PostKind[] = ["log", "list", "comment", "list_comment"];
 const REPORT_KINDS: ReportKind[] = [...KINDS, "profile"];
 const STATUSES: ReportStatus[] = ["open", "actioned", "dismissed"];
+// Where each kind of comment is stored
+const COMMENT_TABLE_OF: Partial<Record<PostKind, CommentTable>> = {
+  comment: "comments",
+  list_comment: "list_comments",
+};
 
 export async function setReportStatus(
   kind: ReportKind,
@@ -84,6 +95,18 @@ export async function removePost(
   if (error) return { error: error.message };
   // The feeds keep a copy of public posts for a few minutes
   updateTag(POSTS_CACHE_TAG);
+
+  // Images are served by public URL, so hiding the comment isn't enough.
+  // The database has checked this is an admin acting.
+  const table = COMMENT_TABLE_OF[kind];
+  if (table) {
+    const images = await commentImagePaths(table, postId, false);
+    if (images.error) return { error: `Removed, but ${images.error}` };
+    const failed = await hideCommentImageFiles(images.paths);
+    if (failed > 0) {
+      return { error: `Removed, but ${failed} image(s) are still public.` };
+    }
+  }
   return {};
 }
 
@@ -103,6 +126,17 @@ export async function restorePost(
   });
   if (error) return { error: error.message };
   updateTag(POSTS_CACHE_TAG);
+
+  // The database has checked this is an admin acting
+  const table = COMMENT_TABLE_OF[kind];
+  if (table) {
+    const images = await commentImagePaths(table, postId, false);
+    if (images.error) return { error: `Restored, but ${images.error}` };
+    const failed = await showCommentImageFiles(images.paths);
+    if (failed > 0) {
+      return { error: `Restored, but ${failed} image(s) didn't come back.` };
+    }
+  }
   return {};
 }
 
@@ -150,6 +184,38 @@ export async function liftSuspension(
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("admin_lift_suspension", {
+    p_user_id: userId,
+    p_note: cleanNote(input.note),
+  });
+  return error ? { error: error.message } : {};
+}
+
+// Stops someone attaching images to comments, until lifted. Their images
+// already posted stay up, and they aren't told.
+export async function blockImages(
+  userId: string,
+  input: ModerationInput,
+): Promise<{ error?: string }> {
+  if (!isUuid(userId)) return { error: "Invalid user." };
+  if (!isReportReason(input.reason)) return { error: "Choose a reason." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_block_images", {
+    p_user_id: userId,
+    p_reason: input.reason,
+    p_note: cleanNote(input.note),
+  });
+  return error ? { error: error.message } : {};
+}
+
+export async function unblockImages(
+  userId: string,
+  input: ModerationInput,
+): Promise<{ error?: string }> {
+  if (!isUuid(userId)) return { error: "Invalid user." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_unblock_images", {
     p_user_id: userId,
     p_note: cleanNote(input.note),
   });

@@ -6,10 +6,12 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { unbanUser } from "@/app/actions";
 import {
+  blockImages,
   liftSuspension,
   removePost,
   restorePost,
   setReportStatus,
+  unblockImages,
   warnUser,
 } from "@/app/admin/reports/actions";
 import AdminBadge from "@/components/AdminBadge";
@@ -90,6 +92,8 @@ const ACTION_LABELS: Record<ModerationAction["kind"], string> = {
   unban: "Lifted the ban",
   close_reports: "Closed reports",
   reopen_reports: "Reopened reports",
+  block_images: "Blocked images",
+  unblock_images: "Allowed images again",
 };
 
 function ActionEntry({
@@ -150,13 +154,17 @@ function FlaggedPost({
             <span className="font-medium">{report.reason}</span>
             <span className="text-muted">
               {" from "}
-              <Link
-                href={`/admin/reports/${report.reporter_id}`}
-                prefetch={false}
-                className="hover:underline"
-              >
-                {report.reporter}
-              </Link>
+              {report.reporter_id ? (
+                <Link
+                  href={`/admin/reports/${report.reporter_id}`}
+                  prefetch={false}
+                  className="hover:underline"
+                >
+                  {report.reporter}
+                </Link>
+              ) : (
+                "the automatic image check"
+              )}
               {` · ${timeAgo(report.at, now)}`}
               {report.status !== "open" && ` · ${report.status}`}
             </span>
@@ -256,6 +264,12 @@ export default async function ReportedAccountPage({
             {new Date(moderation.suspended_until).toLocaleString()}
           </p>
         )}
+        {moderation.images_blocked_at && (
+          <p className="font-medium text-danger">
+            Can't add images since{" "}
+            {new Date(moderation.images_blocked_at).toLocaleString()}
+          </p>
+        )}
         {!account.is_admin &&
           (moderation.banned_at ? (
             <div className="flex flex-wrap gap-2">
@@ -286,6 +300,22 @@ export default async function ReportedAccountPage({
                 <SuspendButton
                   userId={account.id}
                   username={account.username}
+                />
+              )}
+              {moderation.images_blocked_at ? (
+                <ModerationButton
+                  label="Allow images"
+                  title={`Let ${account.username} add images again?`}
+                  description="They can attach images and GIFs to comments again straight away. They aren't told."
+                  run={unblockImages.bind(null, account.id)}
+                />
+              ) : (
+                <ModerationButton
+                  label="Block images"
+                  title={`Stop ${account.username} adding images?`}
+                  description="They can't attach images or GIFs to comments until you allow it again. Images they already posted stay up. They aren't told, but the comment form stops offering images."
+                  askReason
+                  run={blockImages.bind(null, account.id)}
                 />
               )}
               <BanButton

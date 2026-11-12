@@ -73,6 +73,14 @@ export default function AdminPost({
       ) : (
         kind === "log" && <p className="text-sm text-muted">No written text</p>
       )}
+      {(post.image_count ?? 0) > 0 && (
+        <p className="text-sm text-muted">
+          {post.image_count === 1
+            ? "Has an image"
+            : `Has ${post.image_count} images`}{" "}
+          (not shown here)
+        </p>
+      )}
       {titles.length > 0 && (
         <p className={`text-sm text-muted ${clamp ? "line-clamp-2" : ""}`}>
           {titles.join(" · ")}

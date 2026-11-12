@@ -2,12 +2,21 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { deleteComment } from "@/app/actions";
 import CommentLikeButton from "@/components/buttons/CommentLikeButton";
 import ReportButton from "@/components/buttons/ReportButton";
+import CommentImageButton from "@/components/CommentImageButton";
+import CommentImagePreview from "@/components/CommentImagePreview";
+import CommentImages from "@/components/CommentImages";
 import ReviewText from "@/components/ReviewText";
 import { track } from "@/lib/analytics";
 import { mentionToken } from "@/lib/format";
+import type { ImageAttachStatus } from "@/lib/commentImages";
+import {
+  removeOwnCommentImages,
+  uploadCommentImages,
+} from "@/lib/commentImageUpload";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 import AdminBadge from "./AdminBadge";
@@ -18,6 +27,8 @@ export type CommentItem = {
   id: string;
   parentId: string | null;
   body: string;
+  // Paths of its images and GIFs in the comment-images bucket
+  images: string[];
   date: string;
   authorId: string;
   authorName: string;
@@ -54,32 +65,65 @@ export default function Comments({
   const [topText, setTopText] = useState<string>("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<string>("");
+  const [topImage, setTopImage] = useState<File | null>(null);
+  const [replyImage, setReplyImage] = useState<File | null>(null);
+  const [imageStatus, setImageStatus] = useState<ImageAttachStatus | null>(
+    null,
+  );
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [deleting, setDeleting] = useState<CommentItem | null>(null);
   const router = useRouter();
 
+  // New and blocked accounts can't attach images; the database enforces the
+  // same rule
+  useEffect(() => {
+    if (!viewerId) return;
+    createClient()
+      .rpc("my_image_attach_status")
+      .then(({ data }) => setImageStatus(data as ImageAttachStatus));
+  }, [viewerId]);
+
   const topLevel = comments.filter((c) => c.parentId === null);
   const repliesOf = (id: string) => comments.filter((c) => c.parentId === id);
 
-  async function post(body: string, parentId: string | null): Promise<boolean> {
+  async function post(
+    body: string,
+    image: File | null,
+    parentId: string | null,
+  ): Promise<boolean> {
     if (!viewerId) return false;
     const trimmed = body.trim();
-    if (trimmed.length < 1 || trimmed.length > 1000) {
-      setError("Comments are 1–1000 characters.");
+    if (trimmed.length > 1000) {
+      setError("Comments are up to 1000 characters.");
+      return false;
+    }
+    if (trimmed.length === 0 && !image) {
+      setError("Write something or add an image.");
       return false;
     }
 
     setBusy(true);
     setError("");
-    const { error } = await createClient()
-      .from(table)
-      .insert({
-        ...scope,
-        user_id: viewerId,
-        parent_id: parentId,
-        body: trimmed,
-      });
+    const supabase = createClient();
+    const uploaded = await uploadCommentImages(
+      supabase,
+      viewerId,
+      image ? [image] : [],
+    );
+    if (uploaded.error !== undefined) {
+      setBusy(false);
+      setError(uploaded.error);
+      return false;
+    }
+    const { error } = await supabase.from(table).insert({
+      ...scope,
+      user_id: viewerId,
+      parent_id: parentId,
+      body: trimmed,
+      images: uploaded.paths,
+    });
+    if (error) await removeOwnCommentImages(supabase, uploaded.paths);
     setBusy(false);
 
     if (error) {
@@ -97,14 +141,18 @@ export default function Comments({
 
   async function submitTop(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (await post(topText, null)) setTopText("");
+    if (await post(topText, topImage, null)) {
+      setTopText("");
+      setTopImage(null);
+    }
   }
 
   async function submitReply(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (replyTo && (await post(replyText, replyTo))) {
+    if (replyTo && (await post(replyText, replyImage, replyTo))) {
       setReplyTo(null);
       setReplyText("");
+      setReplyImage(null);
     }
   }
 
@@ -112,13 +160,10 @@ export default function Comments({
     if (!deleting) return;
     setBusy(true);
     setError("");
-    const { error } = await createClient()
-      .from(table)
-      .delete()
-      .eq("id", deleting.id);
+    const { error } = await deleteComment(table, deleting.id);
     setBusy(false);
     if (error) {
-      setError(error.message);
+      setError(error);
       return;
     }
     track("comment_deleted", { target: table === "comments" ? "log" : "list" });
@@ -160,9 +205,21 @@ export default function Comments({
             </span>
           )}
         </div>
-        <p className="whitespace-pre-wrap text-sm">
-          <ReviewText text={c.body} />
-        </p>
+        {c.body && (
+          <p className="whitespace-pre-wrap text-sm">
+            <ReviewText text={c.body} />
+          </p>
+        )}
+        {c.removed ? (
+          c.images.length > 0 && (
+            <p className="text-xs text-muted">
+              {c.images.length === 1 ? "Image" : "Images"} hidden by the
+              moderators
+            </p>
+          )
+        ) : (
+          <CommentImages paths={c.images} />
+        )}
         <div className="flex gap-3 text-xs text-muted">
           <CommentLikeButton
             viewerId={viewerId}
@@ -189,6 +246,7 @@ export default function Comments({
                     ? `${mentionToken(c.authorId, c.authorName)} `
                     : "",
                 );
+                setReplyImage(null);
                 setError("");
               }}
               className="hover:underline"
@@ -260,6 +318,19 @@ export default function Comments({
                   autoFocus
                   placeholder="Write a reply"
                   className={inputClass}
+                  accessory={
+                    <CommentImageButton
+                      status={imageStatus}
+                      onPick={setReplyImage}
+                      onError={setError}
+                      disabled={busy}
+                    />
+                  }
+                />
+                <CommentImagePreview
+                  file={replyImage}
+                  onRemove={() => setReplyImage(null)}
+                  disabled={busy}
                 />
                 <div className="flex gap-2">
                   <button
@@ -274,6 +345,7 @@ export default function Comments({
                     onClick={() => {
                       setReplyTo(null);
                       setReplyText("");
+                      setReplyImage(null);
                       setError("");
                     }}
                     className="rounded-lg border border-line px-3 py-1.5 text-sm"
@@ -296,10 +368,23 @@ export default function Comments({
             maxLength={1000}
             placeholder="Add a comment"
             className={inputClass}
+            accessory={
+              <CommentImageButton
+                status={imageStatus}
+                onPick={setTopImage}
+                onError={setError}
+                disabled={busy}
+              />
+            }
+          />
+          <CommentImagePreview
+            file={topImage}
+            onRemove={() => setTopImage(null)}
+            disabled={busy}
           />
           <button
             type="submit"
-            disabled={busy || topText.trim().length === 0}
+            disabled={busy || (topText.trim().length === 0 && !topImage)}
             className="self-start rounded-lg bg-accent px-4 py-2 text-background disabled:opacity-40"
           >
             {busy ? "Posting…" : "Comment"}

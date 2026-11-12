@@ -7,33 +7,16 @@ import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
 import { track } from "@/lib/analytics";
 import { AVATAR_SIZE, AVATAR_SMALL_SIZE, smallAvatarPath } from "@/lib/avatar";
+import { encodeJpeg } from "@/lib/jpeg";
 import { createClient } from "@/lib/supabase/client";
 
 // Centre-crop to a square, shrink, and re-encode as JPEG (this also drops
 // metadata such as location data stored in photos)
-async function toSquareJpeg(bitmap: ImageBitmap, size: number): Promise<Blob> {
+function toSquareJpeg(bitmap: ImageBitmap, size: number): Promise<Blob> {
   const side = Math.min(bitmap.width, bitmap.height);
-  const sx = (bitmap.width - side) / 2;
-  const sy = (bitmap.height - side) / 2;
-
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas unavailable");
-
-  ctx.fillStyle = "#111b26"; // behind any transparent areas
-  ctx.fillRect(0, 0, size, size);
-  ctx.imageSmoothingQuality = "high"; // keeps big shrinks from looking jagged
-  ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, size, size);
-
-  return new Promise((resolve, reject) =>
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Encoding failed"))),
-      "image/jpeg",
-      0.85,
-    ),
-  );
+  const x = (bitmap.width - side) / 2;
+  const y = (bitmap.height - side) / 2;
+  return encodeJpeg(bitmap, { x, y, width: side, height: side }, size, size);
 }
 
 export default function AvatarUpload() {
