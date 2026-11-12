@@ -1,4 +1,4 @@
-// ABOUTME: One long review on the Digest page, shown in full.
+// ABOUTME: One long review in the Digest tab, shown in full.
 // ABOUTME: The whole card opens the review; the links and buttons on it work on their own.
 import Link from "next/link";
 import LikeButton from "@/components/buttons/LikeButton";
