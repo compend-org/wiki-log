@@ -343,6 +343,7 @@ export default async function ProfilePage({
               highlight={null}
               unit={{ one: "rating", other: "ratings" }}
               compact
+              hrefBase={`${profileHref}/ratings`}
             />
           </div>
         </div>
@@ -368,6 +369,7 @@ export default async function ProfilePage({
           ratings={ratings}
           highlight={null}
           unit={{ one: "rating", other: "ratings" }}
+          hrefBase={`${profileHref}/ratings`}
         />
       </div>
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   barHeight,
@@ -5,6 +6,7 @@ import {
   RATING_STEPS,
   ratingHistogram,
   ratingStep,
+  starText,
 } from "@/lib/ratingHistogram";
 
 const PEOPLE = { one: "person", other: "people" };
@@ -18,6 +20,7 @@ export default function RatingHistogram({
   action,
   unit = PEOPLE,
   compact = false,
+  hrefBase,
 }: {
   // One rating per person (or per item, on a profile)
   ratings: number[];
@@ -29,6 +32,7 @@ export default function RatingHistogram({
   unit?: { one: string; other: string };
   // A small version without the heading, for tight spaces
   compact?: boolean;
+  hrefBase?: string;
 }) {
   if (ratings.length < MIN_HISTOGRAM_RATINGS) return null;
 
@@ -38,23 +42,52 @@ export default function RatingHistogram({
   const bars = (
     <div
       className={`flex items-end gap-1 ${compact ? "h-12" : "h-20"}`}
-      aria-hidden="true"
+      aria-hidden={hrefBase ? undefined : true}
     >
       {RATING_STEPS.map((step, i) => {
         const picked = highlight !== null && ratingStep(highlight) === step;
         const count = counts[i];
-        return (
-          <div
-            key={step}
-            title={`${step} ★: ${count} ${count === 1 ? unit.one : unit.other}`}
-            className="flex h-full flex-1 items-end"
-          >
+        const tip = `${starText(step)} · ${count} ${
+          count === 1 ? unit.one : unit.other
+        }`;
+        // Centred on its bar, except the outer ones, which open inwards so
+        // the tooltip stays inside the card
+        const place =
+          i < 2
+            ? "left-0"
+            : i >= RATING_STEPS.length - 2
+              ? "right-0"
+              : "left-1/2 -translate-x-1/2";
+        const cell = "group relative flex h-full flex-1 items-end";
+        const bar = (
+          <>
             <div
               className={`w-full rounded-sm ${
                 picked ? "bg-star" : count > 0 ? "bg-muted/50" : "bg-line/60"
               }`}
               style={{ height: barHeight(count, tallest) }}
             />
+            <span
+              role="tooltip"
+              className={`card pointer-events-none absolute bottom-full z-30 mb-1 hidden whitespace-nowrap px-2 py-1 text-xs text-foreground group-hover:block group-focus-visible:block ${place}`}
+            >
+              {tip}
+            </span>
+          </>
+        );
+        return hrefBase && count > 0 ? (
+          <Link
+            key={step}
+            href={`${hrefBase}/${step}`}
+            prefetch={false}
+            aria-label={tip}
+            className={`${cell} transition-opacity hover:opacity-70 hover:no-underline`}
+          >
+            {bar}
+          </Link>
+        ) : (
+          <div key={step} className={cell}>
+            {bar}
           </div>
         );
       })}

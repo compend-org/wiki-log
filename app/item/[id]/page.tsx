@@ -337,6 +337,7 @@ export default async function ItemPage({
               className="sm:hidden"
             />
           }
+          hrefBase={`/item/${item.id}/ratings`}
         />
       </div>
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">

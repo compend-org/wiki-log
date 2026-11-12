@@ -7,9 +7,11 @@ import {
   loadItemListsPage,
   loadItemLogsPage,
   loadLikedReviewsPage,
+  loadRatedReviewsPage,
 } from "@/components/loadItemPages";
 import { ITEM_ID_PATTERN, isUuid } from "@/lib/ids";
 import { parseKeyset } from "@/lib/paging";
+import { parseRatingStep } from "@/lib/ratingHistogram";
 
 function isItemId(value: unknown): value is string {
   return typeof value === "string" && ITEM_ID_PATTERN.test(value);
@@ -59,4 +61,17 @@ export async function loadMoreLikedReviews(
     throw new Error("That isn't a page of liked reviews.");
   }
   return loadLikedReviewsPage(itemId, userId, after);
+}
+
+export async function loadMoreRatedReviews(
+  itemId: unknown,
+  rating: unknown,
+  cursor: unknown,
+): Promise<CardsPage> {
+  const after = parseKeyset(cursor);
+  const step = parseRatingStep(rating);
+  if (!isItemId(itemId) || step === null || !after) {
+    throw new Error("That isn't a page of rated reviews.");
+  }
+  return loadRatedReviewsPage(itemId, step, after);
 }

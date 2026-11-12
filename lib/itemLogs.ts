@@ -104,3 +104,28 @@ export async function getItemLogsLikedBy(
   );
   return { rows: page.map((r) => r.logs), next, error: error?.message ?? "" };
 }
+
+// One page of the logs of one item with one rating, newest first, after
+// `after`, and where the next page starts
+export async function getItemLogsRated(
+  itemId: string,
+  rating: number,
+  after: Keyset | null,
+) {
+  const supabase = await createClient();
+  let query = supabase
+    .from("logs")
+    .select(ITEM_LOG_SELECT)
+    .eq("item_id", itemId)
+    .eq("rating", rating);
+  if (after) query = query.or(olderThan("logged_at", after));
+  const { data, error } = await query
+    .order("logged_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(PAGE_SIZE + 1);
+  const { page, next } = pageOf(
+    (data ?? []) as unknown as ItemLogRow[],
+    (r) => ({ at: r.logged_at, id: r.id }),
+  );
+  return { rows: page, next, error: error?.message ?? "" };
+}

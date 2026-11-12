@@ -8,6 +8,7 @@ import { getItemLists, type ItemListRow } from "@/lib/itemLists";
 import {
   getItemLogs,
   getItemLogsLikedBy,
+  getItemLogsRated,
   type ItemLogRow,
 } from "@/lib/itemLogs";
 import type { Keyset } from "@/lib/paging";
@@ -120,4 +121,13 @@ export function loadLikedReviewsPage(
   after: Keyset | null,
 ): Promise<CardsPage> {
   return reviewCardsPage(() => getItemLogsLikedBy(itemId, userId, after));
+}
+
+// A page of the reviews of an item that gave it one rating
+export function loadRatedReviewsPage(
+  itemId: string,
+  rating: number,
+  after: Keyset | null,
+): Promise<CardsPage> {
+  return reviewCardsPage(() => getItemLogsRated(itemId, rating, after));
 }
