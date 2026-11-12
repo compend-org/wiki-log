@@ -157,7 +157,7 @@ export default async function ReviewPage({
             <span>Review by</span>
             <Link
               href={`/u/${encodeURIComponent(profile.username)}`}
-              className="inline-flex items-center gap-1.5 underline"
+              className="inline-flex items-center gap-1.5 hover:underline"
             >
               <Avatar
                 name={profile.username}

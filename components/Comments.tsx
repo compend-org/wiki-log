@@ -132,7 +132,7 @@ export default function Comments({
         <div className="flex items-center gap-2 text-sm">
           <Link
             href={`/u/${encodeURIComponent(c.authorName)}`}
-            className="font-semibold underline"
+            className="font-semibold hover:underline"
           >
             {c.authorName}
           </Link>
@@ -161,7 +161,7 @@ export default function Comments({
             ownerId={c.authorId}
             kind={table === "comments" ? "comment" : "list_comment"}
             targetId={c.id}
-            className="underline"
+            className="hover:underline"
           />
           {viewerId && (
             <button
@@ -175,7 +175,7 @@ export default function Comments({
                 );
                 setError("");
               }}
-              className="underline"
+              className="hover:underline"
             >
               Reply
             </button>
