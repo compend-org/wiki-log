@@ -1,6 +1,7 @@
 // ABOUTME: Reads, in one request, what the viewer has liked, shared and blocked
 // ABOUTME: among the reviews, lists and comments a page is showing.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { parseSfwMode, type SfwMode } from "@/lib/sfw";
 
 export type ViewerState = {
   likedLogs: Set<string>;
@@ -11,6 +12,8 @@ export type ViewerState = {
   likedListComments: Set<string>;
   // Everyone the viewer has blocked, not only the authors on the page
   blocked: Set<string>;
+  // How the viewer wants adult content shown; "off" when signed out
+  sfwMode: SfwMode;
 };
 
 type ViewerStateRow = {
@@ -21,6 +24,7 @@ type ViewerStateRow = {
   liked_comments: string[];
   liked_list_comments: string[];
   blocked: string[];
+  sfw_mode: string;
 };
 
 // The viewer's state for these review, list and comment ids. Different for
@@ -62,5 +66,6 @@ export async function getViewerState(
     likedComments: new Set(row?.liked_comments),
     likedListComments: new Set(row?.liked_list_comments),
     blocked: new Set(row?.blocked),
+    sfwMode: parseSfwMode(row?.sfw_mode),
   };
 }

@@ -28,6 +28,7 @@ export type LogRow = {
     title: string;
     image_url: string | null;
     image_hidden?: boolean;
+    nsfw: boolean;
   } | null;
   profiles: { username: string; avatar_path: string | null } | null;
   likes: { count: number }[];
@@ -48,7 +49,11 @@ export type ListRow = {
   shares: { count: number }[];
 };
 
-export type Thumb = { title: string; image_url: string | null };
+export type Thumb = {
+  title: string;
+  image_url: string | null;
+  nsfw: boolean;
+};
 
 export type PublicFeed = {
   logs: LogRow[];
@@ -84,7 +89,7 @@ type PreviewRow = {
 type RankRow = { row_id: string; recent_likes: number | string };
 
 const LOG_SELECT =
-  "id, user_id, item_id, rating, review, logged_at, items(title, image_url, image_hidden), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
+  "id, user_id, item_id, rating, review, logged_at, items(title, image_url, image_hidden, nsfw), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
 export const LIST_SELECT =
   "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count)";
 
@@ -103,7 +108,7 @@ async function loadPreviews(
 
   const { data } = await supabase
     .from("list_items")
-    .select("list_id, position, items(title, image_url, image_hidden)")
+    .select("list_id, position, items(title, image_url, image_hidden, nsfw)")
     .in(
       "list_id",
       lists.map((l) => l.id),
@@ -115,6 +120,7 @@ async function loadPreviews(
     arr.push({
       title: row.items?.title ?? "Unknown item",
       image_url: row.items ? shownImage(row.items) : null,
+      nsfw: row.items?.nsfw ?? false,
     });
     previews[row.list_id] = arr;
   }

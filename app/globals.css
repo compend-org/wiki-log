@@ -190,3 +190,28 @@ body {
 :root[data-theme="dark"] .item-img {
   background-color: var(--color-foreground);
 }
+
+/* In SFW mode, adult content's images are blurred and labelled until tapped */
+.nsfw-label {
+  display: none;
+}
+:root[data-sfw] [data-nsfw]:not([data-revealed]) > img {
+  filter: blur(40px);
+}
+:root[data-sfw] [data-nsfw]:not([data-revealed]) > .nsfw-label {
+  display: flex;
+}
+
+/* Marks the home page's heading while SFW mode is on */
+.sfw-tag {
+  display: none;
+}
+:root[data-sfw] .sfw-tag {
+  display: inline;
+}
+
+/* In hide mode, adult items that stay on the page, like daily picks and
+   leaderboard entries, have their titles blurred too until the image is tapped */
+:root[data-sfw="hide"] [data-adult]:not(:has([data-revealed])) .nsfw-title {
+  filter: blur(6px);
+}

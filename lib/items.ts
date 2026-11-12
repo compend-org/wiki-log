@@ -26,6 +26,7 @@ type ItemRow = {
   image_hidden: boolean;
   page_url: string;
   fetched_at: string;
+  nsfw: boolean;
 };
 
 function toItem(row: ItemRow): ItemData {
@@ -39,6 +40,7 @@ function toItem(row: ItemRow): ItemData {
     imageFilePage: hidden ? null : row.image_page_url,
     pageUrl: row.page_url,
     types: null,
+    nsfw: row.nsfw,
   };
 }
 
@@ -58,6 +60,7 @@ export function itemColumns(item: ItemData) {
     image_non_free: item.imageNonFree,
     image_page_url: item.imageFilePage,
     page_url: item.pageUrl,
+    nsfw: item.nsfw,
     fetched_at: new Date().toISOString(),
     ...(item.types ? { types: item.types } : {}),
   };
@@ -71,7 +74,7 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
   const { data } = await supabase
     .from("items")
     .select(
-      "id, title, description, image_url, image_non_free, image_page_url, image_hidden, page_url, fetched_at",
+      "id, title, description, image_url, image_non_free, image_page_url, image_hidden, page_url, fetched_at, nsfw",
     )
     .eq("id", id)
     .maybeSingle();

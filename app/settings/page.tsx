@@ -7,6 +7,7 @@ import BioEditor from "@/components/BioEditor";
 import BlockedPeople, { type BlockedPerson } from "@/components/BlockedPeople";
 import DeleteAccount from "@/components/DeleteAccount";
 import EmailVerification from "@/components/EmailVerification";
+import SfwSetting from "@/components/SfwSetting";
 import ThemeSetting from "@/components/ThemeSetting";
 import UsernameEditor from "@/components/UsernameEditor";
 import { loginHref } from "@/lib/redirect";
@@ -107,6 +108,8 @@ export default async function SettingsPage() {
       )}
 
       <ThemeSetting />
+
+      <SfwSetting userId={userId} />
 
       <BlockedPeople viewerId={userId} people={blockedPeople} />
 

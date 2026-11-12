@@ -9,6 +9,7 @@ export type Pick = {
   itemId: string;
   title: string;
   imageUrl: string | null;
+  nsfw: boolean;
   average: number;
   count: number;
 };
@@ -30,6 +31,7 @@ type ItemRow = {
   title: string;
   image_url: string | null;
   image_hidden: boolean;
+  nsfw: boolean;
 };
 
 // The best- and worst-rated items of the last 24 hours.
@@ -56,7 +58,7 @@ export async function getDailyPicks(): Promise<DailyPicks> {
 
   const { data: itemData } = await supabase
     .from("items")
-    .select("id, title, image_url, image_hidden")
+    .select("id, title, image_url, image_hidden, nsfw")
     .in(
       "id",
       rows.map((r) => r.item_id),
@@ -71,6 +73,7 @@ export async function getDailyPicks(): Promise<DailyPicks> {
       itemId: item.id,
       title: item.title,
       imageUrl: item.image_hidden ? null : item.image_url,
+      nsfw: item.nsfw,
       average: Number(row.avg_rating),
       count: Number(row.n),
     };

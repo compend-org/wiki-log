@@ -67,6 +67,7 @@ export default async function Leaderboard({
             <li key={entry.itemId}>
               <Link
                 href={`/item/${entry.itemId}`}
+                data-adult={entry.nsfw || undefined}
                 className="card flex items-center gap-4 p-3 hover-or-tap:border-accent/60"
               >
                 <span className="w-8 shrink-0 text-right text-lg font-semibold tabular-nums text-muted">
@@ -74,11 +75,12 @@ export default async function Leaderboard({
                 </span>
                 <ItemImage
                   src={entry.imageUrl}
+                  nsfw={entry.nsfw}
                   alt={entry.title}
                   className="h-14 w-14 shrink-0 rounded"
                   sourceWidth={250}
                 />
-                <span className="min-w-0 flex-1 break-words font-semibold">
+                <span className="nsfw-title min-w-0 flex-1 break-words font-semibold">
                   {entry.title}
                 </span>
                 <span className="shrink-0 text-right text-sm">

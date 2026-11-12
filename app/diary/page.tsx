@@ -11,10 +11,11 @@ import ReviewText from "@/components/ReviewText";
 import Stars from "@/components/Stars";
 import { timeAgo } from "@/lib/format";
 import { type Keyset, olderThan, PAGE_SIZE, takeNewest } from "@/lib/paging";
+import { currentSfwMode, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 
-type Thumb = { title: string; imageUrl: string | null };
+type Thumb = { title: string; imageUrl: string | null; nsfw: boolean };
 
 type LogEntry = {
   kind: "log";
@@ -23,6 +24,7 @@ type LogEntry = {
   itemId: string;
   title: string;
   imageUrl: string | null;
+  nsfw: boolean;
   rating: number | null;
   review: string;
 };
@@ -45,7 +47,7 @@ type LogRow = {
   rating: number | null;
   review: string;
   logged_at: string;
-  items: { title: string; image_url: string | null } | null;
+  items: { title: string; image_url: string | null; nsfw: boolean } | null;
 };
 
 type ListRow = {
@@ -59,7 +61,7 @@ type ListRow = {
 type PreviewRow = {
   list_id: string;
   position: number;
-  items: { title: string; image_url: string | null } | null;
+  items: { title: string; image_url: string | null; nsfw: boolean } | null;
 };
 
 // Where the logs and the lists each got to: the last of each shown so far
@@ -114,7 +116,7 @@ export default function DiaryPage() {
       let logsQuery = supabase
         .from("logs")
         .select(
-          "id, item_id, rating, review, logged_at, items(title, image_url)",
+          "id, item_id, rating, review, logged_at, items(title, image_url, nsfw)",
         )
         .eq("user_id", userId);
       if (wanted.logs) {
@@ -157,6 +159,7 @@ export default function DiaryPage() {
           itemId: l.item_id,
           title: l.items?.title ?? "Unknown item",
           imageUrl: l.items?.image_url ?? null,
+          nsfw: l.items?.nsfw ?? false,
           rating: l.rating === null ? null : Number(l.rating),
           review: l.review,
         } satisfies LogEntry,
@@ -197,7 +200,7 @@ export default function DiaryPage() {
       if (shownLists.length > 0) {
         const { data: previewData } = await supabase
           .from("list_items")
-          .select("list_id, position, items(title, image_url)")
+          .select("list_id, position, items(title, image_url, nsfw)")
           .in(
             "list_id",
             shownLists.map((l) => l.id),
@@ -212,6 +215,7 @@ export default function DiaryPage() {
           arr.push({
             title: row.items?.title ?? "Unknown item",
             imageUrl: row.items?.image_url ?? null,
+            nsfw: row.items?.nsfw ?? false,
           });
           byList.set(row.list_id, arr);
         }
@@ -261,6 +265,13 @@ export default function DiaryPage() {
     );
   }
 
+  // Logs of adult items are left out when the viewer hides them
+  const shown = shownEntries(
+    entries,
+    currentSfwMode(),
+    (e) => e.kind === "log" && e.nsfw,
+  );
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
       <h1 className="text-3xl font-bold">Diary</h1>
@@ -269,14 +280,14 @@ export default function DiaryPage() {
 
       {!loaded && <p className="py-8 text-center text-muted">Loading…</p>}
 
-      {loaded && !error && entries.length === 0 && (
+      {loaded && !error && shown.length === 0 && (
         <p className="py-8 text-center text-muted">
           Nothing here yet. Log something, or make a list.
         </p>
       )}
 
       <ul className="flex flex-col gap-3">
-        {entries.map((e) => {
+        {shown.map((e) => {
           const date = timeAgo(e.date, loadedAt);
 
           if (e.kind === "list") {
@@ -321,6 +332,7 @@ export default function DiaryPage() {
                         // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
                         key={i}
                         src={p.imageUrl}
+                        nsfw={p.nsfw}
                         alt={p.title}
                         className="h-14 w-14 rounded"
                       />
@@ -397,6 +409,7 @@ export default function DiaryPage() {
                   <Link href={`/item/${e.itemId}`} className="shrink-0">
                     <ItemImage
                       src={e.imageUrl}
+                      nsfw={e.nsfw}
                       alt={e.title}
                       className="h-16 w-16 rounded"
                     />

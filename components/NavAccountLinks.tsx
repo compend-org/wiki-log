@@ -10,6 +10,7 @@ import {
   fetchNotifications,
   keepNotificationsOnlyFor,
 } from "@/lib/notificationsFeed";
+import { applySfw, type SfwMode, setStoredSfw } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/client";
 import { isCurrentPage, useNavLinkTone } from "@/lib/useNavLinkTone";
 import SignInButton from "./buttons/SignInButton";
@@ -21,6 +22,7 @@ export type NavAccountDetails = {
   username: string | null;
   avatarPath: string | null;
   unread: number;
+  sfwMode: SfwMode;
 };
 
 const ACCOUNT_AREA = "contents sm:ml-auto sm:flex sm:items-center sm:gap-4";
@@ -67,6 +69,14 @@ export default function NavAccountLinks({
   const pathname = usePathname();
   const tone = useNavLinkTone();
   const snapshotSource = useRef<HTMLDivElement>(null);
+
+  // Keeps the page and this browser's copy in step with the account's SFW
+  // mode, which is off once signed out
+  const sfwMode = account?.sfwMode ?? "off";
+  useEffect(() => {
+    setStoredSfw(sfwMode);
+    applySfw(sfwMode);
+  }, [sfwMode]);
 
   // The server counted the unread notifications for the first render
   const unreadCheckedAt = useRef(Date.now());

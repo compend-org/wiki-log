@@ -28,6 +28,7 @@ export function renderItemListCards(
         thumbs={l.preview.map((p) => ({
           title: p.items?.title ?? "Unknown item",
           image_url: p.items?.image_url ?? null,
+          nsfw: p.items?.nsfw ?? false,
         }))}
         viewerId={viewerId}
         liked={viewer.likedLists.has(l.id)}

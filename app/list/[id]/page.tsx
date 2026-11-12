@@ -246,6 +246,7 @@ export default async function ListPage({
                 <div className="relative">
                   <ItemImage
                     src={entry.imageUrl}
+                    nsfw={entry.nsfw}
                     alt={title}
                     className="aspect-square w-full rounded-lg"
                   />

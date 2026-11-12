@@ -15,6 +15,7 @@ import {
   type NotificationRow,
   type NotificationsFeed,
 } from "@/lib/notificationsFeed";
+import { currentSfwMode, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 
@@ -74,7 +75,13 @@ export default function NotificationsPage() {
       : { loaded: false, signedIn: false, error: "", feed: EMPTY_FEED };
   });
   const { loaded, signedIn, error, feed } = state;
-  const { rows, logs, items, lists, owners, adminIds, myId, loadedAt } = feed;
+  const { logs, items, lists, owners, adminIds, myId, loadedAt } = feed;
+  // Notices about reviews of adult items are left out when the viewer hides
+  // them. Moderators' messages always show.
+  const rows = shownEntries(feed.rows, currentSfwMode(), (n) => {
+    const entry = n.log_id ? logs[n.log_id] : undefined;
+    return n.type !== "moderation" && Boolean(entry && items[entry.item]?.nsfw);
+  });
 
   useEffect(() => {
     async function load() {

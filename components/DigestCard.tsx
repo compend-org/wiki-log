@@ -44,6 +44,7 @@ export default function DigestCard({
         <Link href={`/item/${row.item_id}`} className="relative z-10 shrink-0">
           <ItemImage
             src={row.items?.image_url}
+            nsfw={row.items?.nsfw}
             alt={title}
             className="h-16 w-16 rounded"
             sourceWidth={250}

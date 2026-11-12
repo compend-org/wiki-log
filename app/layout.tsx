@@ -9,6 +9,7 @@ import NavAccount from "@/components/NavAccount";
 import { NavAccountPlaceholder } from "@/components/NavAccountLinks";
 import ScrollToTop from "@/components/ScrollToTop";
 import { iphoneViewportScript } from "@/lib/iphoneViewport";
+import { sfwInitScript } from "@/lib/sfw";
 import {
   SITE_NAME,
   SITE_PREVIEW_IMAGE,
@@ -55,6 +56,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         {/** biome-ignore lint/security/noDangerouslySetInnerHtml: injects the app's own constant theme script */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {/** biome-ignore lint/security/noDangerouslySetInnerHtml: injects the app's own constant SFW mode script */}
+        <script dangerouslySetInnerHTML={{ __html: sfwInitScript }} />
         {/** biome-ignore lint/security/noDangerouslySetInnerHtml: injects the app's own constant viewport script */}
         <script dangerouslySetInnerHTML={{ __html: iphoneViewportScript }} />
       </head>

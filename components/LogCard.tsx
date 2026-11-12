@@ -74,6 +74,7 @@ export default async function LogCard({
       >
         <ItemImage
           src={row.items?.image_url}
+          nsfw={row.items?.nsfw}
           alt={title}
           className="h-20 w-20 rounded"
           sourceWidth={250}

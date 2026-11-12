@@ -17,7 +17,7 @@ export async function getItemLists(itemId: string, after: Keyset | null) {
   let query = supabase
     .from("list_items")
     .select(
-      `added_at, list_id, lists(${LIST_SELECT}, preview:list_items(position, items(title, image_url)))`,
+      `added_at, list_id, lists(${LIST_SELECT}, preview:list_items(position, items(title, image_url, nsfw)))`,
     )
     .eq("item_id", itemId)
     .lte("lists.preview.position", PREVIEW_ITEMS);

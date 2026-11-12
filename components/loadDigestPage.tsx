@@ -3,6 +3,7 @@
 import type { CardsPage } from "@/components/CardPages";
 import DigestCard from "@/components/DigestCard";
 import { getDigest } from "@/lib/digest";
+import { aboutAdultItem, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
 
@@ -25,8 +26,13 @@ export async function loadDigestPage(
     logIds: logs.map((l) => l.id),
   });
 
-  // Reviews by people the viewer has blocked are left out
-  const shown = logs.filter((l) => !viewer.blocked.has(l.user_id));
+  // Reviews by people the viewer has blocked are left out, and reviews of
+  // adult items when the viewer hides them
+  const shown = shownEntries(
+    logs.filter((l) => !viewer.blocked.has(l.user_id)),
+    viewer.sfwMode,
+    aboutAdultItem,
+  );
 
   return {
     cards: shown.map((row) => ({
