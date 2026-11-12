@@ -11,6 +11,7 @@ import { mentionToken } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import { useLoginHref } from "@/lib/useLoginHref";
 import AdminBadge from "./AdminBadge";
+import ConfirmDialog from "./ConfirmDialog";
 import ReviewTextarea from "./ReviewTextArea";
 
 export type CommentItem = {
@@ -55,6 +56,7 @@ export default function Comments({
   const [replyText, setReplyText] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const [deleting, setDeleting] = useState<CommentItem | null>(null);
   const router = useRouter();
 
   const topLevel = comments.filter((c) => c.parentId === null);
@@ -106,22 +108,21 @@ export default function Comments({
     }
   }
 
-  async function handleDelete(c: CommentItem) {
-    const hasReplies = repliesOf(c.id).length > 0;
-    const message = hasReplies
-      ? "Delete this comment and its replies?"
-      : "Delete this comment?";
-    if (!window.confirm(message)) return;
-
+  async function confirmDelete() {
+    if (!deleting) return;
     setBusy(true);
     setError("");
-    const { error } = await createClient().from(table).delete().eq("id", c.id);
+    const { error } = await createClient()
+      .from(table)
+      .delete()
+      .eq("id", deleting.id);
     setBusy(false);
     if (error) {
       setError(error.message);
       return;
     }
     track("comment_deleted", { target: table === "comments" ? "log" : "list" });
+    setDeleting(null);
     router.refresh();
   }
 
@@ -129,6 +130,21 @@ export default function Comments({
     const canDelete = viewerId === c.authorId || viewerId === ownerId;
     return (
       <div key={c.id} className="flex flex-col gap-1">
+        {deleting && (
+          <ConfirmDialog
+            title="Delete this comment?"
+            confirmLabel="Delete"
+            busyLabel="Deleting…"
+            busy={busy}
+            error={error}
+            onConfirm={confirmDelete}
+            onCancel={() => setDeleting(null)}
+          >
+            {repliesOf(deleting.id).length > 0 && (
+              <p>Its replies are deleted with it.</p>
+            )}
+          </ConfirmDialog>
+        )}
         <div className="flex items-center gap-2 text-sm">
           <Link
             href={`/u/${encodeURIComponent(c.authorName)}`}
@@ -183,7 +199,10 @@ export default function Comments({
           {canDelete && (
             <button
               type="button"
-              onClick={() => handleDelete(c)}
+              onClick={() => {
+                setError("");
+                setDeleting(c);
+              }}
               disabled={busy}
               className="underline"
             >

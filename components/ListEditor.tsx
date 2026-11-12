@@ -18,7 +18,6 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { addToList, createList, stageItem } from "@/app/actions";
@@ -29,6 +28,7 @@ import { track } from "@/lib/analytics";
 import { type EditorSnapshot, SavedListEditing } from "@/lib/listEditing";
 import { fetchListPage, LIST_PAGE_SIZE, pageCount } from "@/lib/listPages";
 import { createClient } from "@/lib/supabase/client";
+import ConfirmDialog from "./ConfirmDialog";
 
 export type ListEntry = {
   itemId: string;
@@ -142,6 +142,7 @@ export default function ListEditor({
   const [busy, setBusy] = useState<boolean>(false);
   const [detailsMessage, setDetailsMessage] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const [confirmingDelete, setConfirmingDelete] = useState<boolean>(false);
   const router = useRouter();
 
   const listId = list.id;
@@ -351,12 +352,14 @@ export default function ListEditor({
 
   async function handleDeleteList() {
     if (list.id === null) return;
-    if (!window.confirm("Delete this list? This can't be undone.")) return;
+    setBusy(true);
+    setError("");
     const { error } = await createClient()
       .from("lists")
       .delete()
       .eq("id", list.id);
     if (error) {
+      setBusy(false);
       setError(error.message);
       return;
     }
@@ -372,9 +375,31 @@ export default function ListEditor({
           {list.id === null ? "New list" : "Edit list"}
         </h1>
         {list.id !== null && (
-          <Link href={`/list/${list.id}`} className="text-sm underline">
-            View list
-          </Link>
+          <section className="border-t border-line pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setError("");
+                setConfirmingDelete(true);
+              }}
+              className="text-sm text-danger underline"
+            >
+              Delete this list
+            </button>
+            {confirmingDelete && (
+              <ConfirmDialog
+                title="Delete this list?"
+                confirmLabel="Delete"
+                busyLabel="Deleting…"
+                busy={busy}
+                error={error}
+                onConfirm={handleDeleteList}
+                onCancel={() => setConfirmingDelete(false)}
+              >
+                <p>This can&apos;t be undone.</p>
+              </ConfirmDialog>
+            )}
+          </section>
         )}
       </header>
 

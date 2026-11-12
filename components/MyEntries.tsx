@@ -5,8 +5,8 @@ import { useState } from "react";
 import RatingInput from "@/components/RatingInput";
 import Stars from "@/components/Stars";
 import { track } from "@/lib/analytics";
-import { deleteLog, updateLog } from "@/lib/logs";
-import DeleteIcon from "./icons/DeleteIcon";
+import { updateLog } from "@/lib/logs";
+import DeleteButton from "./buttons/DeleteButton";
 import ReviewText from "./ReviewText";
 import ReviewTextarea from "./ReviewTextArea";
 
@@ -49,22 +49,6 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
       has_review: review.trim() !== "",
     });
     setEditing(null);
-    router.refresh();
-  }
-
-  async function remove(id: string) {
-    if (!window.confirm("Delete this entry, with its likes and comments?")) {
-      return;
-    }
-    setBusy(true);
-    setError("");
-    const message = await deleteLog(id);
-    setBusy(false);
-    if (message) {
-      setError(message);
-      return;
-    }
-    track("log_deleted");
     router.refresh();
   }
 
@@ -117,16 +101,7 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
                 >
                   Edit
                 </button>
-                <button
-                  type="button"
-                  onClick={() => remove(e.id)}
-                  disabled={busy}
-                  aria-label="Delete this entry"
-                  title="Delete this entry"
-                  className="flex items-center text-danger hover:opacity-70 disabled:opacity-40"
-                >
-                  <DeleteIcon className="h-4 w-4" />
-                </button>
+                <DeleteButton kind="log" targetId={e.id} />
               </div>
             </>
           )}
