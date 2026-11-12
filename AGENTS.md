@@ -8,6 +8,16 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Database migrations
+
+Always create migration files with the Supabase CLI, never by naming them by hand:
+
+```sh
+bunx supabase migration new <name>
+```
+
+The CLI stamps the file with the current UTC time. A hand-picked timestamp can sort before migrations production already has, and `supabase db push` then refuses to apply it.
+
 ## After making changes
 
 Whenever you finish a change, typecheck and format it with Biome, and fix anything they report:
@@ -16,6 +26,10 @@ Whenever you finish a change, typecheck and format it with Biome, and fix anythi
 npx next typegen && npx tsc --noEmit
 npx biome format --write <the files you changed>
 ```
+
+## Pull requests
+
+Put follow-up changes in the pull request you're already working on, unless you're told to open a separate one.
 
 ## Before opening a pull request
 
