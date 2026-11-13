@@ -1,8 +1,9 @@
 // ABOUTME: A search box for picking an item, from Wikipedia results, matching compounds or a pasted link.
-// ABOUTME: In SFW mode, result pictures wait on an adult content check and are blurred when adult.
+// ABOUTME: Saved results show their saved picture; in SFW mode, pictures are checked and adult ones blurred.
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import type { SavedResult } from "@/app/api/search-results/route";
 import Avatar from "@/components/Avatar";
 import ItemPicture from "@/components/ItemPicture";
 import LanguagePicker from "@/components/LanguagePicker";
@@ -25,8 +26,8 @@ type Hit = {
   description: string | null;
   imageUrl: string | null;
   lang?: LangCode; // set for pasted links, which carry their own language
-  // In SFW mode, where checking the picture for adult content has got to
-  // (unset: shown as usual)
+  // Where finding the picture to show, and in SFW mode checking it for adult
+  // content, has got to (unset: shown as usual)
   pictureCheck?: "checking" | "adult" | "failed";
 };
 
@@ -50,67 +51,79 @@ async function searchCompounds(q: string, signal: AbortSignal): Promise<Hit[]> {
   }
 }
 
-// The results whose pictures are adult content or couldn't be checked, by
-// key: saved items by their flag, files by the bad image list and their
-// Commons categories. A picture is adult if any check that worked flagged it,
-// and unchecked if a check covering it failed and none flagged it.
-async function checkPictures(
+// The picture each result shows, and in SFW mode whether it is adult content
+// or couldn't be checked, by key. Saved items show their saved picture, which
+// their flag covers. Others show Wikipedia's, checked against the bad image
+// list and its Commons categories: adult if any check that worked flagged it,
+// unchecked if a check covering it failed and none flagged it.
+async function findPictures(
   hits: Hit[],
+  checking: boolean,
   signal: AbortSignal,
-): Promise<Map<string, "adult" | "failed">> {
-  const pictured = hits.flatMap((hit) => {
-    if (!hit.imageUrl) return [];
-    const file = fileNameFromUrl(hit.imageUrl);
-    return [
-      {
-        key: hit.key,
-        id: hit.itemId ?? hit.wikidataId ?? null,
-        file: file ? fileTitle(file) : null,
-        onCommons: freeImage(hit.imageUrl) !== null,
-      },
-    ];
+): Promise<Map<string, Pick<Hit, "imageUrl" | "pictureCheck">>> {
+  const results = hits.map((hit) => {
+    const file = hit.imageUrl && fileNameFromUrl(hit.imageUrl);
+    return {
+      hit,
+      id: hit.itemId ?? hit.wikidataId ?? null,
+      file: file ? fileTitle(file) : null,
+      onCommons: freeImage(hit.imageUrl) !== null,
+    };
   });
 
   const params = new URLSearchParams();
-  for (const p of pictured) {
-    if (p.id) params.append("id", p.id);
-    if (p.file) params.append("file", p.file);
+  for (const r of results) {
+    if (r.id) params.append("id", r.id);
+    if (checking && r.file) params.append("file", r.file);
   }
-  const commonsFiles = pictured.flatMap((p) =>
-    p.file && p.onCommons ? [p.file] : [],
+  const commonsFiles = results.flatMap((r) =>
+    checking && r.file && r.onCommons ? [r.file] : [],
   );
 
   const [ours, commons] = await Promise.allSettled([
-    fetch(`/api/adult-content?${params}`, { signal }).then(async (res) => {
-      if (!res.ok) throw new Error(`Adult content check failed: ${res.status}`);
+    fetch(`/api/search-results?${params}`, { signal }).then(async (res) => {
+      if (!res.ok)
+        throw new Error(`Search results lookup failed: ${res.status}`);
       return (await res.json()) as {
-        ids: string[] | null;
-        files: string[] | null;
+        saved: SavedResult[] | null;
+        badFiles: string[] | null;
       };
     }),
     explicitCommonsFiles(commonsFiles, signal),
   ]);
 
-  // What each check flagged, or null where it failed
-  const ourIds = ours.status === "fulfilled" ? ours.value.ids : null;
-  const ourFiles = ours.status === "fulfilled" ? ours.value.files : null;
-  const commonsFlagged = commons.status === "fulfilled" ? commons.value : null;
+  // What each lookup found, or null where it failed
+  const saved = ours.status === "fulfilled" ? ours.value.saved : null;
+  const badFiles = ours.status === "fulfilled" ? ours.value.badFiles : null;
+  const explicit = commons.status === "fulfilled" ? commons.value : null;
 
-  const checks = new Map<string, "adult" | "failed">();
-  for (const p of pictured) {
-    const flagged =
-      (!!p.id && !!ourIds?.includes(p.id)) ||
-      (!!p.file && !!ourFiles?.includes(p.file)) ||
-      (!!p.file && !!commonsFlagged?.has(p.file));
-    const failed =
-      (!!p.id && !ourIds) ||
-      (!!p.file && !ourFiles) ||
-      (!!p.file && p.onCommons && !commonsFlagged);
+  const pictures = new Map<string, Pick<Hit, "imageUrl" | "pictureCheck">>();
+  for (const { hit, id, file, onCommons } of results) {
+    const item = id ? saved?.find((s) => s.id === id) : undefined;
+    if (item) {
+      pictures.set(hit.key, {
+        imageUrl: item.imageUrl,
+        pictureCheck: checking && item.nsfw ? "adult" : undefined,
+      });
+      continue;
+    }
 
-    if (flagged) checks.set(p.key, "adult");
-    else if (failed) checks.set(p.key, "failed");
+    let pictureCheck: Hit["pictureCheck"];
+    if (checking && hit.imageUrl) {
+      const flagged =
+        !!file && (!!badFiles?.includes(file) || !!explicit?.has(file));
+      // Unknown whether it is saved, with its own picture and flag, or
+      // whether a check covering its file failed
+      const failed =
+        (!!id && !saved) ||
+        (!!file && !badFiles) ||
+        (!!file && onCommons && !explicit);
+      if (flagged) pictureCheck = "adult";
+      else if (failed) pictureCheck = "failed";
+    }
+    pictures.set(hit.key, { imageUrl: hit.imageUrl, pictureCheck });
   }
-  return checks;
+  return pictures;
 }
 
 // A pasted Wikipedia address: which wiki, and which article
@@ -227,25 +240,18 @@ export default function ItemPicker({
           searchTitles(term, lang, controller.signal),
         ]);
         const found: Hit[] = [...compounds, ...titles];
+        // Saved items can have a picture where Wikipedia has none
         setHits(
-          checking
-            ? found.map((h) =>
-                h.imageUrl ? { ...h, pictureCheck: "checking" } : h,
-              )
-            : found,
+          found.map((h) =>
+            h.imageUrl || h.wikidataId ? { ...h, pictureCheck: "checking" } : h,
+          ),
         );
         setHitsFor(`${lang}:${checking}:${term}`);
         setActive(-1);
-        if (!checking) return;
 
-        const checks = await checkPictures(found, controller.signal);
+        const pictures = await findPictures(found, checking, controller.signal);
         if (controller.signal.aborted) return;
-        setHits(
-          found.map((h) => {
-            const check = checks.get(h.key);
-            return check ? { ...h, pictureCheck: check } : h;
-          }),
-        );
+        setHits(found.map((h) => ({ ...h, ...pictures.get(h.key) })));
       } catch {
         // A newer keystroke cancels this search, which isn't a failure
         if (!controller.signal.aborted)
@@ -416,6 +422,8 @@ export default function ItemPicker({
                     ) : hit.imageUrl && hit.pictureCheck !== "failed" ? (
                       <ItemPicture
                         src={hit.imageUrl}
+                        // Saved pictures are large; the box is 40px wide
+                        sourceWidth={80}
                         alt=""
                         nsfw={hit.pictureCheck === "adult"}
                         tapToShow={false}
