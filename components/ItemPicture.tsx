@@ -13,6 +13,7 @@ export default function ItemPicture({
   sourceWidth,
   alt,
   nsfw = false,
+  tapToShow = true,
   className,
   ...rest
 }: {
@@ -25,6 +26,9 @@ export default function ItemPicture({
   alt: string;
   // Adult content, blurred and labelled in SFW mode until tapped
   nsfw?: boolean;
+  // Whether a tap on a blurred image shows it. Otherwise the tap goes to
+  // whatever the image sits in.
+  tapToShow?: boolean;
   className?: string;
   loading?: "lazy" | "eager";
   draggable?: boolean;
@@ -82,13 +86,13 @@ export default function ItemPicture({
     <span
       data-nsfw
       data-revealed={revealed || undefined}
-      onClickCapture={reveal}
+      onClickCapture={tapToShow ? reveal : undefined}
       className={`relative grid overflow-hidden ${className ?? ""}`}
     >
       {picture}
       <span className="nsfw-label absolute inset-0 flex-col items-center justify-center bg-background/30 text-center text-xs font-bold text-foreground">
         NSFW
-        <span className="font-normal">Tap to show</span>
+        {tapToShow && <span className="font-normal">Tap to show</span>}
       </span>
     </span>
   );

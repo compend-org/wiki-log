@@ -79,6 +79,24 @@ export function absolute(url: string): string {
   return url.startsWith("//") ? `https:${url}` : url;
 }
 
+// The file's name, read from an upload.wikimedia.org address
+export function fileNameFromUrl(url: string): string | null {
+  try {
+    const parts = new URL(absolute(url)).pathname.split("/").filter(Boolean);
+    if (parts[0] !== "wikipedia") return null;
+    const name = parts[2] === "thumb" ? parts[5] : parts[4];
+    return name ? decodeURIComponent(name) : null;
+  } catch {
+    return null;
+  }
+}
+
+// A file name the way wiki titles write it: spaces, first letter capitalised
+export function fileTitle(name: string): string {
+  const spaced = name.replace(/_/g, " ").trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
 // Search suggestions only ever show images stored on Wikimedia Commons, whose
 // licences allow reuse
 export function freeImage(url: string | undefined | null): string | null {

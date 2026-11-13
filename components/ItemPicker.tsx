@@ -1,20 +1,33 @@
+// ABOUTME: A search box for picking an item, from Wikipedia results, matching compounds or a pasted link.
+// ABOUTME: In SFW mode, result pictures wait on an adult content check and are blurred when adult.
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
+import ItemPicture from "@/components/ItemPicture";
 import LanguagePicker from "@/components/LanguagePicker";
-import { findItemId, searchTitles } from "@/lib/browserWikipedia";
+import {
+  explicitCommonsFiles,
+  findItemId,
+  searchTitles,
+} from "@/lib/browserWikipedia";
 import { FEATURES } from "@/lib/features";
+import { fileNameFromUrl, fileTitle, freeImage } from "@/lib/format";
 import { DEFAULT_LANG, isLang, type LangCode } from "@/lib/languages";
 import { useDropdownRoom } from "@/lib/useDropdownRoom";
+import { useSfwMode } from "@/lib/useSfwMode";
 
 type Hit = {
   key: string;
   itemId?: string; // set for compounds, which need no lookup
+  wikidataId?: string | null; // set for Wikipedia results that have one
   title: string;
   description: string | null;
   imageUrl: string | null;
   lang?: LangCode; // set for pasted links, which carry their own language
+  // In SFW mode, where checking the picture for adult content has got to
+  // (unset: shown as usual)
+  pictureCheck?: "checking" | "adult" | "failed";
 };
 
 const LANG_KEY = "search-lang";
@@ -35,6 +48,69 @@ async function searchCompounds(q: string, signal: AbortSignal): Promise<Hit[]> {
   } catch {
     return [];
   }
+}
+
+// The results whose pictures are adult content or couldn't be checked, by
+// key: saved items by their flag, files by the bad image list and their
+// Commons categories. A picture is adult if any check that worked flagged it,
+// and unchecked if a check covering it failed and none flagged it.
+async function checkPictures(
+  hits: Hit[],
+  signal: AbortSignal,
+): Promise<Map<string, "adult" | "failed">> {
+  const pictured = hits.flatMap((hit) => {
+    if (!hit.imageUrl) return [];
+    const file = fileNameFromUrl(hit.imageUrl);
+    return [
+      {
+        key: hit.key,
+        id: hit.itemId ?? hit.wikidataId ?? null,
+        file: file ? fileTitle(file) : null,
+        onCommons: freeImage(hit.imageUrl) !== null,
+      },
+    ];
+  });
+
+  const params = new URLSearchParams();
+  for (const p of pictured) {
+    if (p.id) params.append("id", p.id);
+    if (p.file) params.append("file", p.file);
+  }
+  const commonsFiles = pictured.flatMap((p) =>
+    p.file && p.onCommons ? [p.file] : [],
+  );
+
+  const [ours, commons] = await Promise.allSettled([
+    fetch(`/api/adult-content?${params}`, { signal }).then(async (res) => {
+      if (!res.ok) throw new Error(`Adult content check failed: ${res.status}`);
+      return (await res.json()) as {
+        ids: string[] | null;
+        files: string[] | null;
+      };
+    }),
+    explicitCommonsFiles(commonsFiles, signal),
+  ]);
+
+  // What each check flagged, or null where it failed
+  const ourIds = ours.status === "fulfilled" ? ours.value.ids : null;
+  const ourFiles = ours.status === "fulfilled" ? ours.value.files : null;
+  const commonsFlagged = commons.status === "fulfilled" ? commons.value : null;
+
+  const checks = new Map<string, "adult" | "failed">();
+  for (const p of pictured) {
+    const flagged =
+      (!!p.id && !!ourIds?.includes(p.id)) ||
+      (!!p.file && !!ourFiles?.includes(p.file)) ||
+      (!!p.file && !!commonsFlagged?.has(p.file));
+    const failed =
+      (!!p.id && !ourIds) ||
+      (!!p.file && !ourFiles) ||
+      (!!p.file && p.onCommons && !commonsFlagged);
+
+    if (flagged) checks.set(p.key, "adult");
+    else if (failed) checks.set(p.key, "failed");
+  }
+  return checks;
 }
 
 // A pasted Wikipedia address: which wiki, and which article
@@ -93,7 +169,11 @@ export default function ItemPicker({
   const box = useRef<HTMLDivElement>(null);
 
   const term = query.trim();
-  const searchKey = `${lang}:${term}`;
+  // Results are for a search in one SFW mode, so when the mode turns on, such
+  // as when the account's mode arrives after the results, unchecked pictures
+  // stop showing and the search runs again with checks
+  const checking = useSfwMode() !== "off";
+  const searchKey = `${lang}:${checking}:${term}`;
   const listOpen = open && term.length >= 2;
   const room = useDropdownRoom(box, listOpen, LIST_HEIGHT);
 
@@ -146,12 +226,30 @@ export default function ItemPicker({
           searchCompounds(term, controller.signal),
           searchTitles(term, lang, controller.signal),
         ]);
-        setHits([...compounds, ...titles]);
-        setHitsFor(`${lang}:${term}`);
+        const found: Hit[] = [...compounds, ...titles];
+        setHits(
+          checking
+            ? found.map((h) =>
+                h.imageUrl ? { ...h, pictureCheck: "checking" } : h,
+              )
+            : found,
+        );
+        setHitsFor(`${lang}:${checking}:${term}`);
         setActive(-1);
+        if (!checking) return;
+
+        const checks = await checkPictures(found, controller.signal);
+        if (controller.signal.aborted) return;
+        setHits(
+          found.map((h) => {
+            const check = checks.get(h.key);
+            return check ? { ...h, pictureCheck: check } : h;
+          }),
+        );
       } catch {
         // A newer keystroke cancels this search, which isn't a failure
-        if (!controller.signal.aborted) setFailedFor(`${lang}:${term}`);
+        if (!controller.signal.aborted)
+          setFailedFor(`${lang}:${checking}:${term}`);
       }
     }, 300);
 
@@ -159,7 +257,7 @@ export default function ItemPicker({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [term, lang]);
+  }, [term, lang, checking]);
 
   async function choose(hit: Hit) {
     setBusy(true);
@@ -307,11 +405,20 @@ export default function ItemPicker({
                       i === active ? "bg-surface" : ""
                     }`}
                   >
-                    {hit.imageUrl ? (
-                      // biome-ignore lint/performance/noImgElement: a plain img is intended
-                      <img
+                    {hit.pictureCheck === "checking" ? (
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-line/50">
+                        <Avatar
+                          path={null}
+                          size={20}
+                          className="animate-spin"
+                        />
+                      </div>
+                    ) : hit.imageUrl && hit.pictureCheck !== "failed" ? (
+                      <ItemPicture
                         src={hit.imageUrl}
                         alt=""
+                        nsfw={hit.pictureCheck === "adult"}
+                        tapToShow={false}
                         className="h-10 w-10 shrink-0 object-cover"
                       />
                     ) : (
