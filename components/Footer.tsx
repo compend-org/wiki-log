@@ -17,13 +17,6 @@ export default function Footer() {
         >
           Privacy
         </Link>
-        <Link
-          href="/digest"
-          prefetch={false}
-          className="hover:text-foreground hover:underline"
-        >
-          Digest
-        </Link>
         {FEATURES.leaderboards && (
           <Link
             href="/leaderboards"

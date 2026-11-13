@@ -1,11 +1,16 @@
 // ABOUTME: Looks up who is signed in, their profile and unread count on the server,
 // ABOUTME: so the top bar's account section arrives with the page, and tells analytics who it is.
+import { connection } from "next/server";
 import { isAdmin } from "@/lib/admin";
+import { parseSfwMode } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
 import AnalyticsIdentity from "./AnalyticsIdentity";
 import NavAccountLinks, { type NavAccountDetails } from "./NavAccountLinks";
 
 async function getSignedInAccount(): Promise<NavAccountDetails | null> {
+  // Checking the session compares its expiry with the current time, so this
+  // runs for each request rather than ahead of time
+  await connection();
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
@@ -14,7 +19,7 @@ async function getSignedInAccount(): Promise<NavAccountDetails | null> {
   const [{ data: profile }, { count }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("username, avatar_path")
+      .select("username, avatar_path, user_settings(sfw_mode)")
       .eq("id", userId)
       .maybeSingle(),
     supabase
@@ -31,6 +36,10 @@ async function getSignedInAccount(): Promise<NavAccountDetails | null> {
     userId,
     username: profile.username,
     avatarPath: profile.avatar_path,
+    sfwMode: parseSfwMode(
+      (profile.user_settings as unknown as { sfw_mode: string } | null)
+        ?.sfw_mode,
+    ),
     unread: count ?? 0,
   };
 }

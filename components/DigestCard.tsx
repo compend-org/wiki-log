@@ -1,4 +1,4 @@
-// ABOUTME: One long review on the Digest page, shown in full.
+// ABOUTME: One long review in the Digest tab, shown in full.
 // ABOUTME: The whole card opens the review; the links and buttons on it work on their own.
 import Link from "next/link";
 import LikeButton from "@/components/buttons/LikeButton";
@@ -44,6 +44,7 @@ export default function DigestCard({
         <Link href={`/item/${row.item_id}`} className="relative z-10 shrink-0">
           <ItemImage
             src={row.items?.image_url}
+            nsfw={row.items?.nsfw}
             alt={title}
             className="h-16 w-16 rounded"
             sourceWidth={250}
@@ -90,8 +91,8 @@ export default function DigestCard({
             ownerId={row.user_id}
             kind="log"
             targetId={row.id}
-            initialCount={row.shares?.[0]?.count ?? 0}
-            initiallyShared={shared}
+            shareCount={row.shares?.[0]?.count ?? 0}
+            shared={shared}
           />
         }
         commentHref={reviewHref}

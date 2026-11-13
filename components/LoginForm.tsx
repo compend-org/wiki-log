@@ -7,6 +7,7 @@ import { useState } from "react";
 import { signIn } from "@/app/actions";
 import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/Turnstile";
 import { identifyPerson, track } from "@/lib/analytics";
+import { applySfw, setStoredSfw } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/client";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
 
@@ -101,6 +102,11 @@ export default function LoginForm({ next }: { next: string }) {
     // Tied to the account now, so the sign-in counts as theirs. The top bar
     // adds their username and admin flag once it redraws.
     if (result.userId) identifyPerson(result.userId);
+    // Before the first page after signing in, so adult images never flash
+    if (result.sfwMode) {
+      setStoredSfw(result.sfwMode);
+      applySfw(result.sfwMode);
+    }
     track("signed_in", {
       method: identifier.includes("@") ? "email" : "username",
     });

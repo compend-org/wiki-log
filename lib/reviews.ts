@@ -16,13 +16,14 @@ export type Review = {
     title: string;
     image_url: string | null;
     image_hidden: boolean;
+    nsfw: boolean;
   } | null;
   likes: { count: number }[];
   shares: { count: number }[];
 };
 
 const REVIEW_COLUMNS =
-  "id, user_id, item_id, rating, review, logged_at, removed_at, items(title, image_url, image_hidden), likes(count), shares(count)";
+  "id, user_id, item_id, rating, review, logged_at, removed_at, items(title, image_url, image_hidden, nsfw), likes(count), shares(count)";
 
 // The review with this id by this person, or null when there's no such review
 export const getReview = cache(

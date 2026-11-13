@@ -142,6 +142,7 @@ export default async function ReviewPage({
       <Link href={`/item/${log.item_id}`} className="shrink-0">
         <ItemImage
           src={log.items?.image_url}
+          nsfw={log.items?.nsfw}
           alt={title}
           className="h-28 w-28 rounded"
         />
@@ -222,8 +223,8 @@ export default async function ReviewPage({
           ownerId={log.user_id}
           kind="log"
           targetId={log.id}
-          initialCount={log.shares?.[0]?.count ?? 0}
-          initiallyShared={viewer.sharedLogs.has(log.id)}
+          shareCount={log.shares?.[0]?.count ?? 0}
+          shared={viewer.sharedLogs.has(log.id)}
         />
         <ShareImageButton
           imageHref={`/u/${encodeURIComponent(profile.username)}/${log.id}/image`}

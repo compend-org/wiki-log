@@ -1,4 +1,4 @@
-// ABOUTME: The Digest page's list of long reviews, a page at a time.
+// ABOUTME: The home page's Digest tab: long reviews (over 720 characters), newest first, a page at a time.
 // ABOUTME: Renders the first page on the server; DigestPages adds later pages below.
 import { connection } from "next/server";
 import DigestPages from "@/components/DigestPages";

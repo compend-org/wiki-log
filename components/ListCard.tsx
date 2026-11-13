@@ -108,8 +108,8 @@ export default async function ListCard({
             ownerId={l.user_id}
             kind="list"
             targetId={l.id}
-            initialCount={l.shares?.[0]?.count ?? 0}
-            initiallyShared={shared}
+            shareCount={l.shares?.[0]?.count ?? 0}
+            shared={shared}
           />
         }
         commentHref={`/list/${l.id}#comments`}

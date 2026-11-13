@@ -11,11 +11,12 @@ import {
   useState,
 } from "react";
 import { loadFeedTab } from "@/app/feedTabActions";
+import type { FeedMode } from "@/components/loadFeedPage";
 import { track } from "@/lib/analytics";
 import { FEATURES } from "@/lib/features";
 import { TRENDING_LABEL } from "@/lib/site";
 
-type Tab = "following" | "everyone" | "trending";
+export type FeedTab = FeedMode | "digest";
 
 const loading = <p className="py-12 text-center text-muted">Loading…</p>;
 
@@ -23,19 +24,20 @@ export default function FeedTabs({
   initial,
   initialFeed,
 }: {
-  initial: Tab;
+  initial: FeedTab;
   // The feed of the `initial` tab
   initialFeed: ReactNode;
 }) {
-  const tabs: { id: Tab; label: string }[] = [
+  const tabs: { id: FeedTab; label: string }[] = [
     { id: "everyone", label: "Everyone" },
     { id: "following", label: "Following" },
     ...(FEATURES.trending
-      ? [{ id: "trending" as Tab, label: TRENDING_LABEL }]
+      ? [{ id: "trending" as FeedTab, label: TRENDING_LABEL }]
       : []),
+    { id: "digest", label: "Digest" },
   ];
 
-  const [active, setActive] = useState<Tab>(
+  const [active, setActive] = useState<FeedTab>(
     tabs.some((t) => t.id === initial) ? initial : "everyone",
   );
   // How many times the server has rendered the page since it loaded, such as
@@ -43,7 +45,7 @@ export default function FeedTabs({
   const [served, setServed] = useState({ feed: initialFeed, count: 0 });
   // Each opened tab's feed, and the render of the page it is up to date with
   const [panels, setPanels] = useState<
-    Partial<Record<Tab, { feed: ReactNode; served: number }>>
+    Partial<Record<FeedTab, { feed: ReactNode; served: number }>>
   >({ [initial]: { feed: initialFeed, served: 0 } });
 
   if (served.feed !== initialFeed) {
@@ -94,7 +96,7 @@ export default function FeedTabs({
     );
   }, [active, panels, served.count]);
 
-  function choose(tab: Tab) {
+  function choose(tab: FeedTab) {
     if (tab !== active) track("feed_tab_opened", { tab });
     setActive(tab);
     // Keep the address in step without navigating anywhere
@@ -108,7 +110,7 @@ export default function FeedTabs({
       <div
         role="tablist"
         aria-label="Feed"
-        className="flex gap-2 lg:mx-auto lg:w-[calc(50%-0.75rem)]"
+        className="grid grid-cols-2 gap-2 sm:flex lg:mx-auto lg:w-[calc(50%-0.75rem)]"
       >
         {tabs.map((t) => (
           <button
@@ -119,7 +121,7 @@ export default function FeedTabs({
             aria-selected={active === t.id}
             aria-controls={`feed-panel-${t.id}`}
             onClick={() => choose(t.id)}
-            className={`flex-1 border-2 px-4 py-2 text-center ${
+            className={`border-2 px-4 py-2 text-center sm:flex-1 ${
               active === t.id
                 ? "border-dashed border-accent text-foreground"
                 : "border-transparent text-muted hover:border-line"

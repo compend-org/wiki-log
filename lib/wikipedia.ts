@@ -30,6 +30,7 @@ export type ItemData = {
   imageFilePage: string | null; // the page describing the file and its rights
   pageUrl: string;
   types: string[] | null;
+  nsfw: boolean; // true: adult content, blurred for people who turn on SFW mode
 };
 
 export type LookupResult = { item: ItemData } | { error: string };
@@ -283,6 +284,131 @@ async function chooseImage(
   return firstArticleImage(lang, title, deadline);
 }
 
+// ------------------------------------------------------------ adult content
+
+// Wikidata items that mark an article as adult content when it is an instance
+// of one (P31), has one as its genre (P136) or, for a person, as its
+// occupation (P106)
+const ADULT_SUBJECTS = new Set([
+  "Q185529", // pornographic film
+  "Q172067", // hentai
+  "Q1046788", // eroge
+  "Q7230210", // pornographic video game
+  "Q3244962", // pornographic magazine
+  "Q11074464", // pornography website
+  "Q30941437", // pornographic film studio
+  "Q488111", // pornographic film actor
+  "Q66382950", // pornographic film actress
+]);
+
+// Commons and Wikipedia file categories that describe explicit pictures
+const EXPLICIT_CATEGORY =
+  /\b(nude|nudes|nudity|naked|topless|erotic|erotica|pornograph\w*|genitalia|genitals|penis|penises|vulva|vulvas|vagina|vaginas|human sexual activity|sexual intercourse|sex acts?|sex positions?|sex toys?|intercourse|masturbation|fellatio|cunnilingus|anilingus|bdsm|hentai|nipples?)\b/i;
+
+// True if Wikidata describes the item as adult content. A failed lookup
+// counts as no, so the item is shown as usual.
+async function isAdultSubject(
+  qid: string,
+  types: string[] | null,
+  deadline: number,
+): Promise<boolean> {
+  const isAdult = (values: unknown[] | null) =>
+    (values ?? []).some((v) => {
+      const id = (v as { id?: string } | undefined)?.id;
+      return !!id && ADULT_SUBJECTS.has(id);
+    });
+
+  if (types?.some((t) => ADULT_SUBJECTS.has(t))) return true;
+  if (isAdult(await getClaimValues(qid, "P136", deadline))) return true;
+  return (
+    !!types?.includes("Q5") &&
+    isAdult(await getClaimValues(qid, "P106", deadline))
+  );
+}
+
+// A file name the way wiki titles write it: spaces, first letter capitalised
+function fileTitle(name: string): string {
+  const spaced = name.replace(/_/g, " ").trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+const BAD_IMAGE_LIST_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+let badImageList: { names: Set<string>; fetchedAt: number } | null = null;
+
+// English Wikipedia's list of explicit or shocking files that articles may
+// only show in specific places. Kept for a day. Empty if it can't be read.
+async function badImages(deadline: number): Promise<Set<string>> {
+  if (
+    badImageList &&
+    Date.now() - badImageList.fetchedAt < BAD_IMAGE_LIST_MAX_AGE_MS
+  ) {
+    return badImageList.names;
+  }
+  try {
+    const res = await wikiFetch(
+      "https://en.wikipedia.org/w/index.php?title=MediaWiki:Bad_image_list&action=raw",
+      deadline,
+    );
+    if (!res.ok) return new Set();
+    const names = new Set<string>();
+    for (const line of (await res.text()).split("\n")) {
+      const name = line.match(/^\*\s*\[\[:(?:File|Image):([^\]|]+)/i)?.[1];
+      if (name) names.add(fileTitle(name));
+    }
+    badImageList = { names, fetchedAt: Date.now() };
+    return names;
+  } catch {
+    return new Set();
+  }
+}
+
+// True if the image is on the bad image list or filed under explicit
+// categories. A failed lookup counts as no, so the image is shown as usual.
+async function isExplicitImage(
+  url: string,
+  deadline: number,
+): Promise<boolean> {
+  const fileName = fileNameFromUrl(url);
+  if (!fileName) return false;
+  const name = fileTitle(fileName);
+  if ((await badImages(deadline)).has(name)) return true;
+
+  // Commons files live under /wikipedia/commons/, a wiki's own files under
+  // its language code
+  const parts = new URL(absolute(url)).pathname.split("/").filter(Boolean);
+  const host =
+    parts[1] === "commons"
+      ? "commons.wikimedia.org"
+      : `${parts[1]}.wikipedia.org`;
+  try {
+    const res = await wikiFetch(
+      `https://${host}/w/api.php?action=query&format=json&formatversion=2&prop=categories&cllimit=max&titles=${encodeURIComponent(`File:${name}`)}`,
+      deadline,
+    );
+    if (!res.ok) return false;
+    const data: { query?: { pages?: ImagePage[] } } = await res.json();
+    return (data.query?.pages?.[0]?.categories ?? []).some((c) =>
+      EXPLICIT_CATEGORY.test(c.title),
+    );
+  } catch {
+    return false;
+  }
+}
+
+// True if an item is adult content, by what Wikidata says it is or by its image
+export async function isNsfw(
+  qid: string,
+  types: string[] | null,
+  imageUrl: string | null,
+  deadline: number = Date.now() + WAIT_BUDGET_MS,
+): Promise<boolean> {
+  const [subject, image] = await Promise.all([
+    isAdultSubject(qid, types, deadline),
+    imageUrl ? isExplicitImage(imageUrl, deadline) : false,
+  ]);
+  return subject || image;
+}
+
 // ---------------------------------------------------------------- lookups
 
 // An article by its page key on one language's Wikipedia. While Wikimedia
@@ -322,6 +448,12 @@ export async function getItemByKey(
     leadSource,
     deadline,
   );
+  const nsfw = await isNsfw(
+    data.wikibase_item,
+    types,
+    image?.url ?? null,
+    deadline,
+  );
 
   return {
     item: {
@@ -335,6 +467,7 @@ export async function getItemByKey(
         data.content_urls?.desktop?.page ??
         `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(key)}`,
       types,
+      nsfw,
     },
   };
 }

@@ -12,6 +12,7 @@ import Stars from "@/components/Stars";
 import UserName from "@/components/UserName";
 import type { LogRow } from "@/lib/feedData";
 import { timeAgo } from "@/lib/format";
+import CardCorner from "./CardCorner";
 import ReviewText from "./ReviewText";
 import SharedLabel, { type Sharer } from "./SharedLabel";
 
@@ -61,45 +62,53 @@ export default async function LogCard({
           className="absolute inset-0 rounded-[inherit]"
         />
       )}
-
+      {(topControls || controls) && (
+        <CardCorner>
+          {topControls}
+          {controls}
+        </CardCorner>
+      )}
       <Link
         href={`/item/${row.item_id}`}
         className="relative z-10 shrink-0 self-center"
       >
         <ItemImage
           src={row.items?.image_url}
+          nsfw={row.items?.nsfw}
           alt={title}
           className="h-20 w-20 rounded"
           sourceWidth={250}
         />
       </Link>
 
-      <div className="flex min-w-0 flex-col gap-1">
+      <div
+        className={`flex min-w-0 flex-col gap-1 ${
+          topControls || controls ? (row.review ? "pr-7 @xl:pr-0" : "pr-7") : ""
+        }`}
+      >
         {sharers.length > 0 && (
           <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
             <ShareIcon className="h-3.5 w-3.5" />
             <SharedLabel sharers={sharers} />
           </span>
         )}
-        <div className="flex items-center justify-between gap-3">
-          <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
-            {showAuthor && (
-              <>
-                <UserName
-                  userId={row.user_id}
-                  username={author}
-                  avatarPath={avatarPath}
-                />
-                <span>logged</span>
-              </>
-            )}
-            <span className="whitespace-nowrap">
-              {showAuthor && "· "}
-              {timeAgo(row.logged_at, renderedAt)}
-            </span>
+        <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">
+          {showAuthor && (
+            <>
+              <UserName
+                userId={row.user_id}
+                username={author}
+                avatarPath={avatarPath}
+              />
+              <span>logged</span>
+            </>
+          )}
+          <span className="whitespace-nowrap">
+            {showAuthor && "· "}
+            {timeAgo(row.logged_at, renderedAt)}
           </span>
-          {topControls}
-        </div>
+        </span>
+
         <div className="flex items-baseline justify-between gap-3">
           <Link
             href={`/item/${row.item_id}`}
@@ -107,7 +116,6 @@ export default async function LogCard({
           >
             {title}
           </Link>
-          {controls}
         </div>
         <Stars rating={row.rating} />
         <CardActions
@@ -126,8 +134,8 @@ export default async function LogCard({
               ownerId={row.user_id}
               kind="log"
               targetId={row.id}
-              initialCount={row.shares?.[0]?.count ?? 0}
-              initiallyShared={shared}
+              shareCount={row.shares?.[0]?.count ?? 0}
+              shared={shared}
             />
           }
           commentHref={reviewHref}
@@ -137,7 +145,11 @@ export default async function LogCard({
       </div>
 
       {row.review && (
-        <p className="col-span-2 line-clamp-6 whitespace-pre-wrap break-words text-sm @xl:col-span-1 @xl:border-l @xl:border-dashed @xl:border-line @xl:pl-4">
+        <p
+          className={`col-span-2 line-clamp-6 whitespace-pre-wrap break-words text-sm @xl:col-span-1 @xl:border-l @xl:border-dashed @xl:border-line @xl:pl-4 ${
+            topControls || controls ? "@xl:pr-7" : ""
+          }`}
+        >
           {<ReviewText text={row.review} />}
         </p>
       )}

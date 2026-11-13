@@ -9,7 +9,13 @@ import NavAccount from "@/components/NavAccount";
 import { NavAccountPlaceholder } from "@/components/NavAccountLinks";
 import ScrollToTop from "@/components/ScrollToTop";
 import { iphoneViewportScript } from "@/lib/iphoneViewport";
-import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
+import { sfwInitScript } from "@/lib/sfw";
+import {
+  SITE_NAME,
+  SITE_PREVIEW_IMAGE,
+  SITE_TAGLINE,
+  SITE_URL,
+} from "@/lib/site";
 import { themeInitScript } from "@/lib/theme";
 
 const geistSans = Geist({
@@ -26,8 +32,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
   description: SITE_TAGLINE || undefined,
-  openGraph: { siteName: SITE_NAME, type: "website" },
-  twitter: { card: "summary" },
+  openGraph: {
+    siteName: SITE_NAME,
+    type: "website",
+    images: [SITE_PREVIEW_IMAGE],
+  },
+  twitter: { card: "summary", images: [SITE_PREVIEW_IMAGE] },
   icons: {
     icon: [
       { url: "/logo-light.png", media: "(prefers-color-scheme: light)" },
@@ -46,6 +56,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         {/** biome-ignore lint/security/noDangerouslySetInnerHtml: injects the app's own constant theme script */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {/** biome-ignore lint/security/noDangerouslySetInnerHtml: injects the app's own constant SFW mode script */}
+        <script dangerouslySetInnerHTML={{ __html: sfwInitScript }} />
         {/** biome-ignore lint/security/noDangerouslySetInnerHtml: injects the app's own constant viewport script */}
         <script dangerouslySetInnerHTML={{ __html: iphoneViewportScript }} />
       </head>

@@ -169,8 +169,8 @@ export default function Comments({
             commentTable={table}
             commentId={c.id}
             authorId={c.authorId}
-            initialCount={c.likeCount}
-            initiallyLiked={c.liked}
+            likeCount={c.likeCount}
+            liked={c.liked}
           />
           <ReportButton
             viewerId={viewerId}

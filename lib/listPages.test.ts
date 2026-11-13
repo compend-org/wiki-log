@@ -89,7 +89,12 @@ test("asks for one page of rows in a stable order, with the total", async () => 
       data: [
         {
           item_id: "Dune",
-          items: { title: "Dune", image_url: "d.jpg", image_hidden: false },
+          items: {
+            title: "Dune",
+            image_url: "d.jpg",
+            image_hidden: false,
+            nsfw: true,
+          },
         },
         { item_id: "Gone", items: null },
       ],
@@ -118,6 +123,7 @@ test("asks for one page of rows in a stable order, with the total", async () => 
       title: "Dune",
       imageUrl: "d.jpg",
       imageHidden: false,
+      nsfw: true,
     },
     {
       itemId: "Gone",
@@ -125,6 +131,7 @@ test("asks for one page of rows in a stable order, with the total", async () => 
       title: "Unknown item",
       imageUrl: null,
       imageHidden: false,
+      nsfw: false,
     },
   ]);
 });

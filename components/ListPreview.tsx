@@ -7,7 +7,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ItemImage from "@/components/icons/ItemImage";
 import { firstLetter } from "@/lib/format";
 
-type Thumb = { title: string; image_url: string | null };
+type Thumb = { title: string; image_url: string | null; nsfw: boolean };
 type Tip = { text: string; x: number; y: number };
 
 // useLayoutEffect only produces a warning when rendered on the server
@@ -108,6 +108,7 @@ export default function ListPreview({
           >
             <ItemImage
               src={p.image_url}
+              nsfw={p.nsfw}
               alt=""
               placeholder={firstLetter(p.title)}
               className="h-14 w-14 rounded"

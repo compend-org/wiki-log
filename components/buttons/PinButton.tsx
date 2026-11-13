@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
+import { useLocalCopy } from "@/lib/useLocalCopy";
 import PinIcon from "../icons/PinIcon";
 
 export default function PinButton({
@@ -19,9 +20,9 @@ export default function PinButton({
 }) {
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-  // Kept here as well, since a card in a CardPages isn't re-rendered when
-  // the page refreshes
-  const [isPinned, setIsPinned] = useState<boolean>(pinned);
+  // Follows the server's value, and flips at once on a click, since cards a
+  // CardPages loaded after its first page aren't re-rendered on a refresh
+  const [isPinned, setIsPinned] = useLocalCopy(pinned);
   const router = useRouter();
 
   async function toggle() {

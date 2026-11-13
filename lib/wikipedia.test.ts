@@ -12,6 +12,13 @@ const filePage = "https://en.wikipedia.org/wiki/File:Steel_Ball_Run_1.jpg";
 const logo =
   "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Deltarune_vector_logo.svg/960px-Deltarune_vector_logo.svg.png";
 
+// English Wikipedia's list of explicit files, with one file on it
+const explicitImage =
+  "https://upload.wikimedia.org/wikipedia/commons/d/d7/Wiki-explicit_drawing.png";
+const badImageList = `Explicit files may only be shown where listed.
+* [[:File:Wiki-explicit drawing.png]] except on [[Example]]
+`;
+
 const joniImage =
   "https://upload.wikimedia.org/wikipedia/en/1/1c/Joni_Mitchell_in_blackface.png";
 
@@ -47,6 +54,10 @@ function mockWikipedia({
   metadataThrows = false,
   wikidataFile = "Hirohiko Araki.jpg" as string | null,
   wikidataLogo = null as string | null,
+  instanceOf = "Q8274",
+  genre = null as string | null,
+  occupation = null as string | null,
+  fileCategories = [] as string[],
 }: {
   title?: string;
   qid?: string;
@@ -62,12 +73,25 @@ function mockWikipedia({
   metadataThrows?: boolean;
   wikidataFile?: string | null;
   wikidataLogo?: string | null;
+  instanceOf?: string;
+  genre?: string | null;
+  occupation?: string | null;
+  // The categories of the chosen image's file
+  fileCategories?: string[];
 } = {}) {
   return mock.method(
     globalThis,
     "fetch",
     async (input: string | URL | Request) => {
       const url = new URL(String(input));
+      if (url.pathname === "/w/index.php") return new Response(badImageList);
+      if (url.searchParams.get("prop") === "categories") {
+        return Response.json({
+          query: {
+            pages: [{ categories: fileCategories.map((title) => ({ title })) }],
+          },
+        });
+      }
       if (url.pathname.includes("/page/summary/")) {
         return Response.json({
           type: "standard",
@@ -95,10 +119,19 @@ function mockWikipedia({
         );
       }
       if (url.searchParams.get("action") === "wbgetclaims") {
-        if (url.searchParams.get("property") === "P31") {
+        const ids: Record<string, string | null> = {
+          P31: instanceOf,
+          P136: genre,
+          P106: occupation,
+        };
+        const asked = url.searchParams.get("property") as string;
+        if (asked in ids) {
+          const id = ids[asked];
           return Response.json({
             claims: {
-              P31: [{ mainsnak: { datavalue: { value: { id: "Q8274" } } } }],
+              [asked]: id
+                ? [{ mainsnak: { datavalue: { value: { id } } } }]
+                : [],
             },
           });
         }
@@ -158,13 +191,19 @@ function mockWikipedia({
 
 afterEach(() => mock.restoreAll());
 
-// How many requests were made, not counting the one that asks what the item is
-// an instance of (that one is made for every item, whatever its image)
+// How many requests were made to choose the image, not counting the ones that
+// ask what the item is or whether it is adult content (those are made for
+// every item, whatever its image)
 function imageLookups(fetch: ReturnType<typeof mockWikipedia>): number {
-  return fetch.mock.calls.filter(
-    (c) =>
-      new URL(String(c.arguments[0])).searchParams.get("property") !== "P31",
-  ).length;
+  return fetch.mock.calls.filter((c) => {
+    const url = new URL(String(c.arguments[0]));
+    const property = url.searchParams.get("property") ?? "";
+    return (
+      !["P31", "P136", "P106"].includes(property) &&
+      url.pathname !== "/w/index.php" &&
+      url.searchParams.get("prop") !== "categories"
+    );
+  }).length;
 }
 
 test("an item records what Wikidata says it is an instance of", async () => {
@@ -172,6 +211,44 @@ test("an item records what Wikidata says it is an instance of", async () => {
   const result = await getItemByKey("Steel_Ball_Run");
   assert.ok("item" in result);
   assert.deepEqual(result.item.types, ["Q8274"]);
+});
+
+test("an ordinary item with an ordinary image isn't adult content", async () => {
+  mockWikipedia({ fileCategories: ["Category:Manga covers"] });
+  const result = await getItemByKey("Steel_Ball_Run");
+  assert.ok("item" in result);
+  assert.equal(result.item.nsfw, false);
+});
+
+test("an item whose genre is pornographic film is adult content", async () => {
+  mockWikipedia({ genre: "Q185529" });
+  const result = await getItemByKey("Steel_Ball_Run");
+  assert.ok("item" in result);
+  assert.equal(result.item.nsfw, true);
+});
+
+test("a person whose occupation is pornographic film actor is adult content", async () => {
+  mockWikipedia({ instanceOf: "Q5", occupation: "Q488111" });
+  const result = await getItemByKey("Steel_Ball_Run");
+  assert.ok("item" in result);
+  assert.equal(result.item.nsfw, true);
+});
+
+test("an image on Wikipedia's bad image list is adult content", async () => {
+  mockWikipedia({ lead: explicitImage });
+  const result = await getItemByKey("Steel_Ball_Run");
+  assert.ok("item" in result);
+  assert.equal(result.item.imageUrl, explicitImage);
+  assert.equal(result.item.nsfw, true);
+});
+
+test("an image filed under explicit categories is adult content", async () => {
+  mockWikipedia({
+    fileCategories: ["Category:Human sexual activity drawings"],
+  });
+  const result = await getItemByKey("Steel_Ball_Run");
+  assert.ok("item" in result);
+  assert.equal(result.item.nsfw, true);
 });
 
 test("Steel Ball Run uses its non-free cover ahead of an author portrait", async () => {

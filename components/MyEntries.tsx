@@ -7,6 +7,7 @@ import Stars from "@/components/Stars";
 import { track } from "@/lib/analytics";
 import { updateLog } from "@/lib/logs";
 import DeleteButton from "./buttons/DeleteButton";
+import EditIcon from "./icons/EditIcon";
 import ReviewText from "./ReviewText";
 import ReviewTextarea from "./ReviewTextArea";
 
@@ -97,9 +98,11 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
                 <button
                   type="button"
                   onClick={() => startEdit(e)}
-                  className="text-accent underline"
+                  aria-label="Edit this entry"
+                  title="Edit this entry"
+                  className="flex text-accent hover:opacity-70 hover:text-foreground"
                 >
-                  Edit
+                  <EditIcon className="h-4 w-4" />
                 </button>
                 <DeleteButton kind="log" targetId={e.id} />
               </div>

@@ -8,20 +8,25 @@ import ListCard from "@/components/ListCard";
 import LogCard from "@/components/LogCard";
 import type { ListRow as ListCardRow, LogRow } from "@/lib/feedData";
 import { type Keyset, olderThan, PAGE_SIZE } from "@/lib/paging";
+import { aboutAdultItem, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState, type ViewerState } from "@/lib/viewerState";
 import DeleteButton from "./buttons/DeleteButton";
 
-type ItemInfo = { title: string; image_url: string | null } | null;
+type ItemInfo = {
+  title: string;
+  image_url: string | null;
+  nsfw: boolean;
+} | null;
 
 // The columns a review card needs, for both the review list and the pinned ones
 export const LOG_FIELDS =
-  "id, user_id, item_id, rating, review, logged_at, items(title, image_url), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
+  "id, user_id, item_id, rating, review, logged_at, items(title, image_url, nsfw), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
 
 // The columns a list card needs, with the first items of the list as preview.
 // Ask for `.lte("preview.position", 4)` with it.
 export const LIST_FIELDS =
-  "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), preview:list_items(position, items(title, image_url))";
+  "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), preview:list_items(position, items(title, image_url, nsfw))";
 
 export type ProfileListRow = ListCardRow & {
   preview: { position: number; items: ItemInfo }[];
@@ -101,6 +106,7 @@ export function renderProfileList(
       thumbs={l.preview.map((p) => ({
         title: p.items?.title ?? "Unknown item",
         image_url: p.items?.image_url ?? null,
+        nsfw: p.items?.nsfw ?? false,
       }))}
       viewerId={ctx.viewerId}
       liked={viewer.likedLists.has(l.id)}
@@ -190,9 +196,14 @@ export function renderProfileCards(
   kind: ProfileKind,
   rows: (ProfileListRow | LogRow)[],
 ): Card[] {
+  // Reviews of adult items are left out when the viewer hides them
+  const shown =
+    kind === "lists"
+      ? rows
+      : shownEntries(rows as LogRow[], viewer.sfwMode, aboutAdultItem);
   // Pinned ones only come up here among reviews with one rating; the
   // profile itself shows them in their own section instead
-  return rows.map((row) => ({
+  return shown.map((row) => ({
     key: row.id,
     card:
       kind === "lists"

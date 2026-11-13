@@ -13,6 +13,7 @@ export type ListPageEntry = {
   title: string;
   imageUrl: string | null;
   imageHidden: boolean;
+  nsfw: boolean;
 };
 
 type EntryRow = {
@@ -21,6 +22,7 @@ type EntryRow = {
     title: string;
     image_url: string | null;
     image_hidden: boolean;
+    nsfw: boolean;
   } | null;
 };
 
@@ -76,7 +78,7 @@ export async function fetchListPage(
   const { from, to } = pageRange(page);
   const { data, count, error } = await supabase
     .from("list_items")
-    .select("item_id, items(title, image_url, image_hidden)", {
+    .select("item_id, items(title, image_url, image_hidden, nsfw)", {
       count: "exact",
     })
     .eq("list_id", listId)
@@ -103,6 +105,7 @@ export async function fetchListPage(
     title: row.items?.title ?? "Unknown item",
     imageUrl: row.items?.image_url ?? null,
     imageHidden: row.items?.image_hidden ?? false,
+    nsfw: row.items?.nsfw ?? false,
   }));
   return { entries, total: count ?? entries.length };
 }

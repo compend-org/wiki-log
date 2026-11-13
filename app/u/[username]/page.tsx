@@ -32,12 +32,17 @@ import type { LogRow } from "@/lib/feedData";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { loginHref } from "@/lib/redirect";
+import { aboutAdultItem, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
 
 export const instant = false;
 
-type ItemInfo = { title: string; image_url: string | null } | null;
+type ItemInfo = {
+  title: string;
+  image_url: string | null;
+  nsfw: boolean;
+} | null;
 
 type FavRow = {
   position: number;
@@ -116,7 +121,7 @@ export default async function ProfilePage({
         "following:follows!follows_follower_id_fkey(count), " +
         "log_count:logs!logs_user_id_profiles_fkey(count), " +
         "list_count:lists!lists_user_id_profiles_fkey(count), " +
-        "favourites(position, item_id, items(title, image_url)), " +
+        "favourites(position, item_id, items(title, image_url, nsfw)), " +
         "pin_rows:pins(pinned_at, log_id, list_id)" +
         viewerEmbeds,
     )
@@ -147,6 +152,7 @@ export default async function ProfilePage({
           itemId: row.item_id,
           title: row.items?.title ?? "Unknown item",
           imageUrl: row.items?.image_url ?? null,
+          nsfw: row.items?.nsfw ?? false,
         }
       : null;
   });
@@ -211,6 +217,12 @@ export default async function ProfilePage({
     logIds: [...pinnedLogs.keys(), ...logRows.rows.map((l) => l.id)],
     listIds: [...pinnedLists.keys(), ...listRows.rows.map((l) => l.id)],
   });
+  // Pinned reviews of adult items are left out when the viewer hides them
+  const shownPins = shownEntries(
+    pinned,
+    viewer.sfwMode,
+    (p) => p.kind === "log" && aboutAdultItem(p.log),
+  );
   const firstLists: CardsPage = {
     cards: renderProfileCards(ctx, viewer, "lists", listRows.rows),
     next: listRows.next,
@@ -320,7 +332,7 @@ export default async function ProfilePage({
                   <FollowButton
                     viewerId={viewerId}
                     targetId={profile.id}
-                    initiallyFollowing={isFollowing}
+                    following={isFollowing}
                     followsViewer={followsViewer}
                   />
                 )}
@@ -328,7 +340,7 @@ export default async function ProfilePage({
                   viewerId={viewerId}
                   targetId={profile.id}
                   targetName={profile.username}
-                  initiallyBlocked={isBlocked}
+                  blocked={isBlocked}
                 />
                 <ReportButton
                   viewerId={viewerId}
@@ -361,27 +373,27 @@ export default async function ProfilePage({
       {(isOwner || slots.some(Boolean)) && (
         <Favourites slots={slots} isOwner={isOwner} />
       )}
-      {pinned.length > 0 && (
+      {shownPins.length > 0 && (
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
             Pinned
           </h2>
-          {pinned.map((p) =>
+          {shownPins.map((p) =>
             p.kind === "log"
               ? renderProfileLog(ctx, viewer, p.log, true)
               : renderProfileList(ctx, viewer, p.list, true),
           )}
         </section>
       )}
-
-      <div className="sm:hidden">
+      {/* Hiding this for the time being because it is ugly on mobile */}
+      {/* <div className="sm:hidden">
         <RatingHistogram
           ratings={ratings}
           highlight={null}
           unit={{ one: "rating", other: "ratings" }}
           hrefBase={`${profileHref}/ratings`}
         />
-      </div>
+      </div> */}
 
       {(firstLists.cards.length > 0 ||
         firstLists.next ||

@@ -1,6 +1,7 @@
 export const SITE_NAME = "compend";
 export const SITE_URL = "https://compend.org";
 export const SITE_TAGLINE = "";
+export const SITE_PREVIEW_IMAGE = "/logo-preview.png";
 export const CONTACT_EMAIL = "leo@compend.org";
 export const TRENDING_LABEL = "Trending";
 export const TRENDING_HOURS = 6;

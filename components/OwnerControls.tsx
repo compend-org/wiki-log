@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import EditEntryForm from "@/components/EditEntryForm";
 import DeleteButton from "./buttons/DeleteButton";
+import EditIcon from "./icons/EditIcon";
 
 export default function OwnerControls({
   logId,
@@ -33,9 +34,11 @@ export default function OwnerControls({
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="text-accent underline hover:no-underline"
+            aria-label="Edit this entry"
+            title="Edit this entry"
+            className="flex text-accent hover:opacity-70 hover:text-foreground"
           >
-            Edit
+            <EditIcon className="h-4 w-4" />
           </button>
         )}
         <DeleteButton

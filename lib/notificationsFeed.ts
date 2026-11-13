@@ -41,6 +41,7 @@ type ItemRow = {
   title: string;
   image_url: string | null;
   image_hidden: boolean;
+  nsfw: boolean;
 };
 
 type ListQueryRow = {
@@ -50,7 +51,7 @@ type ListQueryRow = {
 };
 
 function toThumb(item: ItemRow): Thumb {
-  return { title: item.title, image_url: shownImage(item) };
+  return { title: item.title, image_url: shownImage(item), nsfw: item.nsfw };
 }
 
 export type NotificationsFeed = {
@@ -146,14 +147,14 @@ async function loadFeed(userId: string): Promise<FeedResult> {
     itemIds.length
       ? supabase
           .from("items")
-          .select("id, title, image_url, image_hidden")
+          .select("id, title, image_url, image_hidden, nsfw")
           .in("id", itemIds)
       : Promise.resolve({ data: [] as (ItemRow & { id: string })[] }),
     listIds.length
       ? supabase
           .from("lists")
           .select(
-            "id, title, list_items(position, items(title, image_url, image_hidden))",
+            "id, title, list_items(position, items(title, image_url, image_hidden, nsfw))",
           )
           .in("id", listIds)
           .order("position", { referencedTable: "list_items" })
