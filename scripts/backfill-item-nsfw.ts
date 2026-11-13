@@ -7,7 +7,10 @@ import { createClient } from "@supabase/supabase-js";
 import { isNsfw } from "@/lib/wikipedia";
 
 const BATCH = 100; // items read from the database at a time
-const PAUSE_MS = 250; // a polite wait between items
+const PAUSE_MS = 1000; // a polite wait between items
+// Long enough to wait out the pauses Wikimedia asks for, so a throttled
+// lookup is retried rather than read as "not adult"
+const ITEM_DEADLINE_MS = 120_000;
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SECRET_KEY;
@@ -48,7 +51,15 @@ async function main() {
     for (const row of data as Row[]) {
       // A failed lookup reads as "not adult", so a flag is only ever set here,
       // never cleared
-      if (!row.nsfw && (await isNsfw(row.id, row.types, row.image_url))) {
+      if (
+        !row.nsfw &&
+        (await isNsfw(
+          row.id,
+          row.types,
+          row.image_url,
+          Date.now() + ITEM_DEADLINE_MS,
+        ))
+      ) {
         const { error: writeError } = await supabase
           .from("items")
           .update({ nsfw: true })
