@@ -81,7 +81,7 @@ export default async function PeopleList({
       <p className="text-center text-muted">{empty}</p>
     ) : (
       <>
-        <ul className="mx-auto flex w-full max-w-[10rem] flex-col ">
+        <ul className="flex w-full flex-col">
           {people.map((p) => (
             <li key={p.id}>
               <Link
