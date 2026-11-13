@@ -57,7 +57,7 @@ type ListRow = {
 // A reply to a comment on a review
 type ReplyRow = {
   id: string;
-  parent_id: string;
+  parent_id: string | null;
   body: string;
   created_at: string;
   logs: {
@@ -70,7 +70,7 @@ type ReplyRow = {
 // A reply to a comment on a list
 type ListReplyRow = {
   id: string;
-  parent_id: string;
+  parent_id: string | null;
   body: string;
   created_at: string;
   lists: {
@@ -164,7 +164,6 @@ export async function loadDiaryPage(
       "id, parent_id, body, created_at, logs!comments_log_fkey(id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))",
     )
     .eq("user_id", userId)
-    .not("parent_id", "is", null)
     .is("removed_at", null);
   if (after.replies) {
     repliesQuery = repliesQuery.or(olderThan("created_at", after.replies));
@@ -175,7 +174,6 @@ export async function loadDiaryPage(
       "id, parent_id, body, created_at, lists(id, title, profiles!lists_user_id_profiles_fkey(username))",
     )
     .eq("user_id", userId)
-    .not("parent_id", "is", null)
     .is("removed_at", null);
   if (after.listReplies) {
     listRepliesQuery = listRepliesQuery.or(
@@ -212,12 +210,12 @@ export async function loadDiaryPage(
     authorsOf(
       supabase,
       "comments",
-      replyRows.map((r) => r.parent_id),
+      replyRows.flatMap((r) => (r.parent_id ? [r.parent_id] : [])),
     ),
     authorsOf(
       supabase,
       "list_comments",
-      listReplyRows.map((r) => r.parent_id),
+      listReplyRows.flatMap((r) => (r.parent_id ? [r.parent_id] : [])),
     ),
   ]);
 
@@ -290,14 +288,17 @@ export async function loadDiaryPage(
       key: `reply:${r.id}`,
       card: (
         <DiaryReplyCard
+          replyId={r.id}
+          kind="comment"
+          cardKey={`reply:${r.id}`}
           ago={timeAgo(r.created_at, now)}
           href={
             r.logs?.profiles
               ? `/u/${encodeURIComponent(r.logs.profiles.username)}/${r.logs.id}`
               : "/"
           }
-          replyingTo={replyAuthors.get(r.parent_id) ?? null}
-          where={`${r.logs?.profiles?.username ?? "Someone"}'s review of ${r.logs?.items?.title ?? "an item"}`}
+          isReply={r.parent_id !== null}
+          replyingTo={r.parent_id ? (replyAuthors.get(r.parent_id) ?? null) : null} where={`${r.logs?.profiles?.username ?? "Someone"}'s review of ${r.logs?.items?.title ?? "an item"}`}
           body={r.body}
         />
       ),
@@ -311,10 +312,13 @@ export async function loadDiaryPage(
       key: `list-reply:${r.id}`,
       card: (
         <DiaryReplyCard
+          replyId={r.id}
+          kind="list_comment"
+          cardKey={`list-reply:${r.id}`}
           ago={timeAgo(r.created_at, now)}
           href={r.lists ? `/list/${r.lists.id}` : "/"}
-          replyingTo={listReplyAuthors.get(r.parent_id) ?? null}
-          where={`${r.lists?.profiles?.username ?? "Someone"}'s list ${r.lists?.title ?? ""}`}
+          isReply={r.parent_id !== null}
+          replyingTo={r.parent_id ? (replyAuthors.get(r.parent_id) ?? null) : null} where={`${r.lists?.profiles?.username ?? "Someone"}'s list ${r.lists?.title ?? ""}`}
           body={r.body}
         />
       ),
@@ -336,11 +340,11 @@ export async function loadDiaryPage(
       .map((e) => e.card),
     next: hasMore
       ? {
-          logs: lastOf(tookLogs, after.logs),
-          lists: lastOf(tookLists, after.lists),
-          replies: lastOf(tookReplies, after.replies),
-          listReplies: lastOf(tookListReplies, after.listReplies),
-        }
+        logs: lastOf(tookLogs, after.logs),
+        lists: lastOf(tookLists, after.lists),
+        replies: lastOf(tookReplies, after.replies),
+        listReplies: lastOf(tookListReplies, after.listReplies),
+      }
       : null,
     error: "",
   };

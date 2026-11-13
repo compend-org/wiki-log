@@ -8,14 +8,46 @@ import DeleteIcon from "@/components/icons/DeleteIcon";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
 
-// The red cross that deletes one of your reviews or lists, after asking
+type Kind = "log" | "list" | "comment" | "list_comment";
+
+// What each kind is stored in, what it is called, and what goes with it
+const KINDS: Record<
+  Kind,
+  { table: string; noun: string; consequence: string }
+> = {
+  log: {
+    table: "logs",
+    noun: "entry",
+    consequence: "Its likes and comments are deleted with it",
+  },
+  list: {
+    table: "lists",
+    noun: "list",
+    consequence: "Its likes and comments are deleted with it",
+  },
+  comment: {
+    table: "comments",
+    noun: "reply",
+    consequence: "Its likes and the replies to it are deleted with it",
+  },
+  list_comment: {
+    table: "list_comments",
+    noun: "reply",
+    consequence: "Its likes and the replies to it are deleted with it",
+  },
+};
+
+// The red cross that deletes one of your reviews, lists or replies, after asking
 export default function DeleteButton({
   kind,
   targetId,
+  cardKey,
   onDeleted,
 }: {
-  kind: "log" | "list";
+  kind: Kind;
   targetId: string;
+  // The key of the card it is on in a CardPages, when that isn't targetId
+  cardKey?: string;
   // What to do once it's gone. Refreshes the page when left out. A card in a
   // CardPages is taken off the list either way, as the list doesn't follow
   // the refreshed page.
@@ -26,14 +58,14 @@ export default function DeleteButton({
   const [error, setError] = useState<string>("");
   const router = useRouter();
   const removeCard = useRemoveCard();
-  const noun = kind === "log" ? "entry" : "list";
+  const { table, noun, consequence } = KINDS[kind];
 
   async function handleDelete() {
     if (busy) return;
     setBusy(true);
     setError("");
     const { data, error } = await createClient()
-      .from(kind === "log" ? "logs" : "lists")
+      .from(table)
       .delete()
       .eq("id", targetId)
       .select("id");
@@ -47,10 +79,13 @@ export default function DeleteButton({
       setError(`Couldn't delete that ${noun}.`);
       return;
     }
-    track(kind === "log" ? "log_deleted" : "list_deleted");
+    if (kind === "log") track("log_deleted");
+    else if (kind === "list") track("list_deleted");
+    else
+      track("comment_deleted", { target: kind === "comment" ? "log" : "list" });
     setOpen(false);
-    // Cards are keyed by the id of their review or list
-    removeCard?.(targetId);
+    // Cards are keyed by the id of their review or list, unless they say so
+    removeCard?.(cardKey ?? targetId);
     if (onDeleted) onDeleted();
     else router.refresh();
   }
@@ -80,10 +115,7 @@ export default function DeleteButton({
           onConfirm={handleDelete}
           onCancel={() => setOpen(false)}
         >
-          <p>
-            Its likes and comments are deleted with it, and this can&apos;t be
-            undone.
-          </p>
+          <p>{consequence}, and this can&apos;t be undone.</p>
         </ConfirmDialog>
       )}
     </span>

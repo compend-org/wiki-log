@@ -204,7 +204,7 @@ export default function Comments({
                 setDeleting(c);
               }}
               disabled={busy}
-              className="underline"
+              className="hover:underline"
             >
               Delete
             </button>
