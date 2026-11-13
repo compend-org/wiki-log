@@ -298,7 +298,10 @@ export async function loadDiaryPage(
               : "/"
           }
           isReply={r.parent_id !== null}
-          replyingTo={r.parent_id ? (replyAuthors.get(r.parent_id) ?? null) : null} where={`${r.logs?.profiles?.username ?? "Someone"}'s review of ${r.logs?.items?.title ?? "an item"}`}
+          replyingTo={
+            r.parent_id ? (replyAuthors.get(r.parent_id) ?? null) : null
+          }
+          where={`${r.logs?.profiles?.username ?? "Someone"}'s review of ${r.logs?.items?.title ?? "an item"}`}
           body={r.body}
         />
       ),
@@ -318,7 +321,10 @@ export async function loadDiaryPage(
           ago={timeAgo(r.created_at, now)}
           href={r.lists ? `/list/${r.lists.id}` : "/"}
           isReply={r.parent_id !== null}
-          replyingTo={r.parent_id ? (replyAuthors.get(r.parent_id) ?? null) : null} where={`${r.lists?.profiles?.username ?? "Someone"}'s list ${r.lists?.title ?? ""}`}
+          replyingTo={
+            r.parent_id ? (listReplyAuthors.get(r.parent_id) ?? null) : null
+          }
+          where={`${r.lists?.profiles?.username ?? "Someone"}'s list ${r.lists?.title ?? ""}`}
           body={r.body}
         />
       ),
@@ -340,11 +346,11 @@ export async function loadDiaryPage(
       .map((e) => e.card),
     next: hasMore
       ? {
-        logs: lastOf(tookLogs, after.logs),
-        lists: lastOf(tookLists, after.lists),
-        replies: lastOf(tookReplies, after.replies),
-        listReplies: lastOf(tookListReplies, after.listReplies),
-      }
+          logs: lastOf(tookLogs, after.logs),
+          lists: lastOf(tookLists, after.lists),
+          replies: lastOf(tookReplies, after.replies),
+          listReplies: lastOf(tookListReplies, after.listReplies),
+        }
       : null,
     error: "",
   };
