@@ -1,5 +1,6 @@
 // ABOUTME: Sizes, storage paths and public URLs for profile pictures.
 // ABOUTME: Each picture is stored twice: full size, and a small copy for tiny displays.
+import { supabaseUrl } from "@/lib/supabase/connection";
 
 // Width and height in pixels of the stored square pictures
 export const AVATAR_SIZE = 256;
@@ -25,5 +26,5 @@ export function avatarUrl(
     displaySize !== undefined && displaySize <= SMALL_MAX_DISPLAY_SIZE
       ? smallAvatarPath(path)
       : path;
-  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${stored}`;
+  return `${supabaseUrl()}/storage/v1/object/public/avatars/${stored}`;
 }
