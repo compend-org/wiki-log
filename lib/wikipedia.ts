@@ -1,8 +1,9 @@
 // Item lookups on Wikipedia and Wikidata. Server-side only.
 
 import { BUSY_ERROR, readSummary, summaryUrl } from "@/lib/articleSummary";
-import { absolute, freeImage } from "@/lib/format";
+import { absolute, fileNameFromUrl, fileTitle, freeImage } from "@/lib/format";
 import { DEFAULT_LANG, LANGUAGES, type LangCode } from "@/lib/languages";
+import { EXPLICIT_CATEGORY } from "@/lib/sfw";
 import {
   type Pause,
   sendWithinDeadline,
@@ -103,18 +104,6 @@ function fileIsFree(page: ImagePage | undefined): boolean {
     page?.imagerepository === "shared" ||
     (page?.categories ?? []).some((c) => c.title === "Category:All free media")
   );
-}
-
-// The file's name, read from an upload.wikimedia.org address
-function fileNameFromUrl(url: string): string | null {
-  try {
-    const parts = new URL(absolute(url)).pathname.split("/").filter(Boolean);
-    if (parts[0] !== "wikipedia") return null;
-    const name = parts[2] === "thumb" ? parts[5] : parts[4];
-    return name ? decodeURIComponent(name) : null;
-  } catch {
-    return null;
-  }
 }
 
 function filePageFor(lang: LangCode, url: string, fileName: string): string {
@@ -301,10 +290,6 @@ const ADULT_SUBJECTS = new Set([
   "Q66382950", // pornographic film actress
 ]);
 
-// Commons and Wikipedia file categories that describe explicit pictures
-const EXPLICIT_CATEGORY =
-  /\b(nude|nudes|nudity|naked|topless|erotic|erotica|pornograph\w*|genitalia|genitals|penis|penises|vulva|vulvas|vagina|vaginas|human sexual activity|sexual intercourse|sex acts?|sex positions?|sex toys?|intercourse|masturbation|fellatio|cunnilingus|anilingus|bdsm|hentai|nipples?)\b/i;
-
 // True if Wikidata describes the item as adult content. A failed lookup
 // counts as no, so the item is shown as usual.
 async function isAdultSubject(
@@ -326,18 +311,12 @@ async function isAdultSubject(
   );
 }
 
-// A file name the way wiki titles write it: spaces, first letter capitalised
-function fileTitle(name: string): string {
-  const spaced = name.replace(/_/g, " ").trim();
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
-
 const BAD_IMAGE_LIST_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 let badImageList: { names: Set<string>; fetchedAt: number } | null = null;
 
 // English Wikipedia's list of explicit or shocking files that articles may
-// only show in specific places. Kept for a day. Empty if it can't be read.
-async function badImages(deadline: number): Promise<Set<string>> {
+// only show in specific places. Kept for a day. Null if it can't be read.
+export async function badImages(deadline: number): Promise<Set<string> | null> {
   if (
     badImageList &&
     Date.now() - badImageList.fetchedAt < BAD_IMAGE_LIST_MAX_AGE_MS
@@ -349,7 +328,7 @@ async function badImages(deadline: number): Promise<Set<string>> {
       "https://en.wikipedia.org/w/index.php?title=MediaWiki:Bad_image_list&action=raw",
       deadline,
     );
-    if (!res.ok) return new Set();
+    if (!res.ok) return null;
     const names = new Set<string>();
     for (const line of (await res.text()).split("\n")) {
       const name = line.match(/^\*\s*\[\[:(?:File|Image):([^\]|]+)/i)?.[1];
@@ -358,7 +337,7 @@ async function badImages(deadline: number): Promise<Set<string>> {
     badImageList = { names, fetchedAt: Date.now() };
     return names;
   } catch {
-    return new Set();
+    return null;
   }
 }
 
@@ -371,7 +350,7 @@ async function isExplicitImage(
   const fileName = fileNameFromUrl(url);
   if (!fileName) return false;
   const name = fileTitle(fileName);
-  if ((await badImages(deadline)).has(name)) return true;
+  if ((await badImages(deadline))?.has(name)) return true;
 
   // Commons files live under /wikipedia/commons/, a wiki's own files under
   // its language code

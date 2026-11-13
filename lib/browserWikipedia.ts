@@ -1,8 +1,9 @@
-// ABOUTME: Searches Wikipedia article titles and finds an article's Wikidata item, from the visitor's browser.
+// ABOUTME: Searches Wikipedia article titles, checks pictures for explicit content, and finds an article's Wikidata item, from the visitor's browser.
 // ABOUTME: Search holds off while Wikimedia has asked for a wait; finding an item waits it out.
 import { BUSY_ERROR, readSummary, summaryUrl } from "@/lib/articleSummary";
-import { freeImage } from "@/lib/format";
+import { fileTitle, freeImage } from "@/lib/format";
 import type { LangCode } from "@/lib/languages";
+import { EXPLICIT_CATEGORY } from "@/lib/sfw";
 import {
   DEFAULT_WAIT_MS,
   type Pause,
@@ -19,6 +20,7 @@ const MAX_QUERY_LENGTH = 100;
 
 export type SearchHit = {
   key: string;
+  wikidataId: string | null; // when the article has one
   title: string;
   description: string | null;
   imageUrl: string | null;
@@ -26,6 +28,29 @@ export type SearchHit = {
 
 // Waits Wikimedia has asked of this browser
 const pause: Pause = { until: 0 };
+
+// Sends a request from this browser unless Wikimedia has asked it to wait,
+// and remembers any wait the response asks for. Throws if it doesn't succeed.
+async function askWikimedia(url: string, signal?: AbortSignal) {
+  if (Date.now() < pause.until) throw new Error("Waiting on Wikipedia");
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { "Api-User-Agent": API_USER_AGENT },
+      signal,
+    });
+  } catch (e) {
+    // A rate limit response without CORS headers also lands here, since the
+    // browser hides it from this code
+    if (!signal?.aborted) pause.until = Date.now() + DEFAULT_WAIT_MS;
+    throw e;
+  }
+
+  pause.until = Math.max(pause.until, Date.now() + requestedWaitMs(res));
+  if (!res.ok) throw new Error(`Wikimedia request failed: ${res.status}`);
+  return res;
+}
 
 // Suggestions as you type, from the Wikipedia in the chosen language
 export async function searchTitles(
@@ -36,39 +61,31 @@ export async function searchTitles(
   const q = query.trim();
   if (q.length < MIN_QUERY_LENGTH || q.length > MAX_QUERY_LENGTH) return [];
 
-  if (Date.now() < pause.until) throw new Error("Waiting on Wikipedia");
-
-  let res: Response;
-  try {
-    res = await fetch(
-      `https://${lang}.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(q)}&limit=8`,
-      { headers: { "Api-User-Agent": API_USER_AGENT }, signal },
-    );
-  } catch (e) {
-    // A rate limit response without CORS headers also lands here, since the
-    // browser hides it from this code
-    if (!signal?.aborted) pause.until = Date.now() + DEFAULT_WAIT_MS;
-    throw e;
-  }
-
-  pause.until = Math.max(pause.until, Date.now() + requestedWaitMs(res));
-  if (!res.ok) throw new Error(`Wikipedia search failed: ${res.status}`);
+  const res = await askWikimedia(
+    `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&origin=*&redirects=1&generator=prefixsearch&gpslimit=8&gpssearch=${encodeURIComponent(q)}&prop=pageprops|pageimages|description&ppprop=wikibase_item&piprop=thumbnail&pithumbsize=60`,
+    signal,
+  );
 
   const data: {
-    pages?: {
-      key: string;
-      title: string;
-      description?: string | null;
-      thumbnail?: { url: string } | null;
-    }[];
+    query?: {
+      pages?: {
+        index: number;
+        title: string;
+        description?: string;
+        pageprops?: { wikibase_item?: string };
+        thumbnail?: { source: string };
+      }[];
+    };
   } = await res.json();
 
-  return (data.pages ?? [])
+  return (data.query?.pages ?? [])
+    .sort((a, b) => a.index - b.index)
     .map((p) => ({
-      key: p.key,
+      key: p.title.replace(/ /g, "_"),
+      wikidataId: p.pageprops?.wikibase_item ?? null,
       title: p.title,
       description: p.description ?? null,
-      imageUrl: freeImage(p.thumbnail?.url),
+      imageUrl: freeImage(p.thumbnail?.source),
     }))
     .filter(
       (h) =>
@@ -76,6 +93,36 @@ export async function searchTitles(
           `${h.title} ${h.description ?? ""}`,
         ),
     );
+}
+
+// Which of these Commons files are filed under categories that describe
+// explicit pictures, asked in one request
+export async function explicitCommonsFiles(
+  fileNames: string[],
+  signal?: AbortSignal,
+): Promise<Set<string>> {
+  if (fileNames.length === 0) return new Set();
+
+  const titles = fileNames.map((name) => `File:${fileTitle(name)}`).join("|");
+  const res = await askWikimedia(
+    `https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&origin=*&prop=categories&cllimit=max&titles=${encodeURIComponent(titles)}`,
+    signal,
+  );
+
+  const data: {
+    query?: {
+      pages?: { title: string; categories?: { title: string }[] }[];
+    };
+  } = await res.json();
+
+  const explicit = new Set(
+    (data.query?.pages ?? [])
+      .filter((p) =>
+        (p.categories ?? []).some((c) => EXPLICIT_CATEGORY.test(c.title)),
+      )
+      .map((p) => p.title.replace(/^File:/, "")),
+  );
+  return new Set(fileNames.filter((name) => explicit.has(fileTitle(name))));
 }
 
 // The Wikidata item for an article, or why it can't become one. While
