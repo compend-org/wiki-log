@@ -29,9 +29,10 @@ export type SearchHit = {
 // Waits Wikimedia has asked of this browser
 const pause: Pause = { until: 0 };
 
-// Sends a request from this browser unless Wikimedia has asked it to wait,
-// and remembers any wait the response asks for. Throws if it doesn't succeed.
-async function askWikimedia(url: string, signal?: AbortSignal) {
+// Sends an API request from this browser unless Wikimedia has asked it to
+// wait, remembers any wait the response asks for, and reads the answer. Throws
+// if it doesn't succeed, including errors the API reports with a 200 status.
+async function askWikimedia<T>(url: string, signal?: AbortSignal): Promise<T> {
   if (Date.now() < pause.until) throw new Error("Waiting on Wikipedia");
 
   let res: Response;
@@ -49,7 +50,9 @@ async function askWikimedia(url: string, signal?: AbortSignal) {
 
   pause.until = Math.max(pause.until, Date.now() + requestedWaitMs(res));
   if (!res.ok) throw new Error(`Wikimedia request failed: ${res.status}`);
-  return res;
+  const data: T & { error?: { code: string } } = await res.json();
+  if (data.error) throw new Error(`Wikimedia API error: ${data.error.code}`);
+  return data;
 }
 
 // Suggestions as you type, from the Wikipedia in the chosen language
@@ -61,12 +64,7 @@ export async function searchTitles(
   const q = query.trim();
   if (q.length < MIN_QUERY_LENGTH || q.length > MAX_QUERY_LENGTH) return [];
 
-  const res = await askWikimedia(
-    `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&origin=*&redirects=1&generator=prefixsearch&gpslimit=8&gpssearch=${encodeURIComponent(q)}&prop=pageprops|pageimages|description&ppprop=wikibase_item&piprop=thumbnail&pithumbsize=60`,
-    signal,
-  );
-
-  const data: {
+  const data = await askWikimedia<{
     query?: {
       pages?: {
         index: number;
@@ -76,7 +74,10 @@ export async function searchTitles(
         thumbnail?: { source: string };
       }[];
     };
-  } = await res.json();
+  }>(
+    `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&origin=*&redirects=1&generator=prefixsearch&gpslimit=8&gpssearch=${encodeURIComponent(q)}&prop=pageprops|pageimages|description&ppprop=wikibase_item&piprop=thumbnail&pithumbsize=60`,
+    signal,
+  );
 
   return (data.query?.pages ?? [])
     .sort((a, b) => a.index - b.index)
@@ -96,7 +97,8 @@ export async function searchTitles(
 }
 
 // Which of these Commons files are filed under categories that describe
-// explicit pictures, asked in one request
+// explicit pictures, asked in one request. Throws if the answer doesn't fit
+// in one response, since the files left out would read as not explicit.
 export async function explicitCommonsFiles(
   fileNames: string[],
   signal?: AbortSignal,
@@ -104,16 +106,17 @@ export async function explicitCommonsFiles(
   if (fileNames.length === 0) return new Set();
 
   const titles = fileNames.map((name) => `File:${fileTitle(name)}`).join("|");
-  const res = await askWikimedia(
+  const data = await askWikimedia<{
+    continue?: unknown;
+    query?: {
+      pages?: { title: string; categories?: { title: string }[] }[];
+    };
+  }>(
     `https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&origin=*&prop=categories&cllimit=max&titles=${encodeURIComponent(titles)}`,
     signal,
   );
 
-  const data: {
-    query?: {
-      pages?: { title: string; categories?: { title: string }[] }[];
-    };
-  } = await res.json();
+  if (data.continue) throw new Error("Too many categories to check at once");
 
   const explicit = new Set(
     (data.query?.pages ?? [])

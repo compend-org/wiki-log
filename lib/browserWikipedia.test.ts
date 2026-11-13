@@ -79,3 +79,28 @@ test("files under explicit categories are found, by the names they were asked by
     "File:Foreskin2.jpg|File:ALFiqh.png",
   );
 });
+
+test("an error the API reports with a 200 status fails the check", async () => {
+  mock.method(globalThis, "fetch", async () =>
+    Response.json({ error: { code: "internal_api_error_DBQueryError" } }),
+  );
+
+  await assert.rejects(explicitCommonsFiles(["Foreskin2.jpg"]));
+  await assert.rejects(searchTitles("vulva", "en"));
+});
+
+test("categories that don't fit in one answer fail the check", async () => {
+  mock.method(globalThis, "fetch", async () =>
+    Response.json({
+      continue: { clcontinue: "123|Human_penis", continue: "||" },
+      query: {
+        pages: [
+          { title: "File:ALFiqh.png", categories: [] },
+          { title: "File:Foreskin2.jpg" },
+        ],
+      },
+    }),
+  );
+
+  await assert.rejects(explicitCommonsFiles(["ALFiqh.png", "Foreskin2.jpg"]));
+});

@@ -30,19 +30,23 @@ export async function GET(request: NextRequest) {
       : { data: [], error: null },
     files.length ? badImages(Date.now() + LIST_WAIT_MS) : new Set<string>(),
   ]);
-  if (saved.error || !bad) {
-    return NextResponse.json({ error: "Lookup failed" }, { status: 503 });
-  }
+  // Each check's answer, or null if it failed, so a failure only leaves the
+  // pictures that check covers unchecked
+  const flaggedIds = saved.error
+    ? null
+    : (saved.data ?? []).map((r: { id: string }) => r.id);
+  const flaggedFiles = bad ? files.filter((f) => bad.has(f)) : null;
 
   return NextResponse.json(
-    {
-      ids: (saved.data ?? []).map((r: { id: string }) => r.id),
-      files: files.filter((f) => bad.has(f)),
-    },
+    { ids: flaggedIds, files: flaggedFiles },
     {
       headers: {
-        // Short, so items newly marked as adult content blur soon
-        "Cache-Control": "public, s-maxage=600, stale-while-revalidate=3600",
+        // Short, so items newly marked as adult content blur soon. A failed
+        // check isn't kept, so the next search asks again.
+        "Cache-Control":
+          flaggedIds && flaggedFiles
+            ? "public, s-maxage=600, stale-while-revalidate=3600"
+            : "no-store",
       },
     },
   );

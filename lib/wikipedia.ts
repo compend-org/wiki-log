@@ -313,9 +313,11 @@ async function isAdultSubject(
 
 const BAD_IMAGE_LIST_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 let badImageList: { names: Set<string>; fetchedAt: number } | null = null;
+let badImageRead: Promise<Set<string> | null> | null = null;
 
 // English Wikipedia's list of explicit or shocking files that articles may
 // only show in specific places. Kept for a day. Null if it can't be read.
+// Callers that arrive while it is being read share that one request.
 export async function badImages(deadline: number): Promise<Set<string> | null> {
   if (
     badImageList &&
@@ -323,6 +325,13 @@ export async function badImages(deadline: number): Promise<Set<string> | null> {
   ) {
     return badImageList.names;
   }
+  badImageRead ??= readBadImages(deadline).finally(() => {
+    badImageRead = null;
+  });
+  return badImageRead;
+}
+
+async function readBadImages(deadline: number): Promise<Set<string> | null> {
   try {
     const res = await wikiFetch(
       "https://en.wikipedia.org/w/index.php?title=MediaWiki:Bad_image_list&action=raw",

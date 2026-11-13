@@ -14,8 +14,8 @@ import {
 import { FEATURES } from "@/lib/features";
 import { fileNameFromUrl, fileTitle, freeImage } from "@/lib/format";
 import { DEFAULT_LANG, isLang, type LangCode } from "@/lib/languages";
-import { currentSfwMode } from "@/lib/sfw";
 import { useDropdownRoom } from "@/lib/useDropdownRoom";
+import { useSfwMode } from "@/lib/useSfwMode";
 
 type Hit = {
   key: string;
@@ -83,24 +83,31 @@ async function checkPictures(
   const [ours, commons] = await Promise.allSettled([
     fetch(`/api/adult-content?${params}`, { signal }).then(async (res) => {
       if (!res.ok) throw new Error(`Adult content check failed: ${res.status}`);
-      return (await res.json()) as { ids: string[]; files: string[] };
+      return (await res.json()) as {
+        ids: string[] | null;
+        files: string[] | null;
+      };
     }),
     explicitCommonsFiles(commonsFiles, signal),
   ]);
 
+  // What each check flagged, or null where it failed
+  const ourIds = ours.status === "fulfilled" ? ours.value.ids : null;
+  const ourFiles = ours.status === "fulfilled" ? ours.value.files : null;
+  const commonsFlagged = commons.status === "fulfilled" ? commons.value : null;
+
   const checks = new Map<string, "adult" | "failed">();
   for (const p of pictured) {
-    const flaggedByOurs =
-      ours.status === "fulfilled" &&
-      ((!!p.id && ours.value.ids.includes(p.id)) ||
-        (!!p.file && ours.value.files.includes(p.file)));
-    const flaggedByCommons =
-      commons.status === "fulfilled" && !!p.file && commons.value.has(p.file);
+    const flagged =
+      (!!p.id && !!ourIds?.includes(p.id)) ||
+      (!!p.file && !!ourFiles?.includes(p.file)) ||
+      (!!p.file && !!commonsFlagged?.has(p.file));
     const failed =
-      (ours.status === "rejected" && (!!p.id || !!p.file)) ||
-      (commons.status === "rejected" && !!p.file && p.onCommons);
+      (!!p.id && !ourIds) ||
+      (!!p.file && !ourFiles) ||
+      (!!p.file && p.onCommons && !commonsFlagged);
 
-    if (flaggedByOurs || flaggedByCommons) checks.set(p.key, "adult");
+    if (flagged) checks.set(p.key, "adult");
     else if (failed) checks.set(p.key, "failed");
   }
   return checks;
@@ -162,7 +169,11 @@ export default function ItemPicker({
   const box = useRef<HTMLDivElement>(null);
 
   const term = query.trim();
-  const searchKey = `${lang}:${term}`;
+  // Results are for a search in one SFW mode, so when the mode turns on, such
+  // as when the account's mode arrives after the results, unchecked pictures
+  // stop showing and the search runs again with checks
+  const checking = useSfwMode() !== "off";
+  const searchKey = `${lang}:${checking}:${term}`;
   const listOpen = open && term.length >= 2;
   const room = useDropdownRoom(box, listOpen, LIST_HEIGHT);
 
@@ -216,7 +227,6 @@ export default function ItemPicker({
           searchTitles(term, lang, controller.signal),
         ]);
         const found: Hit[] = [...compounds, ...titles];
-        const checking = currentSfwMode() !== "off";
         setHits(
           checking
             ? found.map((h) =>
@@ -224,7 +234,7 @@ export default function ItemPicker({
               )
             : found,
         );
-        setHitsFor(`${lang}:${term}`);
+        setHitsFor(`${lang}:${checking}:${term}`);
         setActive(-1);
         if (!checking) return;
 
@@ -238,7 +248,8 @@ export default function ItemPicker({
         );
       } catch {
         // A newer keystroke cancels this search, which isn't a failure
-        if (!controller.signal.aborted) setFailedFor(`${lang}:${term}`);
+        if (!controller.signal.aborted)
+          setFailedFor(`${lang}:${checking}:${term}`);
       }
     }, 300);
 
@@ -246,7 +257,7 @@ export default function ItemPicker({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [term, lang]);
+  }, [term, lang, checking]);
 
   async function choose(hit: Hit) {
     setBusy(true);
