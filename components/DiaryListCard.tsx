@@ -33,7 +33,13 @@ export default function DiaryListCard({
   if (deleted) return null;
 
   return (
-    <div className="card flex flex-col gap-2 p-3">
+    <div className="card relative flex flex-col gap-2 p-3 hover-or-tap:border-accent/60">
+      {/* The whole card opens the list, except the links above it */}
+      <Link
+        href={`/list/${listId}`}
+        aria-label={`Open ${title}`}
+        className="absolute inset-0 rounded-[inherit]"
+      />
       <div className="flex items-center justify-between gap-3 text-xs text-muted">
         <span>
           {ago} · You made a {ranked ? "ranked " : ""}list
@@ -43,7 +49,7 @@ export default function DiaryListCard({
             href={`/list/${listId}/edit`}
             aria-label="Edit this list"
             title="Edit this list"
-            className="flex text-accent hover:text-foreground hover:opacity-70 hover:no-underline"
+            className="relative z-10 flex text-accent hover:text-foreground hover:opacity-70 hover:no-underline"
           >
             <EditIcon className="h-4 w-4" />
           </Link>
@@ -54,7 +60,10 @@ export default function DiaryListCard({
           />
         </span>
       </div>
-      <Link href={`/list/${listId}`} className="w-fit font-semibold underline">
+      <Link
+        href={`/list/${listId}`}
+        className="relative z-10 w-fit font-semibold underline"
+      >
         {title}
       </Link>
       {previews.length > 0 && (

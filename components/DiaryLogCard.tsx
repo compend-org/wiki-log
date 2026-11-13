@@ -45,26 +45,31 @@ export default function DiaryLogCard({
 
   if (deleted) return null;
 
+  // The whole card opens the entry, except while editing, so the form can be used
+  const opensEntry = entryHref !== null && !editing;
+
   return (
-    <div className="card flex flex-col gap-2 p-3">
+    <div
+      className={`card relative flex flex-col gap-2 p-3 ${
+        opensEntry ? "hover-or-tap:border-accent/60" : ""
+      }`}
+    >
+      {opensEntry && (
+        <Link
+          href={entryHref}
+          aria-label={`Open your entry for ${title}`}
+          className="absolute inset-0 rounded-[inherit]"
+        />
+      )}
       <div className="flex items-center justify-between gap-3 text-xs text-muted">
-        <span>
-          {entryHref ? (
-            <Link href={entryHref} className="underline">
-              {ago}
-            </Link>
-          ) : (
-            ago
-          )}
-          {" · You logged"}
-        </span>
+        <span>{ago} · You logged</span>
         <span className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setEditing(true)}
             aria-label="Edit this entry"
             title="Edit this entry"
-            className="flex text-accent hover:opacity-70 hover:text-foreground"
+            className="relative z-10 flex text-accent hover:opacity-70 hover:text-foreground"
           >
             <EditIcon className="h-4 w-4" />
           </button>
@@ -90,7 +95,7 @@ export default function DiaryLogCard({
         />
       ) : (
         <div className="flex items-center gap-3">
-          <Link href={`/item/${itemId}`} className="shrink-0">
+          <Link href={`/item/${itemId}`} className="relative z-10 shrink-0">
             <ItemImage
               src={imageUrl}
               nsfw={nsfw}
@@ -99,7 +104,10 @@ export default function DiaryLogCard({
             />
           </Link>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <Link href={`/item/${itemId}`} className="w-fit font-semibold">
+            <Link
+              href={`/item/${itemId}`}
+              className="relative z-10 w-fit font-semibold"
+            >
               {title}
             </Link>
             <Stars rating={shownRating} />
