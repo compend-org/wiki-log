@@ -60,9 +60,11 @@ export function itemColumns(item: ItemData) {
     image_non_free: item.imageNonFree,
     image_page_url: item.imageFilePage,
     page_url: item.pageUrl,
-    nsfw: item.nsfw,
     fetched_at: new Date().toISOString(),
     ...(item.types ? { types: item.types } : {}),
+    // A lookup that runs out of time reads as "not adult", so a lookup only
+    // ever sets the adult flag and never clears one
+    ...(item.nsfw ? { nsfw: true } : {}),
   };
 }
 
@@ -102,7 +104,9 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
   );
 
   // Wikipedia is down or the article was removed: a stale copy beats an error
-  return "error" in fresh ? { item: toItem(cached) } : fresh;
+  if ("error" in fresh) return { item: toItem(cached) };
+  // The saved row keeps its adult flag, so the page shows it too
+  return { item: { ...fresh.item, nsfw: fresh.item.nsfw || cached.nsfw } };
 }
 
 // Looks a cached item up on Wikipedia again and saves it over its row
