@@ -7,7 +7,7 @@ import type { Card, CardsPage } from "@/components/CardPages";
 import ListCard from "@/components/ListCard";
 import LogCard from "@/components/LogCard";
 import type { ListRow as ListCardRow, LogRow } from "@/lib/feedData";
-import { type Keyset, olderThan, PAGE_SIZE } from "@/lib/paging";
+import { type Keyset, olderThan } from "@/lib/paging";
 import { aboutAdultItem, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState, type ViewerState } from "@/lib/viewerState";
@@ -27,6 +27,11 @@ export const LOG_FIELDS =
 // Ask for `.lte("preview.position", 4)` with it.
 export const LIST_FIELDS =
   "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), preview:list_items(position, items(title, image_url, nsfw))";
+
+// How many reviews or lists a profile shows at first, and each time "Show
+// more" is pressed
+const PROFILE_PAGE_SIZE_INITIAL = 3;
+const PROFILE_MORE_PAGE = 7;
 
 export type ProfileListRow = ListCardRow & {
   preview: { position: number; items: ItemInfo }[];
@@ -163,15 +168,16 @@ export async function fetchProfileRows(
     query = query.order("position", { referencedTable: "preview" });
   }
 
-  const { data, error } = await query.limit(PAGE_SIZE + 1);
+  const size = cursor ? PROFILE_MORE_PAGE : PROFILE_PAGE_SIZE_INITIAL;
+  const { data, error } = await query.limit(size + 1);
 
   const all = (data ?? []) as unknown as (Record<string, unknown> & {
     id: string;
   })[];
-  const page = all.slice(0, PAGE_SIZE);
+  const page = all.slice(0, size);
   const last = page.at(-1);
   const next =
-    all.length > PAGE_SIZE && last
+    all.length > size && last
       ? { at: last[time] as string, id: last.id }
       : null;
   const pinned =

@@ -431,6 +431,7 @@ export default async function ProfilePage({
         key={`reviews:${pinsKey}:${logCount}`}
         first={firstLogs}
         loadMore={loadMoreProfile.bind(null, profile.id, "reviews")}
+        moreButton="Show more reviews"
       />
     </main>
   );
