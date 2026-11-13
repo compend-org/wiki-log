@@ -36,13 +36,12 @@ export default async function DiaryPage() {
     >
       <h1 className="text-3xl font-bold">Diary</h1>
 
-      {first.cards.length === 0 && !first.error && (
-        <p className="py-8 text-center text-muted">
+      <div className="flex flex-col gap-3">
+        {/* Shows while nothing else is here, including once the last entry
+            is deleted */}
+        <p className="hidden py-8 text-center text-muted only:block">
           Nothing here yet. Log something, or make a list.
         </p>
-      )}
-
-      <div className="flex flex-col gap-3">
         <CardPages first={first} loadMore={loadMoreDiary} />
       </div>
     </main>
