@@ -1,11 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 
-// Returns an error message, or null on success (RLS limits both to your own)
-export async function deleteLog(logId: string): Promise<string | null> {
-  const { error } = await createClient().from("logs").delete().eq("id", logId);
-  return error ? error.message : null;
-}
-
+// Returns an error message, or null on success (RLS limits it to your own)
 export async function updateLog(
   logId: string,
   rating: number | null,
