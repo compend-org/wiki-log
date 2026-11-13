@@ -3,7 +3,15 @@
 // ABOUTME: Shows a list of cards and loads the next page as the bottom nears, or with a button.
 // ABOUTME: The first page comes from the server; later pages from a server action it is given.
 
-import { Fragment, type ReactNode, startTransition, useState } from "react";
+import {
+  createContext,
+  Fragment,
+  type ReactNode,
+  startTransition,
+  useCallback,
+  useContext,
+  useState,
+} from "react";
 import LoadMore from "@/components/LoadMore";
 import type { Keyset } from "@/lib/paging";
 
@@ -15,6 +23,15 @@ export type CardsPage<Cursor = Keyset> = {
   next: Cursor | null;
   error: string;
 };
+
+// Lets a card take itself off the list, such as once it has been deleted.
+// The cards are rendered on the server, so they can't be handed a callback.
+const RemoveCardContext = createContext<((key: string) => void) | null>(null);
+
+// Takes the card with this key off the CardPages it is in. Null outside one.
+export function useRemoveCard(): ((key: string) => void) | null {
+  return useContext(RemoveCardContext);
+}
 
 // The pages loaded after the first one, and the first page they continue
 type LaterPages<Cursor> = {
@@ -52,11 +69,19 @@ export default function CardPages<Cursor>({
   const firstKeys = first.cards.map((c) => c.key).join();
   const [loaded, setLoaded] = useState<LaterPages<Cursor> | null>(null);
   const later = loaded?.firstKeys === firstKeys ? loaded : null;
-  const cards = later ? appendNew(first.cards, later.cards) : first.cards;
+  // Cards taken off the list, such as deleted ones, stay off it whichever
+  // page they came from, also before the refreshed page arrives
+  const [removed, setRemoved] = useState<ReadonlySet<string>>(new Set());
+  const cards = (
+    later ? appendNew(first.cards, later.cards) : first.cards
+  ).filter((c) => !removed.has(c.key));
   const next = later ? later.next : first.next;
   const pageCount = later ? later.pageCount : 1;
   const error = later ? later.error : first.error;
   const [loading, setLoading] = useState(false);
+  const removeCard = useCallback((key: string) => {
+    setRemoved((keys) => new Set(keys).add(key));
+  }, []);
 
   async function loadNextPage() {
     if (!next) return;
@@ -89,7 +114,7 @@ export default function CardPages<Cursor>({
   }
 
   return (
-    <>
+    <RemoveCardContext value={removeCard}>
       {cards.map((c) => (
         <Fragment key={c.key}>{c.card}</Fragment>
       ))}
@@ -108,6 +133,6 @@ export default function CardPages<Cursor>({
         ) : (
           <LoadMore key={pageCount} onLoad={loadNextPage} />
         ))}
-    </>
+    </RemoveCardContext>
   );
 }

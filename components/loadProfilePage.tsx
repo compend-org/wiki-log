@@ -201,12 +201,24 @@ export function renderProfileCards(
     kind === "lists"
       ? rows
       : shownEntries(rows as LogRow[], viewer.sfwMode, aboutAdultItem);
+  // Pinned ones only come up here among reviews with one rating; the
+  // profile itself shows them in their own section instead
   return shown.map((row) => ({
     key: row.id,
     card:
       kind === "lists"
-        ? renderProfileList(ctx, viewer, row as ProfileListRow, false)
-        : renderProfileLog(ctx, viewer, row as LogRow, false),
+        ? renderProfileList(
+            ctx,
+            viewer,
+            row as ProfileListRow,
+            ctx.pinnedListIds.has(row.id),
+          )
+        : renderProfileLog(
+            ctx,
+            viewer,
+            row as LogRow,
+            ctx.pinnedLogIds.has(row.id),
+          ),
   }));
 }
 

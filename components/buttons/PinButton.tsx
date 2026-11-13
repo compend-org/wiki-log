@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { track } from "@/lib/analytics";
 import { createClient } from "@/lib/supabase/client";
+import { useLocalCopy } from "@/lib/useLocalCopy";
 import PinIcon from "../icons/PinIcon";
 
 export default function PinButton({
@@ -19,6 +20,9 @@ export default function PinButton({
 }) {
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  // Follows the server's value, and flips at once on a click, since cards a
+  // CardPages loaded after its first page aren't re-rendered on a refresh
+  const [isPinned, setIsPinned] = useLocalCopy(pinned);
   const router = useRouter();
 
   async function toggle() {
@@ -28,7 +32,7 @@ export default function PinButton({
 
     const column = kind === "log" ? "log_id" : "list_id";
     const supabase = createClient();
-    const { error } = pinned
+    const { error } = isPinned
       ? await supabase
           .from("pins")
           .delete()
@@ -42,7 +46,8 @@ export default function PinButton({
       setError(error.message);
       return;
     }
-    track(pinned ? "unpinned" : "pinned", { target: kind });
+    track(isPinned ? "unpinned" : "pinned", { target: kind });
+    setIsPinned(!isPinned);
     router.refresh();
   }
 
@@ -52,11 +57,11 @@ export default function PinButton({
         type="button"
         onClick={toggle}
         disabled={busy}
-        aria-label={pinned ? "Unpin" : "Pin"}
-        title={pinned ? "Unpin" : "Pin"}
+        aria-label={isPinned ? "Unpin" : "Pin"}
+        title={isPinned ? "Unpin" : "Pin"}
         className="flex text-accent hover:text-foreground disabled:opacity-60"
       >
-        <PinIcon className="h-4 w-4" filled={pinned} />
+        <PinIcon className="h-4 w-4" filled={isPinned} />
       </button>
       {error && <span className="text-xs text-danger">{error}</span>}
     </span>
