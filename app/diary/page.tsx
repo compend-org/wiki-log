@@ -1,445 +1,49 @@
-"use client";
-
+// ABOUTME: The signed-in person's diary: everything they logged and every list they made, newest first.
+// ABOUTME: Loads the first page on the server, so it arrives complete; later pages load as you scroll.
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import DeleteButton from "@/components/buttons/DeleteButton";
-import EditEntryForm from "@/components/EditEntryForm";
-import EditIcon from "@/components/icons/EditIcon";
-import ItemImage from "@/components/icons/ItemImage";
-import LoadMore from "@/components/LoadMore";
-import ReviewText from "@/components/ReviewText";
-import Stars from "@/components/Stars";
-import { timeAgo } from "@/lib/format";
-import { type Keyset, olderThan, PAGE_SIZE, takeNewest } from "@/lib/paging";
-import { shownEntries } from "@/lib/sfw";
-import { createClient } from "@/lib/supabase/client";
-import { useLoginHref } from "@/lib/useLoginHref";
-import { useSfwMode } from "@/lib/useSfwMode";
+import { connection } from "next/server";
+import { loadMoreDiary } from "@/app/diaryActions";
+import CardPages from "@/components/CardPages";
+import { loadDiaryPage } from "@/components/loadDiaryPage";
+import { loginHref } from "@/lib/redirect";
+import { createClient } from "@/lib/supabase/server";
 
-type Thumb = { title: string; imageUrl: string | null; nsfw: boolean };
+export const instant = false;
 
-type LogEntry = {
-  kind: "log";
-  id: string;
-  date: string;
-  itemId: string;
-  title: string;
-  imageUrl: string | null;
-  nsfw: boolean;
-  rating: number | null;
-  review: string;
-};
-
-type ListEntry = {
-  kind: "list";
-  id: string;
-  date: string;
-  title: string;
-  ranked: boolean;
-  count: number;
-  previews: Thumb[];
-};
-
-type Entry = LogEntry | ListEntry;
-
-type LogRow = {
-  id: string;
-  item_id: string;
-  rating: number | null;
-  review: string;
-  logged_at: string;
-  items: { title: string; image_url: string | null; nsfw: boolean } | null;
-};
-
-type ListRow = {
-  id: string;
-  title: string;
-  ranked: boolean;
-  created_at: string;
-  list_items: { count: number }[];
-};
-
-type PreviewRow = {
-  list_id: string;
-  position: number;
-  items: { title: string; image_url: string | null; nsfw: boolean } | null;
-};
-
-// Where the logs and the lists each got to: the last of each shown so far
-type Cursors = { logs?: Keyset; lists?: Keyset };
-
-export default function DiaryPage() {
-  const loginHref = useLoginHref();
-  const sfwMode = useSfwMode();
-  const [ready, setReady] = useState<boolean>(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [username, setUsername] = useState<string | null>(null);
-  const [entries, setEntries] = useState<Entry[]>([]);
-  // Where the next page starts, or null when everything is shown
-  const [next, setNext] = useState<Cursors | null>(null);
-  // The page being asked for: bumped to load the next one
-  const [wanted, setWanted] = useState<Cursors>({});
-  const [loaded, setLoaded] = useState<boolean>(false);
-  // When the latest page arrived, which the times shown are relative to
-  const [loadedAt, setLoadedAt] = useState<number>(0);
-  const [error, setError] = useState<string>("");
-  // The log whose edit form is open
-  const [editingId, setEditingId] = useState<string | null>(null);
-
-  // Who is signed in, and their username (for links to their entries)
-  useEffect(() => {
-    async function loadUser() {
-      const supabase = createClient();
-      const { data } = await supabase.auth.getUser();
-      if (data.user) {
-        setUserId(data.user.id);
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("username")
-          .eq("id", data.user.id)
-          .maybeSingle();
-        setUsername(profile?.username ?? null);
-      }
-      setReady(true);
-    }
-    loadUser();
-  }, []);
-
-  // Their logs and lists, newest first, a page at a time. Each page takes up
-  // to PAGE_SIZE + 1 more of each from where it got to, so the newest
-  // PAGE_SIZE of the two together are always among them.
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-
-    async function load() {
-      const supabase = createClient();
-
-      let logsQuery = supabase
-        .from("logs")
-        .select(
-          "id, item_id, rating, review, logged_at, items(title, image_url, nsfw)",
-        )
-        .eq("user_id", userId);
-      if (wanted.logs) {
-        logsQuery = logsQuery.or(olderThan("logged_at", wanted.logs));
-      }
-      let listsQuery = supabase
-        .from("lists")
-        .select("id, title, ranked, created_at, list_items(count)")
-        .eq("user_id", userId);
-      if (wanted.lists) {
-        listsQuery = listsQuery.or(olderThan("created_at", wanted.lists));
-      }
-      const [logsRes, listsRes] = await Promise.all([
-        logsQuery
-          .order("logged_at", { ascending: false })
-          .order("id", { ascending: false })
-          .limit(PAGE_SIZE + 1),
-        listsQuery
-          .order("created_at", { ascending: false })
-          .order("id", { ascending: false })
-          .limit(PAGE_SIZE + 1),
-      ]);
-      if (cancelled) return;
-
-      if (logsRes.error || listsRes.error) {
-        setError(logsRes.error?.message ?? listsRes.error?.message ?? "");
-        setLoaded(true);
-        return;
-      }
-
-      const logs = (logsRes.data ?? []) as unknown as LogRow[];
-      const lists = (listsRes.data ?? []) as unknown as ListRow[];
-
-      const logEntries = logs.map((l) => ({
-        at: l.logged_at,
-        entry: {
-          kind: "log",
-          id: l.id,
-          date: l.logged_at,
-          itemId: l.item_id,
-          title: l.items?.title ?? "Unknown item",
-          imageUrl: l.items?.image_url ?? null,
-          nsfw: l.items?.nsfw ?? false,
-          rating: l.rating === null ? null : Number(l.rating),
-          review: l.review,
-        } satisfies LogEntry,
-      }));
-
-      const listEntries = lists.map((l) => ({
-        at: l.created_at,
-        entry: {
-          kind: "list",
-          id: l.id,
-          date: l.created_at,
-          title: l.title,
-          ranked: l.ranked,
-          count: l.list_items?.[0]?.count ?? 0,
-          previews: [] as Thumb[],
-        } satisfies ListEntry,
-      }));
-
-      const {
-        taken: [tookLogs, tookLists],
-        hasMore,
-      } = takeNewest<{ at: string; entry: Entry }>(
-        [logEntries, listEntries],
-        PAGE_SIZE,
-      );
-      const shown = [...tookLogs, ...tookLists]
-        .map((t) => t.entry)
-        .sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-        );
-      const lastOf = (took: { entry: Entry }[], before?: Keyset) => {
-        const last = took.at(-1)?.entry;
-        return last ? { at: last.date, id: last.id } : before;
-      };
-
-      // A few pictures from each list on this page
-      const shownLists = shown.filter((e): e is ListEntry => e.kind === "list");
-      if (shownLists.length > 0) {
-        const { data: previewData } = await supabase
-          .from("list_items")
-          .select("list_id, position, items(title, image_url, nsfw)")
-          .in(
-            "list_id",
-            shownLists.map((l) => l.id),
-          )
-          .lte("position", 4)
-          .order("position");
-        if (cancelled) return;
-
-        const byList = new Map<string, Thumb[]>();
-        for (const row of (previewData ?? []) as unknown as PreviewRow[]) {
-          const arr = byList.get(row.list_id) ?? [];
-          arr.push({
-            title: row.items?.title ?? "Unknown item",
-            imageUrl: row.items?.image_url ?? null,
-            nsfw: row.items?.nsfw ?? false,
-          });
-          byList.set(row.list_id, arr);
-        }
-        for (const l of shownLists) {
-          l.previews = (byList.get(l.id) ?? []).slice(0, 4);
-        }
-      }
-
-      // Something already shown (say, a log edited while paging) stays where
-      // it was
-      setEntries((prev) => {
-        const have = new Set(prev.map((e) => `${e.kind}:${e.id}`));
-        return [
-          ...prev,
-          ...shown.filter((e) => !have.has(`${e.kind}:${e.id}`)),
-        ];
-      });
-      setNext(
-        hasMore
-          ? {
-              logs: lastOf(tookLogs, wanted.logs),
-              lists: lastOf(tookLists, wanted.lists),
-            }
-          : null,
-      );
-      setLoadedAt(Date.now());
-      setLoaded(true);
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, wanted]);
-
-  if (!ready) {
-    return <main className="p-8 text-center text-muted">Loading…</main>;
-  }
+export default async function DiaryPage() {
+  await connection();
+  const supabase = await createClient();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
 
   if (!userId) {
     return (
       <main className="p-8 text-center">
-        <Link href={loginHref} className="underline">
+        <Link href={loginHref("/diary")} className="underline">
           Sign in to see your diary
         </Link>
       </main>
     );
   }
 
-  // Logs of adult items are left out when the viewer hides them
-  const shown = shownEntries(
-    entries,
-    sfwMode,
-    (e) => e.kind === "log" && e.nsfw,
-  );
+  const first = await loadDiaryPage(supabase, userId, {});
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
+    // A different account starts over, rather than keeping the last one's pages
+    <main
+      key={userId}
+      className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8"
+    >
       <h1 className="text-3xl font-bold">Diary</h1>
 
-      {error && <p className="text-danger">{error}</p>}
-
-      {!loaded && <p className="py-8 text-center text-muted">Loading…</p>}
-
-      {loaded && !error && shown.length === 0 && (
-        <p className="py-8 text-center text-muted">
+      <div className="flex flex-col gap-3">
+        {/* Shows while nothing else is here, including once the last entry
+            is deleted */}
+        <p className="hidden py-8 text-center text-muted only:block">
           Nothing here yet. Log something, or make a list.
         </p>
-      )}
-
-      <ul className="flex flex-col gap-3">
-        {shown.map((e) => {
-          const date = timeAgo(e.date, loadedAt);
-
-          if (e.kind === "list") {
-            return (
-              <li key={`list-${e.id}`} className="card flex flex-col gap-2 p-3">
-                <div className="flex items-center justify-between gap-3 text-xs text-muted">
-                  <span>
-                    {date} · You made a {e.ranked ? "ranked " : ""}list
-                  </span>
-                  <span className="flex items-center gap-3">
-                    <Link
-                      href={`/list/${e.id}/edit`}
-                      aria-label="Edit this list"
-                      title="Edit this list"
-                      className="flex text-accent hover:text-foreground hover:opacity-70 hover:no-underline"
-                    >
-                      <EditIcon className="h-4 w-4" />
-                    </Link>
-                    <DeleteButton
-                      kind="list"
-                      targetId={e.id}
-                      onDeleted={() =>
-                        setEntries((prev) =>
-                          prev.filter(
-                            (x) => !(x.kind === "list" && x.id === e.id),
-                          ),
-                        )
-                      }
-                    />
-                  </span>
-                </div>
-                <Link
-                  href={`/list/${e.id}`}
-                  className="w-fit font-semibold underline"
-                >
-                  {e.title}
-                </Link>
-                {e.previews.length > 0 && (
-                  <div className="flex gap-1">
-                    {e.previews.map((p, i) => (
-                      <ItemImage
-                        // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
-                        key={i}
-                        src={p.imageUrl}
-                        nsfw={p.nsfw}
-                        alt={p.title}
-                        className="h-14 w-14 rounded"
-                      />
-                    ))}
-                  </div>
-                )}
-                <span className="text-xs text-muted">
-                  {e.count} {e.count === 1 ? "item" : "items"}
-                </span>
-              </li>
-            );
-          }
-
-          const entryHref = username
-            ? `/u/${encodeURIComponent(username)}/${e.id}`
-            : null;
-
-          return (
-            <li key={`log-${e.id}`} className="card flex flex-col gap-2 p-3">
-              <div className="flex items-center justify-between gap-3 text-xs text-muted">
-                <span>
-                  {entryHref ? (
-                    <Link href={entryHref} className="underline">
-                      {date}
-                    </Link>
-                  ) : (
-                    date
-                  )}
-                  {" · You logged"}
-                </span>
-                <span className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setEditingId(e.id)}
-                    aria-label="Edit this entry"
-                    title="Edit this entry"
-                    className="flex text-accent hover:opacity-70 hover:text-foreground"
-                  >
-                    <EditIcon className="h-4 w-4" />
-                  </button>
-                  <DeleteButton
-                    kind="log"
-                    targetId={e.id}
-                    onDeleted={() =>
-                      setEntries((prev) =>
-                        prev.filter(
-                          (x) => !(x.kind === "log" && x.id === e.id),
-                        ),
-                      )
-                    }
-                  />
-                </span>
-              </div>
-
-              {editingId === e.id ? (
-                <EditEntryForm
-                  logId={e.id}
-                  initialRating={e.rating}
-                  initialReview={e.review}
-                  onCancel={() => setEditingId(null)}
-                  onSaved={(rating, review) => {
-                    setEntries((prev) =>
-                      prev.map((x) =>
-                        x.kind === "log" && x.id === e.id
-                          ? { ...x, rating, review }
-                          : x,
-                      ),
-                    );
-                    setEditingId(null);
-                  }}
-                />
-              ) : (
-                <div className="flex items-center gap-3">
-                  <Link href={`/item/${e.itemId}`} className="shrink-0">
-                    <ItemImage
-                      src={e.imageUrl}
-                      nsfw={e.nsfw}
-                      alt={e.title}
-                      className="h-16 w-16 rounded"
-                    />
-                  </Link>
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <Link
-                      href={`/item/${e.itemId}`}
-                      className="w-fit font-semibold"
-                    >
-                      {e.title}
-                    </Link>
-                    <Stars rating={e.rating} />
-                    {e.review && (
-                      <p className="line-clamp-2 whitespace-pre-wrap break-words text-sm">
-                        {<ReviewText text={e.review} />}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-
-      {next && (
-        <LoadMore key={JSON.stringify(next)} onLoad={() => setWanted(next)} />
-      )}
+        <CardPages first={first} loadMore={loadMoreDiary} />
+      </div>
     </main>
   );
 }
