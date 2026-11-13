@@ -44,10 +44,22 @@ type ItemRow = {
   nsfw: boolean;
 };
 
-type ListQueryRow = {
-  id: string;
-  title: string;
-  list_items: { items: ItemRow | null }[];
+// A notification with the review or list it is about, and whether each person
+// named on its card is an admin
+type FeedQueryRow = NotificationRow & {
+  profiles:
+    | (NotificationRow["profiles"] & { admins: { user_id: string } | null })
+    | null;
+  logs: {
+    user_id: string;
+    item_id: string;
+    items: ItemRow | null;
+    owner: { username: string; admins: { user_id: string } | null } | null;
+  } | null;
+  lists: {
+    title: string;
+    list_items: { items: ItemRow | null }[];
+  } | null;
 };
 
 function toThumb(item: ItemRow): Thumb {
@@ -107,91 +119,59 @@ export function markNotificationsRead(feed: NotificationsFeed) {
 }
 
 async function loadFeed(userId: string): Promise<FeedResult> {
-  const supabase = createClient();
-  const { data, error } = await supabase
+  // One query brings each notification with the entry it refers to: a
+  // review's item and owner, or a list's first items. The two people embeds
+  // name their foreign keys, and the owner has its own name, so they can't be
+  // mistaken for each other.
+  const { data, error } = await createClient()
     .from("notifications")
     .select(
-      "id, type, read, created_at, log_id, list_id, comment_id, list_comment_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path)",
+      "id, type, read, created_at, log_id, list_id, comment_id, list_comment_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path, admins(user_id)), logs!notifications_log_fkey(user_id, item_id, items!logs_item_id_fkey(title, image_url, image_hidden, nsfw), owner:profiles!logs_user_id_profiles_fkey(username, admins(user_id))), lists!notifications_list_id_fkey(title, list_items(position, items(title, image_url, image_hidden, nsfw)))",
     )
     .eq("recipient_id", userId)
     .order("created_at", { ascending: false })
+    .order("position", { referencedTable: "lists.list_items" })
+    .limit(MOSAIC_SIZE, { referencedTable: "lists.list_items" })
     .limit(50);
   if (error) return { error: error.message };
 
-  const list = (data ?? []) as unknown as NotificationRow[];
-  // The entries these refer to, then their items and owners
-  const logIds = [
-    ...new Set(list.map((n) => n.log_id).filter((v): v is string => !!v)),
-  ];
-  const listIds = [
-    ...new Set(list.map((n) => n.list_id).filter((v): v is string => !!v)),
-  ];
-
-  const logRes = logIds.length
-    ? await supabase
-        .from("logs")
-        .select("id, user_id, item_id")
-        .in("id", logIds)
-    : { data: [] as { id: string; user_id: string; item_id: string }[] };
-  const logRows = logRes.data ?? [];
-
-  const itemIds = [...new Set(logRows.map((l) => l.item_id))];
-  const ownerIds = [...new Set(logRows.map((l) => l.user_id))];
-
-  // Everyone who could be named on a card, to badge the admins among them.
-  // Notices from the moderators have no actor.
-  const actorIds = list.flatMap((n) => (n.actor_id ? [n.actor_id] : []));
-  const peopleIds = [...new Set([...actorIds, ...ownerIds])];
-
-  const [itemRes, listRes, profs, admins] = await Promise.all([
-    itemIds.length
-      ? supabase
-          .from("items")
-          .select("id, title, image_url, image_hidden, nsfw")
-          .in("id", itemIds)
-      : Promise.resolve({ data: [] as (ItemRow & { id: string })[] }),
-    listIds.length
-      ? supabase
-          .from("lists")
-          .select(
-            "id, title, list_items(position, items(title, image_url, image_hidden, nsfw))",
-          )
-          .in("id", listIds)
-          .order("position", { referencedTable: "list_items" })
-          .limit(MOSAIC_SIZE, { referencedTable: "list_items" })
-      : Promise.resolve({ data: [] as ListQueryRow[] }),
-    ownerIds.length
-      ? supabase.from("profiles").select("id, username").in("id", ownerIds)
-      : Promise.resolve({ data: [] as { id: string; username: string }[] }),
-    peopleIds.length
-      ? supabase.from("admins").select("user_id").in("user_id", peopleIds)
-      : Promise.resolve({ data: [] as { user_id: string }[] }),
-  ]);
+  const list = (data ?? []) as unknown as FeedQueryRow[];
+  const logs: Record<string, LogInfo> = {};
+  const items: Record<string, Thumb> = {};
+  const lists: Record<string, ListInfo> = {};
+  const owners: Record<string, string> = {};
+  // Everyone named on a card who is an admin. Notices from the moderators
+  // have no actor.
+  const adminIds = new Set<string>();
+  for (const n of list) {
+    if (n.actor_id && n.profiles?.admins) adminIds.add(n.actor_id);
+    if (n.log_id && n.logs) {
+      const { user_id, item_id, items: item, owner } = n.logs;
+      logs[n.log_id] = { owner: user_id, item: item_id };
+      if (item) items[item_id] = toThumb(item);
+      if (owner) {
+        owners[user_id] = owner.username;
+        if (owner.admins) adminIds.add(user_id);
+      }
+    }
+    if (n.list_id && n.lists) {
+      lists[n.list_id] = {
+        title: n.lists.title,
+        items: n.lists.list_items.flatMap((e) =>
+          e.items ? [toThumb(e.items)] : [],
+        ),
+      };
+    }
+  }
 
   return {
     feed: {
       rows: list,
-      logs: Object.fromEntries(
-        logRows.map((l) => [l.id, { owner: l.user_id, item: l.item_id }]),
-      ),
-      items: Object.fromEntries(
-        (itemRes.data ?? []).map((v) => [v.id, toThumb(v)]),
-      ),
-      lists: Object.fromEntries(
-        ((listRes.data ?? []) as unknown as ListQueryRow[]).map((v) => [
-          v.id,
-          {
-            title: v.title,
-            items: v.list_items.flatMap((e) =>
-              e.items ? [toThumb(e.items)] : [],
-            ),
-          },
-        ]),
-      ),
-      owners: Object.fromEntries(
-        (profs.data ?? []).map((p) => [p.id, p.username]),
-      ),
-      adminIds: new Set((admins.data ?? []).map((a) => a.user_id)),
+      logs,
+      items,
+      lists,
+      owners,
+      adminIds,
       myId: userId,
       loadedAt: Date.now(),
     },
