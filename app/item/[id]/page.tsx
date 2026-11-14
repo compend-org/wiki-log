@@ -4,6 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
 import AddToList from "@/components/AddToList";
+import CompoundDeleteButton from "@/components/buttons/CompoundDeleteButton";
+import CompoundEditButton from "@/components/buttons/CompoundEditButton";
 import ShareImageButton from "@/components/buttons/ShareImageButton";
 import ItemLists from "@/components/ItemLists";
 import ItemLogs from "@/components/ItemLogs";
@@ -113,6 +115,7 @@ export default async function ItemPage({
   const compound = isCompoundId(id);
   let madeFrom: Part[] = [];
   let creator: string | null = null;
+  let creatorId: string | null = null;
   let createdAt: string | null = null;
 
   if (compound) {
@@ -122,6 +125,7 @@ export default async function ItemPage({
       .eq("item_id", id)
       .maybeSingle();
     createdAt = c?.created_at ?? null;
+    creatorId = c?.creator_id ?? null;
 
     const { data: partRows } = await supabase
       .from("compound_parts")
@@ -219,10 +223,27 @@ export default async function ItemPage({
                 fullSize
                 alt={item.title}
                 nsfw={item.nsfw}
-                className="item-img h-auto w-auto max-w-full border-2 border-dashed border-line bg-clip-padding [[data-theme=dark]_&]:bg-foreground"
+                className={`item-img h-auto max-w-full border-2 border-dashed border-line bg-clip-padding [[data-theme=dark]_&]:bg-foreground ${
+                  // Drawings are only 100 pixels wide: 3 or 4 times that, plus the border
+                  compound ? "w-[304px] sm:w-[404px]" : "w-auto"
+                }`}
               />
               <figcaption className="text-center text-xs text-muted">
-                {item.imageNonFree ? (
+                {compound ? (
+                  creator ? (
+                    <>
+                      Drawn by{" "}
+                      <Link
+                        href={`/u/${encodeURIComponent(creator)}`}
+                        className="underline"
+                      >
+                        {creator}
+                      </Link>
+                    </>
+                  ) : (
+                    "Drawn on this site"
+                  )
+                ) : item.imageNonFree ? (
                   <a href={removalLink} className="underline">
                     Request removal
                   </a>
@@ -248,7 +269,21 @@ export default async function ItemPage({
             />
           )}
 
-          <h1 className="text-3xl font-bold">{item.title}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-3xl font-bold">{item.title}</h1>
+            {compound && viewerId && creatorId === viewerId && (
+              <span className="flex items-center gap-4 pt-1.5">
+                <CompoundEditButton
+                  id={item.id}
+                  title={item.title}
+                  description={item.description ?? ""}
+                  imageUrl={item.imageUrl}
+                  iconClassName="h-6 w-6"
+                />
+                <CompoundDeleteButton id={item.id} iconClassName="h-6 w-6" />
+              </span>
+            )}
+          </div>
           {item.description && <p className="text-muted">{item.description}</p>}
 
           {compound ? (

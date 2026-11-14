@@ -181,9 +181,11 @@ body {
 .avi-dark {
   display: none;
 }
+
 :root[data-theme="dark"] .avi-light {
   display: none;
 }
+
 :root[data-theme="dark"] .avi-dark {
   display: inline-block;
 }
@@ -198,9 +200,11 @@ body {
 .nsfw-label {
   display: none;
 }
+
 :root[data-sfw] [data-nsfw]:not([data-revealed]) > img {
   filter: blur(40px);
 }
+
 :root[data-sfw] [data-nsfw]:not([data-revealed]) > .nsfw-label {
   display: flex;
 }
@@ -209,6 +213,7 @@ body {
 .sfw-tag {
   display: none;
 }
+
 :root[data-sfw] .sfw-tag {
   display: inline;
 }
@@ -217,4 +222,10 @@ body {
    leaderboard entries, have their titles blurred too until the image is tapped */
 :root[data-sfw="hide"] [data-adult]:not(:has([data-revealed])) .nsfw-title {
   filter: blur(6px);
+}
+
+/* Drawn compound pictures are only 100 pixels wide, so they are scaled up
+   without smoothing */
+img[src*="/compound-images/"] {
+  image-rendering: pixelated;
 }

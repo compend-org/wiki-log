@@ -14,6 +14,7 @@ import ReportButton from "@/components/buttons/ReportButton";
 import SignOutButton from "@/components/buttons/SignOutButton";
 import CardPages, { type CardsPage } from "@/components/CardPages";
 import Favourites, { type Slot } from "@/components/Favourites";
+import ItemImage from "@/components/icons/ItemImage";
 import SettingsIcon from "@/components/icons/SettingsIcon";
 import {
   fetchProfileRows,
@@ -30,6 +31,7 @@ import { isAdmin } from "@/lib/admin";
 import { avatarUrl } from "@/lib/avatar";
 import type { LogRow } from "@/lib/feedData";
 import { pageMetadata } from "@/lib/metadata";
+import { getProfileCompounds } from "@/lib/profileCompounds";
 import { getProfileByName } from "@/lib/profiles";
 import { loginHref } from "@/lib/redirect";
 import { aboutAdultItem, shownEntries } from "@/lib/sfw";
@@ -171,23 +173,30 @@ export default async function ProfilePage({
   // The lists and reviews below start again from the first page when the pins
   // change, since the pinned cards move out of them or back in
   const pinsKey = pinRows.map((p) => p.log_id ?? p.list_id).join(",");
-  const [pinnedLogsRes, pinnedListsRes, listRows, logRows, ratingCountsRes] =
-    await Promise.all([
-      pinnedLogIds.length > 0
-        ? supabase.from("logs").select(LOG_FIELDS).in("id", pinnedLogIds)
-        : { data: [] },
-      pinnedListIds.length > 0
-        ? supabase
-            .from("lists")
-            .select(LIST_FIELDS)
-            .in("id", pinnedListIds)
-            .lte("preview.position", 4)
-            .order("position", { referencedTable: "preview" })
-        : { data: [] },
-      fetchProfileRows(supabase, ctx, "lists", null),
-      fetchProfileRows(supabase, ctx, "reviews", null),
-      supabase.rpc("profile_rating_counts", { p_user: profile.id }),
-    ]);
+  const [
+    pinnedLogsRes,
+    pinnedListsRes,
+    listRows,
+    logRows,
+    ratingCountsRes,
+    allCompounds,
+  ] = await Promise.all([
+    pinnedLogIds.length > 0
+      ? supabase.from("logs").select(LOG_FIELDS).in("id", pinnedLogIds)
+      : { data: [] },
+    pinnedListIds.length > 0
+      ? supabase
+          .from("lists")
+          .select(LIST_FIELDS)
+          .in("id", pinnedListIds)
+          .lte("preview.position", 4)
+          .order("position", { referencedTable: "preview" })
+      : { data: [] },
+    fetchProfileRows(supabase, ctx, "lists", null),
+    fetchProfileRows(supabase, ctx, "reviews", null),
+    supabase.rpc("profile_rating_counts", { p_user: profile.id }),
+    getProfileCompounds(supabase, profile.id),
+  ]);
   // One rating per item they rated, for the histogram
   const ratings = (
     (ratingCountsRes.data ?? []) as {
@@ -222,6 +231,10 @@ export default async function ProfilePage({
     pinned,
     viewer.sfwMode,
     (p) => p.kind === "log" && aboutAdultItem(p.log),
+  );
+  // Compounds they crafted; adult ones are left out when the viewer hides them
+  const compounds = allCompounds.filter(
+    (c) => !(viewer.sfwMode === "hide" && c.nsfw),
   );
   const firstLists: CardsPage = {
     cards: renderProfileCards(ctx, viewer, "lists", listRows.rows),
@@ -433,6 +446,32 @@ export default async function ProfilePage({
         loadMore={loadMoreProfile.bind(null, profile.id, "reviews")}
         moreButton="Show more reviews"
       />
+
+      {compounds.length > 0 && (
+        <section className="flex max-w-full flex-col gap-3 self-start ">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted ">
+            Compounds
+          </h2>
+          <ul className="flex flex-wrap gap-3 rounded-lg border-2 border-dashed border-line p-3">
+            {compounds.map((c) => (
+              <li
+                key={c.id}
+                className="w-[calc((100cqw-53px)/3)] sm:w-[calc((100cqw-65px)/4)]"
+              >
+                <Link href={`/item/${c.id}`} className="flex flex-col gap-1">
+                  <ItemImage
+                    src={c.imageUrl}
+                    nsfw={c.nsfw}
+                    alt={c.title}
+                    className="aspect-square w-full rounded-lg"
+                  />
+                  <span className="truncate text-xs">{c.title}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }
