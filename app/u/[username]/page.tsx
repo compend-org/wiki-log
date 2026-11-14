@@ -402,7 +402,12 @@ export default async function ProfilePage({
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-              Lists
+              <Link
+                href={`${profileHref}/lists`}
+                className="hover:text-foreground hover:underline"
+              >
+                Lists <span aria-hidden="true">›</span>
+              </Link>
             </h2>
             {/* {isOwner && (
               <Link href="/list/new" className="text-sm underline">
@@ -421,7 +426,12 @@ export default async function ProfilePage({
       )}
       {(firstLogs.cards.length > 0 || firstLogs.next) && (
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-          Reviews
+          <Link
+            href={`${profileHref}/reviews`}
+            className="hover:text-foreground hover:underline"
+          >
+            Reviews <span aria-hidden="true">›</span>
+          </Link>
         </h2>
       )}
 

@@ -45,3 +45,22 @@ export async function loadMoreProfileRated(
   }
   return loadProfilePage(profileId, "reviews", after, step);
 }
+
+// A later page of all of someone's lists or reviews, pinned ones included, for
+// the pages that show them all
+export async function loadMoreProfileAll(
+  profileId: string,
+  kind: ProfileKind,
+  cursor: unknown,
+): Promise<CardsPage> {
+  const after = parseKeyset(cursor);
+  if (
+    typeof profileId !== "string" ||
+    !isUuid(profileId) ||
+    (kind !== "lists" && kind !== "reviews") ||
+    !after
+  ) {
+    throw new Error("That isn't a page of a profile.");
+  }
+  return loadProfilePage(profileId, kind, after, undefined, true);
+}

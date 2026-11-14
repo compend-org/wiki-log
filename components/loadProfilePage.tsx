@@ -151,12 +151,14 @@ export async function fetchProfileRows(
   kind: ProfileKind,
   cursor: Keyset | null,
   rating?: number,
+  includePinned = false,
 ): Promise<{
   rows: (ProfileListRow | LogRow)[];
   next: Keyset | null;
   error: string;
 }> {
   const { table, select, time, owner } = KINDS[kind];
+
   let query = supabase.from(table).select(select).eq(owner, ctx.profileId);
   if (kind === "lists") query = query.lte("preview.position", 4);
   if (rating !== undefined) query = query.eq("rating", rating);
@@ -181,7 +183,7 @@ export async function fetchProfileRows(
       ? { at: last[time] as string, id: last.id }
       : null;
   const pinned =
-    rating !== undefined
+    rating !== undefined || includePinned
       ? new Set<string>()
       : kind === "lists"
         ? ctx.pinnedListIds
@@ -234,6 +236,7 @@ export async function loadProfilePage(
   kind: ProfileKind,
   cursor: Keyset | null,
   rating?: number,
+  includePinned = false,
 ): Promise<CardsPage> {
   const supabase = await createClient();
   const [{ data: claimsData }, { data: pins }] = await Promise.all([
@@ -257,6 +260,7 @@ export async function loadProfilePage(
     kind,
     cursor,
     rating,
+    includePinned,
   );
   const ids = rows.map((r) => r.id);
   const viewer = await getViewerState(
