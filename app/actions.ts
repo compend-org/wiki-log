@@ -879,8 +879,21 @@ export async function createCompound(input: {
   if (error) return { error: userFacingErrorMessage(error, SAVE_FAILED) };
 
   const r = result as { id: string; title: string; existing: boolean };
-  // Whoever made it first keeps their picture
-  if (image && !r.existing) await storeCompoundImage(r.id, image);
+  // Whoever made it first keeps their picture. A compound that loses its
+  // picture is undone, so crafting again with the same drawing can succeed.
+  // One that can't be undone stays without a picture, which editing it adds.
+  if (image && !r.existing && !(await storeCompoundImage(r.id, image))) {
+    const { error: undoError } = await createAdminClient()
+      .from("items")
+      .delete()
+      .eq("id", r.id);
+    await removeCompoundImage(r.id);
+    return {
+      error: undoError
+        ? "Crafted it, but the picture couldn't be saved. Edit it to add the picture."
+        : "The picture couldn't be saved. Try crafting again.",
+    };
+  }
 
   return r.existing ? { existing: { id: r.id, title: r.title } } : { id: r.id };
 }
@@ -961,7 +974,13 @@ export async function updateCompound(input: {
       return { error: "Saved the text, but the picture couldn't be saved." };
     }
   } else if (input.image === null) {
-    await admin.from("items").update({ image_url: null }).eq("id", input.id);
+    const { error: unlinkError } = await admin
+      .from("items")
+      .update({ image_url: null })
+      .eq("id", input.id);
+    if (unlinkError) {
+      return { error: "Saved the text, but the picture couldn't be removed." };
+    }
     await removeCompoundImage(input.id);
     imageUrl = null;
   }
