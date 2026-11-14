@@ -2,12 +2,17 @@
 // ABOUTME: Opens a popup with the form; the ingredients can't be changed.
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { type CompoundDetails, updateCompound } from "@/app/actions";
 import Dialog from "@/components/Dialog";
 import EditIcon from "@/components/icons/EditIcon";
-import PaintEditor from "@/components/PaintEditor";
+
+// The drawing window is only loaded once someone opens it
+const PaintEditor = dynamic(() => import("@/components/PaintEditor"), {
+  ssr: false,
+});
 
 // A saved picture, as a data URL the drawing window can start from
 async function pictureAsDataUrl(url: string): Promise<string | null> {

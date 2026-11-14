@@ -4,6 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
 import AddToList from "@/components/AddToList";
+import CompoundDeleteButton from "@/components/buttons/CompoundDeleteButton";
+import CompoundEditButton from "@/components/buttons/CompoundEditButton";
 import ShareImageButton from "@/components/buttons/ShareImageButton";
 import ItemLists from "@/components/ItemLists";
 import ItemLogs from "@/components/ItemLogs";
@@ -26,8 +28,6 @@ import { RANDOM_PARAM } from "@/lib/randomItem";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
-import CompoundEditButton from "@/components/buttons/CompoundEditButton";
-import CompoundDeleteButton from "@/components/buttons/CompoundDeleteButton";
 
 export const instant = false;
 
@@ -144,13 +144,13 @@ export default async function ItemPage({
         const it = byId.get(pid);
         return it
           ? [
-            {
-              id: pid,
-              title: it.title,
-              imageUrl: it.image_url,
-              nsfw: it.nsfw,
-            },
-          ]
+              {
+                id: pid,
+                title: it.title,
+                imageUrl: it.image_url,
+                nsfw: it.nsfw,
+              },
+            ]
           : [];
       });
     }
@@ -168,10 +168,10 @@ export default async function ItemPage({
   // Compounds that use this item as an ingredient
   const { data: usedRows } = FEATURES.compounds
     ? await supabase
-      .from("compound_parts")
-      .select("compound_id")
-      .eq("part_id", id)
-      .limit(12)
+        .from("compound_parts")
+        .select("compound_id")
+        .eq("part_id", id)
+        .limit(12)
     : { data: null };
   const usedIds = (usedRows ?? []).map((r) => r.compound_id as string);
   let usedIn: { id: string; title: string }[] = [];
@@ -226,7 +226,7 @@ export default async function ItemPage({
                 className={`item-img h-auto max-w-full border-2 border-dashed border-line bg-clip-padding [[data-theme=dark]_&]:bg-foreground ${
                   // Drawings are only 100 pixels wide: 3 or 4 times that, plus the border
                   compound ? "w-[304px] sm:w-[404px]" : "w-auto"
-                  }`}
+                }`}
               />
               <figcaption className="text-center text-xs text-muted">
                 {compound ? (

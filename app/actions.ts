@@ -5,6 +5,7 @@
 import { updateTag } from "next/cache";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
 import { prepareCompoundImage, storeCompoundImage } from "@/lib/compoundImage";
+import { readPicture, removePicture, savePicture } from "@/lib/compoundPicture";
 import { withErrorContext } from "@/lib/errorContext";
 import { FEATURES } from "@/lib/features";
 import { ITEM_ID_PATTERN, isCompoundId, isUuid } from "@/lib/ids";
@@ -25,7 +26,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { cleanName, isValidName } from "@/lib/username";
 import { getItemById } from "@/lib/wikipedia";
-import { readPicture, removePicture, savePicture } from "@/lib/compoundPicture";
 
 const ITEM_ID = ITEM_ID_PATTERN;
 // Matches limit_list_counts() in supabase/migrations/*_raise_list_limits.sql
