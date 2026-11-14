@@ -152,7 +152,7 @@ export default function CardPages<Cursor>({
             type="button"
             onClick={loadNextPage}
             disabled={loading}
-            className="self-start text-sm underline disabled:opacity-60"
+            className="self-center border border-line bg-surface px-4 py-2 text-sm text-foreground hover:border-accent hover:no-underline disabled:opacity-40"
           >
             {loading ? "Loading…" : buttonLabel}
           </button>
