@@ -4,6 +4,7 @@
 
 import { updateTag } from "next/cache";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
+import { prepareCompoundImage, storeCompoundImage } from "@/lib/compoundImage";
 import { withErrorContext } from "@/lib/errorContext";
 import { FEATURES } from "@/lib/features";
 import { ITEM_ID_PATTERN, isCompoundId, isUuid } from "@/lib/ids";
@@ -24,6 +25,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { cleanName, isValidName } from "@/lib/username";
 import { getItemById } from "@/lib/wikipedia";
+import { readPicture, removePicture, savePicture } from "@/lib/compoundPicture";
 
 const ITEM_ID = ITEM_ID_PATTERN;
 // Matches limit_list_counts() in supabase/migrations/*_raise_list_limits.sql
@@ -551,6 +553,7 @@ export async function createCompound(input: {
   title: string;
   description: string;
   parts: string[];
+  image?: string | null;
 }): Promise<{
   id?: string;
   existing?: { id: string; title: string };
@@ -573,6 +576,13 @@ export async function createCompound(input: {
   }
   if (description.length > 500) {
     return { error: "Descriptions are at most 500 characters." };
+  }
+
+  let image: Buffer | null = null;
+  if (input.image) {
+    const prepared = await prepareCompoundImage(input.image);
+    if ("error" in prepared) return { error: prepared.error };
+    image = prepared.png;
   }
 
   const parts = input.parts;
@@ -609,5 +619,127 @@ export async function createCompound(input: {
   if (error) return { error: error.message };
 
   const r = result as { id: string; title: string; existing: boolean };
+  // Whoever made it first keeps their picture
+  if (image && !r.existing) await storeCompoundImage(r.id, image);
+
   return r.existing ? { existing: { id: r.id, title: r.title } } : { id: r.id };
+}
+
+// A compound's own details, as shown after someone edits them
+export type CompoundDetails = {
+  title: string;
+  description: string;
+  imageUrl: string | null;
+};
+
+// Only the person who crafted a compound may change or delete it
+async function ownCompound(
+  compoundId: string,
+): Promise<{ error: string } | { userId: string }> {
+  if (!FEATURES.compounds) return { error: "Crafting is turned off." };
+  if (typeof compoundId !== "string" || !isCompoundId(compoundId)) {
+    return { error: "That isn't a compound." };
+  }
+  const { data } = await (await createClient()).auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { error: "You need to sign in." };
+  const { data: row } = await createAdminClient()
+    .from("compounds")
+    .select("creator_id")
+    .eq("item_id", compoundId)
+    .maybeSingle();
+  if (!row) return { error: "That compound doesn't exist." };
+  if (row.creator_id !== userId) {
+    return { error: "Only the person who crafted it can do that." };
+  }
+  return { userId };
+}
+
+// Changes a compound's name, description and picture, never its ingredients.
+// `image` is left out to keep the picture, null to remove it, or a PNG data URL.
+export async function updateCompound(input: {
+  id: string;
+  title: string;
+  description: string;
+  image?: string | null;
+}): Promise<{ error: string } | { details: CompoundDetails }> {
+  const owner = await ownCompound(input.id);
+  if ("error" in owner) return owner;
+
+  const title = String(input.title ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
+  const description = String(input.description ?? "").trim();
+  if (title.length < 1 || title.length > 80) {
+    return { error: "Names are 1–80 characters." };
+  }
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting control characters is the purpose of this check
+  if (/[\u0000-\u001f]/.test(title)) {
+    return { error: "That name has invalid characters." };
+  }
+  if (description.length > 500) {
+    return { error: "Descriptions are at most 500 characters." };
+  }
+  let png: Buffer | null = null;
+  if (typeof input.image === "string") {
+    const picture = await readPicture(input.image);
+    if ("error" in picture) return picture;
+    png = picture.png;
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("items")
+    .update({ title, description: description || null })
+    .eq("id", input.id);
+  if (error) return { error: error.message };
+
+  let imageUrl: string | null | undefined;
+  if (png) {
+    imageUrl = await savePicture(input.id, png);
+    if (imageUrl === null) {
+      return { error: "Saved the text, but the picture couldn't be saved." };
+    }
+  } else if (input.image === null) {
+    await admin.from("items").update({ image_url: null }).eq("id", input.id);
+    await removePicture(input.id);
+    imageUrl = null;
+  }
+  if (imageUrl === undefined) {
+    const { data } = await admin
+      .from("items")
+      .select("image_url")
+      .eq("id", input.id)
+      .maybeSingle();
+    imageUrl = data?.image_url ?? null;
+  }
+
+  updateTag(POSTS_CACHE_TAG);
+  return { details: { title, description, imageUrl: imageUrl ?? null } };
+}
+
+// Deletes a compound. That isn't possible once anything refers to it: a log, a
+// list, a favourite, or another compound made from it.
+export async function deleteCompound(
+  compoundId: string,
+): Promise<{ error?: string }> {
+  const owner = await ownCompound(compoundId);
+  if ("error" in owner) return owner;
+
+  const { error } = await createAdminClient()
+    .from("items")
+    .delete()
+    .eq("id", compoundId);
+  if (error) {
+    // 23503: something still refers to it
+    return {
+      error:
+        error.code === "23503"
+          ? "It's been logged, listed, favourited or used in another compound, so it can't be deleted. You can still edit it."
+          : error.message,
+    };
+  }
+  await removePicture(compoundId);
+  updateTag(POSTS_CACHE_TAG);
+  return {};
 }
