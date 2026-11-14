@@ -40,11 +40,11 @@ export default function Nav({ account }: { account: ReactNode }) {
         <span className="hidden sm:inline">{SITE_NAME}</span>
       </Link>
       <Link
-        href="/diary"
+        href="/activity"
         prefetch={false}
-        aria-label="Diary"
-        title="Diary"
-        className={`flex ${tone("/diary")}`}
+        aria-label="Activity"
+        title="Activity"
+        className={`flex ${tone("/activity")}`}
       >
         <DiaryIcon />
       </Link>

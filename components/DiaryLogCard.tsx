@@ -22,6 +22,7 @@ export default function DiaryLogCard({
   review,
   ago,
   entryHref,
+  author,
 }: {
   logId: string;
   itemId: string;
@@ -35,6 +36,9 @@ export default function DiaryLogCard({
   ago: string;
   // The entry's own page, when its owner's username is known
   entryHref: string | null;
+  // Set for a review by someone else that you liked, which has no edit or
+  // delete buttons. "When" is then when you liked it.
+  author?: string;
 }) {
   const [editing, setEditing] = useState<boolean>(false);
   const [deleted, setDeleted] = useState<boolean>(false);
@@ -57,28 +61,36 @@ export default function DiaryLogCard({
       {opensEntry && (
         <Link
           href={entryHref}
-          aria-label={`Open your entry for ${title}`}
+          aria-label={
+            author
+              ? `Open ${author}'s entry for ${title}`
+              : `Open your entry for ${title}`
+          }
           className="absolute inset-0 rounded-[inherit]"
         />
       )}
       <div className="flex items-center justify-between gap-3 text-xs text-muted">
-        <span>{ago} · You logged</span>
-        <span className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            aria-label="Edit this entry"
-            title="Edit this entry"
-            className="relative z-10 flex text-accent hover:opacity-70 hover:text-foreground"
-          >
-            <EditIcon className="h-4 w-4" />
-          </button>
-          <DeleteButton
-            kind="log"
-            targetId={logId}
-            onDeleted={() => setDeleted(true)}
-          />
+        <span>
+          {ago} · {author ? `You liked ${author}'s review` : "You logged"}
         </span>
+        {!author && (
+          <span className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label="Edit this entry"
+              title="Edit this entry"
+              className="relative z-10 flex text-accent hover:opacity-70 hover:text-foreground"
+            >
+              <EditIcon className="h-4 w-4" />
+            </button>
+            <DeleteButton
+              kind="log"
+              targetId={logId}
+              onDeleted={() => setDeleted(true)}
+            />
+          </span>
+        )}
       </div>
 
       {editing ? (

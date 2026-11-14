@@ -17,6 +17,7 @@ export default function DiaryListCard({
   count,
   previews,
   ago,
+  author,
 }: {
   listId: string;
   title: string;
@@ -27,6 +28,7 @@ export default function DiaryListCard({
   previews: ListPreview[];
   // When it was made, as shown: "5m ago", or the date once it's a day old
   ago: string;
+  author?: string;
 }) {
   const [deleted, setDeleted] = useState<boolean>(false);
 
@@ -42,23 +44,28 @@ export default function DiaryListCard({
       />
       <div className="flex items-center justify-between gap-3 text-xs text-muted">
         <span>
-          {ago} · You made a {ranked ? "ranked " : ""}list
+          {ago} ·{" "}
+          {author
+            ? `You liked ${author}'s ${ranked ? "ranked " : ""}list`
+            : `You made a ${ranked ? "ranked " : ""}list`}
         </span>
-        <span className="flex items-center gap-3">
-          <Link
-            href={`/list/${listId}/edit`}
-            aria-label="Edit this list"
-            title="Edit this list"
-            className="relative z-10 flex text-accent hover:text-foreground hover:opacity-70 hover:no-underline"
-          >
-            <EditIcon className="h-4 w-4" />
-          </Link>
-          <DeleteButton
-            kind="list"
-            targetId={listId}
-            onDeleted={() => setDeleted(true)}
-          />
-        </span>
+        {!author && (
+          <span className="flex items-center gap-3">
+            <Link
+              href={`/list/${listId}/edit`}
+              aria-label="Edit this list"
+              title="Edit this list"
+              className="relative z-10 flex text-accent hover:text-foreground hover:opacity-70 hover:no-underline"
+            >
+              <EditIcon className="h-4 w-4" />
+            </Link>
+            <DeleteButton
+              kind="list"
+              targetId={listId}
+              onDeleted={() => setDeleted(true)}
+            />
+          </span>
+        )}
       </div>
       <Link
         href={`/list/${listId}`}

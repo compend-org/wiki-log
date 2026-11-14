@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
+  // The diary became the activity page
+  async redirects() {
+    return [{ source: "/diary", destination: "/activity", permanent: true }];
+  },
   // Analytics requests are forwarded to PostHog from this site's own address
   async rewrites() {
     return [
