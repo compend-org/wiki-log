@@ -1,11 +1,14 @@
-// ABOUTME: Loads a person's diary a page at a time: their logs, lists and replies together, newest first.
+// ABOUTME: Loads a person's diary a page at a time: their logs, lists, replies and compounds together, newest first.
 // ABOUTME: Kept apart from the diary page so the server action for later pages can use it too.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Card, CardsPage } from "@/components/CardPages";
+import DiaryCraftCard from "@/components/DiaryCraftCard";
 import DiaryListCard from "@/components/DiaryListCard";
 import DiaryLogCard from "@/components/DiaryLogCard";
 import DiaryReplyCard from "@/components/DiaryReplyCard";
+import { FEATURES } from "@/lib/features";
 import { timeAgo } from "@/lib/format";
+import { isCompoundId } from "@/lib/ids";
 import {
   type Keyset,
   olderThan,
@@ -21,6 +24,7 @@ export type DiaryCursor = {
   lists?: Keyset;
   replies?: Keyset;
   listReplies?: Keyset;
+  crafts?: Keyset;
 };
 
 // How many pictures each list shows
@@ -80,12 +84,22 @@ type ListReplyRow = {
   } | null;
 };
 
+// A compound they crafted, with the names of what it is made from
+type CraftRow = {
+  id: string;
+  at: string;
+  title: string;
+  description: string;
+  imageUrl: string | null;
+  parts: string[];
+};
+
 type Entry = Keyset & { card: Card; shown: boolean };
 
 // A cursor that came from the browser, or null if it isn't one
 export function parseDiaryCursor(value: unknown): DiaryCursor | null {
   if (typeof value !== "object" || value === null) return null;
-  const { logs, lists, replies, listReplies } = value as Record<
+  const { logs, lists, replies, listReplies, crafts } = value as Record<
     string,
     unknown
   >;
@@ -93,11 +107,13 @@ export function parseDiaryCursor(value: unknown): DiaryCursor | null {
   const listsAt = parseKeyset(lists);
   const repliesAt = parseKeyset(replies);
   const listRepliesAt = parseKeyset(listReplies);
+  const craftsAt = parseKeyset(crafts, isCompoundId);
   if (
     logsAt === false ||
     listsAt === false ||
     repliesAt === false ||
-    listRepliesAt === false
+    listRepliesAt === false ||
+    craftsAt === false
   ) {
     return null;
   }
@@ -106,6 +122,7 @@ export function parseDiaryCursor(value: unknown): DiaryCursor | null {
     lists: listsAt,
     replies: repliesAt,
     listReplies: listRepliesAt,
+    crafts: craftsAt,
   };
 }
 
@@ -130,6 +147,71 @@ async function authorsOf(
       c.profiles ? [[c.id, c.profiles.username] as const] : [],
     ),
   );
+}
+
+// The page of compounds `userId` crafted after `after`, with what each is made
+// from. Left out while crafting is off, as their pages don't exist then.
+async function craftsOf(
+  supabase: SupabaseClient,
+  userId: string,
+  after: Keyset | undefined,
+): Promise<{ rows: CraftRow[]; error: { message: string } | null }> {
+  if (!FEATURES.compounds) return { rows: [], error: null };
+
+  let query = supabase
+    .from("compounds")
+    .select("item_id, created_at")
+    .eq("creator_id", userId);
+  if (after) query = query.or(olderThan("created_at", after, "item_id"));
+  const { data, error } = await query
+    .order("created_at", { ascending: false })
+    .order("item_id", { ascending: false })
+    .limit(PAGE_SIZE + 1);
+  if (error) return { rows: [], error };
+  const compounds = (data ?? []) as { item_id: string; created_at: string }[];
+  if (compounds.length === 0) return { rows: [], error: null };
+
+  const ids = compounds.map((c) => c.item_id);
+  const { data: partData, error: partsError } = await supabase
+    .from("compound_parts")
+    .select("compound_id, part_id, position")
+    .in("compound_id", ids)
+    .order("position");
+  if (partsError) return { rows: [], error: partsError };
+  const parts = (partData ?? []) as {
+    compound_id: string;
+    part_id: string;
+  }[];
+
+  const { data: itemData, error: itemsError } = await supabase
+    .from("items")
+    .select("id, title, description, image_url")
+    .in("id", [...new Set([...ids, ...parts.map((p) => p.part_id)])]);
+  if (itemsError) return { rows: [], error: itemsError };
+  const items = new Map(
+    (
+      (itemData ?? []) as {
+        id: string;
+        title: string;
+        description: string | null;
+        image_url: string | null;
+      }[]
+    ).map((i) => [i.id, i]),
+  );
+
+  return {
+    rows: compounds.map((c) => ({
+      id: c.item_id,
+      at: c.created_at,
+      title: items.get(c.item_id)?.title ?? "Unknown compound",
+      description: items.get(c.item_id)?.description ?? "",
+      imageUrl: items.get(c.item_id)?.image_url ?? null,
+      parts: parts
+        .filter((p) => p.compound_id === c.item_id)
+        .flatMap((p) => items.get(p.part_id)?.title ?? []),
+    })),
+    error: null,
+  };
 }
 
 // The page of `userId`'s diary after `after`. Each page takes up to
@@ -180,28 +262,34 @@ export async function loadDiaryPage(
       olderThan("created_at", after.listReplies),
     );
   }
-  const [logsRes, listsRes, repliesRes, listRepliesRes] = await Promise.all([
-    logsQuery
-      .order("logged_at", { ascending: false })
-      .order("id", { ascending: false })
-      .limit(PAGE_SIZE + 1),
-    listsQuery
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .order("position", { referencedTable: "preview" })
-      .limit(PREVIEW_SIZE, { referencedTable: "preview" })
-      .limit(PAGE_SIZE + 1),
-    repliesQuery
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .limit(PAGE_SIZE + 1),
-    listRepliesQuery
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .limit(PAGE_SIZE + 1),
-  ]);
+  const [logsRes, listsRes, repliesRes, listRepliesRes, craftsRes] =
+    await Promise.all([
+      logsQuery
+        .order("logged_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(PAGE_SIZE + 1),
+      listsQuery
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .order("position", { referencedTable: "preview" })
+        .limit(PREVIEW_SIZE, { referencedTable: "preview" })
+        .limit(PAGE_SIZE + 1),
+      repliesQuery
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(PAGE_SIZE + 1),
+      listRepliesQuery
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(PAGE_SIZE + 1),
+      craftsOf(supabase, userId, after.crafts),
+    ]);
   const error =
-    logsRes.error ?? listsRes.error ?? repliesRes.error ?? listRepliesRes.error;
+    logsRes.error ??
+    listsRes.error ??
+    repliesRes.error ??
+    listRepliesRes.error ??
+    craftsRes.error;
   if (error) return { cards: [], next: null, error: error.message };
 
   const replyRows = repliesRes.data as unknown as ReplyRow[];
@@ -331,16 +419,41 @@ export async function loadDiaryPage(
     },
   }));
 
+  const crafts: Entry[] = craftsRes.rows.map((c) => ({
+    at: c.at,
+    id: c.id,
+    shown: true,
+    card: {
+      key: `craft:${c.id}`,
+      card: (
+        <DiaryCraftCard
+          itemId={c.id}
+          title={c.title}
+          description={c.description}
+          imageUrl={c.imageUrl}
+          parts={c.parts}
+          ago={timeAgo(c.at, now)}
+        />
+      ),
+    },
+  }));
+
   const {
-    taken: [tookLogs, tookLists, tookReplies, tookListReplies],
+    taken: [tookLogs, tookLists, tookReplies, tookListReplies, tookCrafts],
     hasMore,
-  } = takeNewest([logs, lists, replies, listReplies], PAGE_SIZE);
+  } = takeNewest([logs, lists, replies, listReplies, crafts], PAGE_SIZE);
   const lastOf = (took: Entry[], before?: Keyset): Keyset | undefined => {
     const last = took.at(-1);
     return last ? { at: last.at, id: last.id } : before;
   };
   return {
-    cards: [...tookLogs, ...tookLists, ...tookReplies, ...tookListReplies]
+    cards: [
+      ...tookLogs,
+      ...tookLists,
+      ...tookReplies,
+      ...tookListReplies,
+      ...tookCrafts,
+    ]
       .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
       .filter((e) => e.shown)
       .map((e) => e.card),
@@ -350,6 +463,7 @@ export async function loadDiaryPage(
           lists: lastOf(tookLists, after.lists),
           replies: lastOf(tookReplies, after.replies),
           listReplies: lastOf(tookListReplies, after.listReplies),
+          crafts: lastOf(tookCrafts, after.crafts),
         }
       : null,
     error: "",

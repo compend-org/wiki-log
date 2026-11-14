@@ -6,6 +6,7 @@ import { useState } from "react";
 import { createCompound } from "@/app/actions";
 import ItemPicker from "@/components/ItemPicker";
 import ItemImage from "@/components/icons/ItemImage";
+import PaintEditor from "@/components/PaintEditor";
 
 type Part = { id: string; title: string; imageUrl: string | null };
 
@@ -15,6 +16,8 @@ export default function CompoundCreator() {
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [parts, setParts] = useState<Part[]>([]);
+  const [image, setImage] = useState<string | null>(null);
+  const [drawing, setDrawing] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [existing, setExisting] = useState<{
@@ -54,6 +57,7 @@ export default function CompoundCreator() {
       title,
       description,
       parts: parts.map((p) => p.id),
+      image,
     });
     setBusy(false);
 
@@ -150,6 +154,64 @@ export default function CompoundCreator() {
           />
         </label>
       </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+          Picture
+        </h2>
+        <div className="flex items-center gap-4">
+          {image ? (
+            // biome-ignore lint/performance/noImgElement: a plain img is intended
+            <img
+              src={image}
+              alt="Your drawing"
+              width={100}
+              height={100}
+              className="h-[102px] w-[102px] shrink-0"
+            />
+          ) : (
+            <ItemImage
+              src={null}
+              alt="No picture yet"
+              placeholder={title.trim() || "?"}
+              className="h-[102px] w-[102px] shrink-0"
+            />
+          )}
+          <div className="flex flex-col items-start gap-2 text-sm">
+            <button
+              type="button"
+              onClick={() => setDrawing(true)}
+              className="border border-line bg-surface px-4 py-2"
+            >
+              {image ? "Edit drawing" : "Draw a picture"}
+            </button>
+            {image && (
+              <button
+                type="button"
+                onClick={() => setImage(null)}
+                className="text-muted underline"
+              >
+                Remove
+              </button>
+            )}
+            <p className="text-xs text-muted">
+              Optional. Draw your compound on a 100 × 100 canvas.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {drawing && (
+        <PaintEditor
+          initial={image}
+          onSave={(png) => {
+            setImage(png);
+            setDrawing(false);
+            setExisting(null);
+          }}
+          onCancel={() => setDrawing(false)}
+        />
+      )}
 
       <button
         type="button"

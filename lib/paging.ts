@@ -85,8 +85,11 @@ export function takeNewest<Row extends { at: string }>(
 }
 
 // A keyset that came from the browser: undefined when there is none, and
-// false when it isn't one
-export function parseKeyset(value: unknown): Keyset | undefined | false {
+// false when it isn't one. Ids are UUIDs unless `isId` says what they are.
+export function parseKeyset(
+  value: unknown,
+  isId: (id: string) => boolean = isUuid,
+): Keyset | undefined | false {
   if (value === undefined) return undefined;
   if (typeof value !== "object" || value === null) return false;
   const { at, id } = value as Record<string, unknown>;
@@ -95,7 +98,7 @@ export function parseKeyset(value: unknown): Keyset | undefined | false {
   if (!/^[0-9TZ:.+ -]+$/.test(at) || Number.isNaN(Date.parse(at))) {
     return false;
   }
-  return isUuid(id) ? { at, id } : false;
+  return isId(id) ? { at, id } : false;
 }
 
 function parseColumnCursor(value: unknown): ColumnCursor | null | false {

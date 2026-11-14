@@ -26,6 +26,8 @@ import { RANDOM_PARAM } from "@/lib/randomItem";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
+import CompoundEditButton from "@/components/buttons/CompoundEditButton";
+import CompoundDeleteButton from "@/components/buttons/CompoundDeleteButton";
 
 export const instant = false;
 
@@ -113,6 +115,7 @@ export default async function ItemPage({
   const compound = isCompoundId(id);
   let madeFrom: Part[] = [];
   let creator: string | null = null;
+  let creatorId: string | null = null;
   let createdAt: string | null = null;
 
   if (compound) {
@@ -122,6 +125,7 @@ export default async function ItemPage({
       .eq("item_id", id)
       .maybeSingle();
     createdAt = c?.created_at ?? null;
+    creatorId = c?.creator_id ?? null;
 
     const { data: partRows } = await supabase
       .from("compound_parts")
@@ -140,13 +144,13 @@ export default async function ItemPage({
         const it = byId.get(pid);
         return it
           ? [
-              {
-                id: pid,
-                title: it.title,
-                imageUrl: it.image_url,
-                nsfw: it.nsfw,
-              },
-            ]
+            {
+              id: pid,
+              title: it.title,
+              imageUrl: it.image_url,
+              nsfw: it.nsfw,
+            },
+          ]
           : [];
       });
     }
@@ -164,10 +168,10 @@ export default async function ItemPage({
   // Compounds that use this item as an ingredient
   const { data: usedRows } = FEATURES.compounds
     ? await supabase
-        .from("compound_parts")
-        .select("compound_id")
-        .eq("part_id", id)
-        .limit(12)
+      .from("compound_parts")
+      .select("compound_id")
+      .eq("part_id", id)
+      .limit(12)
     : { data: null };
   const usedIds = (usedRows ?? []).map((r) => r.compound_id as string);
   let usedIn: { id: string; title: string }[] = [];
@@ -219,10 +223,27 @@ export default async function ItemPage({
                 fullSize
                 alt={item.title}
                 nsfw={item.nsfw}
-                className="item-img h-auto w-auto max-w-full border-2 border-dashed border-line bg-clip-padding [[data-theme=dark]_&]:bg-foreground"
+                className={`item-img h-auto max-w-full border-2 border-dashed border-line bg-clip-padding [[data-theme=dark]_&]:bg-foreground ${
+                  // Drawings are only 100 pixels wide: 3 or 4 times that, plus the border
+                  compound ? "w-[304px] sm:w-[404px]" : "w-auto"
+                  }`}
               />
               <figcaption className="text-center text-xs text-muted">
-                {item.imageNonFree ? (
+                {compound ? (
+                  creator ? (
+                    <>
+                      Drawn by{" "}
+                      <Link
+                        href={`/u/${encodeURIComponent(creator)}`}
+                        className="underline"
+                      >
+                        {creator}
+                      </Link>
+                    </>
+                  ) : (
+                    "Drawn on this site"
+                  )
+                ) : item.imageNonFree ? (
                   <a href={removalLink} className="underline">
                     Request removal
                   </a>
@@ -248,7 +269,21 @@ export default async function ItemPage({
             />
           )}
 
-          <h1 className="text-3xl font-bold">{item.title}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-3xl font-bold">{item.title}</h1>
+            {compound && viewerId && creatorId === viewerId && (
+              <span className="flex items-center gap-4 pt-1.5">
+                <CompoundEditButton
+                  id={item.id}
+                  title={item.title}
+                  description={item.description ?? ""}
+                  imageUrl={item.imageUrl}
+                  iconClassName="h-6 w-6"
+                />
+                <CompoundDeleteButton id={item.id} iconClassName="h-6 w-6" />
+              </span>
+            )}
+          </div>
           {item.description && <p className="text-muted">{item.description}</p>}
 
           {compound ? (
