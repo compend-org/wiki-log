@@ -67,12 +67,16 @@ export function shownImage(item: {
   return item.image_hidden ? null : item.image_url;
 }
 
-// A smaller version of a Wikimedia thumbnail address, for small boxes. Other
-// addresses are returned unchanged.
+// The thumbnail widths Wikimedia serves; it refuses any other width
+const THUMB_WIDTHS = [20, 40, 60, 120, 250, 330, 500, 960, 1280, 1920, 3840];
+
+// A smaller version of a Wikimedia thumbnail address, for small boxes, at
+// least as wide as asked. Other addresses are returned unchanged.
 export function thumbUrl(url: string, width = 330): string {
   const m = /^(.*\/thumb\/.*\/)(\d+)px-([^/]+)$/.exec(url);
-  if (!m) return url;
-  return Number(m[2]) > width ? `${m[1]}${width}px-${m[3]}` : url;
+  const served = THUMB_WIDTHS.find((w) => w >= width);
+  if (!m || !served) return url;
+  return Number(m[2]) > served ? `${m[1]}${served}px-${m[3]}` : url;
 }
 
 export function absolute(url: string): string {

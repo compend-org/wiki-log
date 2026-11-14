@@ -8,6 +8,7 @@ import {
   REVIEW_LINK,
   shownImage,
   starText,
+  thumbUrl,
   timeAgo,
 } from "./format";
 
@@ -50,6 +51,16 @@ test("shows an item's image unless it is hidden", () => {
   assert.equal(shownImage({ image_url: url }), url);
   assert.equal(shownImage({ image_url: url, image_hidden: true }), null);
   assert.equal(shownImage({ image_url: null, image_hidden: false }), null);
+});
+
+test("thumbnails are asked for only at widths Wikimedia serves", () => {
+  const url =
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Neil_Young.jpg/960px-Neil_Young.jpg";
+  const thumb = (width: number) =>
+    thumbUrl(url, width).replace(/^.*\/(\d+)px-[^/]+$/, "$1");
+  assert.equal(thumb(60), "60");
+  assert.equal(thumb(80), "120");
+  assert.equal(thumb(600), "960");
 });
 
 test("shows item links and mentions as plain text", () => {

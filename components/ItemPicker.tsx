@@ -423,7 +423,7 @@ export default function ItemPicker({
                       <ItemPicture
                         src={hit.imageUrl}
                         // Saved pictures are large; the box is 40px wide
-                        sourceWidth={80}
+                        sourceWidth={60}
                         alt=""
                         nsfw={hit.pictureCheck === "adult"}
                         tapToShow={false}
