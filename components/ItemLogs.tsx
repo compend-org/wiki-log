@@ -79,6 +79,7 @@ export default async function ItemLogs({
       )}
       <CardPages
         first={{ cards: recentCards, next, error }}
+        moreButtonOnMobile="Show more reviews"
         loadMore={loadMoreItemLogs.bind(
           null,
           itemId,

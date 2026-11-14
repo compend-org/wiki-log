@@ -59,12 +59,13 @@ export function olderThan(
 export function pageOf<Row>(
   rows: Row[],
   keyset: (row: Row) => Keyset,
+  size = PAGE_SIZE,
 ): { page: Row[]; next: Keyset | null } {
-  const page = rows.slice(0, PAGE_SIZE);
+  const page = rows.slice(0, size);
   const last = page.at(-1);
   return {
     page,
-    next: rows.length > PAGE_SIZE && last ? keyset(last) : null,
+    next: rows.length > size && last ? keyset(last) : null,
   };
 }
 

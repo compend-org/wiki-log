@@ -27,6 +27,8 @@ const ITEM_LOG_SELECT =
 
 // How many of the most-liked logs show at the top of an item's logs
 const MOST_LIKED = 3;
+const RECENT_FIRST_PAGE = 3;
+const RECENT_MORE_PAGE = 7;
 
 // The most-liked logs of an item that have at least one like, most likes
 // first, newer first when tied. Logs by people the viewer blocked are left out.
@@ -64,13 +66,15 @@ export async function getItemLogs(
     .eq("item_id", itemId);
   if (exclude.length > 0) query = query.not("id", "in", `(${exclude})`);
   if (after) query = query.or(olderThan("logged_at", after));
+  const size = after ? RECENT_MORE_PAGE : RECENT_FIRST_PAGE;
   const { data, error } = await query
     .order("logged_at", { ascending: false })
     .order("id", { ascending: false })
-    .limit(PAGE_SIZE + 1);
+    .limit(size + 1);
   const { page, next } = pageOf(
     (data ?? []) as unknown as ItemLogRow[],
     (r) => ({ at: r.logged_at, id: r.id }),
+    size,
   );
   return { rows: page, next, error: error?.message ?? "" };
 }

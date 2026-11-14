@@ -11,11 +11,31 @@ import {
   useCallback,
   useContext,
   useState,
+  useSyncExternalStore,
 } from "react";
 import LoadMore from "@/components/LoadMore";
 import type { Keyset } from "@/lib/paging";
 
 export type Card = { key: string; card: ReactNode };
+
+// Screens narrower than Tailwind's `sm` breakpoint
+const NARROW_SCREEN = "(max-width: 639px)";
+
+function subscribeToScreenWidth(onChange: () => void) {
+  const query = window.matchMedia(NARROW_SCREEN);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+// Whether the screen is narrow, like a phone's. Wide until the page is in the
+// browser, since the server can't know.
+function useNarrowScreen(): boolean {
+  return useSyncExternalStore(
+    subscribeToScreenWidth,
+    () => window.matchMedia(NARROW_SCREEN).matches,
+    () => false,
+  );
+}
 
 export type CardsPage<Cursor = Keyset> = {
   cards: Card[];
@@ -53,6 +73,7 @@ export default function CardPages<Cursor>({
   first,
   loadMore,
   moreButton,
+  moreButtonOnMobile,
   onPageLoaded,
 }: {
   first: CardsPage<Cursor>;
@@ -60,6 +81,9 @@ export default function CardPages<Cursor>({
   // The label of a button that loads the next page. Without one, pages load
   // as the bottom scrolls into view.
   moreButton?: string;
+  // Like `moreButton`, but only on a narrow screen. Wider ones load pages as
+  // the bottom scrolls into view.
+  moreButtonOnMobile?: string;
   // Called with each later page's number once it has loaded
   onPageLoaded?: (page: number) => void;
 }) {
@@ -79,6 +103,8 @@ export default function CardPages<Cursor>({
   const pageCount = later ? later.pageCount : 1;
   const error = later ? later.error : first.error;
   const [loading, setLoading] = useState(false);
+  const narrow = useNarrowScreen();
+  const buttonLabel = moreButton ?? (narrow ? moreButtonOnMobile : undefined);
   const removeCard = useCallback((key: string) => {
     setRemoved((keys) => new Set(keys).add(key));
   }, []);
@@ -121,14 +147,14 @@ export default function CardPages<Cursor>({
       {error && <p className="text-center text-danger">{error}</p>}
       {next &&
         !error &&
-        (moreButton ? (
+        (buttonLabel ? (
           <button
             type="button"
             onClick={loadNextPage}
             disabled={loading}
             className="self-start text-sm underline disabled:opacity-60"
           >
-            {loading ? "Loading…" : moreButton}
+            {loading ? "Loading…" : buttonLabel}
           </button>
         ) : (
           <LoadMore key={pageCount} onLoad={loadNextPage} />
