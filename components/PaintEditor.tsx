@@ -94,6 +94,8 @@ const BRUSH_SIZES = [6, 4, 2];
 const AIRBRUSH_SIZES = [4, 8, 12];
 const LINE_WIDTHS = [1, 2, 3, 4, 5];
 const FILL_STYLES: FillStyle[] = ["outline", "both", "fill"];
+// Screens narrower than this are phones, where the picture fills the width
+const NARROW_SCREEN = "(max-width: 639px)";
 const UNDO_LIMIT = 100;
 // The biggest picture that can be pasted in from outside. Over the canvas size
 // it is cropped to the canvas, with all of it selected so it can be moved.
@@ -331,6 +333,7 @@ export default function PaintEditor({
   onCancel: () => void;
 }) {
   const root = useRef<HTMLDivElement>(null);
+  const workspace = useRef<HTMLDivElement>(null);
   const menubar = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const colorInput = useRef<HTMLInputElement>(null);
@@ -351,7 +354,22 @@ export default function PaintEditor({
   const [tool, setTool] = useState<Tool>("pencil");
   const [foreground, setForeground] = useState<Rgb>(BLACK);
   const [background, setBackground] = useState<Rgb>(WHITE);
-  const [zoom, setZoom] = useState<number>(startingZoom);
+  const [chosenZoom, setChosenZoom] = useState<number>(startingZoom);
+  const [narrow, setNarrow] = useState<boolean>(
+    () => window.matchMedia(NARROW_SCREEN).matches,
+  );
+  // On a narrow screen the picture is sized to fill the width until a zoom is
+  // chosen
+  const [fit, setFit] = useState<boolean>(narrow);
+  // How wide the picture can be
+  const [room, setRoom] = useState<number>(0);
+  const fitting = narrow && fit && room > 0;
+  // How many screen pixels each picture pixel gets, which can be a fraction
+  const zoom = fitting ? room / PAINT_SIZE : chosenZoom;
+  function setZoom(z: number) {
+    setFit(false);
+    setChosenZoom(z);
+  }
   const [eraserSize, setEraserSize] = useState<number>(4);
   const [brush, setBrush] = useState<{ shape: BrushShape; size: number }>({
     shape: "circle",
@@ -421,6 +439,37 @@ export default function PaintEditor({
     },
     [],
   );
+
+  // Follows the screen between narrow and wide, as when the phone is turned
+  useEffect(() => {
+    const query = window.matchMedia(NARROW_SCREEN);
+    const update = () => {
+      setNarrow(query.matches);
+      setFit(query.matches);
+    };
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  // Measures how wide the picture can be
+  useEffect(() => {
+    const el = workspace.current;
+    if (!el) return;
+    const measure = () => {
+      const style = getComputedStyle(el);
+      setRoom(
+        Math.floor(
+          el.clientWidth -
+            Number.parseFloat(style.paddingLeft) -
+            Number.parseFloat(style.paddingRight),
+        ),
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // A click anywhere but the menus closes an open menu
   useEffect(() => {
@@ -777,9 +826,13 @@ export default function PaintEditor({
   }
 
   function zoomBy(direction: 1 | -1) {
-    const i = ZOOMS.indexOf(zoom);
-    const next = ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, i + direction))];
-    setZoom(next);
+    const bigger = ZOOMS.find((z) => z > zoom);
+    const smaller = [...ZOOMS].reverse().find((z) => z < zoom);
+    setZoom(
+      direction === 1
+        ? (bigger ?? ZOOMS[ZOOMS.length - 1])
+        : (smaller ?? ZOOMS[0]),
+    );
   }
 
   function pixelAt(e: ReactPointerEvent<HTMLCanvasElement>) {
@@ -1006,10 +1059,20 @@ export default function PaintEditor({
     },
     {
       name: "View",
-      items: ZOOMS.map((z) => ({
-        label: `${z * 100}%${z === zoom ? "  ✓" : ""}`,
-        run: () => setZoom(z),
-      })),
+      items: [
+        ...(narrow
+          ? [
+              {
+                label: `Fit to Screen${fitting ? "  ✓" : ""}`,
+                run: () => setFit(true),
+              },
+            ]
+          : []),
+        ...ZOOMS.map((z) => ({
+          label: `${z * 100}%${z === zoom ? "  ✓" : ""}`,
+          run: () => setZoom(z),
+        })),
+      ],
     },
     {
       name: "Image",
@@ -1307,7 +1370,7 @@ export default function PaintEditor({
             </div>
           </div>
 
-          <div className="paint-workspace">
+          <div ref={workspace} className="paint-workspace">
             <div className="paint-canvas-frame">
               <canvas
                 ref={canvas}

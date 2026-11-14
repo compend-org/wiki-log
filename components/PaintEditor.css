@@ -419,3 +419,174 @@
   background: var(--color-accent);
   color: var(--color-background);
 }
+
+/* On a phone the window fills the screen and the picture is as wide as the
+   screen allows. The tools, colours and buttons sit under it, large enough to
+   tap and within reach of a thumb. The buttons stay on screen at the bottom. */
+@media (max-width: 639px) {
+  .paint-backdrop {
+    inset: 0 0 auto 0;
+    height: 100dvh;
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .paint {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    gap: 8px;
+    padding: 6px 6px 0;
+    border-width: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: manipulation;
+  }
+
+  .paint-close {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Menus open across the whole width, with rows big enough to tap */
+  .paint-menu {
+    position: static;
+  }
+
+  .paint-menu-label {
+    padding: 8px 10px;
+  }
+
+  .paint-dropdown {
+    right: 0;
+    left: 0;
+    min-width: 0;
+  }
+
+  .paint-menu-item {
+    padding: 12px 14px;
+  }
+
+  /* The picture on top, then the tool settings, then the tools */
+  .paint-body {
+    flex: none;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .paint-side {
+    display: contents;
+  }
+
+  .paint-workspace {
+    order: 1;
+    flex: none;
+    padding: 0 4px;
+    background: none;
+    box-shadow: none;
+  }
+
+  .paint-options {
+    order: 2;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    min-height: 44px;
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .paint-options:empty {
+    display: none;
+  }
+
+  .paint-options[data-grid="true"] {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .paint-option {
+    min-width: 44px;
+    min-height: 36px;
+    padding: 4px 8px;
+  }
+
+  .paint-toolbox {
+    order: 3;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+  }
+
+  .paint .paint-tool {
+    width: auto;
+    height: 44px;
+  }
+
+  .paint-colorbar {
+    gap: 6px;
+  }
+
+  .paint-colorbox {
+    width: 52px;
+    height: 52px;
+  }
+
+  .paint-current {
+    width: 26px;
+    height: 26px;
+  }
+
+  .paint-palette {
+    flex: 1;
+    grid-template-columns: repeat(14, 1fr);
+    grid-auto-rows: 26px;
+  }
+
+  .paint-swatch {
+    width: auto;
+    height: 26px;
+  }
+
+  .paint-swatch > span {
+    height: 22px;
+  }
+
+  /* Where the pointer is means nothing to a finger */
+  .paint-status[data-fixed="true"] {
+    display: none;
+  }
+
+  .paint-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    gap: 8px;
+    margin: auto -6px 0;
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--color-line);
+    background: var(--color-background);
+  }
+
+  .paint-footer .paint-undo {
+    margin-right: 0;
+  }
+
+  .paint-footer .paint-push {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  .paint-footer .paint-push[data-default="true"] {
+    flex: 2;
+  }
+}
+
+/* Fingers need more than the little square to grab a resize handle */
+@media (pointer: coarse) {
+  .paint-handle::before {
+    content: "";
+    position: absolute;
+    inset: -12px;
+  }
+}
