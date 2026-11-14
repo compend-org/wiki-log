@@ -4,8 +4,12 @@
 
 import { updateTag } from "next/cache";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
-import { prepareCompoundImage, storeCompoundImage } from "@/lib/compoundImage";
-import { readPicture, removePicture, savePicture } from "@/lib/compoundPicture";
+import {
+  prepareCompoundImage,
+  removeCompoundImage,
+  replaceCompoundImage,
+  storeCompoundImage,
+} from "@/lib/compoundImage";
 import { withErrorContext } from "@/lib/errorContext";
 import { FEATURES } from "@/lib/features";
 import { ITEM_ID_PATTERN, isCompoundId, isUuid } from "@/lib/ids";
@@ -682,7 +686,7 @@ export async function updateCompound(input: {
   }
   let png: Buffer | null = null;
   if (typeof input.image === "string") {
-    const picture = await readPicture(input.image);
+    const picture = await prepareCompoundImage(input.image);
     if ("error" in picture) return picture;
     png = picture.png;
   }
@@ -696,13 +700,13 @@ export async function updateCompound(input: {
 
   let imageUrl: string | null | undefined;
   if (png) {
-    imageUrl = await savePicture(input.id, png);
+    imageUrl = await replaceCompoundImage(input.id, png);
     if (imageUrl === null) {
       return { error: "Saved the text, but the picture couldn't be saved." };
     }
   } else if (input.image === null) {
     await admin.from("items").update({ image_url: null }).eq("id", input.id);
-    await removePicture(input.id);
+    await removeCompoundImage(input.id);
     imageUrl = null;
   }
   if (imageUrl === undefined) {
@@ -739,7 +743,7 @@ export async function deleteCompound(
           : error.message,
     };
   }
-  await removePicture(compoundId);
+  await removeCompoundImage(compoundId);
   updateTag(POSTS_CACHE_TAG);
   return {};
 }

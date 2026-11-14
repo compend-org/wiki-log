@@ -136,7 +136,7 @@ export function brushOffsets(shape: BrushShape, size: number): Offsets {
   return out;
 }
 
-export function stamp(
+function stamp(
   bitmap: Bitmap,
   x: number,
   y: number,
@@ -147,7 +147,7 @@ export function stamp(
 }
 
 // Calls `plot` for every pixel on the straight line between two pixels
-export function plotLine(
+function plotLine(
   x0: number,
   y0: number,
   x1: number,
