@@ -1,6 +1,3 @@
-/* The picture editor is drawn as a classic desktop window, with colours of its
-   own, so it looks the same in light and dark mode */
-
 .paint-backdrop {
   position: fixed;
   inset: 0;
@@ -9,35 +6,24 @@
   align-items: center;
   justify-content: center;
   padding: 0.5rem;
-  background: rgb(0 0 0 / 0.45);
+  background: rgb(0 0 0 / 0.4);
 }
 
 .paint {
-  --paint-face: #c0c0c0;
-  --paint-light: #ffffff;
-  --paint-shadow: #808080;
-  --paint-dark: #000000;
-  color-scheme: light;
+  --paint-icon-face: #e9ecf3;
+  --paint-icon-face-pressed: #ced3df;
   position: relative;
   display: flex;
   flex-direction: column;
+  gap: 6px;
   max-width: 100%;
   max-height: 100%;
-  background: var(--paint-face);
-  color: #000000;
-  font:
-    11px / 1.25 "MS Sans Serif",
-    "Microsoft Sans Serif",
-    Tahoma,
-    Verdana,
-    Arial,
-    sans-serif;
-  box-shadow:
-    inset -1px -1px #000000,
-    inset 1px 1px #dfdfdf,
-    inset -2px -2px #808080,
-    inset 2px 2px #ffffff;
-  padding: 3px;
+  padding: 8px;
+  border: 2px dashed var(--color-line);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-size: 0.87rem;
+  line-height: 1.3;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -50,10 +36,11 @@
 .paint-titlebar {
   display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 2px 2px 2px 3px;
-  background: linear-gradient(90deg, #000080, #1084d0);
-  color: #ffffff;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-line);
+  font-family: var(--font-display-src);
+  font-size: 1.1rem;
   font-weight: bold;
 }
 
@@ -64,48 +51,40 @@
   white-space: nowrap;
 }
 
-.paint-raised {
-  background: var(--paint-face);
-  box-shadow:
-    inset -1px -1px var(--paint-dark),
-    inset 1px 1px var(--paint-light),
-    inset -2px -2px var(--paint-shadow),
-    inset 2px 2px #dfdfdf;
-}
-
-.paint-raised:active:not(:disabled) {
-  box-shadow:
-    inset -1px -1px var(--paint-light),
-    inset 1px 1px var(--paint-dark),
-    inset -2px -2px #dfdfdf,
-    inset 2px 2px var(--paint-shadow);
-}
-
-.paint-sunken {
-  box-shadow:
-    inset -1px -1px var(--paint-light),
-    inset 1px 1px var(--paint-shadow),
-    inset -2px -2px #dfdfdf,
-    inset 2px 2px var(--paint-dark);
-}
-
 .paint-close {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 14px;
+  width: 22px;
+  height: 22px;
   padding: 0;
-  font-size: 13px;
-  font-weight: bold;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  font-family: var(--font-display-src);
+  font-size: 1.1rem;
+  font-weight: normal;
   line-height: 1;
-  color: #000000;
+}
+
+.paint-close:hover {
+  border-color: var(--color-accent);
+}
+
+/* Surfaces that other parts of the editor reuse */
+.paint-raised {
+  background: var(--color-surface);
+}
+
+.paint-sunken {
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-line);
 }
 
 .paint-menubar {
   position: relative;
   display: flex;
-  padding: 1px 0;
+  flex-wrap: wrap;
+  gap: 2px;
 }
 
 .paint-menu {
@@ -113,14 +92,19 @@
 }
 
 .paint-menu-label {
-  padding: 2px 6px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
   background: transparent;
   cursor: default;
 }
 
+.paint-menu-label:hover {
+  text-decoration: underline;
+}
+
 .paint-menu-label[data-open="true"] {
-  background: #000080;
-  color: #ffffff;
+  border-color: var(--color-line);
+  background: var(--color-surface);
 }
 
 .paint-dropdown {
@@ -128,13 +112,10 @@
   top: 100%;
   z-index: 5;
   min-width: 11.5rem;
+  margin-top: 2px;
   padding: 2px;
-  background: var(--paint-face);
-  box-shadow:
-    inset -1px -1px var(--paint-dark),
-    inset 1px 1px var(--paint-light),
-    inset -2px -2px var(--paint-shadow),
-    inset 2px 2px #dfdfdf;
+  border: 2px dashed var(--color-line);
+  background: var(--color-background);
 }
 
 .paint-menu-item {
@@ -142,7 +123,7 @@
   justify-content: space-between;
   gap: 1.5rem;
   width: 100%;
-  padding: 3px 18px 3px 20px;
+  padding: 3px 10px;
   background: transparent;
   text-align: left;
   white-space: nowrap;
@@ -150,39 +131,32 @@
 }
 
 .paint-menu-item:hover:not(:disabled) {
-  background: #000080;
-  color: #ffffff;
+  background: var(--color-accent);
+  color: var(--color-background);
 }
 
 .paint-menu-item:disabled {
-  color: #808080;
-  text-shadow: 1px 1px #ffffff;
-}
-
-.paint-menu-item:disabled:hover {
-  color: #808080;
-  background: transparent;
+  color: var(--color-muted);
+  opacity: 0.6;
 }
 
 .paint-menu-rule {
-  margin: 3px 1px;
-  border-top: 1px solid #808080;
-  border-bottom: 1px solid #ffffff;
+  margin: 3px 0;
+  border-top: 1px solid var(--color-line);
 }
 
 .paint-body {
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
-  gap: 3px;
-  padding-top: 2px;
+  gap: 6px;
 }
 
 .paint-side {
   display: flex;
   flex: none;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   width: 56px;
 }
 
@@ -190,37 +164,29 @@
   display: grid;
   grid-template-columns: repeat(2, 25px);
   justify-content: center;
-  padding: 2px 0;
+  gap: 1px;
 }
 
-.paint-tool {
+.paint .paint-tool {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 25px;
   height: 25px;
   padding: 0;
-  background: var(--paint-face);
-  box-shadow:
-    inset -1px -1px var(--paint-dark),
-    inset 1px 1px var(--paint-light),
-    inset -2px -2px var(--paint-shadow),
-    inset 2px 2px #dfdfdf;
+  border: 1px solid var(--color-line);
+  background: var(--paint-icon-face);
+  color: #000000;
+}
+
+.paint-tool:hover {
+  border-color: var(--color-accent);
 }
 
 .paint-tool[aria-pressed="true"] {
-  background-color: #ffffff;
-  background-image: repeating-conic-gradient(#c0c0c0 0% 25%, #ffffff 0% 50%);
-  background-size: 2px 2px;
-  box-shadow:
-    inset -1px -1px var(--paint-light),
-    inset 1px 1px var(--paint-dark),
-    inset -2px -2px #dfdfdf,
-    inset 2px 2px var(--paint-shadow);
-}
-
-.paint-tool[aria-pressed="true"] svg {
-  transform: translate(1px, 1px);
+  background: var(--paint-icon-face-pressed);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 .paint-options {
@@ -249,12 +215,16 @@
   min-height: 13px;
   padding: 1px;
   background: transparent;
-  color: #000000;
+  color: var(--color-foreground);
+}
+
+.paint-option:hover {
+  background: var(--color-background);
 }
 
 .paint-option[aria-pressed="true"] {
-  background: #000080;
-  color: #ffffff;
+  background: var(--color-background);
+  box-shadow: inset 0 0 0 2px var(--color-accent);
 }
 
 .paint-workspace {
@@ -262,12 +232,8 @@
   min-width: 0;
   overflow: auto;
   padding: 4px;
-  background: #808080;
-  box-shadow:
-    inset -1px -1px var(--paint-light),
-    inset 1px 1px var(--paint-shadow),
-    inset -2px -2px #dfdfdf,
-    inset 2px 2px var(--paint-dark);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-line);
 }
 
 .paint-canvas-frame {
@@ -276,6 +242,7 @@
   overflow: hidden;
   line-height: 0;
   background: #ffffff;
+  outline: 1px solid var(--color-line);
 }
 
 /* The dotted outline round the selected part, laid over the picture */
@@ -297,9 +264,8 @@
 
 .paint-colorbar {
   display: flex;
-  gap: 4px;
+  gap: 8px;
   align-items: center;
-  padding: 3px 2px 1px;
 }
 
 .paint-colorbox {
@@ -307,18 +273,19 @@
   flex: none;
   width: 30px;
   height: 30px;
-  background: var(--paint-face);
+  padding: 0;
+  border: 0;
+}
+
+.paint-colorbox:hover {
+  box-shadow: inset 0 0 0 1px var(--color-accent);
 }
 
 .paint-current {
   position: absolute;
   width: 15px;
   height: 15px;
-  box-shadow:
-    inset -1px -1px var(--paint-light),
-    inset 1px 1px var(--paint-shadow),
-    1px 1px 0 #000000,
-    -1px -1px 0 #ffffff;
+  box-shadow: 0 0 0 1px var(--color-line);
 }
 
 .paint-current[data-which="bg"] {
@@ -336,18 +303,18 @@
   display: grid;
   grid-template-columns: repeat(14, 16px);
   grid-auto-rows: 16px;
-  gap: 0;
+  gap: 1px;
 }
 
 .paint-swatch {
   width: 16px;
   height: 16px;
   padding: 0;
-  box-shadow:
-    inset 1px 1px var(--paint-shadow),
-    inset -1px -1px var(--paint-light),
-    inset 2px 2px var(--paint-dark),
-    inset -2px -2px #dfdfdf;
+  box-shadow: inset 0 0 0 1px var(--color-line);
+}
+
+.paint-swatch:hover {
+  box-shadow: inset 0 0 0 2px var(--color-accent);
 }
 
 .paint-swatch > span {
@@ -358,23 +325,24 @@
 
 .paint-statusbar {
   display: flex;
-  gap: 2px;
-  padding-top: 3px;
+  gap: 12px;
+  padding-top: 5px;
+  border-top: 1px solid var(--color-line);
+  color: var(--color-muted);
+  font-size: 0.8rem;
 }
 
 .paint-status {
   min-width: 0;
-  padding: 2px 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  box-shadow:
-    inset 1px 1px var(--paint-shadow),
-    inset -1px -1px var(--paint-light);
 }
 
 .paint-status[data-grow="true"] {
   flex: 1;
+  /* The help text changes as you hover tools. Without this, its length
+     counts towards the window's width and the window grows with it. */
   contain: inline-size;
 }
 
@@ -392,69 +360,49 @@
   flex-direction: column;
   gap: 10px;
   width: min(250px, calc(100% - 1rem));
-  padding: 3px;
+  padding: 8px;
   transform: translate(-50%, -50%);
-  background: var(--paint-face);
-  box-shadow:
-    inset -1px -1px var(--paint-dark),
-    inset 1px 1px #dfdfdf,
-    inset -2px -2px var(--paint-shadow),
-    inset 2px 2px var(--paint-light),
-    2px 2px 0 rgb(0 0 0 / 0.5);
+  border: 2px dashed var(--color-line);
+  background: var(--color-background);
 }
 
 .paint-dialog-body {
-  padding: 8px 10px 2px;
+  padding: 4px 2px;
   line-height: 1.5;
 }
 
 .paint-dialog button.paint-push {
   align-self: center;
-  margin-bottom: 8px;
 }
 
 .paint-push {
   min-width: 70px;
-  padding: 4px 10px;
-  background: var(--paint-face);
-  box-shadow:
-    inset -1px -1px var(--paint-dark),
-    inset 1px 1px var(--paint-light),
-    inset -2px -2px var(--paint-shadow),
-    inset 2px 2px #dfdfdf;
+  padding: 3px 12px;
+  border: 1px solid var(--color-line);
+  background: var(--color-background);
 }
 
-.paint-push:active {
-  box-shadow:
-    inset -1px -1px var(--paint-light),
-    inset 1px 1px var(--paint-dark),
-    inset -2px -2px #dfdfdf,
-    inset 2px 2px var(--paint-shadow);
+.paint-push:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+.paint-push:disabled {
+  opacity: 0.4;
 }
 
 .paint-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 6px;
-  padding: 5px 2px 2px;
+  gap: 8px;
+  padding-top: 2px;
 }
 
 .paint-footer .paint-undo {
   margin-right: auto;
 }
 
-.paint-push:disabled {
-  color: #808080;
-  text-shadow: 1px 1px #ffffff;
-}
-
 .paint-footer .paint-push[data-default="true"] {
-  outline: 1px solid #000000;
-  outline-offset: -3px;
-  font-weight: bold;
-}
-
-.paint button:focus-visible {
-  outline: 1px dotted #000000;
-  outline-offset: -4px;
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-background);
 }

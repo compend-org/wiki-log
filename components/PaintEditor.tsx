@@ -41,6 +41,12 @@ import {
   WHITE,
 } from "@/lib/paint";
 import {
+  flipRegionHorizontal,
+  flipRegionVertical,
+  invertRegion,
+  rotateRegion,
+} from "@/lib/paintRegion";
+import {
   copyRegion,
   fillRegion,
   pasteRegion,
@@ -555,6 +561,38 @@ export default function PaintEditor({
     showSelectionBox();
   }
 
+  // An Image menu action goes on the selected part, which stays selected, or
+  // on the whole picture when nothing is selected
+  function transformImage(
+    action: "flipH" | "flipV" | "rotateRight" | "rotateLeft" | "invert",
+  ) {
+    const s = selection.current;
+    if (!s) {
+      if (action === "flipH") change(flipHorizontal);
+      else if (action === "flipV") change(flipVertical);
+      else if (action === "rotateRight") change((b) => rotate(b, true));
+      else if (action === "rotateLeft") change((b) => rotate(b, false));
+      else change(invertColors);
+      return;
+    }
+    liftSelection();
+    if (!s.pixels) return;
+    const region = { pixels: s.pixels, w: s.w, h: s.h };
+    if (action === "flipH") flipRegionHorizontal(region);
+    else if (action === "flipV") flipRegionVertical(region);
+    else if (action === "invert") invertRegion(region);
+    else {
+      // A quarter turn swaps the selection's width and height, keeping its
+      // top left corner where it was
+      const turned = rotateRegion(region, action === "rotateRight");
+      s.pixels = turned.pixels;
+      s.w = turned.w;
+      s.h = turned.h;
+    }
+    layDownSelection();
+    showSelectionBox();
+  }
+
   function handleSelectDown(e: ReactPointerEvent<HTMLCanvasElement>) {
     if (drag.current || selectDrag.current || e.button !== 0) return;
     e.preventDefault();
@@ -858,15 +896,18 @@ export default function PaintEditor({
     {
       name: "Image",
       items: [
-        { label: "Flip Horizontal", run: () => change(flipHorizontal) },
-        { label: "Flip Vertical", run: () => change(flipVertical) },
-        { label: "Rotate Right", run: () => change((b) => rotate(b, true)) },
-        { label: "Rotate Left", run: () => change((b) => rotate(b, false)) },
+        { label: "Flip Horizontal", run: () => transformImage("flipH") },
+        { label: "Flip Vertical", run: () => transformImage("flipV") },
+        {
+          label: "Rotate Right",
+          run: () => transformImage("rotateRight"),
+        },
+        { label: "Rotate Left", run: () => transformImage("rotateLeft") },
         "rule",
         {
           label: "Invert Colors",
           keys: "Ctrl+I",
-          run: () => change(invertColors),
+          run: () => transformImage("invert"),
         },
       ],
     },
@@ -905,7 +946,7 @@ export default function PaintEditor({
       save();
     } else if (mod && key === "i") {
       e.preventDefault();
-      change(invertColors);
+      transformImage("invert");
     } else if (mod && key === "a") {
       e.preventDefault();
       selectAll();
@@ -1058,7 +1099,7 @@ export default function PaintEditor({
       >
         <div className="paint-titlebar">
           <PixelIcon name="palette" />
-          <span className="paint-title">untitled - Paint</span>
+          <span className="paint-title">Compound image</span>
           <button
             type="button"
             aria-label="Close"
