@@ -44,6 +44,7 @@ import {
   flipRegionHorizontal,
   flipRegionVertical,
   invertRegion,
+  limitColors,
   rotateRegion,
 } from "@/lib/paintRegion";
 import {
@@ -100,6 +101,8 @@ const UNDO_LIMIT = 100;
 // The biggest picture that can be pasted in from outside. Over the canvas size
 // it is cropped to the canvas, with all of it selected so it can be moved.
 const MAX_PASTE = 300;
+// How much harder the contrast is pushed on pictures pasted from outside
+const PASTE_CONTRAST = 2;
 // How far each arrow key moves a selection
 const ARROW_STEPS: Record<string, { dx: number; dy: number } | undefined> = {
   ArrowLeft: { dx: -1, dy: 0 },
@@ -460,8 +463,8 @@ export default function PaintEditor({
       setRoom(
         Math.floor(
           el.clientWidth -
-            Number.parseFloat(style.paddingLeft) -
-            Number.parseFloat(style.paddingRight),
+          Number.parseFloat(style.paddingLeft) -
+          Number.parseFloat(style.paddingRight),
         ),
       );
     };
@@ -594,7 +597,7 @@ export default function PaintEditor({
     );
     navigator.clipboard
       .write([new ClipboardItem({ "image/png": blob })])
-      .catch(() => {});
+      .catch(() => { });
   }
 
   function copySelection() {
@@ -687,11 +690,14 @@ export default function PaintEditor({
       image.close();
       return;
     }
+
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, w, h);
     ctx.drawImage(image, 0, 0);
     image.close();
-    startPaste(new Uint8ClampedArray(ctx.getImageData(0, 0, w, h).data), w, h);
+    const pixels = new Uint8ClampedArray(ctx.getImageData(0, 0, w, h).data);
+    limitColors(pixels, PALETTE.flat(), PASTE_CONTRAST);
+    startPaste(pixels, w, h);
   }
 
   // The Paste menu item can't see the paste event, so it asks for the clipboard
@@ -1062,11 +1068,11 @@ export default function PaintEditor({
       items: [
         ...(narrow
           ? [
-              {
-                label: `Fit to Screen${fitting ? "  ✓" : ""}`,
-                run: () => setFit(true),
-              },
-            ]
+            {
+              label: `Fit to Screen${fitting ? "  ✓" : ""}`,
+              run: () => setFit(true),
+            },
+          ]
           : []),
         ...ZOOMS.map((z) => ({
           label: `${z * 100}%${z === zoom ? "  ✓" : ""}`,

@@ -1,6 +1,42 @@
 // ABOUTME: Whole-region transforms for the paint editor: flip, rotate and invert the pixels of a selection.
 // ABOUTME: Regions are copied pixels, row by row, four bytes each, as `copyRegion` makes them.
-import type { Bitmap } from "@/lib/paint";
+import type { Bitmap, Rgb } from "@/lib/paint";
+
+// Pushes a colour's brightness away from the middle by `contrast` times
+function boost(value: number, contrast: number): number {
+  return Math.max(0, Math.min(255, (value - 128) * contrast + 128));
+}
+
+// Gives a picture the look of something drawn here: the contrast goes up, then
+// every pixel becomes the closest colour of the palette, so there are only flat
+// patches of a few colours and hard edges between them
+export function limitColors(
+  pixels: Bitmap,
+  palette: readonly Rgb[],
+  contrast: number,
+): void {
+  for (let i = 0; i < pixels.length; i += 4) {
+    const r = boost(pixels[i], contrast);
+    const g = boost(pixels[i + 1], contrast);
+    const b = boost(pixels[i + 2], contrast);
+    let nearest = palette[0];
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (const colour of palette) {
+      // The eye tells greens apart best and blues worst
+      const distance =
+        2 * (r - colour[0]) ** 2 +
+        4 * (g - colour[1]) ** 2 +
+        3 * (b - colour[2]) ** 2;
+      if (distance < nearestDistance) {
+        nearest = colour;
+        nearestDistance = distance;
+      }
+    }
+    pixels[i] = nearest[0];
+    pixels[i + 1] = nearest[1];
+    pixels[i + 2] = nearest[2];
+  }
+}
 
 export type RegionPixels = { pixels: Bitmap; w: number; h: number };
 
