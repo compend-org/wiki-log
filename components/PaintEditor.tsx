@@ -95,6 +95,16 @@ const AIRBRUSH_SIZES = [4, 8, 12];
 const LINE_WIDTHS = [1, 2, 3, 4, 5];
 const FILL_STYLES: FillStyle[] = ["outline", "both", "fill"];
 const UNDO_LIMIT = 100;
+// The biggest picture that can be pasted in from outside. Over the canvas size
+// it is cropped to the canvas, with all of it selected so it can be moved.
+const MAX_PASTE = 300;
+// How far each arrow key moves a selection
+const ARROW_STEPS: Record<string, { dx: number; dy: number } | undefined> = {
+  ArrowLeft: { dx: -1, dy: 0 },
+  ArrowRight: { dx: 1, dy: 0 },
+  ArrowUp: { dx: 0, dy: -1 },
+  ArrowDown: { dx: 0, dy: 1 },
+};
 
 // How far the pointer has got with a stroke or shape it is in the middle of
 type Drag = {
@@ -356,6 +366,9 @@ export default function PaintEditor({
   const [menu, setMenu] = useState<string | null>(null);
   const [about, setAbout] = useState<boolean>(false);
   const [hoverHelp, setHoverHelp] = useState<string>("");
+  // A short message in the status bar, e.g. why a paste didn't happen
+  const [notice, setNotice] = useState<string>("");
+  const noticeTimer = useRef<number | null>(null);
   // Where the selection is, for drawing its outline
   const [selectionBox, setSelectionBox] = useState<Region | null>(null);
   // Whether the background colour of a selection lets what is under it show
@@ -399,6 +412,12 @@ export default function PaintEditor({
   useEffect(
     () => () => {
       if (drag.current?.timer) window.clearInterval(drag.current.timer);
+    },
+    [],
+  );
+  useEffect(
+    () => () => {
+      if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
     },
     [],
   );
@@ -509,6 +528,26 @@ export default function PaintEditor({
     selectRegion({ x: 0, y: 0, w: PAINT_SIZE, h: PAINT_SIZE });
   }
 
+  // Also puts a copied picture on the system clipboard, if the browser allows
+  function copyToSystem(pixels: Bitmap, w: number, h: number) {
+    if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+      return;
+    }
+    const scratch = document.createElement("canvas");
+    scratch.width = w;
+    scratch.height = h;
+    scratch.getContext("2d")?.putImageData(new ImageData(pixels, w, h), 0, 0);
+    const blob = new Promise<Blob>((resolve, reject) =>
+      scratch.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error("No picture"))),
+        "image/png",
+      ),
+    );
+    navigator.clipboard
+      .write([new ClipboardItem({ "image/png": blob })])
+      .catch(() => {});
+  }
+
   function copySelection() {
     const s = selection.current;
     if (!s) return;
@@ -517,6 +556,7 @@ export default function PaintEditor({
       w: s.w,
       h: s.h,
     };
+    copyToSystem(clipboard.current.pixels, s.w, s.h);
   }
 
   // Removes the selected pixels, leaving the background colour
@@ -542,23 +582,95 @@ export default function PaintEditor({
     deleteSelection();
   }
 
-  // Puts what was copied in the top left corner, ready to be moved
-  function pasteSelection() {
-    const copied = clipboard.current;
-    if (!copied) return;
+  function tell(message: string) {
+    setNotice(message);
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = window.setTimeout(() => setNotice(""), 4000);
+  }
+
+  // Puts a picture in the top left corner, selected and ready to be moved. It
+  // may be bigger than the canvas: only the part inside shows until it's moved.
+  function startPaste(pixels: Bitmap, w: number, h: number) {
     finishSelection();
     setTool("select");
     selection.current = {
       x: 0,
       y: 0,
-      w: copied.w,
-      h: copied.h,
-      pixels: copied.pixels.slice(),
+      w,
+      h,
+      pixels,
       base: bitmap.current.slice(),
       before: bitmap.current.slice(),
     };
     layDownSelection();
     showSelectionBox();
+  }
+
+  // Pastes what was copied in this editor
+  function pasteSelection() {
+    const copied = clipboard.current;
+    if (!copied) return;
+    startPaste(copied.pixels.slice(), copied.w, copied.h);
+  }
+
+  // Pastes a picture from outside the editor, if it isn't too big
+  async function pasteImage(blob: Blob) {
+    let image: ImageBitmap;
+    try {
+      image = await createImageBitmap(blob);
+    } catch {
+      tell("That isn't a picture that can be pasted.");
+      return;
+    }
+    const { width: w, height: h } = image;
+    if (w > MAX_PASTE || h > MAX_PASTE) {
+      image.close();
+      tell(
+        `That picture is ${w} × ${h}. The most that can be pasted is ${MAX_PASTE} × ${MAX_PASTE}.`,
+      );
+      return;
+    }
+    const scratch = document.createElement("canvas");
+    scratch.width = w;
+    scratch.height = h;
+    const ctx = scratch.getContext("2d");
+    if (!ctx) {
+      image.close();
+      return;
+    }
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(image, 0, 0);
+    image.close();
+    startPaste(new Uint8ClampedArray(ctx.getImageData(0, 0, w, h).data), w, h);
+  }
+
+  // The Paste menu item can't see the paste event, so it asks for the clipboard
+  async function pasteFromMenu() {
+    try {
+      for (const item of await navigator.clipboard.read()) {
+        const type = item.types.find((t) => t.startsWith("image/"));
+        if (type) {
+          await pasteImage(await item.getType(type));
+          return;
+        }
+      }
+    } catch {
+      // No permission, or no picture there: use what was copied here
+    }
+    pasteSelection();
+  }
+
+  // The browser's own paste, from Ctrl+V or Cmd+V
+  function handlePaste(e: React.ClipboardEvent) {
+    e.preventDefault();
+    const item = Array.from(e.clipboardData.items).find(
+      (i) => i.kind === "file" && i.type.startsWith("image/"),
+    );
+    const file = item?.getAsFile();
+    if (file) pasteImage(file);
+    else if (clipboard.current) pasteSelection();
+    else tell("There's no picture to paste.");
   }
 
   // An Image menu action goes on the selected part, which stays selected, or
@@ -617,6 +729,17 @@ export default function PaintEditor({
       start: { x, y },
       origin: { x, y },
     };
+  }
+
+  // Moves the selection by whole pixels, as the arrow keys do
+  function nudgeSelection(dx: number, dy: number) {
+    const s = selection.current;
+    if (!s) return;
+    liftSelection();
+    s.x += dx;
+    s.y += dy;
+    layDownSelection();
+    showSelectionBox();
   }
 
   // Returns whether the pointer move was part of working with a selection
@@ -865,12 +988,7 @@ export default function PaintEditor({
           run: copySelection,
           disabled: !selectionBox,
         },
-        {
-          label: "Paste",
-          keys: "Ctrl+V",
-          run: pasteSelection,
-          disabled: !clipboard.current,
-        },
+        { label: "Paste", keys: "Ctrl+V", run: pasteFromMenu },
         {
           label: "Clear Selection",
           keys: "Del",
@@ -929,6 +1047,12 @@ export default function PaintEditor({
   function handleKeyDown(e: React.KeyboardEvent) {
     const mod = e.ctrlKey || e.metaKey;
     const key = e.key.toLowerCase();
+    const step = ARROW_STEPS[e.key];
+    if (step && selection.current && !selectDrag.current && !mod && !about) {
+      e.preventDefault();
+      nudgeSelection(step.dx, step.dy);
+      return;
+    }
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
@@ -956,9 +1080,6 @@ export default function PaintEditor({
     } else if (mod && key === "x") {
       e.preventDefault();
       cutSelection();
-    } else if (mod && key === "v") {
-      e.preventDefault();
-      pasteSelection();
     } else if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
       deleteSelection();
@@ -968,7 +1089,8 @@ export default function PaintEditor({
     }
   }
 
-  const help = hoverHelp || TOOLS.find(([name]) => name === tool)?.[2] || "";
+  const help =
+    notice || hoverHelp || TOOLS.find(([name]) => name === tool)?.[2] || "";
 
   function options(): ReactNode {
     switch (tool) {
@@ -1096,6 +1218,7 @@ export default function PaintEditor({
         onKeyDown={handleKeyDown}
         onContextMenu={(e) => e.preventDefault()}
         className="paint"
+        onPaste={handlePaste}
       >
         <div className="paint-titlebar">
           <PixelIcon name="palette" />
