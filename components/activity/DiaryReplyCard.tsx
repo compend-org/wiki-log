@@ -57,7 +57,7 @@ export default function DiaryReplyCard({
             </>
           )}
         </p>
-        <DeleteButton kind={kind} targetId={replyId} cardKey={cardKey} />
+        {!owner && <DeleteButton kind={kind} targetId={replyId} cardKey={cardKey} />}
       </div>
       <Link href={href} className="relative z-10 w-fit font-semibold">
         {where}
