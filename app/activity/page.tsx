@@ -45,7 +45,7 @@ export default async function ActivityPage({
       key={userId}
       className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8"
     >
-      <h1 className="text-3xl font-bold text-center">Activity</h1>
+      <h1 className="text-3xl font-bold text-center">Your activity</h1>
 
       <nav aria-label="Activity" className="flex gap-27">
         {TABS.map((t) => (
