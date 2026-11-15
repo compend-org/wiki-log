@@ -460,6 +460,46 @@ test("an article's pictures are all listed, each with its rights", async () => {
   );
 });
 
+test("a long article's pictures are read over several pages of results", async () => {
+  const fetch = mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      const more = url.searchParams.get("gimcontinue");
+      return Response.json(
+        more === "22989|Flag_of_Tunisia.svg"
+          ? {
+              query: {
+                pages: [
+                  articlePicture("Hirohiko Araki.jpg", portrait, {
+                    free: true,
+                  }),
+                ],
+              },
+            }
+          : {
+              continue: {
+                gimcontinue: "22989|Flag_of_Tunisia.svg",
+                continue: "gimcontinue||",
+              },
+              query: { pages: [articlePicture("Steel Ball Run 1.jpg", cover)] },
+            },
+      );
+    },
+  );
+  const pictures = await articleImages(
+    "en",
+    "Steel Ball Run",
+    Date.now() + 5000,
+  );
+  assert.deepEqual(
+    pictures?.map((p) => p.url),
+    [cover, portrait],
+  );
+  assert.equal(fetch.mock.callCount(), 2);
+});
+
 test("a failed article-image lookup lists no pictures", async () => {
   mockWikipedia({ bodyStatus: 404 });
   assert.equal(

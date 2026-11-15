@@ -157,7 +157,16 @@ export async function logItem(input: {
       .update({ image_url: picture.url })
       .eq("id", logId);
     if (pictureError) {
-      return { error: "Your entry was saved, but not its picture." };
+      // The entry goes too, so trying again can't log it twice
+      const { error: undoError } = await supabase
+        .from("logs")
+        .delete()
+        .eq("id", logId);
+      return {
+        error: undoError
+          ? "Your entry was saved, but not its picture."
+          : "Couldn't save your entry. Try again.",
+      };
     }
   }
 

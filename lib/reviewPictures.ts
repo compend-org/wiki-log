@@ -8,6 +8,7 @@ import { WAIT_BUDGET_MS } from "@/lib/wikipedia/wikimediaLimits";
 import {
   articleImages,
   explicitImages,
+  getItemById,
   type ItemImage,
 } from "@/lib/wikipedia/wikipedia";
 
@@ -77,9 +78,9 @@ export function toChoices(
   return choices;
 }
 
-// The pictures a review of this item can show. Compounds and unknown items
-// have none. Null if Wikipedia couldn't be reached, which is kept for only a
-// minute so the next try asks again.
+// The pictures a review of this item can show. Compounds and items without an
+// article have none. Null if Wikipedia couldn't be reached, which is kept for
+// only a minute so the next try asks again.
 export async function pictureChoices(
   itemId: string,
 ): Promise<PictureChoice[] | null> {
@@ -90,20 +91,18 @@ export async function pictureChoices(
     return [];
   }
 
-  const { data } = await createPublicClient()
-    .from("items")
-    .select("image_url, image_hidden, image_page_url, page_url")
-    .eq("id", itemId)
-    .maybeSingle();
-  const row = data as ItemPictureRow | null;
-  const article = row ? articleFromPageUrl(row.page_url) : null;
-  if (!row || !article) {
-    // An item can be saved moments after someone first looks for it
+  const deadline = Date.now() + WAIT_BUDGET_MS;
+  const item = await itemPictureAndArticle(itemId, deadline);
+  if (!item) {
     cacheLife({ stale: 30, revalidate: 60, expire: 60 });
+    return null;
+  }
+  const article = articleFromPageUrl(item.pageUrl);
+  if (!article) {
+    cacheLife("days");
     return [];
   }
 
-  const deadline = Date.now() + WAIT_BUDGET_MS;
   const pictures = await articleImages(article.lang, article.title, deadline);
   if (!pictures) {
     cacheLife({ stale: 30, revalidate: 60, expire: 60 });
@@ -116,11 +115,42 @@ export async function pictureChoices(
 
   // Articles change slowly
   cacheLife("days");
-  const itemPicture =
-    row.image_url && !row.image_hidden
-      ? { url: row.image_url, filePage: row.image_page_url }
-      : null;
-  return toChoices(itemPicture, pictures, explicit);
+  return toChoices(item.picture, pictures, explicit);
+}
+
+// The item's shown picture and its article's address, from its saved row, or
+// from Wikipedia for an item nobody has saved yet. Null if Wikipedia couldn't
+// be reached.
+async function itemPictureAndArticle(
+  itemId: string,
+  deadline: number,
+): Promise<{
+  picture: { url: string; filePage: string | null } | null;
+  pageUrl: string;
+} | null> {
+  const { data } = await createPublicClient()
+    .from("items")
+    .select("image_url, image_hidden, image_page_url, page_url")
+    .eq("id", itemId)
+    .maybeSingle();
+  const row = data as ItemPictureRow | null;
+  if (row) {
+    return {
+      picture:
+        row.image_url && !row.image_hidden
+          ? { url: row.image_url, filePage: row.image_page_url }
+          : null,
+      pageUrl: row.page_url,
+    };
+  }
+
+  const looked = await getItemById(itemId, deadline);
+  if ("error" in looked) return null;
+  const { imageUrl, imageFilePage, pageUrl } = looked.item;
+  return {
+    picture: imageUrl ? { url: imageUrl, filePage: imageFilePage } : null,
+    pageUrl,
+  };
 }
 
 // The picture to store for a review: null for the item's own picture, the

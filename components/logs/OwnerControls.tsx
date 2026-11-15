@@ -39,8 +39,8 @@ export default function OwnerControls({
   };
 }) {
   const [editing, setEditing] = useState<boolean>(false);
-  // The picture picked since Edit was pressed, if any
-  const [picked, setPicked] = useState<PictureChoice>();
+  // The picture picked since Edit was pressed, if any. Null is the item's own.
+  const [picked, setPicked] = useState<PictureChoice | null>();
   const router = useRouter();
 
   function stopEditing() {
@@ -77,7 +77,9 @@ export default function OwnerControls({
           <PictureButton
             itemId={pictureChoice.itemId}
             title={pictureChoice.title}
-            url={picked?.url ?? pictureChoice.url}
+            url={
+              picked === undefined ? pictureChoice.url : (picked?.url ?? null)
+            }
             nsfw={pictureChoice.nsfw}
             onPick={setPicked}
             className="h-28 w-28"
@@ -96,9 +98,9 @@ export default function OwnerControls({
           pickedPicture={
             picked === undefined
               ? undefined
-              : picked.isDefault
-                ? null
-                : picked.url
+              : picked && !picked.isDefault
+                ? picked.url
+                : null
           }
           onCancel={stopEditing}
           onSaved={() => {

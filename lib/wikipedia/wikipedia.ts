@@ -213,47 +213,60 @@ export async function articleImages(
   title: string,
   deadline: number,
 ): Promise<ItemImage[] | null> {
+  let pages: ImagePage[] | null = null;
+  // The API sizes 50 pictures per request, so a long article's files come
+  // over several pages of results
+  let next: Record<string, string> | undefined = {};
   try {
-    const res = await wikiFetch(
-      `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&generator=images&gimlimit=50&prop=imageinfo|categories&iiprop=url|size|mime&iiurlwidth=960&clcategories=${encodeURIComponent("Category:All free media")}&cllimit=max&titles=${encodeURIComponent(title)}`,
-      deadline,
-    );
-    if (!res.ok) return null;
-    const data: {
-      query?: { pages?: ImagePage[] };
-    } = await res.json();
-
-    return (data.query?.pages ?? []).flatMap((page) => {
-      const info = page.imageinfo?.[0];
-      const width = info?.width ?? 0;
-      const height = info?.height ?? 0;
-      const ratio = height > 0 ? width / height : 0;
-      const source = info?.thumburl ?? info?.url;
-      const usable =
-        !!source &&
-        !!info?.mime &&
-        PICTURE_TYPES.has(info.mime) &&
-        width >= 200 &&
-        height >= 150 &&
-        ratio >= 0.5 &&
-        ratio <= 2.2 &&
-        !PAGE_FURNITURE.test(page.title);
-      if (!usable) return [];
-
-      const url = absolute(source);
-      return [
-        {
-          url,
-          nonFree: !fileIsFree(page),
-          filePage:
-            info?.descriptionurl ??
-            filePageFor(lang, url, page.title.replace(/^[^:]+:/, "")),
-        },
-      ];
-    });
+    for (let page = 0; next && page < 5; page++) {
+      const more = Object.entries(next)
+        .map(([key, value]) => `&${key}=${encodeURIComponent(value)}`)
+        .join("");
+      const res = await wikiFetch(
+        `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&generator=images&gimlimit=50&prop=imageinfo|categories&iiprop=url|size|mime&iiurlwidth=960&clcategories=${encodeURIComponent("Category:All free media")}&cllimit=max&titles=${encodeURIComponent(title)}${more}`,
+        deadline,
+      );
+      if (!res.ok) break;
+      const data: {
+        continue?: Record<string, string>;
+        query?: { pages?: ImagePage[] };
+      } = await res.json();
+      pages = [...(pages ?? []), ...(data.query?.pages ?? [])];
+      next = data.continue;
+    }
   } catch {
-    return null;
+    // Whatever was read before the failure still counts
   }
+  if (!pages) return null;
+
+  return pages.flatMap((page) => {
+    const info = page.imageinfo?.[0];
+    const width = info?.width ?? 0;
+    const height = info?.height ?? 0;
+    const ratio = height > 0 ? width / height : 0;
+    const source = info?.thumburl ?? info?.url;
+    const usable =
+      !!source &&
+      !!info?.mime &&
+      PICTURE_TYPES.has(info.mime) &&
+      width >= 200 &&
+      height >= 150 &&
+      ratio >= 0.5 &&
+      ratio <= 2.2 &&
+      !PAGE_FURNITURE.test(page.title);
+    if (!usable) return [];
+
+    const url = absolute(source);
+    return [
+      {
+        url,
+        nonFree: !fileIsFree(page),
+        filePage:
+          info?.descriptionurl ??
+          filePageFor(lang, url, page.title.replace(/^[^:]+:/, "")),
+      },
+    ];
+  });
 }
 
 // Without a representative image, the first usable article image is a fallback.

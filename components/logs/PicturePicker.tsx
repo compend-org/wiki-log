@@ -17,7 +17,8 @@ export default function PicturePicker({
   itemId: string;
   // The address of the picture shown now, marked in the grid
   picked: string | null;
-  onPick: (choice: PictureChoice) => void;
+  // Null goes back to the item's own picture
+  onPick: (choice: PictureChoice | null) => void;
   onClose: () => void;
 }) {
   const [choices, setChoices] = useState<PictureChoice[] | null>(null);
@@ -74,9 +75,25 @@ export default function PicturePicker({
       ) : (
         <p className="text-muted">Loading pictures…</p>
       )}
-      <button type="button" onClick={onClose} className="self-start underline">
-        Cancel
-      </button>
+      <div className="flex gap-4">
+        {/* Without a picture of its item's own to pick, a review's chosen
+            picture can still be taken away */}
+        {picked && choices && !choices.some((c) => c.isDefault) && (
+          <button
+            type="button"
+            onClick={() => {
+              onPick(null);
+              onClose();
+            }}
+            className="underline"
+          >
+            Remove picture
+          </button>
+        )}
+        <button type="button" onClick={onClose} className="underline">
+          Cancel
+        </button>
+      </div>
     </Dialog>
   );
 }

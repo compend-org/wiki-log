@@ -8,6 +8,7 @@ import server from "next/server";
 import {
   addToList,
   createCompound,
+  itemPictureChoices,
   logItem,
   reportBrokenImage,
   setFavourite,
@@ -62,6 +63,7 @@ function setup({
   imageStatus = 200,
   reviews = [] as Review[],
   suspended = false,
+  pictureWriteFails = false,
 } = {}) {
   const previousEnv = { ...process.env };
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
@@ -111,6 +113,11 @@ function setup({
         if (url.pathname === "/auth/v1/user")
           return Response.json({ id: userId });
         const table = url.pathname.replace("/rest/v1/", "");
+        if (init?.method === "DELETE") {
+          const id = url.searchParams.get("id")?.replace(/^eq\./, "");
+          writes.push({ table, body: {}, method: init.method, id });
+          return new Response(null, { status: 204 });
+        }
         if (init?.method === "POST" || init?.method === "PATCH") {
           const body = JSON.parse(String(init.body)) as Record<string, unknown>;
           const id = url.searchParams.get("id")?.replace(/^eq\./, "");
@@ -127,6 +134,11 @@ function setup({
           } else if (table === "logs" && init.method === "PATCH") {
             // Only the server changes a review's picture
             assert.deepEqual(Object.keys(body), ["image_url"]);
+            if (pictureWriteFails)
+              return Response.json(
+                { code: "57014", message: "Statement timeout" },
+                { status: 500 },
+              );
             return new Response(null, { status: 204 });
           } else if (["logs", "favourites", "list_items"].includes(table)) {
             // Model the FK that failed in production, rather than accepting any ID.
@@ -315,6 +327,45 @@ test("logging with a picture from the article saves it on the new entry", async 
   assert.equal(logWrites[0].body.image_url, undefined);
   assert.equal(logWrites[1].id, logId);
   assert.equal(logWrites[1].body.image_url, articleImageUrl);
+});
+
+test("an entry whose picture can't be saved is taken back out, so trying again can't log it twice", async () => {
+  fixture = setup({ pictureWriteFails: true });
+  assert.deepEqual(
+    await logItem({
+      itemId: requestedId,
+      rating: 4,
+      review: "",
+      imageUrl: articleImageUrl,
+    }),
+    { error: "Couldn't save your entry. Try again." },
+  );
+  const logWrites = fixture.writes.filter((w) => w.table === "logs");
+  assert.deepEqual(
+    logWrites.map((w) => [w.method, w.id]),
+    [
+      ["POST", undefined],
+      ["PATCH", logId],
+      ["DELETE", logId],
+    ],
+  );
+});
+
+test("an item nobody has saved yet offers its article's pictures", async () => {
+  fixture = setup();
+  const result = await itemPictureChoices(resolvedId);
+  assert.ok("choices" in result);
+  assert.deepEqual(
+    result.choices.map((c) => [c.url, c.isDefault]),
+    [
+      [imageUrl, true],
+      [articleImageUrl, false],
+    ],
+  );
+  assert.equal(
+    fixture.writes.some((w) => w.table === "items"),
+    false,
+  );
 });
 
 test("logging with the item's own picture stores no picture of its own", async () => {
@@ -601,7 +652,8 @@ test("a review whose chosen picture is gone goes back to its item's picture", as
     ],
     imageStatus: 404,
   });
-  assert.equal(await reportBrokenImage(renamedImageUrl), imageUrl);
+  // Reviews of other items may share the picture, so none is offered in its place
+  assert.equal(await reportBrokenImage(renamedImageUrl), null);
   const write = fixture.writes.find((w) => w.table === "logs");
   assert.equal(write?.method, "PATCH");
   assert.equal(write?.body.image_url, null);

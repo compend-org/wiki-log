@@ -21,7 +21,8 @@ export default function PictureButton({
   // The picture shown now
   url: string | null;
   nsfw: boolean;
-  onPick: (choice: PictureChoice) => void;
+  // Null goes back to the item's own picture
+  onPick: (choice: PictureChoice | null) => void;
   className: string;
 }) {
   const [open, setOpen] = useState<boolean>(false);
