@@ -121,7 +121,7 @@ export default async function ProfilePage({
     )
     .eq("id", profile.id)
     .order("position", { referencedTable: "pin_rows" })
-    .order("pinned_at", { referencedTable: "pin_rows" });
+    .order("id", { referencedTable: "pin_rows" });
   if (viewerId) {
     contentQuery = contentQuery
       .eq("viewer_follow.follower_id", viewerId)
@@ -363,7 +363,7 @@ export default async function ProfilePage({
       {(isOwner || slots.some(Boolean)) && (
         <Favourites slots={slots} isOwner={isOwner} />
       )}
-      {pins.slice(0, PROFILE_PAGE_SIZE_INITIAL).some((p) => p.card) && (
+      {pins.length > 0 && (
         <PinnedSection
           profileHref={profileHref}
           pins={pins}

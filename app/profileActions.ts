@@ -6,6 +6,7 @@ import type { CardsPage } from "@/components/paging/CardPages";
 import {
   loadPinnedPage,
   loadProfilePage,
+  type PinCursor,
   type ProfileKind,
 } from "@/components/profile/loadProfilePage";
 import { isUuid } from "@/lib/ids";
@@ -66,19 +67,21 @@ export async function loadMoreProfileAll(
   return loadProfilePage(profileId, kind, after, undefined, true);
 }
 
-// A later page of someone's pins, starting `offset` pins in
+// A later page of someone's pins, after the pin `cursor` points at
 export async function loadMorePinned(
   profileId: string,
-  offset: unknown,
-): Promise<CardsPage<number>> {
+  cursor: unknown,
+): Promise<CardsPage<PinCursor>> {
+  const { position, id } = (cursor ?? {}) as Record<string, unknown>;
   if (
     typeof profileId !== "string" ||
     !isUuid(profileId) ||
-    typeof offset !== "number" ||
-    !Number.isInteger(offset) ||
-    offset <= 0
+    typeof position !== "number" ||
+    !Number.isInteger(position) ||
+    typeof id !== "string" ||
+    !isUuid(id)
   ) {
     throw new Error("That isn't a page of a profile's pins.");
   }
-  return loadPinnedPage(profileId, offset);
+  return loadPinnedPage(profileId, { position, id });
 }

@@ -73,7 +73,7 @@ async function ProfileCards({
 }
 
 async function PinnedCards({ profileId }: { profileId: string }) {
-  const first = await loadPinnedPage(profileId, 0);
+  const first = await loadPinnedPage(profileId, null);
   return (
     <>
       <NothingYet page={first} />

@@ -7,6 +7,7 @@ import DeleteButton from "@/components/logs/DeleteButton";
 import LogCard from "@/components/logs/LogCard";
 import PinButton from "@/components/logs/PinButton";
 import type { Card, CardsPage } from "@/components/paging/CardPages";
+import { chunks } from "@/lib/allRows";
 import type { ListRow as ListCardRow, LogRow } from "@/lib/feed/feedData";
 import { type Keyset, olderThan } from "@/lib/paging";
 import { aboutAdultItem, shownEntries } from "@/lib/sfw";
@@ -38,6 +39,9 @@ export type ProfileListRow = ListCardRow & {
 };
 
 export type ProfileKind = "lists" | "reviews";
+
+// Logs or lists asked about in one .in() filter, which goes in the URL
+const IDS_PER_REQUEST = 100;
 
 // Who is looking at whose profile, and what that person has pinned
 export type ProfileContext = {
@@ -261,7 +265,7 @@ export async function loadProfilePage(
       .select("log_id, list_id")
       .eq("user_id", profileId)
       .order("position")
-      .order("pinned_at"),
+      .order("id"),
   ]);
   const ctx: ProfileContext = {
     profileId,
@@ -294,27 +298,32 @@ export async function fetchPinned(
 ): Promise<{ pinned: Pinned[]; error: string }> {
   const logIds = pins.flatMap((p) => p.log_id ?? []);
   const listIds = pins.flatMap((p) => p.list_id ?? []);
-  const [logsRes, listsRes] = await Promise.all([
-    logIds.length > 0
-      ? supabase.from("logs").select(LOG_FIELDS).in("id", logIds)
-      : { data: [], error: null },
-    listIds.length > 0
-      ? supabase
+  const [logResponses, listResponses] = await Promise.all([
+    Promise.all(
+      chunks(logIds, IDS_PER_REQUEST).map((ids) =>
+        supabase.from("logs").select(LOG_FIELDS).in("id", ids),
+      ),
+    ),
+    Promise.all(
+      chunks(listIds, IDS_PER_REQUEST).map((ids) =>
+        supabase
           .from("lists")
           .select(LIST_FIELDS)
-          .in("id", listIds)
+          .in("id", ids)
           .lte("preview.position", 4)
-          .order("position", { referencedTable: "preview" })
-      : { data: [], error: null },
+          .order("position", { referencedTable: "preview" }),
+      ),
+    ),
   ]);
   const logs = new Map(
-    ((logsRes.data ?? []) as unknown as LogRow[]).map((l) => [l.id, l]),
+    logResponses
+      .flatMap((r) => (r.data ?? []) as unknown as LogRow[])
+      .map((l) => [l.id, l]),
   );
   const lists = new Map(
-    ((listsRes.data ?? []) as unknown as ProfileListRow[]).map((l) => [
-      l.id,
-      l,
-    ]),
+    listResponses
+      .flatMap((r) => (r.data ?? []) as unknown as ProfileListRow[])
+      .map((l) => [l.id, l]),
   );
   const pinned = pins.flatMap((p): Pinned[] => {
     const log = p.log_id ? logs.get(p.log_id) : undefined;
@@ -324,7 +333,9 @@ export async function fetchPinned(
   });
   return {
     pinned,
-    error: logsRes.error?.message ?? listsRes.error?.message ?? "",
+    error:
+      [...logResponses, ...listResponses].find((r) => r.error)?.error
+        ?.message ?? "",
   };
 }
 
@@ -346,25 +357,36 @@ export function renderPinnedCards(
   );
 }
 
-// A page of someone's pins, in their order, starting `offset` pins in
+// The last pin a page of pins took, by its place in the person's order and
+// then its id
+export type PinCursor = { position: number; id: string };
+
+// A page of someone's pins, in their order, after `cursor`
 export async function loadPinnedPage(
   profileId: string,
-  offset: number,
-): Promise<CardsPage<number>> {
-  const size = offset === 0 ? PROFILE_PAGE_SIZE_INITIAL : PROFILE_MORE_PAGE;
+  cursor: PinCursor | null,
+): Promise<CardsPage<PinCursor>> {
+  const size = cursor ? PROFILE_MORE_PAGE : PROFILE_PAGE_SIZE_INITIAL;
   const supabase = await createClient();
+  let query = supabase
+    .from("pins")
+    .select("id, position, log_id, list_id")
+    .eq("user_id", profileId);
+  if (cursor) {
+    query = query.or(
+      `position.gt.${cursor.position},and(position.eq.${cursor.position},id.gt.${cursor.id})`,
+    );
+  }
   const [{ data: claimsData }, { data, error }] = await Promise.all([
     supabase.auth.getClaims(),
-    supabase
-      .from("pins")
-      .select("log_id, list_id")
-      .eq("user_id", profileId)
+    query
       .order("position")
-      .order("pinned_at")
-      .range(offset, offset + size),
+      .order("id")
+      .limit(size + 1),
   ]);
-  const pins = (data ?? []) as PinTarget[];
+  const pins = (data ?? []) as (PinTarget & PinCursor)[];
   const page = pins.slice(0, size);
+  const last = page.at(-1);
   const ctx: ProfileContext = {
     profileId,
     viewerId: claimsData?.claims?.sub,
@@ -377,7 +399,10 @@ export async function loadPinnedPage(
   });
   return {
     cards: renderPinnedCards(ctx, viewer, pinned),
-    next: pins.length > size ? offset + size : null,
+    next:
+      pins.length > size && last
+        ? { position: last.position, id: last.id }
+        : null,
     error: error?.message ?? pinnedError,
   };
 }

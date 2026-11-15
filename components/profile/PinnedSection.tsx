@@ -155,7 +155,10 @@ export default function PinnedSection({
           <button
             type="button"
             onClick={editing ? finishEditing : () => setEditing(true)}
-            className="text-sm underline"
+            // Done waits for the last move to be saved, so the refresh after
+            // it has the new order
+            disabled={busy}
+            className="text-sm underline disabled:opacity-60"
           >
             {editing ? "Done" : "Edit"}
           </button>
