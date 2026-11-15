@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createCompound } from "@/app/actions";
 import ItemPicker from "@/components/ItemPicker";
 import ItemImage from "@/components/icons/ItemImage";
 import PaintEditor from "@/components/PaintEditor";
+import { PAINT_SIZE } from "@/lib/paint";
+import { readPicture } from "@/lib/paintUpload";
 
 type Part = { id: string; title: string; imageUrl: string | null };
 
@@ -17,6 +19,9 @@ export default function CompoundCreator() {
   const [description, setDescription] = useState<string>("");
   const [parts, setParts] = useState<Part[]>([]);
   const [image, setImage] = useState<string | null>(null);
+  // An uploaded picture the editor opens with, until it is used or cancelled
+  const [draft, setDraft] = useState<string | null>(null);
+  const uploadInput = useRef<HTMLInputElement>(null);
   const [drawing, setDrawing] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -47,6 +52,25 @@ export default function CompoundCreator() {
     setExisting(null);
     setError("");
     setParts(parts.filter((p) => p.id !== id));
+  }
+
+  // Shrinks the picture to the canvas size, keeping its shape, and opens it in
+  // the editor with a canvas that fits
+  async function handleUpload(file: File) {
+    setError("");
+    const picture = await readPicture(file, PAINT_SIZE);
+    if ("error" in picture) {
+      setError(picture.error);
+      return;
+    }
+    const scratch = document.createElement("canvas");
+    scratch.width = picture.w;
+    scratch.height = picture.h;
+    scratch
+      .getContext("2d")
+      ?.putImageData(new ImageData(picture.pixels, picture.w, picture.h), 0, 0);
+    setDraft(scratch.toDataURL("image/png"));
+    setDrawing(true);
   }
 
   async function handleCraft() {
@@ -165,9 +189,7 @@ export default function CompoundCreator() {
             <img
               src={image}
               alt="Your drawing"
-              width={100}
-              height={100}
-              className="h-[102px] w-[102px] shrink-0"
+              className="h-[102px] w-[102px] shrink-0 object-contain [image-rendering:pixelated]"
             />
           ) : (
             <ItemImage
@@ -180,11 +202,34 @@ export default function CompoundCreator() {
           <div className="flex flex-col items-start gap-2 text-sm">
             <button
               type="button"
-              onClick={() => setDrawing(true)}
               className="border border-line bg-surface px-4 py-2"
+              onClick={() => {
+                setDraft(null);
+                setDrawing(true);
+              }}
             >
               {image ? "Edit drawing" : "Draw a picture"}
             </button>
+            <button
+              type="button"
+              onClick={() => uploadInput.current?.click()}
+              className="border border-line bg-surface px-4 py-2"
+            >
+              Upload an image
+            </button>
+            <input
+              ref={uploadInput}
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) handleUpload(file);
+              }}
+              tabIndex={-1}
+              aria-hidden="true"
+              hidden
+            />
             {image && (
               <button
                 type="button"
@@ -195,7 +240,8 @@ export default function CompoundCreator() {
               </button>
             )}
             <p className="text-xs text-muted">
-              Optional. Draw your compound on a 100 × 100 canvas.
+              Optional. Draw your compound on a canvas up to {PAINT_SIZE} ×{" "}
+              {PAINT_SIZE}, or upload an image to be shrunk to fit.
             </p>
           </div>
         </div>
@@ -203,13 +249,17 @@ export default function CompoundCreator() {
 
       {drawing && (
         <PaintEditor
-          initial={image}
+          initial={draft ?? image}
           onSave={(png) => {
             setImage(png);
+            setDraft(null);
             setDrawing(false);
             setExisting(null);
           }}
-          onCancel={() => setDrawing(false)}
+          onCancel={() => {
+            setDraft(null);
+            setDrawing(false);
+          }}
         />
       )}
 
@@ -221,7 +271,6 @@ export default function CompoundCreator() {
       >
         {busy ? "Crafting…" : "Craft"}
       </button>
-
       {existing && (
         <p className="border border-line bg-surface p-3 text-sm">
           That combination already exists:{" "}

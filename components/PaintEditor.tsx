@@ -41,6 +41,7 @@ import {
   WHITE,
 } from "@/lib/paint";
 import {
+  fitInside,
   flipRegionHorizontal,
   flipRegionVertical,
   invertRegion,
@@ -102,7 +103,7 @@ const UNDO_LIMIT = 100;
 // it is cropped to the canvas, with all of it selected so it can be moved.
 const MAX_PASTE = 300;
 // How much harder the contrast is pushed on pictures pasted from outside
-const PASTE_CONTRAST = 2;
+const PASTE_CONTRAST = 1.5;
 // How far each arrow key moves a selection
 const ARROW_STEPS: Record<string, { dx: number; dy: number } | undefined> = {
   ArrowLeft: { dx: -1, dy: 0 },
@@ -110,6 +111,17 @@ const ARROW_STEPS: Record<string, { dx: number; dy: number } | undefined> = {
   ArrowUp: { dx: 0, dy: -1 },
   ArrowDown: { dx: 0, dy: 1 },
 };
+// The biggest file that can be opened with Open Image
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+// How big the area round the picture is on a desktop screen, so the window
+// stays the same size whatever the canvas size is
+const DESKTOP_STAGE = 400;
+
+// How big the picture is, which can be less than the bitmap it is drawn on
+type CanvasSize = { w: number; h: number };
+
+// A picture as it was, with the size of the canvas it was on
+type Snapshot = { bitmap: Bitmap; w: number; h: number };
 
 // How far the pointer has got with a stroke or shape it is in the middle of
 type Drag = {
@@ -152,8 +164,8 @@ type MenuItem =
 
 function startingZoom(): number {
   // The window, its toolbox and some margin take up the rest of the width
-  const room = window.innerWidth - 16 - 56 - 40;
-  return Math.max(1, Math.min(4, Math.floor(room / PAINT_SIZE)));
+  const room = Math.min(DESKTOP_STAGE, window.innerWidth - 16 - 56 - 40);
+  return ZOOMS.filter((z) => z * PAINT_SIZE <= room).pop() ?? 1;
 }
 
 function Option({
@@ -341,8 +353,6 @@ export default function PaintEditor({
   const canvas = useRef<HTMLCanvasElement>(null);
   const colorInput = useRef<HTMLInputElement>(null);
   const bitmap = useRef<Bitmap>(blankBitmap());
-  const undoStack = useRef<Bitmap[]>([]);
-  const redoStack = useRef<Bitmap[]>([]);
   const drag = useRef<Drag | null>(null);
   const selection = useRef<Selection | null>(null);
   const selectDrag = useRef<SelectDrag | null>(null);
@@ -351,6 +361,8 @@ export default function PaintEditor({
     null,
   );
   const previousTool = useRef<Tool>("pencil");
+  const undoStack = useRef<Snapshot[]>([]);
+  const redoStack = useRef<Snapshot[]>([]);
   // Counts changes to the undo history, so the menus re-render with it
   const [, setHistoryVersion] = useState<number>(0);
 
@@ -361,14 +373,26 @@ export default function PaintEditor({
   const [narrow, setNarrow] = useState<boolean>(
     () => window.matchMedia(NARROW_SCREEN).matches,
   );
+  const uploadInput = useRef<HTMLInputElement>(null);
   // On a narrow screen the picture is sized to fill the width until a zoom is
   // chosen
   const [fit, setFit] = useState<boolean>(narrow);
   // How wide the picture can be
   const [room, setRoom] = useState<number>(0);
   const fitting = narrow && fit && room > 0;
+  const [canvasSize, setCanvasSize] = useState<CanvasSize>({
+    w: PAINT_SIZE,
+    h: PAINT_SIZE,
+  });
   // How many screen pixels each picture pixel gets, which can be a fraction
-  const zoom = fitting ? room / PAINT_SIZE : chosenZoom;
+  const zoom = fitting ? room / canvasSize.w : chosenZoom;
+  // On a desktop screen the picture sits in an area of fixed size
+  const stage = narrow
+    ? null
+    : {
+        w: Math.max(DESKTOP_STAGE, canvasSize.w * zoom),
+        h: Math.max(DESKTOP_STAGE, canvasSize.h * zoom),
+      };
   function setZoom(z: number) {
     setFit(false);
     setChosenZoom(z);
@@ -414,13 +438,26 @@ export default function PaintEditor({
     const image = new Image();
     image.onload = () => {
       if (cancelled) return;
+      // A picture keeps its own shape, and is only shrunk if it is too big
+      const scale = Math.min(
+        1,
+        PAINT_SIZE / Math.max(image.naturalWidth, image.naturalHeight),
+      );
+      const w = Math.max(1, Math.round(image.naturalWidth * scale));
+      const h = Math.max(1, Math.round(image.naturalHeight * scale));
       const scratch = document.createElement("canvas");
-      scratch.width = PAINT_SIZE;
-      scratch.height = PAINT_SIZE;
+      scratch.width = w;
+      scratch.height = h;
       const ctx = scratch.getContext("2d");
       if (!ctx) return;
-      ctx.drawImage(image, 0, 0, PAINT_SIZE, PAINT_SIZE);
-      bitmap.current.set(ctx.getImageData(0, 0, PAINT_SIZE, PAINT_SIZE).data);
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(image, 0, 0, w, h);
+      const pixels = ctx.getImageData(0, 0, w, h).data;
+      // Shrinking blends colours, so put them back to the palette's
+      if (scale < 1) limitColors(pixels, PALETTE.flat(), 1);
+      fillAll(bitmap.current, WHITE);
+      pasteRegion(bitmap.current, pixels, { w, h }, { x: 0, y: 0 }, null);
+      setCanvasSize({ w, h });
       show();
     };
     image.src = initial;
@@ -463,8 +500,8 @@ export default function PaintEditor({
       setRoom(
         Math.floor(
           el.clientWidth -
-          Number.parseFloat(style.paddingLeft) -
-          Number.parseFloat(style.paddingRight),
+            Number.parseFloat(style.paddingLeft) -
+            Number.parseFloat(style.paddingRight),
         ),
       );
     };
@@ -486,12 +523,23 @@ export default function PaintEditor({
 
   function commit(before: Bitmap) {
     if (sameBitmap(before, bitmap.current)) return;
-    undoStack.current.push(before);
+    undoStack.current.push({ bitmap: before, ...canvasSize });
     if (undoStack.current.length > UNDO_LIMIT) undoStack.current.shift();
     redoStack.current = [];
     setHistoryVersion((v) => v + 1);
   }
-
+  // Swaps in a whole new picture, and canvas size, as one step that can be
+  // undone
+  function replacePicture(next: Bitmap, nextSize: CanvasSize) {
+    finishSelection();
+    undoStack.current.push({ bitmap: bitmap.current.slice(), ...canvasSize });
+    if (undoStack.current.length > UNDO_LIMIT) undoStack.current.shift();
+    redoStack.current = [];
+    bitmap.current.set(next);
+    setCanvasSize(nextSize);
+    show();
+    setHistoryVersion((v) => v + 1);
+  }
   // Applies a change to the whole picture, as one step that can be undone
   function change(edit: (b: Bitmap) => void) {
     finishSelection();
@@ -505,8 +553,9 @@ export default function PaintEditor({
     finishSelection();
     const previous = undoStack.current.pop();
     if (!previous) return;
-    redoStack.current.push(bitmap.current.slice());
-    bitmap.current.set(previous);
+    redoStack.current.push({ bitmap: bitmap.current.slice(), ...canvasSize });
+    bitmap.current.set(previous.bitmap);
+    setCanvasSize({ w: previous.w, h: previous.h });
     show();
     setHistoryVersion((v) => v + 1);
   }
@@ -515,15 +564,34 @@ export default function PaintEditor({
     finishSelection();
     const next = redoStack.current.pop();
     if (!next) return;
-    undoStack.current.push(bitmap.current.slice());
-    bitmap.current.set(next);
+    undoStack.current.push({ bitmap: bitmap.current.slice(), ...canvasSize });
+    bitmap.current.set(next.bitmap);
+    setCanvasSize({ w: next.w, h: next.h });
     show();
     setHistoryVersion((v) => v + 1);
   }
 
   function save() {
     finishSelection();
-    if (canvas.current) onSave(canvas.current.toDataURL("image/png"));
+    if (!canvas.current) return;
+    // Only the part of the bitmap that is the picture is kept
+    const out = document.createElement("canvas");
+    out.width = canvasSize.w;
+    out.height = canvasSize.h;
+    out
+      .getContext("2d")
+      ?.drawImage(
+        canvas.current,
+        0,
+        0,
+        canvasSize.w,
+        canvasSize.h,
+        0,
+        0,
+        canvasSize.w,
+        canvasSize.h,
+      );
+    onSave(out.toDataURL("image/png"));
   }
 
   // Selections
@@ -569,6 +637,16 @@ export default function PaintEditor({
     if (s.pixels && s.before) commit(s.before);
   }
 
+  // Keeps a selection from reaching past the edge of the picture
+  function insideCanvas(r: Region): Region {
+    return {
+      x: r.x,
+      y: r.y,
+      w: Math.max(1, Math.min(r.w, canvasSize.w - r.x)),
+      h: Math.max(1, Math.min(r.h, canvasSize.h - r.y)),
+    };
+  }
+
   function selectRegion(region: Region) {
     selection.current = { ...region, pixels: null, base: null, before: null };
     showSelectionBox();
@@ -577,7 +655,7 @@ export default function PaintEditor({
   function selectAll() {
     finishSelection();
     setTool("select");
-    selectRegion({ x: 0, y: 0, w: PAINT_SIZE, h: PAINT_SIZE });
+    selectRegion({ x: 0, y: 0, w: canvasSize.w, h: canvasSize.h });
   }
 
   // Also puts a copied picture on the system clipboard, if the browser allows
@@ -597,7 +675,7 @@ export default function PaintEditor({
     );
     navigator.clipboard
       .write([new ClipboardItem({ "image/png": blob })])
-      .catch(() => { });
+      .catch(() => {});
   }
 
   function copySelection() {
@@ -699,6 +777,43 @@ export default function PaintEditor({
     limitColors(pixels, PALETTE.flat(), PASTE_CONTRAST);
     startPaste(pixels, w, h);
   }
+  // Opens a picture from a file: shrunk until its longest side fits the canvas,
+  // then reduced to the palette, replacing the whole picture as one step
+  async function openImageFile(file: File) {
+    if (file.size > MAX_UPLOAD_BYTES) {
+      tell("That file is too big. The most that can be opened is 20 MB.");
+      return;
+    }
+    let image: ImageBitmap;
+    try {
+      image = await createImageBitmap(file);
+    } catch {
+      tell("That isn't a picture that can be opened.");
+      return;
+    }
+    const scratch = document.createElement("canvas");
+    scratch.width = PAINT_SIZE;
+    scratch.height = PAINT_SIZE;
+    const ctx = scratch.getContext("2d");
+    if (!ctx) {
+      image.close();
+      return;
+    }
+    const at = fitInside(image.width, image.height, PAINT_SIZE);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, PAINT_SIZE, PAINT_SIZE);
+    // Smoothing averages the pixels being squeezed together, which looks far
+    // better than picking one of them
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(image, at.x, at.y, at.w, at.h);
+    image.close();
+    const pixels = new Uint8ClampedArray(
+      ctx.getImageData(0, 0, PAINT_SIZE, PAINT_SIZE).data,
+    );
+    limitColors(pixels, PALETTE.flat(), PASTE_CONTRAST);
+    replacePicture(pixels, { w: PAINT_SIZE, h: PAINT_SIZE });
+  }
 
   // The Paste menu item can't see the paste event, so it asks for the clipboard
   async function pasteFromMenu() {
@@ -728,6 +843,27 @@ export default function PaintEditor({
     else tell("There's no picture to paste.");
   }
 
+  // The same on a picture smaller than the bitmap: only its own part is
+  // turned, and a quarter turn swaps the canvas's width and height
+  function transformCanvas(
+    action: "flipH" | "flipV" | "rotateRight" | "rotateLeft" | "invert",
+  ) {
+    const { w, h } = canvasSize;
+    let region = {
+      pixels: copyRegion(bitmap.current, { x: 0, y: 0, w, h }),
+      w,
+      h,
+    };
+    if (action === "flipH") flipRegionHorizontal(region);
+    else if (action === "flipV") flipRegionVertical(region);
+    else if (action === "invert") invertRegion(region);
+    else region = rotateRegion(region, action === "rotateRight");
+    const next = bitmap.current.slice();
+    fillAll(next, WHITE);
+    pasteRegion(next, region.pixels, region, { x: 0, y: 0 }, null);
+    replacePicture(next, { w: region.w, h: region.h });
+  }
+
   // An Image menu action goes on the selected part, which stays selected, or
   // on the whole picture when nothing is selected
   function transformImage(
@@ -735,7 +871,9 @@ export default function PaintEditor({
   ) {
     const s = selection.current;
     if (!s) {
-      if (action === "flipH") change(flipHorizontal);
+      if (canvasSize.w !== PAINT_SIZE || canvasSize.h !== PAINT_SIZE) {
+        transformCanvas(action);
+      } else if (action === "flipH") change(flipHorizontal);
       else if (action === "flipV") change(flipVertical);
       else if (action === "rotateRight") change((b) => rotate(b, true));
       else if (action === "rotateLeft") change((b) => rotate(b, false));
@@ -807,7 +945,7 @@ export default function PaintEditor({
     if (!d || d.pointerId !== e.pointerId) return false;
     if (d.kind === "marquee") {
       if (x !== d.start.x || y !== d.start.y || selection.current) {
-        selectRegion(regionBetween(d.start, { x, y }));
+        selectRegion(insideCanvas(regionBetween(d.start, { x, y })));
       }
     } else if (selection.current) {
       selection.current.x = d.origin.x + (x - d.start.x);
@@ -984,7 +1122,7 @@ export default function PaintEditor({
 
   function handlePointerMove(e: ReactPointerEvent<HTMLCanvasElement>) {
     const { x, y } = pixelAt(e);
-    const inside = x >= 0 && y >= 0 && x < PAINT_SIZE && y < PAINT_SIZE;
+    const inside = x >= 0 && y >= 0 && x < canvasSize.w && y < canvasSize.h;
     setPosition(inside ? { x, y } : null);
     if (moveSelectDrag(e, x, y)) return;
 
@@ -1022,6 +1160,10 @@ export default function PaintEditor({
           label: "New",
           keys: "Ctrl+N",
           run: () => change((b) => fillAll(b, WHITE)),
+        },
+        {
+          label: "Open Image...",
+          run: () => uploadInput.current?.click(),
         },
         "rule",
         { label: "Use This Picture", keys: "Ctrl+S", run: save },
@@ -1068,11 +1210,11 @@ export default function PaintEditor({
       items: [
         ...(narrow
           ? [
-            {
-              label: `Fit to Screen${fitting ? "  ✓" : ""}`,
-              run: () => setFit(true),
-            },
-          ]
+              {
+                label: `Fit to Screen${fitting ? "  ✓" : ""}`,
+                run: () => setFit(true),
+              },
+            ]
           : []),
         ...ZOOMS.map((z) => ({
           label: `${z * 100}%${z === zoom ? "  ✓" : ""}`,
@@ -1377,34 +1519,51 @@ export default function PaintEditor({
           </div>
 
           <div ref={workspace} className="paint-workspace">
-            <div className="paint-canvas-frame">
-              <canvas
-                ref={canvas}
-                width={PAINT_SIZE}
-                height={PAINT_SIZE}
-                aria-label="Your drawing"
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={finishStroke}
-                onPointerCancel={finishStroke}
-                onPointerLeave={() => setPosition(null)}
-                className="paint-canvas"
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: stage ? "center" : "flex-start",
+                width: stage?.w,
+                height: stage?.h,
+              }}
+            >
+              <div
+                className="paint-canvas-frame"
                 style={{
-                  width: PAINT_SIZE * zoom,
-                  height: PAINT_SIZE * zoom,
+                  width: canvasSize.w * zoom,
+                  height: canvasSize.h * zoom,
+                  flexShrink: 0,
                 }}
-              />
-              {selectionBox && (
-                <div
-                  className="paint-selection"
+              >
+                <canvas
+                  ref={canvas}
+                  width={PAINT_SIZE}
+                  height={PAINT_SIZE}
+                  aria-label="Your drawing"
+                  onPointerDown={handlePointerDown}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={finishStroke}
+                  onPointerCancel={finishStroke}
+                  onPointerLeave={() => setPosition(null)}
+                  className="paint-canvas"
                   style={{
-                    left: selectionBox.x * zoom,
-                    top: selectionBox.y * zoom,
-                    width: selectionBox.w * zoom,
-                    height: selectionBox.h * zoom,
+                    width: PAINT_SIZE * zoom,
+                    height: PAINT_SIZE * zoom,
                   }}
                 />
-              )}
+                {selectionBox && (
+                  <div
+                    className="paint-selection"
+                    style={{
+                      left: selectionBox.x * zoom,
+                      top: selectionBox.y * zoom,
+                      width: selectionBox.w * zoom,
+                      height: selectionBox.h * zoom,
+                    }}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1451,6 +1610,19 @@ export default function PaintEditor({
             ))}
           </div>
           <input
+            ref={uploadInput}
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) openImageFile(file);
+            }}
+            tabIndex={-1}
+            aria-hidden="true"
+            hidden
+          />
+          <input
             ref={colorInput}
             type="color"
             value={rgbHex(foreground)}
@@ -1472,7 +1644,7 @@ export default function PaintEditor({
             {position ? `${position.x}, ${position.y}` : ""}
           </span>
           <span className="paint-status" data-fixed="true">
-            {PAINT_SIZE}x{PAINT_SIZE}
+            {canvasSize.w}x{canvasSize.h}
           </span>
         </div>
 

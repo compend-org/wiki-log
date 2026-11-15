@@ -88,3 +88,19 @@ export function invertRegion({ pixels }: RegionPixels): void {
     pixels[i + 2] = 255 - pixels[i + 2];
   }
 }
+
+export type Placement = { x: number; y: number; w: number; h: number };
+
+// Where a w × h picture goes on a square canvas once it's shrunk (or grown)
+// until its longest side is the canvas size, centred along the shorter side
+export function fitInside(w: number, h: number, size: number): Placement {
+  const scale = size / Math.max(w, h);
+  const fittedW = Math.max(1, Math.round(w * scale));
+  const fittedH = Math.max(1, Math.round(h * scale));
+  return {
+    x: Math.floor((size - fittedW) / 2),
+    y: Math.floor((size - fittedH) / 2),
+    w: fittedW,
+    h: fittedH,
+  };
+}

@@ -29,8 +29,10 @@ export async function prepareCompoundImage(
     const meta = await decoded.metadata();
     if (
       meta.format !== "png" ||
-      meta.width !== PAINT_SIZE ||
-      meta.height !== PAINT_SIZE
+      !meta.width ||
+      !meta.height ||
+      meta.width > PAINT_SIZE ||
+      meta.height > PAINT_SIZE
     ) {
       return { error: INVALID_PICTURE };
     }

@@ -2,7 +2,7 @@
 // ABOUTME: Works on a plain RGBA bitmap and uses no browser APIs, so it can be tested on its own.
 
 // Compound pictures are this many pixels wide and tall
-export const PAINT_SIZE = 100;
+export const PAINT_SIZE = 60;
 
 export type Rgb = readonly [number, number, number];
 

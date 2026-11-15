@@ -232,7 +232,7 @@ export default async function ItemPage({
                 {compound ? (
                   creator ? (
                     <>
-                      Drawn by{" "}
+                      Created by{" "}
                       <Link
                         href={`/u/${encodeURIComponent(creator)}`}
                         className="underline"
