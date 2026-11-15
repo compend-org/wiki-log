@@ -11,6 +11,7 @@ import ReviewText from "@/components/logs/ReviewText";
 import Stars from "@/components/logs/Stars";
 import AdminBadge from "@/components/moderation/AdminBadge";
 import ReportButton from "@/components/moderation/ReportButton";
+import Avatar from "@/components/people/Avatar";
 import Comments from "@/components/social/Comments";
 import ShareButton from "@/components/social/ShareButton";
 import { getAdminIds } from "@/lib/admin/admin";
@@ -44,7 +45,7 @@ type ListRow = {
   ranked: boolean;
   // Only ever set for the author: removed lists are hidden from everyone else
   removed_at: string | null;
-  profiles: { username: string } | null;
+  profiles: { username: string; avatar_path: string | null } | null;
   list_likes: { count: number }[];
   shares: { count: number }[];
 };
@@ -75,7 +76,7 @@ const getList = cache(async (id: string): Promise<ListRow | null> => {
   const { data } = await supabase
     .from("lists")
     .select(
-      "id, user_id, title, description, ranked, removed_at, profiles!lists_user_id_profiles_fkey(username), list_likes(count), shares(count)",
+      "id, user_id, title, description, ranked, removed_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_likes(count), shares(count)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -175,25 +176,27 @@ export default async function ListPage({
       {list.removed_at && <RemovedNotice noun="list" />}
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold">{list.title}</h1>
-        <p className="text-sm text-muted">
-          A {list.ranked ? "ranked " : ""}list by{" "}
-          {owner ? (
+        <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
+          <span>A {list.ranked ? "ranked " : ""}list by</span>
+          {list.profiles ? (
             <Link
-              href={`/u/${encodeURIComponent(owner)}`}
-              className="underline"
+              href={`/u/${encodeURIComponent(list.profiles.username)}`}
+              className="inline-flex items-center gap-1.5 hover:underline"
             >
-              {owner}
+              <Avatar
+                name={list.profiles.username}
+                path={list.profiles.avatar_path}
+                size={20}
+              />
+              {list.profiles.username}
             </Link>
           ) : (
-            "someone"
+            <span>someone</span>
           )}
-          {adminIds.has(list.user_id) && (
-            <>
-              {" "}
-              <AdminBadge />
-            </>
-          )}{" "}
-          · {total.toLocaleString("en-US")} {total === 1 ? "item" : "items"}
+          {adminIds.has(list.user_id) && <AdminBadge />}
+          <span>
+            · {total.toLocaleString("en-US")} {total === 1 ? "item" : "items"}
+          </span>
         </p>
         {list.description && (
           <p className="mt-2 whitespace-pre-wrap">{list.description}</p>
