@@ -6,6 +6,7 @@ import DiaryListCard from "@/components/activity/DiaryListCard";
 import DiaryLogCard from "@/components/activity/DiaryLogCard";
 import DiaryReplyCard from "@/components/activity/DiaryReplyCard";
 import type { Card, CardsPage } from "@/components/paging/CardPages";
+import type { ActivityView } from "@/lib/activityView";
 import { FEATURES } from "@/lib/features";
 import { timeAgo } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
@@ -17,6 +18,7 @@ import {
   takeNewest,
 } from "@/lib/paging";
 import { aboutAdultItem, parseSfwMode, shownEntries } from "@/lib/sfw";
+import { getViewerState } from "@/lib/viewerState";
 
 // Where each kind of entry got to: the last of each shown so far
 export type DiaryCursor = {
@@ -68,6 +70,7 @@ type ReplyRow = {
     id: string;
     items: ItemInfo;
     profiles: { username: string } | null;
+    user_id: string;
   } | null;
 };
 
@@ -81,6 +84,7 @@ type ListReplyRow = {
     id: string;
     title: string;
     profiles: { username: string } | null;
+    user_id: string;
   } | null;
 };
 
@@ -216,11 +220,14 @@ async function craftsOf(
 
 // The page of `userId`'s diary after `after`. Each page takes up to
 // PAGE_SIZE + 1 more of each kind of entry from where each got to, so the
-// newest PAGE_SIZE of them together are always among them.
+// newest PAGE_SIZE of them together are always among them. With a `view`, the
+// diary is someone else's: its cards say whose it is and have no buttons, and
+// the viewer's own settings and blocks decide what is left out.
 export async function loadDiaryPage(
   supabase: SupabaseClient,
   userId: string,
   after: DiaryCursor,
+  view?: ActivityView,
 ): Promise<CardsPage<DiaryCursor>> {
   let logsQuery = supabase
     .from("logs")
@@ -243,7 +250,7 @@ export async function loadDiaryPage(
   let repliesQuery = supabase
     .from("comments")
     .select(
-      "id, parent_id, body, created_at, logs!comments_log_fkey(id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))",
+      "id, parent_id, body, created_at, logs!comments_log_fkey(id, user_id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))",
     )
     .eq("user_id", userId)
     .is("removed_at", null);
@@ -253,7 +260,7 @@ export async function loadDiaryPage(
   let listRepliesQuery = supabase
     .from("list_comments")
     .select(
-      "id, parent_id, body, created_at, lists(id, title, profiles!lists_user_id_profiles_fkey(username))",
+      "id, parent_id, body, created_at, lists(id, user_id, title, profiles!lists_user_id_profiles_fkey(username))",
     )
     .eq("user_id", userId)
     .is("removed_at", null);
@@ -309,9 +316,21 @@ export async function loadDiaryPage(
 
   const now = Date.now();
   const logRows = logsRes.data as unknown as LogRow[];
-  // Every log here is the viewer's own, so its owner's settings are the
-  // viewer's. With no logs there is nothing to hide.
-  const sfwMode = parseSfwMode(logRows[0]?.profiles?.user_settings?.sfw_mode);
+  const listRows = listsRes.data as unknown as ListRow[];
+  // In your own diary, every log is yours, so its owner's settings are yours
+  // too, and you haven't blocked anyone from it. With no logs there is nothing
+  // to hide. In someone else's, it is the viewer's settings and blocks.
+  const { blocked, sfwMode } = view
+    ? await getViewerState(supabase, view.viewerId, {
+        logIds: logRows.map((l) => l.id),
+        listIds: listRows.map((l) => l.id),
+        commentIds: replyRows.map((r) => r.id),
+        listCommentIds: listReplyRows.map((r) => r.id),
+      })
+    : {
+        blocked: new Set<string>(),
+        sfwMode: parseSfwMode(logRows[0]?.profiles?.user_settings?.sfw_mode),
+      };
   // Reviews of adult items are left out when the viewer hides them. They still
   // count towards the page, so a run of them doesn't end the diary early.
   const shownLogs = new Set(shownEntries(logRows, sfwMode, aboutAdultItem));
@@ -336,11 +355,12 @@ export async function loadDiaryPage(
               ? `/u/${encodeURIComponent(l.profiles.username)}/${l.id}`
               : null
           }
+          owner={view?.ownerName}
         />
       ),
     },
   }));
-  const lists: Entry[] = (listsRes.data as unknown as ListRow[]).map((l) => ({
+  const lists: Entry[] = listRows.map((l) => ({
     at: l.created_at,
     id: l.id,
     shown: true,
@@ -358,6 +378,7 @@ export async function loadDiaryPage(
             nsfw: p.items?.nsfw ?? false,
           }))}
           ago={timeAgo(l.created_at, now)}
+          owner={view?.ownerName}
         />
       ),
     },
@@ -371,6 +392,7 @@ export async function loadDiaryPage(
     shown:
       r.logs !== null &&
       r.logs.profiles !== null &&
+      !blocked.has(r.logs.user_id) &&
       !(sfwMode === "hide" && aboutAdultItem(r.logs)),
     card: {
       key: `reply:${r.id}`,
@@ -391,6 +413,7 @@ export async function loadDiaryPage(
           }
           where={`${r.logs?.profiles?.username ?? "Someone"}'s review of ${r.logs?.items?.title ?? "an item"}`}
           body={r.body}
+          owner={view?.ownerName}
         />
       ),
     },
@@ -398,7 +421,7 @@ export async function loadDiaryPage(
   const listReplies: Entry[] = listReplyRows.map((r) => ({
     at: r.created_at,
     id: r.id,
-    shown: r.lists !== null,
+    shown: r.lists !== null && !blocked.has(r.lists.user_id),
     card: {
       key: `list-reply:${r.id}`,
       card: (
@@ -414,6 +437,7 @@ export async function loadDiaryPage(
           }
           where={`${r.lists?.profiles?.username ?? "Someone"}'s list ${r.lists?.title ?? ""}`}
           body={r.body}
+          owner={view?.ownerName}
         />
       ),
     },
@@ -433,6 +457,7 @@ export async function loadDiaryPage(
           imageUrl={c.imageUrl}
           parts={c.parts}
           ago={timeAgo(c.at, now)}
+          owner={view?.ownerName}
         />
       ),
     },

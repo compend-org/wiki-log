@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import DiaryListCard from "@/components/activity/DiaryListCard";
 import DiaryLogCard from "@/components/activity/DiaryLogCard";
 import type { Card, CardsPage } from "@/components/paging/CardPages";
+import type { ActivityView } from "@/lib/activityView";
 import { timeAgo } from "@/lib/format";
 import {
   type Keyset,
@@ -78,6 +79,7 @@ export async function loadLikesPage(
   supabase: SupabaseClient,
   userId: string,
   after: LikesCursor,
+  view?: ActivityView,
 ): Promise<CardsPage<LikesCursor>> {
   let logsQuery = supabase
     .from("likes")
@@ -117,10 +119,14 @@ export async function loadLikesPage(
   // Who the viewer has blocked and how they want adult content shown. Both
   // are left out of what shows, but still count towards the page, so a run
   // of them doesn't end the list early.
-  const { blocked, sfwMode } = await getViewerState(supabase, userId, {
-    logIds: likedLogs.map((l) => l.log_id),
-    listIds: likedLists.map((l) => l.list_id),
-  });
+  const { blocked, sfwMode } = await getViewerState(
+    supabase,
+    view ? view.viewerId : userId,
+    {
+      logIds: likedLogs.map((l) => l.log_id),
+      listIds: likedLists.map((l) => l.list_id),
+    },
+  );
   const shownLogs = new Set(
     shownEntries(likedLogs, sfwMode, (l) => aboutAdultItem(l.logs)),
   );
@@ -150,6 +156,7 @@ export async function loadLikesPage(
                 : null
             }
             author={l.profiles?.username ?? "someone"}
+            owner={view?.ownerName}
           />
         ),
       },
@@ -176,6 +183,7 @@ export async function loadLikesPage(
             }))}
             ago={timeAgo(like.created_at, now)}
             author={l.profiles?.username ?? "someone"}
+            owner={view?.ownerName}
           />
         ),
       },

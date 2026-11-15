@@ -23,6 +23,7 @@ export default function DiaryLogCard({
   ago,
   entryHref,
   author,
+  owner,
 }: {
   logId: string;
   itemId: string;
@@ -39,7 +40,9 @@ export default function DiaryLogCard({
   // Set for a review by someone else that you liked, which has no edit or
   // delete buttons. "When" is then when you liked it.
   author?: string;
+  owner?: string;
 }) {
+  const who = owner ?? "You";
   const [editing, setEditing] = useState<boolean>(false);
   const [deleted, setDeleted] = useState<boolean>(false);
   // A saved edit shows straight away. Pages loaded after the first aren't
@@ -64,16 +67,16 @@ export default function DiaryLogCard({
           aria-label={
             author
               ? `Open ${author}'s entry for ${title}`
-              : `Open your entry for ${title}`
+              : `Open ${owner ? `${owner}'s` : "your"} entry for ${title}`
           }
           className="absolute inset-0 rounded-[inherit]"
         />
       )}
       <div className="flex items-center justify-between gap-3 text-xs text-muted">
         <span>
-          {ago} · {author ? `You liked ${author}'s review` : "You logged"}
+          {ago} · {author ? `${who} liked ${author}'s review` : `${who} logged`}
         </span>
-        {!author && (
+        {!author && !owner && (
           <span className="flex items-center gap-3">
             <button
               type="button"

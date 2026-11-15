@@ -14,6 +14,7 @@ export default function DiaryReplyCard({
   replyingTo,
   where,
   body,
+  owner,
 }: {
   replyId: string;
   // Whether it is a reply on a review or on a list
@@ -30,7 +31,9 @@ export default function DiaryReplyCard({
   // What it was written on, such as "Alice's review of Dune"
   where: string;
   body: string;
+  owner?: string;
 }) {
+  const who = owner ?? "You";
   return (
     <div className="card relative flex flex-col gap-1 p-3 hover-or-tap:border-accent/60">
       {/* The whole card opens it, except the links above it */}
@@ -41,7 +44,7 @@ export default function DiaryReplyCard({
       />
       <div className="flex items-center justify-between gap-3 text-xs text-muted">
         <p>
-          {ago} · You {isReply ? "replied" : "commented"}
+          {ago} · {who} {isReply ? "replied" : "commented"}
           {replyingTo && (
             <>
               {" to "}

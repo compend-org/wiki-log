@@ -16,6 +16,7 @@ export default function DiaryCraftCard({
   imageUrl,
   parts,
   ago,
+  owner,
 }: {
   itemId: string;
   title: string;
@@ -25,6 +26,7 @@ export default function DiaryCraftCard({
   parts: string[];
   // When it was crafted, as shown: "5m ago", or the date once it's a day old
   ago: string;
+  owner?: string;
 }) {
   const [deleted, setDeleted] = useState<boolean>(false);
   // A saved edit shows straight away, until the server sends a different one
@@ -49,25 +51,29 @@ export default function DiaryCraftCard({
       />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center justify-between gap-3 text-xs text-muted">
-          <span>{ago} · You crafted a compound</span>
-          <span className="flex items-center gap-3">
-            <CompoundEditButton
-              id={itemId}
-              title={shownTitle}
-              description={shownDescription}
-              imageUrl={shownImage}
-              onSaved={(d) => {
-                setShownTitle(d.title);
-                setShownDescription(d.description);
-                setShownImage(d.imageUrl);
-              }}
-            />
-            <CompoundDeleteButton
-              id={itemId}
-              cardKey={`craft:${itemId}`}
-              onDeleted={() => setDeleted(true)}
-            />
+          <span>
+            {ago} · {owner ?? "You"} crafted a compound
           </span>
+          {!owner && (
+            <span className="flex items-center gap-3">
+              <CompoundEditButton
+                id={itemId}
+                title={shownTitle}
+                description={shownDescription}
+                imageUrl={shownImage}
+                onSaved={(d) => {
+                  setShownTitle(d.title);
+                  setShownDescription(d.description);
+                  setShownImage(d.imageUrl);
+                }}
+              />
+              <CompoundDeleteButton
+                id={itemId}
+                cardKey={`craft:${itemId}`}
+                onDeleted={() => setDeleted(true)}
+              />
+            </span>
+          )}
         </div>
         <Link
           href={`/item/${itemId}`}

@@ -18,6 +18,7 @@ export default function DiaryListCard({
   previews,
   ago,
   author,
+  owner,
 }: {
   listId: string;
   title: string;
@@ -29,7 +30,9 @@ export default function DiaryListCard({
   // When it was made, as shown: "5m ago", or the date once it's a day old
   ago: string;
   author?: string;
+  owner?: string;
 }) {
+  const who = owner ?? "You";
   const [deleted, setDeleted] = useState<boolean>(false);
 
   if (deleted) return null;
@@ -46,10 +49,10 @@ export default function DiaryListCard({
         <span>
           {ago} ·{" "}
           {author
-            ? `You liked ${author}'s ${ranked ? "ranked " : ""}list`
-            : `You made a ${ranked ? "ranked " : ""}list`}
+            ? `${who} liked ${author}'s ${ranked ? "ranked " : ""}list`
+            : `${who} made a ${ranked ? "ranked " : ""}list`}
         </span>
-        {!author && (
+        {!author && !owner && (
           <span className="flex items-center gap-3">
             <Link
               href={`/list/${listId}/edit`}

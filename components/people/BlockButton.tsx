@@ -63,7 +63,7 @@ export default function BlockButton({
           else setOpen(true);
         }}
         disabled={busy}
-        className="rounded-lg border border-line px-4 py-2 text-muted disabled:opacity-40"
+        className="rounded-lg border border-line px-4 py-2 text-muted enabled:hover:border-accent enabled:hover:text-foreground disabled:opacity-40"
       >
         {shownBlocked ? "Unblock" : "Block"}
       </button>

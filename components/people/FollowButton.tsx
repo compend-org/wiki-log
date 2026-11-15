@@ -55,8 +55,8 @@ export default function FollowButton({
         disabled={busy}
         className={
           shownFollowing
-            ? "rounded-lg border border-line px-4 py-2 disabled:opacity-40"
-            : "rounded-lg bg-accent px-4 py-2 text-background disabled:opacity-40"
+            ? "rounded-lg border border-line px-4 py-2 enabled:hover:border-accent disabled:opacity-40"
+            : "rounded-lg bg-accent px-4 py-2 text-background enabled:hover:opacity-80 disabled:opacity-40"
         }
       >
         {shownFollowing

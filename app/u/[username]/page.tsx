@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { loadMoreProfile } from "@/app/profileActions";
+import DiaryIcon from "@/components/activity/DiaryIcon";
 import SignOutButton from "@/components/auth/SignOutButton";
 import ItemImage from "@/components/items/ItemImage";
 import RatingHistogram from "@/components/logs/RatingsHistogram";
@@ -317,7 +318,7 @@ export default async function ProfilePage({
           </p>
         )}
         <div className="mt-2 flex items-center justify-between gap-4">
-          <div className="mt-2 flex items-center gap-4">
+          <div className="mt-2 flex min-w-0 flex-1 flex-wrap items-center gap-4">
             {!viewerId ? (
               <Link href={loginHref(profileHref)} className="underline">
                 Sign in to follow
@@ -339,8 +340,16 @@ export default async function ProfilePage({
                 />
               </div>
             ) : (
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2">
                 {/* Nobody can follow someone they have blocked */}
+                {!isBlocked && (
+                  <Link
+                    href={isOwner ? "/activity" : `${profileHref}/activity`}
+                    className="rounded-lg border border-line px-4 py-2 text-muted hover:border-accent hover:text-foreground hover:no-underline"
+                  >
+                    <DiaryIcon />
+                  </Link>
+                )}
                 {!isBlocked && (
                   <FollowButton
                     viewerId={viewerId}
@@ -360,7 +369,7 @@ export default async function ProfilePage({
                   ownerId={profile.id}
                   kind="profile"
                   targetId={profile.id}
-                  className="rounded-lg border border-line px-4 py-2 text-muted"
+                  className="rounded-lg border border-line px-4 py-2 text-muted hover:border-accent hover:text-foreground"
                 />
               </div>
             )}

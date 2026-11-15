@@ -85,7 +85,7 @@ function inside(x: number, y: number): boolean {
   return x >= 0 && y >= 0 && x < PAINT_SIZE && y < PAINT_SIZE;
 }
 
-export function setPixel(bitmap: Bitmap, x: number, y: number, color: Rgb) {
+function setPixel(bitmap: Bitmap, x: number, y: number, color: Rgb) {
   if (!inside(x, y)) return;
   const i = (y * PAINT_SIZE + x) * 4;
   bitmap[i] = color[0];
