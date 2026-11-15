@@ -1,3 +1,5 @@
+// ABOUTME: The site-wide top bar: the logo, activity, people search and account links.
+// ABOUTME: Logos are imported so their URLs are content-hashed and cached for good.
 "use client";
 
 import Link from "next/link";
@@ -8,6 +10,8 @@ import PeopleSearch from "@/components/people/PeopleSearch";
 import { FEATURES } from "@/lib/features";
 import { useNavLinkTone } from "@/lib/hooks/useNavLinkTone";
 import { SITE_NAME } from "@/lib/site";
+import logoDark from "@/public/logo-dark.png";
+import logoLight from "@/public/logo-light.png";
 
 // `account` fills the signed-in part of the bar: the bell, profile and sign in/out
 export default function Nav({ account }: { account: ReactNode }) {
@@ -23,7 +27,7 @@ export default function Nav({ account }: { account: ReactNode }) {
       >
         {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
         <img
-          src="/logo-light.png"
+          src={logoLight.src}
           alt=""
           width={35}
           height={35}
@@ -31,7 +35,7 @@ export default function Nav({ account }: { account: ReactNode }) {
         />
         {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
         <img
-          src="/logo-dark.png"
+          src={logoDark.src}
           alt=""
           width={35}
           height={35}
