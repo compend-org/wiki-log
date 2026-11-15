@@ -51,7 +51,7 @@ export default async function ListCard({
       <Link
         href={`/list/${l.id}`}
         aria-label={`Open the list ${l.title}`}
-        className="absolute inset-0 rounded-[inherit]"
+        className="card-link absolute inset-0 rounded-[inherit]"
       />
       {sharers.length > 0 && (
         <span className="flex flex-wrap items-center gap-x-1 text-sm text-muted">

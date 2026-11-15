@@ -38,7 +38,7 @@ export default function CardActions({
           href={commentHref}
           aria-label={commentLabel(commentCount)}
           title={commentLabel(commentCount)}
-          className="relative z-10 mr-2.5 inline-flex h-5 min-w-[1.5rem] items-center gap-1 text-sm hover:text-foreground hover:no-underline"
+          className="card-link relative z-10 mr-2.5 inline-flex h-5 min-w-[1.5rem] items-center gap-1 text-sm hover:text-foreground hover:no-underline"
         >
           <CommentIcon className="h-4 w-4" />
           {commentCount > 0 && <span>{commentCount}</span>}

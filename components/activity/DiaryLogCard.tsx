@@ -69,7 +69,7 @@ export default function DiaryLogCard({
               ? `Open ${author}'s entry for ${title}`
               : `Open ${owner ? `${owner}'s` : "your"} entry for ${title}`
           }
-          className="absolute inset-0 rounded-[inherit]"
+          className="card-link absolute inset-0 rounded-[inherit]"
         />
       )}
       <div className="flex items-center justify-between gap-3 text-xs text-muted">

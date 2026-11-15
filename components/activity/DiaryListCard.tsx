@@ -43,7 +43,7 @@ export default function DiaryListCard({
       <Link
         href={`/list/${listId}`}
         aria-label={`Open ${title}`}
-        className="absolute inset-0 rounded-[inherit]"
+        className="card-link absolute inset-0 rounded-[inherit]"
       />
       <div className="flex items-center justify-between gap-3 text-xs text-muted">
         <span>
@@ -72,7 +72,7 @@ export default function DiaryListCard({
       </div>
       <Link
         href={`/list/${listId}`}
-        className="relative z-10 w-fit font-semibold underline"
+        className="card-link relative z-10 w-fit font-semibold underline"
       >
         {title}
       </Link>

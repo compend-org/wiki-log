@@ -35,7 +35,7 @@ export default function ItemLogCard({
         <Link
           href={reviewHref}
           aria-label={`Open ${author}'s review`}
-          className="absolute inset-0 rounded-[inherit]"
+          className="card-link absolute inset-0 rounded-[inherit]"
         />
       )}
       <div className="flex items-center gap-2 text-sm">

@@ -36,7 +36,7 @@ export default function DigestCard({
         <Link
           href={reviewHref}
           aria-label={`Open ${author}'s review of ${title}`}
-          className="absolute inset-0 rounded-[inherit]"
+          className="card-link absolute inset-0 rounded-[inherit]"
         />
       )}
 

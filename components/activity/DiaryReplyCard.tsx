@@ -40,7 +40,7 @@ export default function DiaryReplyCard({
       <Link
         href={href}
         aria-label={`Open ${where}`}
-        className="absolute inset-0 rounded-[inherit]"
+        className="card-link absolute inset-0 rounded-[inherit]"
       />
       <div className="flex items-center justify-between gap-3 text-xs text-muted">
         <p>
@@ -61,7 +61,7 @@ export default function DiaryReplyCard({
           <DeleteButton kind={kind} targetId={replyId} cardKey={cardKey} />
         )}
       </div>
-      <Link href={href} className="relative z-10 w-fit font-semibold">
+      <Link href={href} className="card-link relative z-10 w-fit font-semibold">
         {where}
       </Link>
       <p className="line-clamp-3 whitespace-pre-wrap break-words border-l-2 border-dashed border-line pl-3 text-sm">

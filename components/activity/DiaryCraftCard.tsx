@@ -42,7 +42,7 @@ export default function DiaryCraftCard({
       <Link
         href={`/item/${itemId}`}
         aria-label={`Open ${shownTitle}`}
-        className="absolute inset-0 rounded-[inherit]"
+        className="card-link absolute inset-0 rounded-[inherit]"
       />
       <ItemImage
         src={shownImage}
@@ -77,7 +77,7 @@ export default function DiaryCraftCard({
         </div>
         <Link
           href={`/item/${itemId}`}
-          className="relative z-10 w-fit font-semibold hover:underline"
+          className="card-link relative z-10 w-fit font-semibold hover:underline"
         >
           {shownTitle}
         </Link>
