@@ -18,7 +18,12 @@ import {
   parseKeyset,
   takeNewest,
 } from "@/lib/paging";
-import { aboutAdultItem, parseSfwMode, shownEntries } from "@/lib/sfw";
+import {
+  aboutAdultItem,
+  parseSfwMode,
+  type SfwMode,
+  shownEntries,
+} from "@/lib/sfw";
 import { getViewerState } from "@/lib/viewerState";
 
 // Where each kind of entry got to: the last of each shown so far
@@ -48,10 +53,7 @@ type LogRow = {
   // The picture its author chose; null shows the item's
   image_url: string | null;
   items: ItemInfo;
-  profiles: {
-    username: string;
-    user_settings: { sfw_mode: string } | null;
-  } | null;
+  profiles: { username: string } | null;
 };
 
 type ListRow = {
@@ -99,6 +101,7 @@ type CraftRow = {
   title: string;
   description: string;
   imageUrl: string | null;
+  nsfw: boolean;
   parts: string[];
 };
 
@@ -193,7 +196,7 @@ async function craftsOf(
 
   const { data: itemData, error: itemsError } = await supabase
     .from("items")
-    .select("id, title, description, image_url")
+    .select("id, title, description, image_url, nsfw")
     .in("id", [...new Set([...ids, ...parts.map((p) => p.part_id)])]);
   if (itemsError) return { rows: [], error: itemsError };
   const items = new Map(
@@ -203,6 +206,7 @@ async function craftsOf(
         title: string;
         description: string | null;
         image_url: string | null;
+        nsfw: boolean;
       }[]
     ).map((i) => [i.id, i]),
   );
@@ -214,12 +218,27 @@ async function craftsOf(
       title: items.get(c.item_id)?.title ?? "Unknown compound",
       description: items.get(c.item_id)?.description ?? "",
       imageUrl: items.get(c.item_id)?.image_url ?? null,
+      nsfw: items.get(c.item_id)?.nsfw ?? false,
       parts: parts
         .filter((p) => p.compound_id === c.item_id)
         .flatMap((p) => items.get(p.part_id)?.title ?? []),
     })),
     error: null,
   };
+}
+
+// The settings' SFW mode of a signed-in person, or off for someone signed out
+async function sfwModeOf(
+  supabase: SupabaseClient,
+  userId: string | undefined,
+): Promise<SfwMode> {
+  if (!userId) return "off";
+  const { data } = await supabase
+    .from("user_settings")
+    .select("sfw_mode")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return parseSfwMode(data?.sfw_mode);
 }
 
 // The page of `userId`'s diary after `after`. Each page takes up to
@@ -236,7 +255,7 @@ export async function loadDiaryPage(
   let logsQuery = supabase
     .from("logs")
     .select(
-      "id, item_id, rating, review, logged_at, image_url, items(title, image_url, nsfw), profiles!logs_user_id_profiles_fkey(username, user_settings(sfw_mode))",
+      "id, item_id, rating, review, logged_at, image_url, items(title, image_url, nsfw), profiles!logs_user_id_profiles_fkey(username)",
     )
     .eq("user_id", userId);
   if (after.logs) {
@@ -321,20 +340,20 @@ export async function loadDiaryPage(
   const now = Date.now();
   const logRows = logsRes.data as unknown as LogRow[];
   const listRows = listsRes.data as unknown as ListRow[];
-  // In your own diary, every log is yours, so its owner's settings are yours
-  // too, and you haven't blocked anyone from it. With no logs there is nothing
-  // to hide. In someone else's, it is the viewer's settings and blocks.
-  const { blocked, sfwMode } = view
-    ? await getViewerState(supabase, view.viewerId, {
-        logIds: logRows.map((l) => l.id),
-        listIds: listRows.map((l) => l.id),
-        commentIds: replyRows.map((r) => r.id),
-        listCommentIds: listReplyRows.map((r) => r.id),
-      })
-    : {
-        blocked: new Set<string>(),
-        sfwMode: parseSfwMode(logRows[0]?.profiles?.user_settings?.sfw_mode),
-      };
+  // In your own diary you haven't blocked anyone from it. In someone else's,
+  // it is the viewer's blocks. Either way it is the viewer's settings, read on
+  // their own, as a page can hold crafts and nothing else.
+  const [{ blocked }, sfwMode] = await Promise.all([
+    view
+      ? getViewerState(supabase, view.viewerId, {
+          logIds: logRows.map((l) => l.id),
+          listIds: listRows.map((l) => l.id),
+          commentIds: replyRows.map((r) => r.id),
+          listCommentIds: listReplyRows.map((r) => r.id),
+        })
+      : { blocked: new Set<string>() },
+    sfwModeOf(supabase, view ? view.viewerId : userId),
+  ]);
   // Reviews of adult items are left out when the viewer hides them. They still
   // count towards the page, so a run of them doesn't end the diary early.
   const shownLogs = new Set(shownEntries(logRows, sfwMode, aboutAdultItem));
@@ -447,10 +466,13 @@ export async function loadDiaryPage(
     },
   }));
 
+  const shownCrafts = new Set(
+    shownEntries(craftsRes.rows, sfwMode, (c) => c.nsfw),
+  );
   const crafts: Entry[] = craftsRes.rows.map((c) => ({
     at: c.at,
     id: c.id,
-    shown: true,
+    shown: shownCrafts.has(c),
     card: {
       key: `craft:${c.id}`,
       card: (
@@ -459,6 +481,7 @@ export async function loadDiaryPage(
           title={c.title}
           description={c.description}
           imageUrl={c.imageUrl}
+          nsfw={c.nsfw}
           parts={c.parts}
           ago={timeAgo(c.at, now)}
           owner={view?.ownerName}
