@@ -22,18 +22,14 @@ import {
   drawShape,
   type FillStyle,
   fillAll,
-  flipHorizontal,
-  flipVertical,
   floodFill,
   getPixel,
-  invertColors,
   PAINT_SIZE,
   PALETTE,
   penOffsets,
   type Rgb,
   rgbCss,
   rgbHex,
-  rotate,
   type ShapeKind,
   sameBitmap,
   spray,
@@ -42,11 +38,9 @@ import {
 } from "@/lib/craft/paint";
 import {
   fitInside,
-  flipRegionHorizontal,
-  flipRegionVertical,
-  invertRegion,
+  type ImageAction,
   limitColors,
-  rotateRegion,
+  transformRegion,
 } from "@/lib/craft/paintRegion";
 import {
   copyRegion,
@@ -843,57 +837,43 @@ export default function PaintEditor({
     else tell("There's no picture to paste.");
   }
 
-  // The same on a picture smaller than the bitmap: only its own part is
-  // turned, and a quarter turn swaps the canvas's width and height
-  function transformCanvas(
-    action: "flipH" | "flipV" | "rotateRight" | "rotateLeft" | "invert",
-  ) {
+  // An Image menu action on the whole picture: only the canvas's own part of
+  // the bitmap changes, and a quarter turn swaps the canvas's width and height
+  function transformCanvas(action: ImageAction) {
     const { w, h } = canvasSize;
-    let region = {
-      pixels: copyRegion(bitmap.current, { x: 0, y: 0, w, h }),
-      w,
-      h,
-    };
-    if (action === "flipH") flipRegionHorizontal(region);
-    else if (action === "flipV") flipRegionVertical(region);
-    else if (action === "invert") invertRegion(region);
-    else region = rotateRegion(region, action === "rotateRight");
+    const region = transformRegion(
+      { pixels: copyRegion(bitmap.current, { x: 0, y: 0, w, h }), w, h },
+      action,
+    );
     const next = bitmap.current.slice();
     fillAll(next, WHITE);
     pasteRegion(next, region.pixels, region, { x: 0, y: 0 }, null);
+    // A change that leaves the picture as it was isn't a step to undo
+    if (region.w === w && region.h === h && sameBitmap(next, bitmap.current)) {
+      return;
+    }
     replacePicture(next, { w: region.w, h: region.h });
   }
 
   // An Image menu action goes on the selected part, which stays selected, or
   // on the whole picture when nothing is selected
-  function transformImage(
-    action: "flipH" | "flipV" | "rotateRight" | "rotateLeft" | "invert",
-  ) {
+  function transformImage(action: ImageAction) {
     const s = selection.current;
     if (!s) {
-      if (canvasSize.w !== PAINT_SIZE || canvasSize.h !== PAINT_SIZE) {
-        transformCanvas(action);
-      } else if (action === "flipH") change(flipHorizontal);
-      else if (action === "flipV") change(flipVertical);
-      else if (action === "rotateRight") change((b) => rotate(b, true));
-      else if (action === "rotateLeft") change((b) => rotate(b, false));
-      else change(invertColors);
+      transformCanvas(action);
       return;
     }
     liftSelection();
     if (!s.pixels) return;
-    const region = { pixels: s.pixels, w: s.w, h: s.h };
-    if (action === "flipH") flipRegionHorizontal(region);
-    else if (action === "flipV") flipRegionVertical(region);
-    else if (action === "invert") invertRegion(region);
-    else {
-      // A quarter turn swaps the selection's width and height, keeping its
-      // top left corner where it was
-      const turned = rotateRegion(region, action === "rotateRight");
-      s.pixels = turned.pixels;
-      s.w = turned.w;
-      s.h = turned.h;
-    }
+    // A quarter turn swaps the selection's width and height, keeping its top
+    // left corner where it was
+    const turned = transformRegion(
+      { pixels: s.pixels, w: s.w, h: s.h },
+      action,
+    );
+    s.pixels = turned.pixels;
+    s.w = turned.w;
+    s.h = turned.h;
     layDownSelection();
     showSelectionBox();
   }
