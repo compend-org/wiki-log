@@ -1,9 +1,10 @@
-// ABOUTME: Server action that loads the later pages of a person's lists or reviews on their profile.
+// ABOUTME: Server actions that load the later pages of a person's pins, lists or reviews on their profile.
 // ABOUTME: Checks what the browser sent, then renders the page's cards for the viewer.
 "use server";
 
 import type { CardsPage } from "@/components/paging/CardPages";
 import {
+  loadPinnedPage,
   loadProfilePage,
   type ProfileKind,
 } from "@/components/profile/loadProfilePage";
@@ -63,4 +64,21 @@ export async function loadMoreProfileAll(
     throw new Error("That isn't a page of a profile.");
   }
   return loadProfilePage(profileId, kind, after, undefined, true);
+}
+
+// A later page of someone's pins, starting `offset` pins in
+export async function loadMorePinned(
+  profileId: string,
+  offset: unknown,
+): Promise<CardsPage<number>> {
+  if (
+    typeof profileId !== "string" ||
+    !isUuid(profileId) ||
+    typeof offset !== "number" ||
+    !Number.isInteger(offset) ||
+    offset <= 0
+  ) {
+    throw new Error("That isn't a page of a profile's pins.");
+  }
+  return loadPinnedPage(profileId, offset);
 }

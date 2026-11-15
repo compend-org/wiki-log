@@ -1,20 +1,10 @@
 "use client";
 
-import {
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-  KeyboardSensor,
-  MouseSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
 import {
   arrayMove,
   rectSortingStrategy,
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -26,6 +16,7 @@ import ItemPicker from "@/components/items/ItemPicker";
 import ListPager from "@/components/lists/ListPager";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { track } from "@/lib/analytics/analytics";
+import { useDragSensors } from "@/lib/hooks/useDragSensors";
 import { type EditorSnapshot, SavedListEditing } from "@/lib/lists/listEditing";
 import {
   fetchListPage,
@@ -212,17 +203,7 @@ export default function ListEditor({
     editing?.goToPage(wanted);
   }
 
-  // Mouse drags after a few pixels, touch after a short press (so the page
-  // still scrolls), and the keyboard works too
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 200, tolerance: 8 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
+  const sensors = useDragSensors();
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
