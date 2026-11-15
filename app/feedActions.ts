@@ -7,7 +7,7 @@ import {
   type FeedMode,
   type FeedPage,
   loadFeedPage,
-} from "@/components/loadFeedPage";
+} from "@/components/feed/loadFeedPage";
 import { parseFeedCursor, parseSnapshot } from "@/lib/paging";
 
 export async function loadMoreFeed(

@@ -2,23 +2,23 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import AdminBadge from "@/components/AdminBadge";
+import AdminBadge from "@/components/moderation/AdminBadge";
 import NotificationThumb, {
   type NotificationSubject,
-} from "@/components/NotificationThumb";
-import { track } from "@/lib/analytics";
-import { timeAgo } from "@/lib/format";
+} from "@/components/social/NotificationThumb";
+import { track } from "@/lib/analytics/analytics";
 import {
   fetchNotifications,
   latestNotifications,
   markNotificationsRead,
   type NotificationRow,
   type NotificationsFeed,
-} from "@/lib/notificationsFeed";
+} from "@/lib/feed/notificationsFeed";
+import { timeAgo } from "@/lib/format";
+import { useLoginHref } from "@/lib/hooks/useLoginHref";
+import { useSfwMode } from "@/lib/hooks/useSfwMode";
 import { shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/client";
-import { useLoginHref } from "@/lib/useLoginHref";
-import { useSfwMode } from "@/lib/useSfwMode";
 
 type NotificationsState = {
   loaded: boolean;

@@ -5,17 +5,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import Avatar from "@/components/Avatar";
+import SignInButton from "@/components/auth/SignInButton";
+import SignOutButton from "@/components/auth/SignOutButton";
+import Avatar from "@/components/people/Avatar";
+import NotificationIcon from "@/components/social/NotificationIcon";
 import {
   fetchNotifications,
   keepNotificationsOnlyFor,
-} from "@/lib/notificationsFeed";
+} from "@/lib/feed/notificationsFeed";
+import { isCurrentPage, useNavLinkTone } from "@/lib/hooks/useNavLinkTone";
 import { applySfw, type SfwMode, setStoredSfw } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/client";
-import { isCurrentPage, useNavLinkTone } from "@/lib/useNavLinkTone";
-import SignInButton from "./buttons/SignInButton";
-import SignOutButton from "./buttons/SignOutButton";
-import NotificationIcon from "./icons/NotificationIcon";
 
 export type NavAccountDetails = {
   userId: string;

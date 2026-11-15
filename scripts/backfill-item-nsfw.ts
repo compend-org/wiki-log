@@ -4,7 +4,7 @@
 // Run it from the project folder with:
 //   npx tsx --env-file=.env.local scripts/backfill-item-nsfw.ts [after-id]
 import { createClient } from "@supabase/supabase-js";
-import { isNsfw } from "@/lib/wikipedia";
+import { isNsfw } from "@/lib/wikipedia/wikipedia";
 
 const BATCH = 100; // items read from the database at a time
 const PAUSE_MS = 1000; // a polite wait between items

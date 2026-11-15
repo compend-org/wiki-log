@@ -8,7 +8,7 @@ import {
   HEADERS,
   type ItemData,
   type LookupResult,
-} from "@/lib/wikipedia";
+} from "@/lib/wikipedia/wikipedia";
 
 // A cached item is trusted for a week, then refreshed from Wikipedia
 export const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;

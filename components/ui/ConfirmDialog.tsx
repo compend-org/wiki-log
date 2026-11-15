@@ -3,7 +3,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Dialog from "@/components/Dialog";
+import Dialog from "@/components/ui/Dialog";
 
 export default function ConfirmDialog({
   title,

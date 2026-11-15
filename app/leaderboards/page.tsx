@@ -2,7 +2,7 @@
 // ABOUTME: Which leaderboards exist is set by hand in lib/leaderboards.ts; the page can be turned off in lib/features.ts.
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import Leaderboard from "@/components/Leaderboard";
+import Leaderboard from "@/components/feed/Leaderboard";
 import { FEATURES } from "@/lib/features";
 
 export const metadata = { title: "Leaderboards" };

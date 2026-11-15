@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import LoginForm from "@/components/LoginForm";
+import LoginForm from "@/components/auth/LoginForm";
 import { safeNext } from "@/lib/redirect";
 import { createClient } from "@/lib/supabase/server";
 

@@ -4,12 +4,12 @@
 
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
-import Dialog from "@/components/Dialog";
+import Dialog from "@/components/ui/Dialog";
 import {
   type ModerationInput,
   REPORT_REASONS,
   SUSPENSION_DAYS,
-} from "@/lib/moderation";
+} from "@/lib/admin/moderation";
 
 export default function ModerationButton({
   label,

@@ -4,7 +4,7 @@ import {
   ANALYTICS_ASSETS_HOST,
   ANALYTICS_INGEST_HOST,
   ANALYTICS_PROXY_PATH,
-} from "./lib/analyticsEvents";
+} from "@/lib/analytics/analyticsEvents";
 
 const nextConfig: NextConfig = {
   /* config options here */

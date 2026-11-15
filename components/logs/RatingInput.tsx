@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Stars from "@/components/Stars";
+import Stars from "@/components/logs/Stars";
 
 // Which half-star is under the pointer: 0.5, 1, 1.5 ... 5
 function valueAt(el: HTMLElement, clientX: number): number {

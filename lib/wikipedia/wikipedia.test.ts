@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, mock, test } from "node:test";
-import { BUSY_ERROR } from "./articleSummary";
-import { getItemById, getItemByKey } from "./wikipedia";
+import { BUSY_ERROR } from "@/lib/wikipedia/articleSummary";
+import { getItemById, getItemByKey } from "@/lib/wikipedia/wikipedia";
 
 const cover =
   "https://upload.wikimedia.org/wikipedia/en/8/87/Steel_Ball_Run_1.jpg";

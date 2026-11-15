@@ -6,7 +6,7 @@ import * as Sentry from "@sentry/nextjs";
 import {
   describeFailedRequest,
   reportFailedResponses,
-} from "./supabase/reportFailedResponses";
+} from "@/lib/supabase/reportFailedResponses";
 
 const sent: Sentry.ErrorEvent[] = [];
 Sentry.init({

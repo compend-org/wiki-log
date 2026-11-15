@@ -1,4 +1,4 @@
-import PeopleList from "@/components/PeopleList";
+import PeopleList from "@/components/people/PeopleList";
 
 export const instant = false;
 

@@ -4,9 +4,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import DeleteButton from "@/components/buttons/DeleteButton";
-import EditIcon from "@/components/icons/EditIcon";
-import ItemImage from "@/components/icons/ItemImage";
+import ItemImage from "@/components/items/ItemImage";
+import DeleteButton from "@/components/logs/DeleteButton";
+import EditIcon from "@/components/ui/EditIcon";
 
 type ListPreview = { title: string; imageUrl: string | null; nsfw: boolean };
 

@@ -2,11 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import HeartIcon from "@/components/HeartIcon";
-import { track } from "@/lib/analytics";
+import HeartIcon from "@/components/social/HeartIcon";
+import { track } from "@/lib/analytics/analytics";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
+import { useLoginHref } from "@/lib/hooks/useLoginHref";
 import { createClient } from "@/lib/supabase/client";
-import { useLocalCopy } from "@/lib/useLocalCopy";
-import { useLoginHref } from "@/lib/useLoginHref";
 
 // Where likes on each kind of comment are kept
 const LIKES = {

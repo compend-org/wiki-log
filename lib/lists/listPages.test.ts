@@ -11,7 +11,7 @@ import {
   pageRange,
   pagerPages,
   parsePage,
-} from "./listPages";
+} from "@/lib/lists/listPages";
 
 test("reads a page number from the address, or page 1", () => {
   assert.equal(parsePage("3"), 3);

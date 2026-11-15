@@ -1,6 +1,6 @@
 // ABOUTME: Whole-region transforms for the paint editor: flip, rotate and invert the pixels of a selection.
 // ABOUTME: Regions are copied pixels, row by row, four bytes each, as `copyRegion` makes them.
-import type { Bitmap, Rgb } from "@/lib/paint";
+import type { Bitmap, Rgb } from "@/lib/craft/paint";
 
 // Pushes a colour's brightness away from the middle by `contrast` times
 function boost(value: number, contrast: number): number {

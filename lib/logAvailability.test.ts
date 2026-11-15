@@ -2,12 +2,12 @@
 // ABOUTME: Verifies stale-log errors skip Sentry while unexpected reaction errors are reported.
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { isMissingLogError } from "@/lib/errors/missingLogError";
 import {
   isLogUnavailable,
   markLogUnavailable,
   subscribeToLogAvailability,
 } from "./logAvailability";
-import { isMissingLogError } from "./missingLogError";
 import { describeFailedRequest } from "./supabase/reportFailedResponses";
 
 function foreignKeyError(table: string, column: string) {

@@ -2,10 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useRemoveCard } from "@/components/CardPages";
-import ConfirmDialog from "@/components/ConfirmDialog";
-import DeleteIcon from "@/components/icons/DeleteIcon";
-import { track } from "@/lib/analytics";
+import { useRemoveCard } from "@/components/paging/CardPages";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import DeleteIcon from "@/components/ui/DeleteIcon";
+import { track } from "@/lib/analytics/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 type Kind = "log" | "list" | "comment" | "list_comment";

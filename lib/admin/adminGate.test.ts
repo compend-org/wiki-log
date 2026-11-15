@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
 import { NextRequest } from "next/server";
-import { adminOnly, isAdminPath } from "./supabase/proxy";
+import { adminOnly, isAdminPath } from "@/lib/supabase/proxy";
 
 const COOKIE_NAME = "sb-test-auth-token";
 const realFetch = globalThis.fetch;

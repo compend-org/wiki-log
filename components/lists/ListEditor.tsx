@@ -21,14 +21,18 @@ import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { addToList, createList, stageItem } from "@/app/actions";
-import ItemPicker from "@/components/ItemPicker";
-import ItemImage from "@/components/icons/ItemImage";
-import ListPager from "@/components/ListPager";
-import { track } from "@/lib/analytics";
-import { type EditorSnapshot, SavedListEditing } from "@/lib/listEditing";
-import { fetchListPage, LIST_PAGE_SIZE, pageCount } from "@/lib/listPages";
+import ItemImage from "@/components/items/ItemImage";
+import ItemPicker from "@/components/items/ItemPicker";
+import ListPager from "@/components/lists/ListPager";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { track } from "@/lib/analytics/analytics";
+import { type EditorSnapshot, SavedListEditing } from "@/lib/lists/listEditing";
+import {
+  fetchListPage,
+  LIST_PAGE_SIZE,
+  pageCount,
+} from "@/lib/lists/listPages";
 import { createClient } from "@/lib/supabase/client";
-import ConfirmDialog from "./ConfirmDialog";
 
 export type ListEntry = {
   itemId: string;

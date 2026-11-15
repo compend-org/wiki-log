@@ -1,6 +1,6 @@
 // ABOUTME: Loads the lists that include one item, most recently added first.
 // ABOUTME: Shown in the "In Lists" section of an item page, a page at a time.
-import { LIST_SELECT, type ListRow, type Thumb } from "@/lib/feedData";
+import { LIST_SELECT, type ListRow, type Thumb } from "@/lib/feed/feedData";
 import { type Keyset, olderThan, PAGE_SIZE, pageOf } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
 

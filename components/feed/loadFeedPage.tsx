@@ -1,8 +1,9 @@
 // ABOUTME: Loads one page of a home page feed and renders its cards for the viewer.
 // ABOUTME: Kept apart from Feed so server actions can use it without importing FeedPages.
 import type { ReactNode } from "react";
-import ListCard from "@/components/ListCard";
-import LogCard from "@/components/LogCard";
+import ListCard from "@/components/lists/ListCard";
+import LogCard from "@/components/logs/LogCard";
+import type { Sharer } from "@/components/logs/SharedLabel";
 import { FEATURES } from "@/lib/features";
 import {
   getFollowingFeed,
@@ -12,7 +13,7 @@ import {
   type LogRow,
   type PublicFeed,
   type Thumb,
-} from "@/lib/feedData";
+} from "@/lib/feed/feedData";
 import {
   type ColumnEnd,
   type FeedCursor,
@@ -22,7 +23,6 @@ import {
 import { aboutAdultItem, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
-import type { Sharer } from "./SharedLabel";
 
 export type FeedMode = "following" | "everyone" | "trending";
 

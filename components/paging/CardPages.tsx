@@ -13,7 +13,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import LoadMore from "@/components/LoadMore";
+import LoadMore from "@/components/paging/LoadMore";
 import type { Keyset } from "@/lib/paging";
 
 export type Card = { key: string; card: ReactNode };

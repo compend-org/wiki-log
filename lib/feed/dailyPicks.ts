@@ -2,9 +2,9 @@
 // ABOUTME: The result is cached in the shared remote cache for all server instances.
 import { createClient } from "@supabase/supabase-js";
 import { cacheLife, cacheTag } from "next/cache";
+import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/supabase/connection";
 import { reportFailedResponses } from "@/lib/supabase/reportFailedResponses";
-import { POSTS_CACHE_TAG } from "./cacheTags";
 
 export type Pick = {
   itemId: string;

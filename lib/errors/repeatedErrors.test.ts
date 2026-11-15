@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ErrorEvent } from "@sentry/nextjs";
-import { limitRepeatedErrors } from "./repeatedErrors";
+import { limitRepeatedErrors } from "@/lib/errors/repeatedErrors";
 
 function thrown(type: string, value: string): ErrorEvent {
   return { type: undefined, exception: { values: [{ type, value }] } };

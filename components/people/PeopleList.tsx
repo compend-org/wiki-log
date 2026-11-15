@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import AdminBadge from "@/components/AdminBadge";
-import Avatar from "@/components/Avatar";
-import PeopleTabs from "@/components/PeopleTabs";
-import { getAdminIds } from "@/lib/admin";
+import AdminBadge from "@/components/moderation/AdminBadge";
+import Avatar from "@/components/people/Avatar";
+import PeopleTabs from "@/components/people/PeopleTabs";
+import { getAdminIds } from "@/lib/admin/admin";
 import { createClient } from "@/lib/supabase/server";
 import { escapeLike, isValidName } from "@/lib/username";
 

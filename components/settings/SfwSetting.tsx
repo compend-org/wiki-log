@@ -4,10 +4,10 @@
 // ABOUTME: Saved to the account, and applied to this page as soon as it is chosen.
 
 import { useState } from "react";
-import { track } from "@/lib/analytics";
+import { track } from "@/lib/analytics/analytics";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import { applySfw, type SfwMode, setStoredSfw } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/client";
-import { useLocalCopy } from "@/lib/useLocalCopy";
 
 const OPTIONS: { value: SfwMode; label: string }[] = [
   { value: "off", label: "Off" },

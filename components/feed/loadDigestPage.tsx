@@ -1,8 +1,9 @@
 // ABOUTME: Loads one page of the Digest and renders its cards for the viewer.
 // ABOUTME: Kept apart from Digest so the server action can use it without importing DigestPages.
-import type { CardsPage } from "@/components/CardPages";
-import DigestCard from "@/components/DigestCard";
-import { getDigest } from "@/lib/digest";
+
+import DigestCard from "@/components/feed/DigestCard";
+import type { CardsPage } from "@/components/paging/CardPages";
+import { getDigest } from "@/lib/feed/digest";
 import { aboutAdultItem, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";

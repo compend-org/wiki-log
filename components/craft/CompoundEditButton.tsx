@@ -6,11 +6,11 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { type CompoundDetails, updateCompound } from "@/app/actions";
-import Dialog from "@/components/Dialog";
-import EditIcon from "@/components/icons/EditIcon";
+import Dialog from "@/components/ui/Dialog";
+import EditIcon from "@/components/ui/EditIcon";
 
 // The drawing window is only loaded once someone opens it
-const PaintEditor = dynamic(() => import("@/components/PaintEditor"), {
+const PaintEditor = dynamic(() => import("@/components/craft/PaintEditor"), {
   ssr: false,
 });
 

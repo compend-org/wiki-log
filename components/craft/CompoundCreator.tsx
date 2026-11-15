@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { createCompound } from "@/app/actions";
-import ItemPicker from "@/components/ItemPicker";
-import ItemImage from "@/components/icons/ItemImage";
-import PaintEditor from "@/components/PaintEditor";
-import { PAINT_SIZE } from "@/lib/paint";
-import { readPicture } from "@/lib/paintUpload";
+import PaintEditor from "@/components/craft/PaintEditor";
+import ItemImage from "@/components/items/ItemImage";
+import ItemPicker from "@/components/items/ItemPicker";
+import { PAINT_SIZE } from "@/lib/craft/paint";
+import { readPicture } from "@/lib/craft/paintUpload";
 
 type Part = { id: string; title: string; imageUrl: string | null };
 

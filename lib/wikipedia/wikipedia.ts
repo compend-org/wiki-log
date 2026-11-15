@@ -1,14 +1,18 @@
 // Item lookups on Wikipedia and Wikidata. Server-side only.
 
-import { BUSY_ERROR, readSummary, summaryUrl } from "@/lib/articleSummary";
 import { absolute, fileNameFromUrl, fileTitle, freeImage } from "@/lib/format";
 import { DEFAULT_LANG, LANGUAGES, type LangCode } from "@/lib/languages";
 import { EXPLICIT_CATEGORY } from "@/lib/sfw";
 import {
+  BUSY_ERROR,
+  readSummary,
+  summaryUrl,
+} from "@/lib/wikipedia/articleSummary";
+import {
   type Pause,
   sendWithinDeadline,
   WAIT_BUDGET_MS,
-} from "@/lib/wikimediaLimits";
+} from "@/lib/wikipedia/wikimediaLimits";
 
 // Wikimedia asks every client to identify itself, with a way to reach you
 const CONTACT = process.env.WIKI_CONTACT ?? "no contact set";

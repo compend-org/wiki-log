@@ -1,7 +1,7 @@
 // ABOUTME: Loads the comments on a review or list as whole threads, newest threads first.
 // ABOUTME: Shows the newest threads and how many older ones are left, past the API's row limit.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CommentItem } from "@/components/Comments";
+import type { CommentItem } from "@/components/social/Comments";
 import { chunks, fetchRows } from "@/lib/allRows";
 import { timeAgo } from "@/lib/format";
 

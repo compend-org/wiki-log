@@ -3,18 +3,18 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
-import LikeButton from "@/components/buttons/LikeButton";
-import ShareButton from "@/components/buttons/ShareButton";
-import CardActions from "@/components/CardActions";
-import ItemImage from "@/components/icons/ItemImage";
-import ShareIcon from "@/components/icons/ShareIcon";
-import Stars from "@/components/Stars";
-import UserName from "@/components/UserName";
-import type { LogRow } from "@/lib/feedData";
+import ItemImage from "@/components/items/ItemImage";
+import CardActions from "@/components/logs/CardActions";
+import CardCorner from "@/components/logs/CardCorner";
+import ReviewText from "@/components/logs/ReviewText";
+import SharedLabel, { type Sharer } from "@/components/logs/SharedLabel";
+import Stars from "@/components/logs/Stars";
+import UserName from "@/components/people/UserName";
+import LikeButton from "@/components/social/LikeButton";
+import ShareButton from "@/components/social/ShareButton";
+import ShareIcon from "@/components/social/ShareIcon";
+import type { LogRow } from "@/lib/feed/feedData";
 import { timeAgo } from "@/lib/format";
-import CardCorner from "./CardCorner";
-import ReviewText from "./ReviewText";
-import SharedLabel, { type Sharer } from "./SharedLabel";
 
 // The layout follows the width of the column the card sits in (the "@xl:"
 // variants), not the width of the screen

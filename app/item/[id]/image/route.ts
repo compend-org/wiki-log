@@ -6,7 +6,7 @@ import { absolute } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
 import { getItemForPage } from "@/lib/items";
 import { COLORS, stillImage } from "@/lib/shareImage";
-import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia";
+import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia/wikipedia";
 
 export async function GET(
   _request: Request,

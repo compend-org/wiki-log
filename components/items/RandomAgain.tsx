@@ -3,7 +3,7 @@
 // ABOUTME: Rolls another random article, shown on an article reached by a roll.
 // ABOUTME: Lets people keep rolling without going back to the home page.
 
-import { useRandomItem } from "@/lib/useRandomItem";
+import { useRandomItem } from "@/lib/hooks/useRandomItem";
 
 export default function RandomAgain() {
   const { goRandom, busy, error } = useRandomItem();

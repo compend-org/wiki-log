@@ -2,9 +2,9 @@
 // ABOUTME: Picks the board named in the address and shows it with links to the others.
 import Link from "next/link";
 import { connection } from "next/server";
-import ItemImage from "@/components/icons/ItemImage";
-import { getLeaderboard } from "@/lib/leaderboardData";
-import { LEADERBOARDS } from "@/lib/leaderboards";
+import ItemImage from "@/components/items/ItemImage";
+import { getLeaderboard } from "@/lib/feed/leaderboardData";
+import { LEADERBOARDS } from "@/lib/feed/leaderboards";
 
 export default async function Leaderboard({
   searchParams,

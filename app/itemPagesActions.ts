@@ -2,13 +2,13 @@
 // ABOUTME: Check what the browser sent, then render the page's cards for the viewer.
 "use server";
 
-import type { CardsPage } from "@/components/CardPages";
 import {
   loadItemListsPage,
   loadItemLogsPage,
   loadLikedReviewsPage,
   loadRatedReviewsPage,
-} from "@/components/loadItemPages";
+} from "@/components/items/loadItemPages";
+import type { CardsPage } from "@/components/paging/CardPages";
 import { ITEM_ID_PATTERN, isUuid } from "@/lib/ids";
 import { parseKeyset } from "@/lib/paging";
 import { parseRatingStep } from "@/lib/ratingHistogram";

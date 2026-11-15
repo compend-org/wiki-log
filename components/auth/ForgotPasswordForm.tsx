@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/Turnstile";
-import { track } from "@/lib/analytics";
+import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/auth/Turnstile";
+import { track } from "@/lib/analytics/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ForgotPasswordForm() {

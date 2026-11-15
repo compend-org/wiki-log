@@ -4,9 +4,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { track } from "@/lib/analytics";
+import { track } from "@/lib/analytics/analytics";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import { createClient } from "@/lib/supabase/client";
-import { useLocalCopy } from "@/lib/useLocalCopy";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
 
 export default function UsernameEditor({

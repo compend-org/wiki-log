@@ -1,6 +1,6 @@
 // ABOUTME: The "alex shared:" line above a shared log or list in the feed.
 // ABOUTME: The first sharer's name links to their profile and carries the admin badge.
-import UserName from "@/components/UserName";
+import UserName from "@/components/people/UserName";
 
 // Someone who shared a log or list. `name` is "You" when it's the viewer, and
 // null when their profile couldn't be read.

@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
-import ListEditor, { type ListEntry } from "@/components/ListEditor";
+import ListEditor, { type ListEntry } from "@/components/lists/ListEditor";
 import { isUuid } from "@/lib/ids";
-import { fetchListPage, pageCount, parsePage } from "@/lib/listPages";
+import { fetchListPage, pageCount, parsePage } from "@/lib/lists/listPages";
 import { loginHref } from "@/lib/redirect";
 import { createClient } from "@/lib/supabase/server";
 

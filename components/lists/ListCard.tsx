@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
-import ShareButton from "@/components/buttons/ShareButton";
-import CardActions from "@/components/CardActions";
-import ShareIcon from "@/components/icons/ShareIcon";
-import ListLikeButton from "@/components/ListLikeButton";
-import ListPreview from "@/components/ListPreview";
-import UserName from "@/components/UserName";
-import type { ListRow, Thumb } from "@/lib/feedData";
+import ListLikeButton from "@/components/lists/ListLikeButton";
+import ListPreview from "@/components/lists/ListPreview";
+import CardActions from "@/components/logs/CardActions";
+import SharedLabel, { type Sharer } from "@/components/logs/SharedLabel";
+import UserName from "@/components/people/UserName";
+import ShareButton from "@/components/social/ShareButton";
+import ShareIcon from "@/components/social/ShareIcon";
+import type { ListRow, Thumb } from "@/lib/feed/feedData";
 import { timeAgo } from "@/lib/format";
-import SharedLabel, { type Sharer } from "./SharedLabel";
 
 export default async function ListCard({
   list: l,

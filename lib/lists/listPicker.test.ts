@@ -2,7 +2,7 @@
 // ABOUTME: Covers adding a later page without showing a list twice.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { appendLists } from "./listPicker";
+import { appendLists } from "@/lib/lists/listPicker";
 
 const list = (id: string) => ({
   id,

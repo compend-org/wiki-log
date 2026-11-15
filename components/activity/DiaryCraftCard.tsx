@@ -4,10 +4,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import CompoundDeleteButton from "@/components/buttons/CompoundDeleteButton";
-import CompoundEditButton from "@/components/buttons/CompoundEditButton";
-import ItemImage from "@/components/icons/ItemImage";
-import { useLocalCopy } from "@/lib/useLocalCopy";
+import CompoundDeleteButton from "@/components/craft/CompoundDeleteButton";
+import CompoundEditButton from "@/components/craft/CompoundEditButton";
+import ItemImage from "@/components/items/ItemImage";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 
 export default function DiaryCraftCard({
   itemId,

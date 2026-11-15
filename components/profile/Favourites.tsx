@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { removeFavourite, setFavourite } from "@/app/actions";
-import ItemPicker from "@/components/ItemPicker";
-import ItemImage from "@/components/icons/ItemImage";
-import { track } from "@/lib/analytics";
+import ItemImage from "@/components/items/ItemImage";
+import ItemPicker from "@/components/items/ItemPicker";
+import { track } from "@/lib/analytics/analytics";
 
 export type Slot = {
   itemId: string;

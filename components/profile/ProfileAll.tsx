@@ -4,11 +4,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { loadMoreProfileAll } from "@/app/profileActions";
-import CardPages from "@/components/CardPages";
+import CardPages from "@/components/paging/CardPages";
 import {
   loadProfilePage,
   type ProfileKind,
-} from "@/components/loadProfilePage";
+} from "@/components/profile/loadProfilePage";
 import { getProfileByName } from "@/lib/profiles";
 
 export default async function ProfileAll({

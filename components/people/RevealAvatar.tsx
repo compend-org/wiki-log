@@ -3,7 +3,7 @@
 "use client";
 
 import { useState } from "react";
-import Avatar from "@/components/Avatar";
+import Avatar from "@/components/people/Avatar";
 
 export default function RevealAvatar({ path }: { path: string | null }) {
   const [shown, setShown] = useState<boolean>(false);

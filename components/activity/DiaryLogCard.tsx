@@ -4,13 +4,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import DeleteButton from "@/components/buttons/DeleteButton";
-import EditEntryForm from "@/components/EditEntryForm";
-import EditIcon from "@/components/icons/EditIcon";
-import ItemImage from "@/components/icons/ItemImage";
-import ReviewText from "@/components/ReviewText";
-import Stars from "@/components/Stars";
-import { useLocalCopy } from "@/lib/useLocalCopy";
+import ItemImage from "@/components/items/ItemImage";
+import DeleteButton from "@/components/logs/DeleteButton";
+import EditEntryForm from "@/components/logs/EditEntryForm";
+import ReviewText from "@/components/logs/ReviewText";
+import Stars from "@/components/logs/Stars";
+import EditIcon from "@/components/ui/EditIcon";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 
 export default function DiaryLogCard({
   logId,

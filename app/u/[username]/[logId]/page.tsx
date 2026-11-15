@@ -2,21 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
-import AdminBadge from "@/components/AdminBadge";
-import AlsoLiked from "@/components/AlsoLiked";
-import Avatar from "@/components/Avatar";
-import LikeButton from "@/components/buttons/LikeButton";
-import ReportButton from "@/components/buttons/ReportButton";
-import ShareButton from "@/components/buttons/ShareButton";
-import ShareImageButton from "@/components/buttons/ShareImageButton";
-import Comments from "@/components/Comments";
-import ItemImage from "@/components/icons/ItemImage";
-import OwnerControls from "@/components/OwnerControls";
-import RemovedNotice from "@/components/RemovedNotice";
-import ReviewText from "@/components/ReviewText";
-import Stars from "@/components/Stars";
-import { getAdminIds } from "@/lib/admin";
-import { getAlsoLiked } from "@/lib/alsoLiked";
+import AlsoLiked from "@/components/items/AlsoLiked";
+import ItemImage from "@/components/items/ItemImage";
+import OwnerControls from "@/components/logs/OwnerControls";
+import RemovedNotice from "@/components/logs/RemovedNotice";
+import ReviewText from "@/components/logs/ReviewText";
+import Stars from "@/components/logs/Stars";
+import AdminBadge from "@/components/moderation/AdminBadge";
+import ReportButton from "@/components/moderation/ReportButton";
+import Avatar from "@/components/people/Avatar";
+import Comments from "@/components/social/Comments";
+import LikeButton from "@/components/social/LikeButton";
+import ShareButton from "@/components/social/ShareButton";
+import ShareImageButton from "@/components/social/ShareImageButton";
+import { getAdminIds } from "@/lib/admin/admin";
 import { withoutBlockedComments } from "@/lib/blocks";
 import {
   fetchCommentThreads,
@@ -25,6 +24,7 @@ import {
   threadsHref,
   toCommentItems,
 } from "@/lib/comments";
+import { getAlsoLiked } from "@/lib/feed/alsoLiked";
 import { starText, timeAgo } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { likeKey } from "@/lib/likes";

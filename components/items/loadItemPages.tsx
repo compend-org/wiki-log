@@ -1,16 +1,17 @@
 // ABOUTME: Loads the paged sections about one item a page at a time, rendered as cards:
 // ABOUTME: its reviews, the lists that include it, and the reviews of it one person liked.
-import type { CardsPage } from "@/components/CardPages";
-import ItemLogCard from "@/components/ItemLogCard";
-import ListCard from "@/components/ListCard";
-import { getAdminIds } from "@/lib/admin";
-import { getItemLists, type ItemListRow } from "@/lib/itemLists";
+
+import ListCard from "@/components/lists/ListCard";
+import ItemLogCard from "@/components/logs/ItemLogCard";
+import type { CardsPage } from "@/components/paging/CardPages";
+import { getAdminIds } from "@/lib/admin/admin";
 import {
   getItemLogs,
   getItemLogsLikedBy,
   getItemLogsRated,
   type ItemLogRow,
 } from "@/lib/itemLogs";
+import { getItemLists, type ItemListRow } from "@/lib/lists/itemLists";
 import type { Keyset } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState, type ViewerState } from "@/lib/viewerState";

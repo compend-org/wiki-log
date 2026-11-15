@@ -12,7 +12,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import PixelIcon, { type PixelIconName } from "@/components/icons/PaintIcons";
+import PixelIcon, { type PixelIconName } from "@/components/craft/PaintIcons";
 import {
   type Bitmap,
   BLACK,
@@ -39,7 +39,7 @@ import {
   spray,
   strokeLine,
   WHITE,
-} from "@/lib/paint";
+} from "@/lib/craft/paint";
 import {
   fitInside,
   flipRegionHorizontal,
@@ -47,14 +47,14 @@ import {
   invertRegion,
   limitColors,
   rotateRegion,
-} from "@/lib/paintRegion";
+} from "@/lib/craft/paintRegion";
 import {
   copyRegion,
   fillRegion,
   pasteRegion,
   type Region,
   regionBetween,
-} from "@/lib/paintSelection";
+} from "@/lib/craft/paintSelection";
 
 const TOOLS = [
   [

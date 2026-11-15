@@ -2,12 +2,12 @@
 // ABOUTME: Checks what the browser sent and who is signed in, then renders the page's cards.
 "use server";
 
-import type { CardsPage } from "@/components/CardPages";
 import {
   type DiaryCursor,
   loadDiaryPage,
   parseDiaryCursor,
-} from "@/components/loadDiaryPage";
+} from "@/components/activity/loadDiaryPage";
+import type { CardsPage } from "@/components/paging/CardPages";
 import { createClient } from "@/lib/supabase/server";
 
 export async function loadMoreDiary(

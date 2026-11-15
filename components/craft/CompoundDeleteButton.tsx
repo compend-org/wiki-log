@@ -5,9 +5,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { deleteCompound } from "@/app/actions";
-import { useRemoveCard } from "@/components/CardPages";
-import ConfirmDialog from "@/components/ConfirmDialog";
-import DeleteIcon from "@/components/icons/DeleteIcon";
+import { useRemoveCard } from "@/components/paging/CardPages";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import DeleteIcon from "@/components/ui/DeleteIcon";
 
 export default function CompoundDeleteButton({
   id,

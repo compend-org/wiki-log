@@ -5,7 +5,7 @@ import {
   type AdminPost as Post,
   postHref,
   type ReportKind,
-} from "@/lib/adminReports";
+} from "@/lib/admin/adminReports";
 import { plainReview, timeAgo } from "@/lib/format";
 
 const KIND_LABELS: Record<ReportKind, string> = {

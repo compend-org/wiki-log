@@ -2,9 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
-import EditEntryForm from "@/components/EditEntryForm";
-import DeleteButton from "./buttons/DeleteButton";
-import EditIcon from "./icons/EditIcon";
+import DeleteButton from "@/components/logs/DeleteButton";
+import EditEntryForm from "@/components/logs/EditEntryForm";
+import EditIcon from "@/components/ui/EditIcon";
 
 export default function OwnerControls({
   logId,

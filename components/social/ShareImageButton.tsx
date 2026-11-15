@@ -3,8 +3,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import ExternalShareIcon from "@/components/icons/ExternalShareIcon";
-import { track } from "@/lib/analytics";
+import ExternalShareIcon from "@/components/social/ExternalShareIcon";
+import { track } from "@/lib/analytics/analytics";
 
 export default function ShareImageButton({
   imageHref,

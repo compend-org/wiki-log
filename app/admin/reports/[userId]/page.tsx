@@ -12,13 +12,13 @@ import {
   setReportStatus,
   warnUser,
 } from "@/app/admin/reports/actions";
-import AdminBadge from "@/components/AdminBadge";
-import AdminPost from "@/components/AdminPost";
-import BanButton from "@/components/buttons/BanButton";
-import ModerationButton from "@/components/buttons/ModerationButton";
-import ReportStatusButtons from "@/components/buttons/ReportStatusButtons";
-import SuspendButton from "@/components/buttons/SuspendButton";
-import RevealAvatar from "@/components/RevealAvatar";
+import AdminBadge from "@/components/moderation/AdminBadge";
+import AdminPost from "@/components/moderation/AdminPost";
+import BanButton from "@/components/moderation/BanButton";
+import ModerationButton from "@/components/moderation/ModerationButton";
+import ReportStatusButtons from "@/components/moderation/ReportStatusButtons";
+import SuspendButton from "@/components/moderation/SuspendButton";
+import RevealAvatar from "@/components/people/RevealAvatar";
 import {
   type AdminPost as AdminPostData,
   combinedStatus,
@@ -28,7 +28,7 @@ import {
   type ModerationAction,
   type PostKind,
   type ReportedAccount,
-} from "@/lib/adminReports";
+} from "@/lib/admin/adminReports";
 import { timeAgo } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 

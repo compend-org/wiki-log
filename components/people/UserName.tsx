@@ -1,9 +1,9 @@
 // ABOUTME: A person's username linked to their profile, followed by the admin badge if they are one.
 // ABOUTME: Renders as sibling elements so it can sit inside a flex row of card metadata.
 import Link from "next/link";
-import AdminBadge from "@/components/AdminBadge";
-import Avatar from "@/components/Avatar";
-import { getAdminIds } from "@/lib/admin";
+import AdminBadge from "@/components/moderation/AdminBadge";
+import Avatar from "@/components/people/Avatar";
+import { getAdminIds } from "@/lib/admin/admin";
 
 // Shows the person's picture before their name when `avatarPath` is given
 // (null means they have no picture and get the default one).

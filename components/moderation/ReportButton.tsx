@@ -2,11 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
-import Dialog from "@/components/Dialog";
-import { track } from "@/lib/analytics";
-import { REPORT_REASONS } from "@/lib/moderation";
+import Dialog from "@/components/ui/Dialog";
+import { REPORT_REASONS } from "@/lib/admin/moderation";
+import { track } from "@/lib/analytics/analytics";
+import { useLoginHref } from "@/lib/hooks/useLoginHref";
 import { createClient } from "@/lib/supabase/client";
-import { useLoginHref } from "@/lib/useLoginHref";
 
 // Lets a signed-in person flag a review, list, comment or account for the admins
 export default function ReportButton({

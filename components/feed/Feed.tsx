@@ -2,8 +2,8 @@
 // ABOUTME: Renders the first page on the server; FeedPages adds later pages below.
 import Link from "next/link";
 import { connection } from "next/server";
-import FeedPages from "@/components/FeedPages";
-import { type FeedMode, loadFeedPage } from "@/components/loadFeedPage";
+import FeedPages from "@/components/feed/FeedPages";
+import { type FeedMode, loadFeedPage } from "@/components/feed/loadFeedPage";
 import { FIRST_PAGE } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
 

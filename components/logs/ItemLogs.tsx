@@ -4,10 +4,10 @@
 import { connection } from "next/server";
 import { Fragment } from "react";
 import { loadMoreItemLogs } from "@/app/itemPagesActions";
-import CardPages from "@/components/CardPages";
-import ItemLogSummary from "@/components/ItemLogSummary";
-import { renderItemLogCards } from "@/components/loadItemPages";
-import { getAdminIds } from "@/lib/admin";
+import { renderItemLogCards } from "@/components/items/loadItemPages";
+import ItemLogSummary from "@/components/logs/ItemLogSummary";
+import CardPages from "@/components/paging/CardPages";
+import { getAdminIds } from "@/lib/admin/admin";
 import type { ItemLogRow } from "@/lib/itemLogs";
 import { getItemRatings } from "@/lib/itemRatings";
 import type { Keyset } from "@/lib/paging";

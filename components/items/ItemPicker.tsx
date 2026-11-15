@@ -4,19 +4,19 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { SavedResult } from "@/app/api/search-results/route";
-import Avatar from "@/components/Avatar";
-import ItemPicture from "@/components/ItemPicture";
-import LanguagePicker from "@/components/LanguagePicker";
+import ItemPicture from "@/components/items/ItemPicture";
+import Avatar from "@/components/people/Avatar";
+import LanguagePicker from "@/components/settings/LanguagePicker";
+import { FEATURES } from "@/lib/features";
+import { fileNameFromUrl, fileTitle, freeImage } from "@/lib/format";
+import { useDropdownRoom } from "@/lib/hooks/useDropdownRoom";
+import { useSfwMode } from "@/lib/hooks/useSfwMode";
+import { DEFAULT_LANG, isLang, type LangCode } from "@/lib/languages";
 import {
   explicitCommonsFiles,
   findItemId,
   searchTitles,
-} from "@/lib/browserWikipedia";
-import { FEATURES } from "@/lib/features";
-import { fileNameFromUrl, fileTitle, freeImage } from "@/lib/format";
-import { DEFAULT_LANG, isLang, type LangCode } from "@/lib/languages";
-import { useDropdownRoom } from "@/lib/useDropdownRoom";
-import { useSfwMode } from "@/lib/useSfwMode";
+} from "@/lib/wikipedia/browserWikipedia";
 
 type Hit = {
   key: string;

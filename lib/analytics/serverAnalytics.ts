@@ -7,7 +7,7 @@ import {
   ANALYTICS_TOKEN,
   type AnalyticsEventArgs,
   type AnalyticsEventName,
-} from "@/lib/analyticsEvents";
+} from "@/lib/analytics/analyticsEvents";
 
 export function trackForPerson<K extends AnalyticsEventName>(
   userId: string,

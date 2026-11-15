@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import SignOutButton from "@/components/buttons/SignOutButton";
+import SignOutButton from "@/components/auth/SignOutButton";
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;

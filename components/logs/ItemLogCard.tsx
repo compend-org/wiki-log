@@ -1,12 +1,12 @@
 // ABOUTME: One log of an item as a card: author, stars, time, review text and actions.
 // ABOUTME: The card links to the review's own page, with like, share and comment actions.
 import Link from "next/link";
-import AdminBadge from "@/components/AdminBadge";
-import LikeButton from "@/components/buttons/LikeButton";
-import ShareButton from "@/components/buttons/ShareButton";
-import CardActions from "@/components/CardActions";
-import ReviewText from "@/components/ReviewText";
-import Stars from "@/components/Stars";
+import CardActions from "@/components/logs/CardActions";
+import ReviewText from "@/components/logs/ReviewText";
+import Stars from "@/components/logs/Stars";
+import AdminBadge from "@/components/moderation/AdminBadge";
+import LikeButton from "@/components/social/LikeButton";
+import ShareButton from "@/components/social/ShareButton";
 import { timeAgo } from "@/lib/format";
 import type { ItemLogRow } from "@/lib/itemLogs";
 import type { ViewerState } from "@/lib/viewerState";

@@ -4,8 +4,8 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import Avatar from "@/components/Avatar";
-import { track } from "@/lib/analytics";
+import Avatar from "@/components/people/Avatar";
+import { track } from "@/lib/analytics/analytics";
 import { AVATAR_SIZE, AVATAR_SMALL_SIZE, smallAvatarPath } from "@/lib/avatar";
 import { createClient } from "@/lib/supabase/client";
 

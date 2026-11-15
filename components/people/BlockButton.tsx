@@ -4,10 +4,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import Dialog from "@/components/Dialog";
-import { track } from "@/lib/analytics";
+import Dialog from "@/components/ui/Dialog";
+import { track } from "@/lib/analytics/analytics";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import { createClient } from "@/lib/supabase/client";
-import { useLocalCopy } from "@/lib/useLocalCopy";
 
 export default function BlockButton({
   viewerId,

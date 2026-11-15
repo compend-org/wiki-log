@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as Sentry from "@sentry/nextjs";
-import { IGNORED_BROWSER_ERRORS } from "./ignoredBrowserErrors";
+import { IGNORED_BROWSER_ERRORS } from "@/lib/errors/ignoredBrowserErrors";
 
 const sent: string[] = [];
 Sentry.init({

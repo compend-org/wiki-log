@@ -4,9 +4,9 @@
 // ABOUTME: The first page comes from the server; each later page that loads is counted for analytics.
 
 import { loadMoreDigest } from "@/app/digestActions";
-import CardPages from "@/components/CardPages";
-import type { DigestPage } from "@/components/loadDigestPage";
-import { track } from "@/lib/analytics";
+import type { DigestPage } from "@/components/feed/loadDigestPage";
+import CardPages from "@/components/paging/CardPages";
+import { track } from "@/lib/analytics/analytics";
 
 export default function DigestPages({ first }: { first: DigestPage }) {
   return (

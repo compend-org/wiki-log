@@ -1,14 +1,14 @@
 // ABOUTME: One long review in the Digest tab, shown in full.
 // ABOUTME: The whole card opens the review; the links and buttons on it work on their own.
 import Link from "next/link";
-import LikeButton from "@/components/buttons/LikeButton";
-import ShareButton from "@/components/buttons/ShareButton";
-import CardActions from "@/components/CardActions";
-import ItemImage from "@/components/icons/ItemImage";
-import ReviewText from "@/components/ReviewText";
-import Stars from "@/components/Stars";
-import UserName from "@/components/UserName";
-import type { DigestLog } from "@/lib/digest";
+import ItemImage from "@/components/items/ItemImage";
+import CardActions from "@/components/logs/CardActions";
+import ReviewText from "@/components/logs/ReviewText";
+import Stars from "@/components/logs/Stars";
+import UserName from "@/components/people/UserName";
+import LikeButton from "@/components/social/LikeButton";
+import ShareButton from "@/components/social/ShareButton";
+import type { DigestLog } from "@/lib/feed/digest";
 import { timeAgo } from "@/lib/format";
 
 export default function DigestCard({

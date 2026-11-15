@@ -8,7 +8,7 @@ import {
   gapLabel,
   postHref,
   reportedSoonAfterJoining,
-} from "./adminReports";
+} from "@/lib/admin/adminReports";
 
 test("a post links to the public page it appears on", () => {
   assert.equal(

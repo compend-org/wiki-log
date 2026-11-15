@@ -2,7 +2,10 @@
 // ABOUTME: Wikimedia's responses are stubbed.
 import assert from "node:assert/strict";
 import { afterEach, mock, test } from "node:test";
-import { explicitCommonsFiles, searchTitles } from "./browserWikipedia";
+import {
+  explicitCommonsFiles,
+  searchTitles,
+} from "@/lib/wikipedia/browserWikipedia";
 
 afterEach(() => mock.restoreAll());
 

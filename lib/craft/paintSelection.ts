@@ -1,6 +1,6 @@
 // ABOUTME: Pixel operations for the paint editor's rectangular selection: copy a region, clear it, paste it back.
 // ABOUTME: Regions may hang over the picture's edges; whatever is outside is left out.
-import { type Bitmap, PAINT_SIZE, type Rgb } from "@/lib/paint";
+import { type Bitmap, PAINT_SIZE, type Rgb } from "@/lib/craft/paint";
 
 export type Region = { x: number; y: number; w: number; h: number };
 

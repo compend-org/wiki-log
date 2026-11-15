@@ -1,11 +1,11 @@
 // ABOUTME: Loads a person's diary a page at a time: their logs, lists, replies and compounds together, newest first.
 // ABOUTME: Kept apart from the diary page so the server action for later pages can use it too.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Card, CardsPage } from "@/components/CardPages";
-import DiaryCraftCard from "@/components/DiaryCraftCard";
-import DiaryListCard from "@/components/DiaryListCard";
-import DiaryLogCard from "@/components/DiaryLogCard";
-import DiaryReplyCard from "@/components/DiaryReplyCard";
+import DiaryCraftCard from "@/components/activity/DiaryCraftCard";
+import DiaryListCard from "@/components/activity/DiaryListCard";
+import DiaryLogCard from "@/components/activity/DiaryLogCard";
+import DiaryReplyCard from "@/components/activity/DiaryReplyCard";
+import type { Card, CardsPage } from "@/components/paging/CardPages";
 import { FEATURES } from "@/lib/features";
 import { timeAgo } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";

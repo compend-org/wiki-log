@@ -4,7 +4,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { fileTitle, shownImage } from "@/lib/format";
 import { ITEM_ID_PATTERN } from "@/lib/ids";
 import { createPublicClient } from "@/lib/supabase/public";
-import { badImages } from "@/lib/wikipedia";
+import { badImages } from "@/lib/wikipedia/wikipedia";
 
 // More than a page of search results ever asks about
 const MAX_ASKED = 20;

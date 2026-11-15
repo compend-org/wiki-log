@@ -2,7 +2,7 @@
 // ABOUTME: Covers each browser's wording and errors that aren't about the connection.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { isConnectionError } from "./connectionError";
+import { isConnectionError } from "@/lib/errors/connectionError";
 
 test("recognises each browser's failed fetch", () => {
   assert.ok(isConnectionError(new TypeError("network error")));

@@ -3,9 +3,9 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { track } from "@/lib/analytics";
+import { track } from "@/lib/analytics/analytics";
+import { isMissingLogError } from "@/lib/errors/missingLogError";
 import { isLogUnavailable, markLogUnavailable } from "@/lib/logAvailability";
-import { isMissingLogError } from "@/lib/missingLogError";
 import { createClient } from "@/lib/supabase/client";
 
 const UNIQUE_VIOLATION = "23505";

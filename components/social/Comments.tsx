@@ -3,16 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import CommentLikeButton from "@/components/buttons/CommentLikeButton";
-import ReportButton from "@/components/buttons/ReportButton";
-import ReviewText from "@/components/ReviewText";
-import { track } from "@/lib/analytics";
+import ReviewText from "@/components/logs/ReviewText";
+import ReviewTextarea from "@/components/logs/ReviewTextArea";
+import AdminBadge from "@/components/moderation/AdminBadge";
+import ReportButton from "@/components/moderation/ReportButton";
+import CommentLikeButton from "@/components/social/CommentLikeButton";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { track } from "@/lib/analytics/analytics";
 import { mentionToken } from "@/lib/format";
+import { useLoginHref } from "@/lib/hooks/useLoginHref";
 import { createClient } from "@/lib/supabase/client";
-import { useLoginHref } from "@/lib/useLoginHref";
-import AdminBadge from "./AdminBadge";
-import ConfirmDialog from "./ConfirmDialog";
-import ReviewTextarea from "./ReviewTextArea";
 
 export type CommentItem = {
   id: string;

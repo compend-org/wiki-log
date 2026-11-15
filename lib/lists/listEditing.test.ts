@@ -8,8 +8,8 @@ import {
   type EditorSnapshot,
   SavedListEditing,
   UNREACHABLE,
-} from "./listEditing";
-import { LIST_PAGE_SIZE } from "./listPages";
+} from "@/lib/lists/listEditing";
+import { LIST_PAGE_SIZE } from "@/lib/lists/listPages";
 
 function entry(id: string): EditorEntry {
   return { itemId: id, title: id, imageUrl: null };

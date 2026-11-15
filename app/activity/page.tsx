@@ -4,9 +4,9 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { loadMoreDiary } from "@/app/diaryActions";
 import { loadMoreLikes } from "@/app/likesActions";
-import CardPages from "@/components/CardPages";
-import { loadDiaryPage } from "@/components/loadDiaryPage";
-import { loadLikesPage } from "@/components/loadLikesPage";
+import { loadDiaryPage } from "@/components/activity/loadDiaryPage";
+import { loadLikesPage } from "@/components/activity/loadLikesPage";
+import CardPages from "@/components/paging/CardPages";
 import { loginHref } from "@/lib/redirect";
 import { createClient } from "@/lib/supabase/server";
 

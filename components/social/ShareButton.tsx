@@ -4,18 +4,18 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import ShareIcon from "@/components/icons/ShareIcon";
-import { track } from "@/lib/analytics";
+import ShareIcon from "@/components/social/ShareIcon";
+import { track } from "@/lib/analytics/analytics";
+import { isMissingLogError } from "@/lib/errors/missingLogError";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
+import { useLoginHref } from "@/lib/hooks/useLoginHref";
 import {
   isLogUnavailable,
   MISSING_LOG_MESSAGE,
   markLogUnavailable,
   useLogUnavailable,
 } from "@/lib/logAvailability";
-import { isMissingLogError } from "@/lib/missingLogError";
 import { createClient } from "@/lib/supabase/client";
-import { useLocalCopy } from "@/lib/useLocalCopy";
-import { useLoginHref } from "@/lib/useLoginHref";
 
 // Shares (reposts) a review or a list to the people who follow you
 export default function ShareButton({

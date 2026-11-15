@@ -1,7 +1,7 @@
 // ABOUTME: Fetches the signed-in person's latest notifications with what their cards show,
 // ABOUTME: and keeps the last result in the browser so the notifications page opens with it.
-import { MOSAIC_SIZE } from "@/components/NotificationThumb";
-import type { Thumb } from "@/lib/feedData";
+import { MOSAIC_SIZE } from "@/components/social/NotificationThumb";
+import type { Thumb } from "@/lib/feed/feedData";
 import { shownImage } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 

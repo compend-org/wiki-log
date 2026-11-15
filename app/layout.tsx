@@ -3,11 +3,11 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "flag-icons/css/flag-icons.min.css";
 import { Suspense } from "react";
-import Footer from "@/components/Footer";
-import Nav from "@/components/Nav";
-import NavAccount from "@/components/NavAccount";
-import { NavAccountPlaceholder } from "@/components/NavAccountLinks";
-import ScrollToTop from "@/components/ScrollToTop";
+import Footer from "@/components/layout/Footer";
+import Nav from "@/components/layout/Nav";
+import NavAccount from "@/components/layout/NavAccount";
+import { NavAccountPlaceholder } from "@/components/layout/NavAccountLinks";
+import ScrollToTop from "@/components/layout/ScrollToTop";
 import { iphoneViewportScript } from "@/lib/iphoneViewport";
 import { sfwInitScript } from "@/lib/sfw";
 import {

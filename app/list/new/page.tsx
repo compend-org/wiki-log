@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import ListEditor from "@/components/ListEditor";
+import ListEditor from "@/components/lists/ListEditor";
 import { loginHref } from "@/lib/redirect";
 import { createClient } from "@/lib/supabase/server";
 

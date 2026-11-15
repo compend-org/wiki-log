@@ -2,9 +2,9 @@
 // ABOUTME: Shows the lists that include the item as cards, most recently added first.
 
 import { loadMoreItemLists } from "@/app/itemPagesActions";
-import CardPages from "@/components/CardPages";
-import { renderItemListCards } from "@/components/loadItemPages";
-import type { ItemListRow } from "@/lib/itemLists";
+import { renderItemListCards } from "@/components/items/loadItemPages";
+import CardPages from "@/components/paging/CardPages";
+import type { ItemListRow } from "@/lib/lists/itemLists";
 import type { Keyset } from "@/lib/paging";
 import type { ViewerState } from "@/lib/viewerState";
 

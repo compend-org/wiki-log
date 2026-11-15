@@ -2,8 +2,8 @@
 // ABOUTME: An adult flag, once set, survives lookups that find nothing adult.
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { ItemData } from "@/lib/wikipedia/wikipedia";
 import { itemColumns } from "./items";
-import type { ItemData } from "./wikipedia";
 
 const item: ItemData = {
   id: "Q8398",

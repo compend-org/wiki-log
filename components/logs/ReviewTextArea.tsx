@@ -1,9 +1,9 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
-import ItemPicker from "@/components/ItemPicker";
-import PersonPicker from "@/components/PersonPicker";
-import { LINK_COLOR } from "@/components/ReviewText";
+import ItemPicker from "@/components/items/ItemPicker";
+import { LINK_COLOR } from "@/components/logs/ReviewText";
+import PersonPicker from "@/components/people/PersonPicker";
 import {
   type Draft,
   findChange,

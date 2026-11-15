@@ -21,13 +21,13 @@ import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { addToList } from "@/app/actions";
-import ItemImage from "@/components/icons/ItemImage";
-import { track } from "@/lib/analytics";
+import ItemImage from "@/components/items/ItemImage";
+import { track } from "@/lib/analytics/analytics";
 import {
   appendLists,
   fetchPickerLists,
   type PickerList,
-} from "@/lib/listPicker";
+} from "@/lib/lists/listPicker";
 import { createClient } from "@/lib/supabase/client";
 
 // Up to this many items, the new one is dragged into place among them;

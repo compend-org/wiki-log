@@ -1,6 +1,6 @@
 // ABOUTME: Leaves comments by people the viewer has blocked out of what the
 // ABOUTME: viewer sees.
-import type { CommentItem } from "@/components/Comments";
+import type { CommentItem } from "@/components/social/Comments";
 
 // Comments without those by blocked people, and without the replies under a
 // top-level comment that was left out

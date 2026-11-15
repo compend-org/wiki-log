@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { deleteAccount } from "@/app/actions";
-import { track } from "@/lib/analytics";
+import { track } from "@/lib/analytics/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export default function DeleteAccount({ username }: { username: string }) {

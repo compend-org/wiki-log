@@ -2,11 +2,11 @@
 // ABOUTME: Checks what the browser sent, then renders the page's cards for the viewer.
 "use server";
 
-import type { CardsPage } from "@/components/CardPages";
+import type { CardsPage } from "@/components/paging/CardPages";
 import {
   loadProfilePage,
   type ProfileKind,
-} from "@/components/loadProfilePage";
+} from "@/components/profile/loadProfilePage";
 import { isUuid } from "@/lib/ids";
 import { parseKeyset } from "@/lib/paging";
 import { parseRatingStep } from "@/lib/ratingHistogram";

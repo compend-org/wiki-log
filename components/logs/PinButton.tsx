@@ -2,10 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { track } from "@/lib/analytics";
+import PinIcon from "@/components/logs/PinIcon";
+import { track } from "@/lib/analytics/analytics";
+import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import { createClient } from "@/lib/supabase/client";
-import { useLocalCopy } from "@/lib/useLocalCopy";
-import PinIcon from "../icons/PinIcon";
 
 export default function PinButton({
   userId,

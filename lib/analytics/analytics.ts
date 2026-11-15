@@ -5,7 +5,7 @@ import {
   ANALYTICS_TOKEN,
   type AnalyticsEventArgs,
   type AnalyticsEventName,
-} from "@/lib/analyticsEvents";
+} from "@/lib/analytics/analyticsEvents";
 
 export function track<K extends AnalyticsEventName>(
   name: K,

@@ -1,7 +1,7 @@
 // ABOUTME: Starts Sentry on the server when a Next.js server instance boots.
 // ABOUTME: Also reports errors thrown while handling a request.
 import * as Sentry from "@sentry/nextjs";
-import { limitRepeatedErrors } from "@/lib/repeatedErrors";
+import { limitRepeatedErrors } from "@/lib/errors/repeatedErrors";
 
 export function register() {
   Sentry.init({

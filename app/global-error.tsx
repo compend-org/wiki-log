@@ -3,7 +3,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { reportPageError } from "@/lib/reportPageError";
+import { reportPageError } from "@/lib/errors/reportPageError";
 
 export default function GlobalError({
   error,

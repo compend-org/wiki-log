@@ -2,7 +2,7 @@
 // ABOUTME: Reached by clicking the Reviews heading on their profile.
 import type { Metadata } from "next";
 import { connection } from "next/server";
-import ProfileAll from "@/components/ProfileAll";
+import ProfileAll from "@/components/profile/ProfileAll";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 

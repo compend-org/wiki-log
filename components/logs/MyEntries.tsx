@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import RatingInput from "@/components/RatingInput";
-import Stars from "@/components/Stars";
-import { track } from "@/lib/analytics";
+import DeleteButton from "@/components/logs/DeleteButton";
+import RatingInput from "@/components/logs/RatingInput";
+import ReviewText from "@/components/logs/ReviewText";
+import ReviewTextarea from "@/components/logs/ReviewTextArea";
+import Stars from "@/components/logs/Stars";
+import EditIcon from "@/components/ui/EditIcon";
+import { track } from "@/lib/analytics/analytics";
 import { updateLog } from "@/lib/logs";
-import DeleteButton from "./buttons/DeleteButton";
-import EditIcon from "./icons/EditIcon";
-import ReviewText from "./ReviewText";
-import ReviewTextarea from "./ReviewTextArea";
 
 export type MyEntry = {
   id: string;

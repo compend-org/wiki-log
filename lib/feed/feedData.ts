@@ -2,6 +2,7 @@
 // ABOUTME: Everyone and Trending are the same for every visitor, so they are cached remotely.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cacheLife, cacheTag } from "next/cache";
+import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
 import { shownImage } from "@/lib/format";
 import {
   type ColumnCursor,
@@ -15,7 +16,6 @@ import {
 } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
 import { createPublicClient } from "@/lib/supabase/public";
-import { POSTS_CACHE_TAG } from "./cacheTags";
 
 export type LogRow = {
   id: string;

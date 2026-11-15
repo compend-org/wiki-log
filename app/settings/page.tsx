@@ -2,14 +2,16 @@
 // ABOUTME: Loads everything on the server first, so the page arrives complete.
 import Link from "next/link";
 import { connection } from "next/server";
-import AvatarUpload from "@/components/AvatarUpload";
-import BioEditor from "@/components/BioEditor";
-import BlockedPeople, { type BlockedPerson } from "@/components/BlockedPeople";
-import DeleteAccount from "@/components/DeleteAccount";
-import EmailVerification from "@/components/EmailVerification";
-import SfwSetting from "@/components/SfwSetting";
-import ThemeSetting from "@/components/ThemeSetting";
-import UsernameEditor from "@/components/UsernameEditor";
+import EmailVerification from "@/components/auth/EmailVerification";
+import AvatarUpload from "@/components/settings/AvatarUpload";
+import BioEditor from "@/components/settings/BioEditor";
+import BlockedPeople, {
+  type BlockedPerson,
+} from "@/components/settings/BlockedPeople";
+import DeleteAccount from "@/components/settings/DeleteAccount";
+import SfwSetting from "@/components/settings/SfwSetting";
+import ThemeSetting from "@/components/settings/ThemeSetting";
+import UsernameEditor from "@/components/settings/UsernameEditor";
 import { loginHref } from "@/lib/redirect";
 import { parseSfwMode } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";

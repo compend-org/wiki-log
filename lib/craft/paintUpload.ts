@@ -1,7 +1,7 @@
 // ABOUTME: Turns a picture file into a small bitmap in the paint editor's colours.
 // ABOUTME: Used by the editor's Open Image and by the Upload button on the compound form.
-import { type Bitmap, PALETTE } from "@/lib/paint";
-import { fitInside, limitColors } from "@/lib/paintRegion";
+import { type Bitmap, PALETTE } from "@/lib/craft/paint";
+import { fitInside, limitColors } from "@/lib/craft/paintRegion";
 
 // The biggest file that can be uploaded
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;

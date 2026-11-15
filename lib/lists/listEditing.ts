@@ -1,6 +1,6 @@
 // ABOUTME: Keeps a saved list's editor page in step with the database, one change at a time.
 // ABOUTME: Changes and page loads queue up and read the page and count as they are when they run.
-import { LIST_PAGE_SIZE, pageCount, pageOfRank } from "@/lib/listPages";
+import { LIST_PAGE_SIZE, pageCount, pageOfRank } from "@/lib/lists/listPages";
 
 export type EditorEntry = {
   itemId: string;

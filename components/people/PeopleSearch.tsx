@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import Avatar from "@/components/Avatar";
+import Avatar from "@/components/people/Avatar";
+import SearchIcon from "@/components/ui/SearchIcon";
 import { createClient } from "@/lib/supabase/client";
 import { escapeLike } from "@/lib/username";
-import SearchIcon from "./icons/SearchIcon";
 
 type Person = { username: string; avatar_path: string | null };
 

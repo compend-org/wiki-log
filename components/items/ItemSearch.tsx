@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import ItemPicker from "@/components/ItemPicker";
+import ItemPicker from "@/components/items/ItemPicker";
+import { useRandomItem } from "@/lib/hooks/useRandomItem";
 import { loginHref } from "@/lib/redirect";
-import { useRandomItem } from "@/lib/useRandomItem";
 
 export default function ItemSearch({
   signedIn,

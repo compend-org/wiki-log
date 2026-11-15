@@ -1,7 +1,7 @@
 // ABOUTME: Checks the picture someone drew for a compound and keeps it in the compound-images bucket.
 // ABOUTME: It is decoded and written out again here, so only a plain 100 x 100 PNG is ever kept.
 import sharp from "sharp";
-import { PAINT_SIZE } from "@/lib/paint";
+import { PAINT_SIZE } from "@/lib/craft/paint";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { supabaseUrl } from "@/lib/supabase/connection";
 

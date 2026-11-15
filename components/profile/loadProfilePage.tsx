@@ -2,16 +2,16 @@
 // ABOUTME: Kept apart from the profile page so the server action for later pages can use it too.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ReactNode } from "react";
-import PinButton from "@/components/buttons/PinButton";
-import type { Card, CardsPage } from "@/components/CardPages";
-import ListCard from "@/components/ListCard";
-import LogCard from "@/components/LogCard";
-import type { ListRow as ListCardRow, LogRow } from "@/lib/feedData";
+import ListCard from "@/components/lists/ListCard";
+import DeleteButton from "@/components/logs/DeleteButton";
+import LogCard from "@/components/logs/LogCard";
+import PinButton from "@/components/logs/PinButton";
+import type { Card, CardsPage } from "@/components/paging/CardPages";
+import type { ListRow as ListCardRow, LogRow } from "@/lib/feed/feedData";
 import { type Keyset, olderThan } from "@/lib/paging";
 import { aboutAdultItem, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState, type ViewerState } from "@/lib/viewerState";
-import DeleteButton from "./buttons/DeleteButton";
 
 type ItemInfo = {
   title: string;

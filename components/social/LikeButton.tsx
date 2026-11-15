@@ -3,14 +3,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import HeartIcon from "@/components/HeartIcon";
+import HeartIcon from "@/components/social/HeartIcon";
+import { useLike } from "@/lib/hooks/useLike";
+import { useLoginHref } from "@/lib/hooks/useLoginHref";
 import {
   isLogUnavailable,
   MISSING_LOG_MESSAGE,
   useLogUnavailable,
 } from "@/lib/logAvailability";
-import { useLike } from "@/lib/useLike";
-import { useLoginHref } from "@/lib/useLoginHref";
 
 export default function LikeButton({
   viewerId,

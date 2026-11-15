@@ -2,8 +2,8 @@
 // ABOUTME: Looks like the two squares on the home page, side by side, with the date and the site's logo.
 import { ImageResponse } from "next/og";
 import { connection } from "next/server";
-import { getDailyPicks, type Pick } from "@/lib/dailyPicks";
 import { FEATURES } from "@/lib/features";
+import { getDailyPicks, type Pick } from "@/lib/feed/dailyPicks";
 import { absolute, shortLabel, thumbUrl } from "@/lib/format";
 import {
   COLORS,
@@ -13,7 +13,7 @@ import {
   Star,
   smallerPng,
 } from "@/lib/shareImage";
-import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia";
+import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia/wikipedia";
 
 const WIDTH = 1080;
 const HEIGHT = 1350;

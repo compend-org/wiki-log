@@ -3,10 +3,10 @@
 "use server";
 
 import { createElement, type ReactNode } from "react";
-import Digest from "@/components/Digest";
-import Feed from "@/components/Feed";
-import type { FeedTab } from "@/components/FeedTabs";
-import { FEED_MODES } from "@/components/loadFeedPage";
+import Digest from "@/components/feed/Digest";
+import Feed from "@/components/feed/Feed";
+import type { FeedTab } from "@/components/feed/FeedTabs";
+import { FEED_MODES } from "@/components/feed/loadFeedPage";
 
 export async function loadFeedTab(tab: FeedTab): Promise<ReactNode> {
   if (tab === "digest") return createElement(Digest);

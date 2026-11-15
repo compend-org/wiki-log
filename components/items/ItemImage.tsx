@@ -1,4 +1,4 @@
-import ItemPicture from "@/components/ItemPicture";
+import ItemPicture from "@/components/items/ItemPicture";
 import { shortLabel } from "@/lib/format";
 
 const CHAR_WIDTH = 0.66; // average width of a bold character, in em (a little generous)

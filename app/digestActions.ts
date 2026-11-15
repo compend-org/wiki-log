@@ -2,8 +2,11 @@
 // ABOUTME: Checks what the browser sent, then renders the page's cards for the viewer.
 "use server";
 
-import { type DigestPage, loadDigestPage } from "@/components/loadDigestPage";
-import { parseDigestCursor } from "@/lib/digest";
+import {
+  type DigestPage,
+  loadDigestPage,
+} from "@/components/feed/loadDigestPage";
+import { parseDigestCursor } from "@/lib/feed/digest";
 
 export async function loadMoreDigest(cursor: unknown): Promise<DigestPage> {
   const parsed = parseDigestCursor(cursor);

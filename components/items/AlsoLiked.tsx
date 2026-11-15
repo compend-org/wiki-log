@@ -1,10 +1,10 @@
 // ABOUTME: The row of other reviews of the same item that a reviewer liked.
 // ABOUTME: Shows as many as fit, with a heading that opens the page listing all of them.
 import Link from "next/link";
-import Avatar from "@/components/Avatar";
-import TextLinesIcon from "@/components/icons/TextLinesIcon";
-import Stars from "@/components/Stars";
-import type { AlsoLikedEntry } from "@/lib/alsoLiked";
+import Stars from "@/components/logs/Stars";
+import Avatar from "@/components/people/Avatar";
+import TextLinesIcon from "@/components/ui/TextLinesIcon";
+import type { AlsoLikedEntry } from "@/lib/feed/alsoLiked";
 
 // How many show at each width: 4 on phones, 6 from `sm`
 const BASE = 4;

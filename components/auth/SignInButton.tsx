@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import SignInIcon from "@/components/icons/SignInIcon";
-import { useLoginHref } from "@/lib/useLoginHref";
+import SignInIcon from "@/components/auth/SignInIcon";
+import { useLoginHref } from "@/lib/hooks/useLoginHref";
 
 export default function SignInButton({
   className = "",

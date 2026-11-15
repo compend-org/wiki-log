@@ -1,7 +1,7 @@
 // ABOUTME: A fetch for Supabase clients that reports failed database, auth and storage requests to Sentry.
 // ABOUTME: Supabase returns errors instead of throwing them, so they would otherwise go unseen.
 import * as Sentry from "@sentry/nextjs";
-import { isMissingLogError } from "@/lib/missingLogError";
+import { isMissingLogError } from "@/lib/errors/missingLogError";
 
 // Failures the app already explains to the person, as "table:code"
 const HANDLED_FAILURES = new Set([

@@ -4,7 +4,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { ReportStatus } from "@/lib/adminReports";
+import type { ReportStatus } from "@/lib/admin/adminReports";
 
 export default function ReportStatusButtons({
   setStatus,

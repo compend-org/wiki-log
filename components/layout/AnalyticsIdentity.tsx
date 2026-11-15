@@ -3,7 +3,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { forgetPerson, identifyPerson, updatePerson } from "@/lib/analytics";
+import {
+  forgetPerson,
+  identifyPerson,
+  updatePerson,
+} from "@/lib/analytics/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AnalyticsIdentity({

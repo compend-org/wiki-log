@@ -3,8 +3,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { isConnectionError } from "@/lib/connectionError";
-import { reportPageError } from "@/lib/reportPageError";
+import { isConnectionError } from "@/lib/errors/connectionError";
+import { reportPageError } from "@/lib/errors/reportPageError";
 
 export default function PageError({
   error,

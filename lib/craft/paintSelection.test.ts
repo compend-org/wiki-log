@@ -2,13 +2,13 @@
 // ABOUTME: Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { blankBitmap, PAINT_SIZE } from "./paint";
+import { blankBitmap, PAINT_SIZE } from "@/lib/craft/paint";
 import {
   copyRegion,
   fillRegion,
   pasteRegion,
   regionBetween,
-} from "./paintSelection";
+} from "@/lib/craft/paintSelection";
 
 const at = (b: Uint8ClampedArray, x: number, y: number) =>
   Array.from(

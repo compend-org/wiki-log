@@ -3,9 +3,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import HeartIcon from "@/components/HeartIcon";
-import { useLike } from "@/lib/useLike";
-import { useLoginHref } from "@/lib/useLoginHref";
+import HeartIcon from "@/components/social/HeartIcon";
+import { useLike } from "@/lib/hooks/useLike";
+import { useLoginHref } from "@/lib/hooks/useLoginHref";
 
 export default function ListLikeButton({
   viewerId,

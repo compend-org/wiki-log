@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { track } from "@/lib/analytics";
+import { track } from "@/lib/analytics/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 export type BlockedPerson = { id: string; username: string };

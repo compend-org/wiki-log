@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import ShareImageButton from "@/components/buttons/ShareImageButton";
-import Digest from "@/components/Digest";
-import Feed from "@/components/Feed";
-import FeedTabs, { type FeedTab } from "@/components/FeedTabs";
-import ItemSearch from "@/components/ItemSearch";
-import PickSquare from "@/components/PickSquare";
-import { getDailyPicks } from "@/lib/dailyPicks";
+import Digest from "@/components/feed/Digest";
+import Feed from "@/components/feed/Feed";
+import FeedTabs, { type FeedTab } from "@/components/feed/FeedTabs";
+import ItemSearch from "@/components/items/ItemSearch";
+import PickSquare from "@/components/items/PickSquare";
+import ShareImageButton from "@/components/social/ShareImageButton";
 import { FEATURES } from "@/lib/features";
+import { getDailyPicks } from "@/lib/feed/dailyPicks";
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;

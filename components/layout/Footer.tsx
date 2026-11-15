@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import AdminFooterLink from "@/components/AdminFooterLink";
+import AdminFooterLink from "@/components/layout/AdminFooterLink";
 import { FEATURES } from "@/lib/features";
 
 export default function Footer() {

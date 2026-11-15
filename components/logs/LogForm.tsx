@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { logItem } from "@/app/actions";
-import RatingInput from "@/components/RatingInput";
-import { track } from "@/lib/analytics";
-import { useLoginHref } from "@/lib/useLoginHref";
-import ReviewTextarea from "./ReviewTextArea";
+import RatingInput from "@/components/logs/RatingInput";
+import ReviewTextarea from "@/components/logs/ReviewTextArea";
+import { track } from "@/lib/analytics/analytics";
+import { useLoginHref } from "@/lib/hooks/useLoginHref";
 
 export default function LogForm({
   id,

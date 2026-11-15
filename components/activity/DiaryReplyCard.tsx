@@ -1,8 +1,8 @@
 // ABOUTME: One of your replies in your diary: who you replied to, where, and what you said.
 // ABOUTME: The whole card opens the review or list it was written on; the cross deletes the reply.
 import Link from "next/link";
-import DeleteButton from "@/components/buttons/DeleteButton";
-import ReviewText from "@/components/ReviewText";
+import DeleteButton from "@/components/logs/DeleteButton";
+import ReviewText from "@/components/logs/ReviewText";
 
 export default function DiaryReplyCard({
   replyId,

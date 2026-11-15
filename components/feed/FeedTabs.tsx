@@ -11,8 +11,8 @@ import {
   useState,
 } from "react";
 import { loadFeedTab } from "@/app/feedTabActions";
-import type { FeedMode } from "@/components/loadFeedPage";
-import { track } from "@/lib/analytics";
+import type { FeedMode } from "@/components/feed/loadFeedPage";
+import { track } from "@/lib/analytics/analytics";
 import { FEATURES } from "@/lib/features";
 import { TRENDING_LABEL } from "@/lib/site";
 

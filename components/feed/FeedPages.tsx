@@ -5,10 +5,14 @@
 
 import { Fragment, startTransition, useState } from "react";
 import { loadMoreFeed } from "@/app/feedActions";
-import BalancedColumns from "@/components/BalancedColumns";
-import LoadMore from "@/components/LoadMore";
-import type { FeedCard, FeedMode, FeedPage } from "@/components/loadFeedPage";
-import { track } from "@/lib/analytics";
+import type {
+  FeedCard,
+  FeedMode,
+  FeedPage,
+} from "@/components/feed/loadFeedPage";
+import BalancedColumns from "@/components/layout/BalancedColumns";
+import LoadMore from "@/components/paging/LoadMore";
+import { track } from "@/lib/analytics/analytics";
 import { mergeColumns } from "@/lib/paging";
 
 // A later page can bring a post that is already shown, if it was also posted

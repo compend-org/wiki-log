@@ -3,15 +3,19 @@
 "use server";
 
 import { updateTag } from "next/cache";
-import type { PostKind, ReportKind, ReportStatus } from "@/lib/adminReports";
-import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
-import { isUuid } from "@/lib/ids";
+import type {
+  PostKind,
+  ReportKind,
+  ReportStatus,
+} from "@/lib/admin/adminReports";
 import {
   cleanNote,
   isReportReason,
   type ModerationInput,
   SUSPENSION_DAYS,
-} from "@/lib/moderation";
+} from "@/lib/admin/moderation";
+import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
+import { isUuid } from "@/lib/ids";
 import { createClient } from "@/lib/supabase/server";
 
 const KINDS: PostKind[] = ["log", "list", "comment", "list_comment"];

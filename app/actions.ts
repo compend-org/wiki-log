@@ -3,14 +3,19 @@
 "use server";
 
 import { updateTag } from "next/cache";
+import {
+  cleanNote,
+  isReportReason,
+  type ModerationInput,
+} from "@/lib/admin/moderation";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
 import {
   prepareCompoundImage,
   removeCompoundImage,
   replaceCompoundImage,
   storeCompoundImage,
-} from "@/lib/compoundImage";
-import { withErrorContext } from "@/lib/errorContext";
+} from "@/lib/craft/compoundImage";
+import { withErrorContext } from "@/lib/errors/errorContext";
 import { FEATURES } from "@/lib/features";
 import { ITEM_ID_PATTERN, isCompoundId, isUuid } from "@/lib/ids";
 import {
@@ -20,16 +25,11 @@ import {
   replaceBrokenImage,
   STALE_COPY_WAIT_MS,
 } from "@/lib/items";
-import {
-  cleanNote,
-  isReportReason,
-  type ModerationInput,
-} from "@/lib/moderation";
 import { parseSfwMode, type SfwMode } from "@/lib/sfw";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { cleanName, isValidName } from "@/lib/username";
-import { getItemById } from "@/lib/wikipedia";
+import { getItemById } from "@/lib/wikipedia/wikipedia";
 
 const ITEM_ID = ITEM_ID_PATTERN;
 // Matches limit_list_counts() in supabase/migrations/*_raise_list_limits.sql

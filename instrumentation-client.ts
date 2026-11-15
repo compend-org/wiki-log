@@ -2,9 +2,12 @@
 // ABOUTME: Sentry sends only errors; PostHog sends page views and named events, keeping nothing in cookies.
 import * as Sentry from "@sentry/nextjs";
 import posthog from "posthog-js";
-import { ANALYTICS_PROXY_PATH, ANALYTICS_TOKEN } from "@/lib/analyticsEvents";
-import { IGNORED_BROWSER_ERRORS } from "@/lib/ignoredBrowserErrors";
-import { limitRepeatedErrors } from "@/lib/repeatedErrors";
+import {
+  ANALYTICS_PROXY_PATH,
+  ANALYTICS_TOKEN,
+} from "@/lib/analytics/analyticsEvents";
+import { IGNORED_BROWSER_ERRORS } from "@/lib/errors/ignoredBrowserErrors";
+import { limitRepeatedErrors } from "@/lib/errors/repeatedErrors";
 import { tolerateTranslatedPage } from "@/lib/translatedPage";
 
 if (ANALYTICS_TOKEN) {

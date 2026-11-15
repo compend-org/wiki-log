@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { DEFAULT_LANG, isLang } from "@/lib/languages";
-import { getRandomItem } from "@/lib/wikipedia";
+import { getRandomItem } from "@/lib/wikipedia/wikipedia";
 
 export async function GET(request: NextRequest) {
   const langParam = request.nextUrl.searchParams.get("lang") ?? DEFAULT_LANG;

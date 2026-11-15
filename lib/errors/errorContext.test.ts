@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as Sentry from "@sentry/nextjs";
-import { withErrorContext } from "./errorContext";
+import { withErrorContext } from "@/lib/errors/errorContext";
 
 const sent: Sentry.ErrorEvent[] = [];
 Sentry.init({

@@ -2,7 +2,10 @@
 // ABOUTME: and give up once a wait would run past the deadline.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Pause, sendWithinDeadline } from "./wikimediaLimits";
+import {
+  type Pause,
+  sendWithinDeadline,
+} from "@/lib/wikipedia/wikimediaLimits";
 
 function rateLimited(retryAfterSeconds: number): Response {
   return new Response(null, {

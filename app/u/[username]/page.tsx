@@ -5,17 +5,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { loadMoreProfile } from "@/app/profileActions";
-import AdminBadge from "@/components/AdminBadge";
-import Avatar from "@/components/Avatar";
-import BanButton from "@/components/buttons/BanButton";
-import BlockButton from "@/components/buttons/BlockButton";
-import FollowButton from "@/components/buttons/FollowButton";
-import ReportButton from "@/components/buttons/ReportButton";
-import SignOutButton from "@/components/buttons/SignOutButton";
-import CardPages, { type CardsPage } from "@/components/CardPages";
-import Favourites, { type Slot } from "@/components/Favourites";
-import ItemImage from "@/components/icons/ItemImage";
-import SettingsIcon from "@/components/icons/SettingsIcon";
+import SignOutButton from "@/components/auth/SignOutButton";
+import ItemImage from "@/components/items/ItemImage";
+import RatingHistogram from "@/components/logs/RatingsHistogram";
+import AdminBadge from "@/components/moderation/AdminBadge";
+import BanButton from "@/components/moderation/BanButton";
+import ReportButton from "@/components/moderation/ReportButton";
+import CardPages, { type CardsPage } from "@/components/paging/CardPages";
+import Avatar from "@/components/people/Avatar";
+import BlockButton from "@/components/people/BlockButton";
+import FollowButton from "@/components/people/FollowButton";
+import Favourites, { type Slot } from "@/components/profile/Favourites";
 import {
   fetchProfileRows,
   LIST_FIELDS,
@@ -25,13 +25,13 @@ import {
   renderProfileCards,
   renderProfileList,
   renderProfileLog,
-} from "@/components/loadProfilePage";
-import RatingHistogram from "@/components/RatingsHistogram";
-import { isAdmin } from "@/lib/admin";
+} from "@/components/profile/loadProfilePage";
+import SettingsIcon from "@/components/ui/SettingsIcon";
+import { isAdmin } from "@/lib/admin/admin";
 import { avatarUrl } from "@/lib/avatar";
-import type { LogRow } from "@/lib/feedData";
+import { getProfileCompounds } from "@/lib/craft/profileCompounds";
+import type { LogRow } from "@/lib/feed/feedData";
 import { pageMetadata } from "@/lib/metadata";
-import { getProfileCompounds } from "@/lib/profileCompounds";
 import { getProfileByName } from "@/lib/profiles";
 import { loginHref } from "@/lib/redirect";
 import { aboutAdultItem, shownEntries } from "@/lib/sfw";

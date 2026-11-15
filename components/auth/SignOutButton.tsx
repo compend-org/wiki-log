@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import SignOutIcon from "@/components/icons/SignOutIcon";
-import { track } from "@/lib/analytics";
+import SignOutIcon from "@/components/auth/SignOutIcon";
+import { track } from "@/lib/analytics/analytics";
 import { createClient } from "@/lib/supabase/client";
 
 // The caller chooses the display (for example "inline-flex" or

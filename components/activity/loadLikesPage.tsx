@@ -1,9 +1,9 @@
 // ABOUTME: Loads the reviews and lists a person has liked a page at a time, most recently liked first.
 // ABOUTME: Kept apart from the activity page so the server action for later pages can use it too.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Card, CardsPage } from "@/components/CardPages";
-import DiaryListCard from "@/components/DiaryListCard";
-import DiaryLogCard from "@/components/DiaryLogCard";
+import DiaryListCard from "@/components/activity/DiaryListCard";
+import DiaryLogCard from "@/components/activity/DiaryLogCard";
+import type { Card, CardsPage } from "@/components/paging/CardPages";
 import { timeAgo } from "@/lib/format";
 import {
   type Keyset,

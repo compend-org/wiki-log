@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import DiaryIcon from "@/components/activity/DiaryIcon";
+import CraftIcon from "@/components/craft/CraftIcon";
+import PeopleSearch from "@/components/people/PeopleSearch";
 import { FEATURES } from "@/lib/features";
+import { useNavLinkTone } from "@/lib/hooks/useNavLinkTone";
 import { SITE_NAME } from "@/lib/site";
-import { useNavLinkTone } from "@/lib/useNavLinkTone";
-import DiaryIcon from "./DiaryIcon";
-import CraftIcon from "./icons/CraftIcon";
-import PeopleSearch from "./PeopleSearch";
 
 // `account` fills the signed-in part of the bar: the bell, profile and sign in/out
 export default function Nav({ account }: { account: ReactNode }) {

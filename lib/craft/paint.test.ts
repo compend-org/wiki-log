@@ -18,7 +18,7 @@ import {
   setPixel,
   strokeLine,
   WHITE,
-} from "./paint";
+} from "@/lib/craft/paint";
 
 const RED: Rgb = [255, 0, 0];
 

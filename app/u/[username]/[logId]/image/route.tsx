@@ -2,8 +2,8 @@
 // ABOUTME: Looks like the review card on the site, with the like and share counts and the site's logo.
 import { ImageResponse } from "next/og";
 import { connection } from "next/server";
-import HeartIcon from "@/components/HeartIcon";
-import ShareIcon from "@/components/icons/ShareIcon";
+import HeartIcon from "@/components/social/HeartIcon";
+import ShareIcon from "@/components/social/ShareIcon";
 import { avatarUrl } from "@/lib/avatar";
 import { absolute, plainReview, shortLabel, thumbUrl } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
@@ -17,7 +17,7 @@ import {
   Stars,
   smallerPng,
 } from "@/lib/shareImage";
-import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia";
+import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia/wikipedia";
 
 const WIDTH = 1080;
 const HEIGHT = 1350;

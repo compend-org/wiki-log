@@ -3,9 +3,9 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import Avatar from "@/components/Avatar";
+import Avatar from "@/components/people/Avatar";
+import { useDropdownRoom } from "@/lib/hooks/useDropdownRoom";
 import { createClient } from "@/lib/supabase/client";
-import { useDropdownRoom } from "@/lib/useDropdownRoom";
 
 type Person = { id: string; username: string; avatar_path: string | null };
 

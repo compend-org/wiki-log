@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import RatingInput from "@/components/RatingInput";
-import { track } from "@/lib/analytics";
+import RatingInput from "@/components/logs/RatingInput";
+import ReviewTextarea from "@/components/logs/ReviewTextArea";
+import { track } from "@/lib/analytics/analytics";
 import { createClient } from "@/lib/supabase/client";
-import ReviewTextarea from "./ReviewTextArea";
 
 const MAX = 5000;
 

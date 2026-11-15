@@ -2,8 +2,8 @@
 // ABOUTME: Drawn as a review of the error, written by the site itself, so every 404 looks the same.
 import type { Metadata } from "next";
 import Link from "next/link";
-import ItemImage from "@/components/icons/ItemImage";
-import Stars from "@/components/Stars";
+import ItemImage from "@/components/items/ItemImage";
+import Stars from "@/components/logs/Stars";
 import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Not found" };

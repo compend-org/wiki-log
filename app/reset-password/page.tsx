@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import ResetPasswordForm from "@/components/ResetPasswordForm";
+import ResetPasswordForm from "@/components/auth/ResetPasswordForm";
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;

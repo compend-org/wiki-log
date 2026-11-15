@@ -4,11 +4,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { setAccountReportStatus } from "@/app/admin/reports/actions";
-import AdminBadge from "@/components/AdminBadge";
-import AdminPost from "@/components/AdminPost";
-import BanButton from "@/components/buttons/BanButton";
-import ReportStatusButtons from "@/components/buttons/ReportStatusButtons";
-import SuspendButton from "@/components/buttons/SuspendButton";
+import AdminBadge from "@/components/moderation/AdminBadge";
+import AdminPost from "@/components/moderation/AdminPost";
+import BanButton from "@/components/moderation/BanButton";
+import ReportStatusButtons from "@/components/moderation/ReportStatusButtons";
+import SuspendButton from "@/components/moderation/SuspendButton";
 import {
   countLabel,
   gapLabel,
@@ -16,7 +16,7 @@ import {
   getReportQueue,
   type QueueAccount,
   reportedSoonAfterJoining,
-} from "@/lib/adminReports";
+} from "@/lib/admin/adminReports";
 import { timeAgo } from "@/lib/format";
 
 export const metadata: Metadata = {

@@ -2,7 +2,7 @@
 // ABOUTME: Keeps room for a one-digit count beside the like icon, so tapping it moves nothing.
 import Link from "next/link";
 import type { ReactNode } from "react";
-import CommentIcon from "@/components/icons/CommentIcon";
+import CommentIcon from "@/components/social/CommentIcon";
 import { commentLabel } from "@/lib/format";
 
 export default function CardActions({

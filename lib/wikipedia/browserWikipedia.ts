@@ -1,16 +1,21 @@
 // ABOUTME: Searches Wikipedia article titles, checks pictures for explicit content, and finds an article's Wikidata item, from the visitor's browser.
 // ABOUTME: Search holds off while Wikimedia has asked for a wait; finding an item waits it out.
-import { BUSY_ERROR, readSummary, summaryUrl } from "@/lib/articleSummary";
+
 import { fileTitle, freeImage } from "@/lib/format";
 import type { LangCode } from "@/lib/languages";
 import { EXPLICIT_CATEGORY } from "@/lib/sfw";
+import {
+  BUSY_ERROR,
+  readSummary,
+  summaryUrl,
+} from "@/lib/wikipedia/articleSummary";
 import {
   DEFAULT_WAIT_MS,
   type Pause,
   requestedWaitMs,
   sendWithinDeadline,
   WAIT_BUDGET_MS,
-} from "@/lib/wikimediaLimits";
+} from "@/lib/wikipedia/wikimediaLimits";
 
 // Browsers can't set User-Agent, so Wikimedia reads this header instead
 const API_USER_AGENT = "Compend/0.1 (https://compend.org)";

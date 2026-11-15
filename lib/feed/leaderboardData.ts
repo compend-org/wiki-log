@@ -6,7 +6,7 @@ import {
   DEFAULT_MIN_RATINGS,
   LEADERBOARD_SIZE,
   LEADERBOARDS,
-} from "@/lib/leaderboards";
+} from "@/lib/feed/leaderboards";
 import { createPublicClient } from "@/lib/supabase/public";
 
 export type LeaderboardEntry = {

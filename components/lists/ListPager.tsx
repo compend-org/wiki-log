@@ -2,7 +2,7 @@
 // ABOUTME: Renders links on the list page and buttons in the list editor.
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { pagerPages } from "@/lib/listPages";
+import { pagerPages } from "@/lib/lists/listPages";
 
 type Props = {
   page: number;
