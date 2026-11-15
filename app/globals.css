@@ -2,8 +2,15 @@
 
 /* Tailwind's hover: only applies on devices with a mouse. Phones apply :hover
    to whatever a finger taps, which is the only tap feedback iOS Safari gives a
-   card covered by a full-card link, so tappable cards use this instead */
-@custom-variant hover-or-tap (&:hover);
+   card covered by a full-card link, so tappable cards use this instead. A
+   card isn't highlighted while the pointer is on one of its buttons, such as
+   Like or Delete, or on a link that goes somewhere else, such as a username.
+   Links that open the card itself are marked .card-link */
+@custom-variant hover-or-tap {
+  &:hover:not(:has(button:hover, a:not(.card-link):hover)) {
+    @slot;
+  }
+}
 
 @theme {
   --color-background: #ffffff;

@@ -59,7 +59,7 @@ export default async function LogCard({
         <Link
           href={reviewHref}
           aria-label={`Open ${author}'s review of ${title}`}
-          className="absolute inset-0 rounded-[inherit]"
+          className="card-link absolute inset-0 rounded-[inherit]"
         />
       )}
       {(topControls || controls) && (
@@ -69,8 +69,8 @@ export default async function LogCard({
         </CardCorner>
       )}
       <Link
-        href={`/item/${row.item_id}`}
-        className="relative z-10 shrink-0 self-center"
+        href={reviewHref ?? `/item/${row.item_id}`}
+        className="card-link relative z-10 shrink-0 self-center"
       >
         <ItemImage
           src={row.items?.image_url}

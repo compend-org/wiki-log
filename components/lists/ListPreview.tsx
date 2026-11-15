@@ -89,7 +89,7 @@ export default function ListPreview({
 
   // Each tile sits above the card's overlay link (relative z-10), so it can
   // show its own tooltip, and it leads to the same list when clicked
-  const tile = "relative z-10 flex h-14 w-14 shrink-0";
+  const tile = "card-link relative z-10 flex h-14 w-14 shrink-0";
 
   return (
     <>
