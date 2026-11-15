@@ -59,6 +59,7 @@ function mockWikipedia({
   metadataThrows = false,
   wikidataFile = "Hirohiko Araki.jpg" as string | null,
   wikidataLogo = null as string | null,
+  wikidataLogoStatus = 200,
   instanceOf = "Q8274",
   genre = null as string | null,
   occupation = null as string | null,
@@ -78,6 +79,7 @@ function mockWikipedia({
   metadataThrows?: boolean;
   wikidataFile?: string | null;
   wikidataLogo?: string | null;
+  wikidataLogoStatus?: number;
   instanceOf?: string;
   genre?: string | null;
   occupation?: string | null;
@@ -147,13 +149,16 @@ function mockWikipedia({
         }
         const property = url.searchParams.get("property") as string;
         const file = property === "P154" ? wikidataLogo : wikidataFile;
-        return Response.json({
-          claims: {
-            [property]: file
-              ? [{ mainsnak: { datavalue: { value: file } } }]
-              : [],
+        return Response.json(
+          {
+            claims: {
+              [property]: file
+                ? [{ mainsnak: { datavalue: { value: file } } }]
+                : [],
+            },
           },
-        });
+          { status: property === "P154" ? wikidataLogoStatus : 200 },
+        );
       }
       if (url.hostname === "commons.wikimedia.org") {
         const source =
@@ -321,6 +326,7 @@ test("no representative or suitable article image leaves the image empty", async
   assert.equal(result.item.imageUrl, null);
   assert.equal(result.item.imageNonFree, false);
   assert.equal(result.item.imageFilePage, null);
+  assert.equal(result.item.imageLookupFailed, false);
   assert.equal(imageLookups(fetch), 5);
 });
 
@@ -577,6 +583,7 @@ test("a failed article-image lookup leaves the item usable without an image", as
   const result = await getItemByKey("Steel_Ball_Run");
   assert.ok("item" in result);
   assert.equal(result.item.imageUrl, null);
+  assert.equal(result.item.imageLookupFailed, true);
 });
 
 test("Wikipedia's representative image wins over a related Wikidata image when the summary has no thumbnail", async () => {
@@ -588,16 +595,33 @@ test("Wikipedia's representative image wins over a related Wikidata image when t
   assert.equal(imageLookups(fetch), 3);
 });
 
-test("a failed PageImages request still allows the article-image fallback", async () => {
+test("a failed PageImages request leaves the image empty rather than using an article image", async () => {
   mockWikipedia({
     lead: null,
-    representativeStatus: 404,
+    representativeStatus: 500,
     wikidataFile: null,
     bodyPages: [articlePicture("Joni_Mitchell_in_blackface.png", joniImage)],
   });
   const result = await getItemByKey("Steel_Ball_Run");
   assert.ok("item" in result);
-  assert.equal(result.item.imageUrl, joniImage);
+  assert.equal(result.item.imageUrl, null);
+  assert.equal(result.item.imageLookupFailed, true);
+});
+
+// Kung Fu Panda has no lead or curated image, only a logo, and its article
+// shows an elk further down
+test("a failed logo lookup leaves the image empty rather than using an article image", async () => {
+  mockWikipedia({
+    lead: null,
+    wikidataFile: null,
+    wikidataLogo: "Deltarune vector logo.svg",
+    wikidataLogoStatus: 500,
+    bodyPages: [articlePicture("Toby Fox 2017 (cropped 3).jpg", portrait)],
+  });
+  const result = await getItemByKey("Steel_Ball_Run");
+  assert.ok("item" in result);
+  assert.equal(result.item.imageUrl, null);
+  assert.equal(result.item.imageLookupFailed, true);
 });
 
 // Refuses the first summary request, asking for a wait, then answers normally

@@ -38,6 +38,7 @@ function toItem(row: ItemRow): ItemData {
     imageUrl: hidden ? null : row.image_url,
     imageNonFree: hidden ? false : row.image_non_free,
     imageFilePage: hidden ? null : row.image_page_url,
+    imageLookupFailed: false,
     pageUrl: row.page_url,
     types: null,
     nsfw: row.nsfw,
@@ -51,16 +52,36 @@ export function applyImageHidden(item: ItemData, hidden: boolean): ItemData {
     : item;
 }
 
+// The item as looked up, with the stored image in place of one whose lookup
+// failed
+function keepStoredImage(item: ItemData, stored: ItemData): ItemData {
+  if (!item.imageLookupFailed) return item;
+  return {
+    ...item,
+    imageUrl: stored.imageUrl,
+    imageNonFree: stored.imageNonFree,
+    imageFilePage: stored.imageFilePage,
+  };
+}
+
 // The `items` columns written when an item is saved or refreshed from Wikipedia
 export function itemColumns(item: ItemData) {
   return {
     title: item.title,
     description: item.description,
-    image_url: item.imageUrl,
-    image_non_free: item.imageNonFree,
-    image_page_url: item.imageFilePage,
+    // A failed image lookup leaves the stored image, or none for a new row,
+    // and dates the row as stale so the next visit looks it up again
+    ...(item.imageLookupFailed
+      ? {}
+      : {
+          image_url: item.imageUrl,
+          image_non_free: item.imageNonFree,
+          image_page_url: item.imageFilePage,
+        }),
     page_url: item.pageUrl,
-    fetched_at: new Date().toISOString(),
+    fetched_at: item.imageLookupFailed
+      ? new Date(0).toISOString()
+      : new Date().toISOString(),
     ...(item.types ? { types: item.types } : {}),
     // A lookup that runs out of time reads as "not adult", so a lookup only
     // ever sets the adult flag and never clears one
@@ -106,7 +127,8 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
   // Wikipedia is down or the article was removed: a stale copy beats an error
   if ("error" in fresh) return { item: toItem(cached) };
   // The saved row keeps its adult flag, so the page shows it too
-  return { item: { ...fresh.item, nsfw: fresh.item.nsfw || cached.nsfw } };
+  const item = keepStoredImage(fresh.item, toItem(cached));
+  return { item: { ...item, nsfw: item.nsfw || cached.nsfw } };
 }
 
 // Looks a cached item up on Wikipedia again and saves it over its row

@@ -1,9 +1,9 @@
 // ABOUTME: Tests for how a Wikipedia lookup becomes an `items` row.
-// ABOUTME: An adult flag, once set, survives lookups that find nothing adult.
+// ABOUTME: An adult flag, once set, survives lookups that find nothing adult, and a stored image survives a failed image lookup.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ItemData } from "@/lib/wikipedia/wikipedia";
-import { itemColumns } from "./items";
+import { itemColumns, MAX_AGE_MS } from "./items";
 
 const item: ItemData = {
   id: "Q8398",
@@ -12,6 +12,7 @@ const item: ItemData = {
   imageUrl: null,
   imageNonFree: false,
   imageFilePage: null,
+  imageLookupFailed: false,
   pageUrl: "https://en.wikipedia.org/wiki/Anal_sex",
   types: null,
   nsfw: false,
@@ -23,4 +24,12 @@ test("an adult item is saved flagged", () => {
 
 test("a lookup that finds nothing adult leaves the stored flag alone", () => {
   assert.equal("nsfw" in itemColumns(item), false);
+});
+
+test("an item whose image lookup failed keeps its stored image and is looked up again soon", () => {
+  const columns = itemColumns({ ...item, imageLookupFailed: true });
+  assert.equal("image_url" in columns, false);
+  assert.equal("image_non_free" in columns, false);
+  assert.equal("image_page_url" in columns, false);
+  assert.ok(new Date(columns.fetched_at).getTime() < Date.now() - MAX_AGE_MS);
 });

@@ -99,9 +99,12 @@ async function ensureItem(itemId: string): Promise<StoredItem> {
     .from("items")
     .upsert({ id: item.id, ...itemColumns(item) });
   // Wikipedia can resolve a different ID; callers must reference the stored row.
+  // A failed image lookup left the stored image in place
+  const imageUrl =
+    item.imageLookupFailed && existing ? existing.image_url : item.imageUrl;
   return error
     ? { error: userFacingErrorMessage(error, SAVE_FAILED) }
-    : { id: item.id, title: item.title, imageUrl: item.imageUrl };
+    : { id: item.id, title: item.title, imageUrl };
 }
 
 // For an item image the browser couldn't load: the image to show instead, if any
