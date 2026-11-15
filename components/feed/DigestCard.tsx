@@ -9,7 +9,7 @@ import UserName from "@/components/people/UserName";
 import LikeButton from "@/components/social/LikeButton";
 import ShareButton from "@/components/social/ShareButton";
 import type { DigestLog } from "@/lib/feed/digest";
-import { timeAgo } from "@/lib/format";
+import { reviewPicture, timeAgo } from "@/lib/format";
 
 export default function DigestCard({
   row,
@@ -43,7 +43,7 @@ export default function DigestCard({
       <div className="flex items-center gap-3">
         <Link href={`/item/${row.item_id}`} className="relative z-10 shrink-0">
           <ItemImage
-            src={row.items?.image_url}
+            src={reviewPicture(row)}
             nsfw={row.items?.nsfw}
             alt={title}
             className="h-16 w-16 rounded"

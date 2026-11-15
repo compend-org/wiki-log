@@ -5,9 +5,10 @@ import { connection } from "next/server";
 import { cache } from "react";
 import CompoundDeleteButton from "@/components/craft/CompoundDeleteButton";
 import CompoundEditButton from "@/components/craft/CompoundEditButton";
+import ItemHeroPicture from "@/components/items/ItemHeroPicture";
 import ItemImage from "@/components/items/ItemImage";
-import ItemPicture from "@/components/items/ItemPicture";
 import RandomAgain from "@/components/items/RandomAgain";
+import { ReviewPictureProvider } from "@/components/items/ReviewPictureContext";
 import AddToList from "@/components/lists/AddToList";
 import ItemLists from "@/components/lists/ItemLists";
 import ItemLogs from "@/components/logs/ItemLogs";
@@ -213,194 +214,198 @@ export default async function ItemPage({
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-        <div className="flex flex-col gap-3">
-          {/* Reached by rolling a random article, so offer another roll */}
-          {random && <RandomAgain />}
-          {item.imageUrl ? (
-            <figure className="flex flex-col items-center gap-1">
-              <ItemPicture
-                src={item.imageUrl}
-                fullSize
-                alt={item.title}
+        {/* A picture picked for one item never carries over to another */}
+        <ReviewPictureProvider key={item.id}>
+          <div className="flex flex-col gap-3">
+            {/* Reached by rolling a random article, so offer another roll */}
+            {random && <RandomAgain />}
+            {item.imageUrl ? (
+              <ItemHeroPicture
+                itemId={item.id}
+                title={item.title}
+                imageUrl={item.imageUrl}
                 nsfw={item.nsfw}
                 className={`item-img h-auto max-w-full border-2 border-dashed border-line bg-clip-padding [[data-theme=dark]_&]:bg-foreground ${
                   // Drawings are only 100 pixels wide: 3 or 4 times that, plus the border
                   compound ? "w-[304px] sm:w-[404px]" : "w-auto"
                 }`}
-              />
-              <figcaption className="text-center text-xs text-muted">
-                {compound ? (
-                  creator ? (
-                    <>
-                      Created by{" "}
-                      <Link
-                        href={`/u/${encodeURIComponent(creator)}`}
-                        className="underline"
-                      >
-                        {creator}
-                      </Link>
-                    </>
-                  ) : (
-                    "Drawn on this site"
-                  )
-                ) : item.imageNonFree ? (
-                  <a href={removalLink} className="underline">
-                    Request removal
-                  </a>
-                ) : (
-                  <>
-                    Image:{" "}
-                    {item.imageFilePage ? (
-                      <a href={item.imageFilePage} className="underline">
-                        Wikimedia Commons
-                      </a>
+                canPick={!compound && Boolean(viewerId)}
+                credit={
+                  compound ? (
+                    creator ? (
+                      <>
+                        Created by{" "}
+                        <Link
+                          href={`/u/${encodeURIComponent(creator)}`}
+                          className="underline"
+                        >
+                          {creator}
+                        </Link>
+                      </>
                     ) : (
-                      "Wikimedia Commons"
-                    )}
+                      "Drawn on this site"
+                    )
+                  ) : item.imageNonFree ? (
+                    <a href={removalLink} className="underline">
+                      Request removal
+                    </a>
+                  ) : (
+                    <>
+                      Image:{" "}
+                      {item.imageFilePage ? (
+                        <a href={item.imageFilePage} className="underline">
+                          Wikimedia Commons
+                        </a>
+                      ) : (
+                        "Wikimedia Commons"
+                      )}
+                    </>
+                  )
+                }
+              />
+            ) : (
+              <ItemImage
+                src={null}
+                alt={item.title}
+                className="aspect-video max-h-80 w-full"
+              />
+            )}
+
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-3xl font-bold">{item.title}</h1>
+              {compound && viewerId && creatorId === viewerId && (
+                <span className="flex items-center gap-4 pt-1.5">
+                  <CompoundEditButton
+                    id={item.id}
+                    title={item.title}
+                    description={item.description ?? ""}
+                    imageUrl={item.imageUrl}
+                    iconClassName="h-6 w-6"
+                  />
+                  <CompoundDeleteButton id={item.id} iconClassName="h-6 w-6" />
+                </span>
+              )}
+            </div>
+            {item.description && (
+              <p className="text-muted">{item.description}</p>
+            )}
+
+            {compound ? (
+              <p className="text-xs text-muted">
+                A compound
+                {creator && (
+                  <>
+                    {" "}
+                    crafted by{" "}
+                    <Link
+                      href={`/u/${encodeURIComponent(creator)}`}
+                      className="underline"
+                    >
+                      {creator}
+                    </Link>
                   </>
                 )}
-              </figcaption>
-            </figure>
-          ) : (
-            <ItemImage
-              src={null}
-              alt={item.title}
-              className="aspect-video max-h-80 w-full"
-            />
-          )}
-
-          <div className="flex items-start justify-between gap-3">
-            <h1 className="text-3xl font-bold">{item.title}</h1>
-            {compound && viewerId && creatorId === viewerId && (
-              <span className="flex items-center gap-4 pt-1.5">
-                <CompoundEditButton
-                  id={item.id}
-                  title={item.title}
-                  description={item.description ?? ""}
-                  imageUrl={item.imageUrl}
-                  iconClassName="h-6 w-6"
-                />
-                <CompoundDeleteButton id={item.id} iconClassName="h-6 w-6" />
-              </span>
+                {createdAt && <> on {createdAt.slice(0, 10)}</>}.
+              </p>
+            ) : (
+              <p className="text-xs text-muted">
+                From{" "}
+                <a
+                  href={item.pageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  Wikipedia
+                </a>
+                , licensed CC BY-SA 4.0.
+              </p>
             )}
           </div>
-          {item.description && <p className="text-muted">{item.description}</p>}
 
-          {compound ? (
-            <p className="text-xs text-muted">
-              A compound
-              {creator && (
-                <>
-                  {" "}
-                  crafted by{" "}
-                  <Link
-                    href={`/u/${encodeURIComponent(creator)}`}
-                    className="underline"
-                  >
-                    {creator}
-                  </Link>
-                </>
-              )}
-              {createdAt && <> on {createdAt.slice(0, 10)}</>}.
-            </p>
-          ) : (
-            <p className="text-xs text-muted">
-              From{" "}
-              <a
-                href={item.pageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline"
-              >
-                Wikipedia
-              </a>
-              , licensed CC BY-SA 4.0.
-            </p>
+          {compound && madeFrom.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                Made from
+              </h2>
+              <ul className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                {madeFrom.map((p) => (
+                  <li key={p.id}>
+                    <Link
+                      href={`/item/${p.id}`}
+                      className="flex flex-col gap-1 no-underline"
+                    >
+                      <ItemImage
+                        src={p.imageUrl}
+                        nsfw={p.nsfw}
+                        alt={p.title}
+                        className="aspect-square w-full"
+                      />
+                      <span className="truncate text-xs">{p.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
-        </div>
 
-        {compound && madeFrom.length > 0 && (
-          <section className="flex flex-col gap-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-              Made from
-            </h2>
-            <ul className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-              {madeFrom.map((p) => (
-                <li key={p.id}>
-                  <Link
-                    href={`/item/${p.id}`}
-                    className="flex flex-col gap-1 no-underline"
-                  >
-                    <ItemImage
-                      src={p.imageUrl}
-                      nsfw={p.nsfw}
-                      alt={p.title}
-                      className="aspect-square w-full"
-                    />
-                    <span className="truncate text-xs">{p.title}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+          {usedIn.length > 0 && (
+            <section className="flex flex-col gap-1">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+                Used in
+              </h2>
+              <p className="text-sm">
+                {usedIn.map((c, i) => (
+                  <span key={c.id}>
+                    {i > 0 && ", "}
+                    <Link href={`/item/${c.id}`} className="underline">
+                      {c.title}
+                    </Link>
+                  </span>
+                ))}
+              </p>
+            </section>
+          )}
 
-        {usedIn.length > 0 && (
-          <section className="flex flex-col gap-1">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-              Used in
-            </h2>
-            <p className="text-sm">
-              {usedIn.map((c, i) => (
-                <span key={c.id}>
-                  {i > 0 && ", "}
-                  <Link href={`/item/${c.id}`} className="underline">
-                    {c.title}
-                  </Link>
-                </span>
-              ))}
-            </p>
-          </section>
-        )}
-
-        <AddToList
-          itemId={id}
-          title={item.title}
-          imageUrl={item.imageUrl}
-          signedIn={Boolean(viewerId)}
-          aside={
-            <div className="hidden shrink-0 sm:block">
-              <RatingHistogram
-                ratings={ratings}
-                highlight={myRating}
-                hrefBase={`/item/${item.id}/ratings`}
-                compact
-              />
-            </div>
-          }
-        />
-        <div id="log" className="scroll-mt-4">
-          <LogForm
-            id={id}
+          <AddToList
+            itemId={id}
+            title={item.title}
+            imageUrl={item.imageUrl}
             signedIn={Boolean(viewerId)}
-            alreadyLogged={myEntries.length > 0}
-          />
-        </div>
-        <MyEntries entries={myEntries} />
-        <div className="sm:hidden">
-          <RatingHistogram
-            ratings={ratings}
-            highlight={myRating}
-            action={
-              // Shares the item and its histogram as one picture
-              <ShareImageButton
-                imageHref={`/item/${item.id}/ratings-image`}
-                fileName={`${item.title}-ratings.png`}
-              />
+            aside={
+              <div className="hidden shrink-0 sm:block">
+                <RatingHistogram
+                  ratings={ratings}
+                  highlight={myRating}
+                  hrefBase={`/item/${item.id}/ratings`}
+                  compact
+                />
+              </div>
             }
-            hrefBase={`/item/${item.id}/ratings`}
           />
-        </div>
+          <div id="log" className="scroll-mt-4">
+            <LogForm
+              id={id}
+              signedIn={Boolean(viewerId)}
+              alreadyLogged={myEntries.length > 0}
+            />
+          </div>
+          <MyEntries entries={myEntries} />
+          <div className="sm:hidden">
+            <RatingHistogram
+              ratings={ratings}
+              highlight={myRating}
+              action={
+                // Shares the item and its histogram as one picture
+                <ShareImageButton
+                  imageHref={`/item/${item.id}/ratings-image`}
+                  fileName={`${item.title}-ratings.png`}
+                />
+              }
+              hrefBase={`/item/${item.id}/ratings`}
+            />
+          </div>
+        </ReviewPictureProvider>
       </div>
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0">

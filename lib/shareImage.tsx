@@ -85,6 +85,38 @@ export async function stillImage(
     });
 }
 
+// A picture as a still JPEG response, for link previews. Previewers get a
+// small still picture even when the original is a huge animated GIF or comes
+// from a site that blocks them. `label` names the picture in the error log.
+export async function stillJpegResponse(
+  url: string,
+  headers: Record<string, string>,
+  label: string,
+): Promise<Response> {
+  try {
+    // An animated GIF becomes its first frame, and see-through parts white
+    const picture = await stillImage(url, headers);
+    const jpeg = await picture
+      .flatten({ background: COLORS.background })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+
+    return new Response(new Uint8Array(jpeg), {
+      headers: {
+        "Content-Type": "image/jpeg",
+        // Pictures rarely change, and a hidden one drops out within a day
+        "Cache-Control": "public, max-age=3600, s-maxage=86400",
+      },
+    });
+  } catch (error) {
+    console.error(`Loading the picture for ${label} failed:`, error);
+    return new Response("Picture unavailable", {
+      status: 502,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+}
+
 // An image as a still PNG data address the renderer can draw, or null when it
 // can't be fetched or read. A big animated GIF would be too large to draw.
 export async function embeddable(

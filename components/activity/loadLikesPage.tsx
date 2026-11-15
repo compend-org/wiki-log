@@ -5,7 +5,7 @@ import DiaryListCard from "@/components/activity/DiaryListCard";
 import DiaryLogCard from "@/components/activity/DiaryLogCard";
 import type { Card, CardsPage } from "@/components/paging/CardPages";
 import type { ActivityView } from "@/lib/activityView";
-import { timeAgo } from "@/lib/format";
+import { reviewPicture, timeAgo } from "@/lib/format";
 import {
   type Keyset,
   olderThan,
@@ -41,6 +41,8 @@ type LikedLog = {
     item_id: string;
     rating: number | null;
     review: string;
+    // The picture its author chose; null shows the item's
+    image_url: string | null;
     items: ItemInfo;
     profiles: { username: string } | null;
   };
@@ -84,7 +86,7 @@ export async function loadLikesPage(
   let logsQuery = supabase
     .from("likes")
     .select(
-      "created_at, log_id, logs!inner(id, user_id, item_id, rating, review, items(title, image_url, nsfw), profiles!logs_user_id_profiles_fkey(username))",
+      "created_at, log_id, logs!inner(id, user_id, item_id, rating, review, image_url, items(title, image_url, nsfw), profiles!logs_user_id_profiles_fkey(username))",
     )
     .eq("user_id", userId);
   if (after.logs) {
@@ -145,7 +147,7 @@ export async function loadLikesPage(
             logId={l.id}
             itemId={l.item_id}
             title={l.items?.title ?? "Unknown item"}
-            imageUrl={l.items?.image_url ?? null}
+            imageUrl={reviewPicture(l)}
             nsfw={l.items?.nsfw ?? false}
             rating={l.rating === null ? null : Number(l.rating)}
             review={l.review}

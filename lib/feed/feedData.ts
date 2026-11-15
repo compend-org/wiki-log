@@ -24,6 +24,8 @@ export type LogRow = {
   rating: number | null;
   review: string;
   logged_at: string;
+  // The picture its author chose; null shows the item's
+  image_url: string | null;
   items: {
     title: string;
     image_url: string | null;
@@ -89,7 +91,7 @@ type PreviewRow = {
 type RankRow = { row_id: string; recent_likes: number | string };
 
 const LOG_SELECT =
-  "id, user_id, item_id, rating, review, logged_at, items(title, image_url, image_hidden, nsfw), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
+  "id, user_id, item_id, rating, review, logged_at, image_url, items(title, image_url, image_hidden, nsfw), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
 export const LIST_SELECT =
   "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count)";
 

@@ -22,7 +22,7 @@ type ItemInfo = {
 
 // The columns a review card needs, for both the review list and the pinned ones
 const LOG_FIELDS =
-  "id, user_id, item_id, rating, review, logged_at, items(title, image_url, nsfw), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
+  "id, user_id, item_id, rating, review, logged_at, image_url, items(title, image_url, nsfw), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
 
 // The columns a list card needs, with the first items of the list as preview.
 // Ask for `.lte("preview.position", 4)` with it.

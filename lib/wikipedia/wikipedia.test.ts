@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { afterEach, mock, test } from "node:test";
 import { BUSY_ERROR } from "@/lib/wikipedia/articleSummary";
-import { getItemById, getItemByKey } from "@/lib/wikipedia/wikipedia";
+import {
+  articleImages,
+  explicitImages,
+  getItemById,
+  getItemByKey,
+} from "@/lib/wikipedia/wikipedia";
 
 const cover =
   "https://upload.wikimedia.org/wikipedia/en/8/87/Steel_Ball_Run_1.jpg";
@@ -88,7 +93,12 @@ function mockWikipedia({
       if (url.searchParams.get("prop") === "categories") {
         return Response.json({
           query: {
-            pages: [{ categories: fileCategories.map((title) => ({ title })) }],
+            pages: (url.searchParams.get("titles") ?? "")
+              .split("|")
+              .map((title) => ({
+                title,
+                categories: fileCategories.map((title) => ({ title })),
+              })),
           },
         });
       }
@@ -426,6 +436,140 @@ test("a partial image list can still supply the fallback", async () => {
   const result = await getItemByKey("Steel_Ball_Run");
   assert.ok("item" in result);
   assert.equal(result.item.imageUrl, joniImage);
+});
+
+test("an article's pictures are all listed, each with its rights", async () => {
+  mockWikipedia({
+    bodyPages: [
+      articlePicture("Steel Ball Run 1.jpg", cover),
+      articlePicture("Wikiquote-logo.png", portrait, { free: true }),
+      articlePicture("Hirohiko Araki.jpg", portrait, { free: true }),
+    ],
+  });
+  const pictures = await articleImages(
+    "en",
+    "Steel Ball Run",
+    Date.now() + 5000,
+  );
+  assert.deepEqual(
+    pictures?.map((p) => [p.url, p.nonFree]),
+    [
+      [cover, true],
+      [portrait, false],
+    ],
+  );
+});
+
+test("a long article's pictures are read over several pages of results", async () => {
+  const fetch = mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      const more = url.searchParams.get("gimcontinue");
+      return Response.json(
+        more === "22989|Flag_of_Tunisia.svg"
+          ? {
+              query: {
+                pages: [
+                  articlePicture("Hirohiko Araki.jpg", portrait, {
+                    free: true,
+                  }),
+                ],
+              },
+            }
+          : {
+              continue: {
+                gimcontinue: "22989|Flag_of_Tunisia.svg",
+                continue: "gimcontinue||",
+              },
+              query: { pages: [articlePicture("Steel Ball Run 1.jpg", cover)] },
+            },
+      );
+    },
+  );
+  const pictures = await articleImages(
+    "en",
+    "Steel Ball Run",
+    Date.now() + 5000,
+  );
+  assert.deepEqual(
+    pictures?.map((p) => p.url),
+    [cover, portrait],
+  );
+  assert.equal(fetch.mock.callCount(), 2);
+});
+
+test("a failed article-image lookup lists no pictures", async () => {
+  mockWikipedia({ bodyStatus: 404 });
+  assert.equal(
+    await articleImages("en", "Steel Ball Run", Date.now() + 5000),
+    null,
+  );
+});
+
+test("explicit pictures are found among many files in one request per wiki", async () => {
+  const beans =
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Coffee_beans.jpg/330px-Coffee_beans.jpg";
+  const nude =
+    "https://upload.wikimedia.org/wikipedia/commons/3/34/Nude_with_cup.jpg";
+  const local =
+    "https://upload.wikimedia.org/wikipedia/en/5/56/local_poster.jpg";
+  const fetch = mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/w/index.php") return new Response(badImageList);
+      const titles = (url.searchParams.get("titles") ?? "").split("|");
+      // The local wiki writes its file's name with a capital letter
+      if (url.hostname === "en.wikipedia.org") {
+        assert.deepEqual(titles, ["File:Local poster.jpg"]);
+        return Response.json({
+          query: {
+            pages: [{ title: "File:Local poster.jpg", categories: [] }],
+          },
+        });
+      }
+      assert.deepEqual(titles, [
+        "File:Coffee beans.jpg",
+        "File:Nude with cup.jpg",
+      ]);
+      // The second page of results carries the rest of the categories
+      if (!url.searchParams.get("clcontinue")) {
+        return Response.json({
+          continue: { clcontinue: "next", continue: "||" },
+          query: {
+            pages: [
+              { title: "File:Coffee beans.jpg", categories: [] },
+              { title: "File:Nude with cup.jpg", categories: [] },
+            ],
+          },
+        });
+      }
+      return Response.json({
+        query: {
+          pages: [
+            {
+              title: "File:Nude with cup.jpg",
+              categories: [{ title: "Category:Nude women with coffee" }],
+            },
+          ],
+        },
+      });
+    },
+  );
+  const explicit = await explicitImages(
+    [explicitImage, beans, nude, local],
+    Date.now() + 5000,
+  );
+  assert.deepEqual([...explicit].sort(), [explicitImage, nude].sort());
+  // Two pages of Commons categories and one local lookup. The bad image list
+  // was read by an earlier test and is kept for a day.
+  const lookups = fetch.mock.calls.filter(
+    (c) => new URL(String(c.arguments[0])).pathname === "/w/api.php",
+  );
+  assert.equal(lookups.length, 3);
 });
 
 test("a failed article-image lookup leaves the item usable without an image", async () => {

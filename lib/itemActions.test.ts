@@ -2,14 +2,17 @@
 // ABOUTME: Checks that references use the stored ID when Wikipedia resolves another ID.
 import assert from "node:assert/strict";
 import { afterEach, mock, test } from "node:test";
+import nextCache from "next/cache";
 import headers from "next/headers";
 import server from "next/server";
 import {
   addToList,
   createCompound,
+  itemPictureChoices,
   logItem,
   reportBrokenImage,
   setFavourite,
+  setReviewPicture,
 } from "../app/actions";
 import ItemPage, { generateMetadata } from "../app/item/[id]/page";
 import { FEATURES } from "./features";
@@ -23,6 +26,11 @@ const title = "Traditional folk music";
 const imageUrl = "https://upload.wikimedia.org/wikipedia/commons/a/ab/Folk.jpg";
 const renamedImageUrl =
   "https://upload.wikimedia.org/wikipedia/commons/c/cd/Folk_old_name.jpg";
+// A picture further down the item's article, which a review may choose
+const articleImageUrl =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Fiddle.jpg/960px-Fiddle.jpg";
+const pageUrl = "https://en.wikipedia.org/wiki/Traditional_folk_music";
+const logId = "33333333-3333-4333-8333-333333333333";
 
 type Row = {
   id: string;
@@ -30,6 +38,13 @@ type Row = {
   title: string;
   image_url: string | null;
   image_hidden?: boolean;
+  page_url?: string;
+};
+type Review = {
+  id: string;
+  user_id: string;
+  item_id: string;
+  image_url: string | null;
 };
 type Write = {
   table: string;
@@ -46,6 +61,9 @@ function setup({
   upsertFails = false,
   writeFails = false,
   imageStatus = 200,
+  reviews = [] as Review[],
+  suspended = false,
+  pictureWriteFails = false,
 } = {}) {
   const previousEnv = { ...process.env };
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
@@ -54,6 +72,7 @@ function setup({
   const compounds = FEATURES.compounds;
   FEATURES.compounds = true;
   mock.method(server, "connection", async () => {});
+  mock.method(nextCache, "cacheLife", () => {});
   const expires = Math.floor(Date.now() / 1000) + 3600;
   const claims = [
     { alg: "HS256", typ: "JWT" },
@@ -94,6 +113,11 @@ function setup({
         if (url.pathname === "/auth/v1/user")
           return Response.json({ id: userId });
         const table = url.pathname.replace("/rest/v1/", "");
+        if (init?.method === "DELETE") {
+          const id = url.searchParams.get("id")?.replace(/^eq\./, "");
+          writes.push({ table, body: {}, method: init.method, id });
+          return new Response(null, { status: 204 });
+        }
         if (init?.method === "POST" || init?.method === "PATCH") {
           const body = JSON.parse(String(init.body)) as Record<string, unknown>;
           const id = url.searchParams.get("id")?.replace(/^eq\./, "");
@@ -107,6 +131,15 @@ function setup({
             const rowId = String(body.id ?? id);
             if (init.method === "PATCH") assert.ok(items.has(rowId));
             items.set(rowId, { ...items.get(rowId), ...body } as Row);
+          } else if (table === "logs" && init.method === "PATCH") {
+            // Only the server changes a review's picture
+            assert.deepEqual(Object.keys(body), ["image_url"]);
+            if (pictureWriteFails)
+              return Response.json(
+                { code: "57014", message: "Statement timeout" },
+                { status: 500 },
+              );
+            return new Response(null, { status: 204 });
           } else if (["logs", "favourites", "list_items"].includes(table)) {
             // Model the FK that failed in production, rather than accepting any ID.
             if (!items.has(String(body.item_id)))
@@ -119,6 +152,9 @@ function setup({
                 { code: "42501", message: "Write denied" },
                 { status: 403 },
               );
+            if (table === "logs") {
+              return Response.json([{ id: logId }], { status: 201 });
+            }
           } else if (table === "rpc/create_compound") {
             assert.ok((body.p_parts as string[]).every((id) => items.has(id)));
             return Response.json({ id: "C1", title: "Music", existing: false });
@@ -126,6 +162,34 @@ function setup({
             assert.equal(table, "rpc/move_list_item");
           }
           return new Response(null, { status: 201 });
+        }
+        const filter = (column: string) =>
+          url.searchParams.get(column)?.replace(/^eq\./, "");
+        if (table === "logs") {
+          return Response.json(
+            reviews
+              .filter(
+                (r) =>
+                  (filter("id") ?? r.id) === r.id &&
+                  (filter("user_id") ?? r.user_id) === r.user_id &&
+                  (filter("image_url") ?? r.image_url) === r.image_url,
+              )
+              .map((r) => ({ ...r, items: items.get(r.item_id) ?? null })),
+          );
+        }
+        if (table === "profiles") {
+          return Response.json([
+            {
+              banned_at: null,
+              account_restrictions: suspended
+                ? {
+                    suspended_until: new Date(
+                      Date.now() + 86400000,
+                    ).toISOString(),
+                  }
+                : null,
+            },
+          ]);
         }
         if (table === "items") {
           const image = url.searchParams.get("image_url")?.replace(/^eq\./, "");
@@ -158,6 +222,38 @@ function setup({
         const id = url.searchParams.get("ids") as string;
         return Response.json({
           entities: { [id]: { sitelinks: { enwiki: { title } } } },
+        });
+      }
+      // The bad image list, and the categories of the article's files
+      if (url.pathname === "/w/index.php") return new Response("");
+      if (url.searchParams.get("prop") === "categories") {
+        return Response.json({
+          query: {
+            pages: (url.searchParams.get("titles") ?? "")
+              .split("|")
+              .map((title) => ({ title, categories: [] })),
+          },
+        });
+      }
+      if (url.searchParams.get("generator") === "images") {
+        assert.equal(url.searchParams.get("titles"), "Traditional_folk_music");
+        return Response.json({
+          query: {
+            pages: [
+              {
+                title: "File:Fiddle.jpg",
+                imagerepository: "shared",
+                imageinfo: [
+                  {
+                    thumburl: articleImageUrl,
+                    width: 800,
+                    height: 600,
+                    mime: "image/jpeg",
+                  },
+                ],
+              },
+            ],
+          },
         });
       }
       if (url.pathname.includes("/page/summary/")) {
@@ -210,6 +306,174 @@ test("logging a requested ID stores and references the resolved Wikipedia ID", a
   );
   assert.equal(fixture.writes[0].body.id, resolvedId);
   assert.equal(fixture.writes[1].body.item_id, resolvedId);
+});
+
+test("logging with a picture from the article saves it on the new entry", async () => {
+  fixture = setup();
+  assert.deepEqual(
+    await logItem({
+      itemId: requestedId,
+      rating: 4,
+      review: "",
+      imageUrl: articleImageUrl,
+    }),
+    {},
+  );
+  const logWrites = fixture.writes.filter((w) => w.table === "logs");
+  assert.deepEqual(
+    logWrites.map((w) => w.method),
+    ["POST", "PATCH"],
+  );
+  assert.equal(logWrites[0].body.image_url, undefined);
+  assert.equal(logWrites[1].id, logId);
+  assert.equal(logWrites[1].body.image_url, articleImageUrl);
+});
+
+test("an entry whose picture can't be saved is taken back out, so trying again can't log it twice", async () => {
+  fixture = setup({ pictureWriteFails: true });
+  assert.deepEqual(
+    await logItem({
+      itemId: requestedId,
+      rating: 4,
+      review: "",
+      imageUrl: articleImageUrl,
+    }),
+    { error: "Couldn't save your entry. Try again." },
+  );
+  const logWrites = fixture.writes.filter((w) => w.table === "logs");
+  assert.deepEqual(
+    logWrites.map((w) => [w.method, w.id]),
+    [
+      ["POST", undefined],
+      ["PATCH", logId],
+      ["DELETE", logId],
+    ],
+  );
+});
+
+test("an item nobody has saved yet offers its article's pictures", async () => {
+  fixture = setup();
+  const result = await itemPictureChoices(resolvedId);
+  assert.ok("choices" in result);
+  assert.deepEqual(
+    result.choices.map((c) => [c.url, c.isDefault]),
+    [
+      [imageUrl, true],
+      [articleImageUrl, false],
+    ],
+  );
+  assert.equal(
+    fixture.writes.some((w) => w.table === "items"),
+    false,
+  );
+});
+
+test("logging with the item's own picture stores no picture of its own", async () => {
+  fixture = setup();
+  assert.deepEqual(
+    await logItem({
+      itemId: requestedId,
+      rating: 4,
+      review: "",
+      imageUrl,
+    }),
+    {},
+  );
+  assert.deepEqual(
+    fixture.writes.filter((w) => w.table === "logs").map((w) => w.method),
+    ["POST"],
+  );
+});
+
+test("logging with a picture that isn't in the article saves nothing", async () => {
+  fixture = setup();
+  assert.deepEqual(
+    await logItem({
+      itemId: requestedId,
+      rating: 4,
+      review: "",
+      imageUrl:
+        "https://upload.wikimedia.org/wikipedia/commons/a/aa/Elsewhere.jpg",
+    }),
+    { error: "That picture isn't available." },
+  );
+  assert.equal(
+    fixture.writes.some((w) => w.table === "logs"),
+    false,
+  );
+});
+
+const folkItem = {
+  id: resolvedId,
+  title,
+  image_url: imageUrl,
+  page_url: pageUrl,
+  fetched_at: new Date().toISOString(),
+};
+
+test("a review's author can change its picture to one from the article", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    reviews: [
+      { id: logId, user_id: userId, item_id: resolvedId, image_url: null },
+    ],
+  });
+  assert.deepEqual(await setReviewPicture(logId, articleImageUrl), {});
+  const write = fixture.writes.find((w) => w.table === "logs");
+  assert.equal(write?.method, "PATCH");
+  assert.equal(write?.id, logId);
+  assert.equal(write?.body.image_url, articleImageUrl);
+});
+
+test("a review goes back to its item's picture", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    reviews: [
+      {
+        id: logId,
+        user_id: userId,
+        item_id: resolvedId,
+        image_url: articleImageUrl,
+      },
+    ],
+  });
+  assert.deepEqual(await setReviewPicture(logId, null), {});
+  assert.equal(
+    fixture.writes.find((w) => w.table === "logs")?.body.image_url,
+    null,
+  );
+});
+
+test("someone else's review keeps its picture", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    reviews: [
+      {
+        id: logId,
+        user_id: "44444444-4444-4444-8444-444444444444",
+        item_id: resolvedId,
+        image_url: null,
+      },
+    ],
+  });
+  assert.deepEqual(await setReviewPicture(logId, articleImageUrl), {
+    error: "Couldn't save that change.",
+  });
+  assert.deepEqual(fixture.writes, []);
+});
+
+test("a suspended account can't change a review's picture", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    reviews: [
+      { id: logId, user_id: userId, item_id: resolvedId, image_url: null },
+    ],
+    suspended: true,
+  });
+  assert.deepEqual(await setReviewPicture(logId, articleImageUrl), {
+    error: "Your account is suspended",
+  });
+  assert.deepEqual(fixture.writes, []);
 });
 
 test("adding to a ranked list uses the resolved ID in the row, move and response", async () => {
@@ -373,6 +637,26 @@ test("an image Wikimedia no longer has is replaced by refreshing its item", asyn
   assert.equal(write?.method, "PATCH");
   assert.equal(write?.id, resolvedId);
   assert.equal(write?.body.image_url, imageUrl);
+});
+
+test("a review whose chosen picture is gone goes back to its item's picture", async () => {
+  fixture = setup({
+    cached: [{ ...folkItem, image_hidden: false }],
+    reviews: [
+      {
+        id: logId,
+        user_id: userId,
+        item_id: resolvedId,
+        image_url: renamedImageUrl,
+      },
+    ],
+    imageStatus: 404,
+  });
+  // Reviews of other items may share the picture, so none is offered in its place
+  assert.equal(await reportBrokenImage(renamedImageUrl), null);
+  const write = fixture.writes.find((w) => w.table === "logs");
+  assert.equal(write?.method, "PATCH");
+  assert.equal(write?.body.image_url, null);
 });
 
 test("an image that still loads for the server isn't replaced", async () => {

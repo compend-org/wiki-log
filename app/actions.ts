@@ -2,6 +2,7 @@
 // ABOUTME: Caches items looked up from Wikipedia before anything refers to them.
 "use server";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { updateTag } from "next/cache";
 import {
   cleanNote,
@@ -25,6 +26,11 @@ import {
   replaceBrokenImage,
   STALE_COPY_WAIT_MS,
 } from "@/lib/items";
+import {
+  type PictureChoice,
+  pictureChoices,
+  storedPicture,
+} from "@/lib/reviewPictures";
 import { parseSfwMode, type SfwMode } from "@/lib/sfw";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -99,6 +105,8 @@ export async function logItem(input: {
   itemId: string;
   rating: number | null;
   review: string;
+  // A picture from the item's article to show instead of the item's own
+  imageUrl?: string | null;
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -120,21 +128,119 @@ export async function logItem(input: {
   const stored = await ensureItem(input.itemId);
   if ("error" in stored) return { error: stored.error };
 
+  // Checked before saving, so a picture that isn't allowed saves nothing
+  const picture = await storedPicture(stored.id, input.imageUrl ?? null);
+  if ("error" in picture) return picture;
+
   // Saved as the signed-in user, so RLS applies
-  const { error } = await withErrorContext(
+  const { data: saved, error } = await withErrorContext(
     "log",
     { requestedItemId: input.itemId, itemId: stored.id },
     () =>
-      supabase.from("logs").insert({
-        user_id: userId,
-        item_id: stored.id,
-        rating: input.rating,
-        review: input.review.slice(0, 5000),
-      }),
+      supabase
+        .from("logs")
+        .insert({
+          user_id: userId,
+          item_id: stored.id,
+          rating: input.rating,
+          review: input.review.slice(0, 5000),
+        })
+        .select("id"),
   );
   if (error) return { error: error.message };
 
+  // Only the server may set a review's picture
+  const logId = saved?.[0]?.id;
+  if (picture.url && logId) {
+    const { error: pictureError } = await createAdminClient()
+      .from("logs")
+      .update({ image_url: picture.url })
+      .eq("id", logId);
+    if (pictureError) {
+      // The entry goes too, so trying again can't log it twice
+      const { error: undoError } = await supabase
+        .from("logs")
+        .delete()
+        .eq("id", logId);
+      return {
+        error: undoError
+          ? "Your entry was saved, but not its picture."
+          : "Couldn't save your entry. Try again.",
+      };
+    }
+  }
+
   return {};
+}
+
+// True if the account is banned or suspended. The database stops such
+// accounts writing for themselves; this covers writes the server makes for them.
+async function accountIsRestricted(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("banned_at, account_restrictions(suspended_until)")
+    .eq("id", userId)
+    .maybeSingle();
+  const row = data as {
+    banned_at: string | null;
+    account_restrictions: { suspended_until: string } | null;
+  } | null;
+  if (!row) return true;
+  const until = row.account_restrictions?.suspended_until;
+  return (
+    row.banned_at !== null ||
+    (!!until && new Date(until).getTime() > Date.now())
+  );
+}
+
+// The pictures a review of this item can show, the item's own first
+export async function itemPictureChoices(
+  itemId: string,
+): Promise<{ choices: PictureChoice[] } | { error: string }> {
+  if (typeof itemId !== "string" || !ITEM_ID.test(itemId)) {
+    return { error: "Invalid item." };
+  }
+  const choices = await pictureChoices(itemId);
+  return choices
+    ? { choices }
+    : { error: "Couldn't reach Wikipedia. Try again in a minute." };
+}
+
+// Sets the picture one of your reviews shows. Null goes back to the item's own.
+export async function setReviewPicture(
+  logId: string,
+  imageUrl: string | null,
+): Promise<{ error?: string }> {
+  if (!isUuid(logId)) return { error: "Invalid review." };
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { error: "You need to sign in." };
+  if (await accountIsRestricted(supabase, userId)) {
+    return { error: "Your account is suspended" };
+  }
+
+  const { data: log } = await supabase
+    .from("logs")
+    .select("item_id")
+    .eq("id", logId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!log) return { error: "Couldn't save that change." };
+
+  const picture = await storedPicture(log.item_id, imageUrl);
+  if ("error" in picture) return picture;
+
+  const { error } = await createAdminClient()
+    .from("logs")
+    .update({ image_url: picture.url })
+    .eq("id", logId)
+    .eq("user_id", userId);
+  return error ? { error: error.message } : {};
 }
 
 // Deletes someone's avatar files and their auth user

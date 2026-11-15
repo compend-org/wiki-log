@@ -5,7 +5,13 @@ import { connection } from "next/server";
 import HeartIcon from "@/components/social/HeartIcon";
 import ShareIcon from "@/components/social/ShareIcon";
 import { avatarUrl } from "@/lib/avatar";
-import { absolute, plainReview, shortLabel, thumbUrl } from "@/lib/format";
+import {
+  absolute,
+  plainReview,
+  reviewPicture,
+  shortLabel,
+  thumbUrl,
+} from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { getProfileByName } from "@/lib/profiles";
 import { getReview } from "@/lib/reviews";
@@ -44,7 +50,7 @@ export async function GET(
   if (!log) return new Response("Not found", { status: 404 });
 
   const title = log.items?.title ?? "Unknown item";
-  const itemImageUrl = log.items?.image_hidden ? null : log.items?.image_url;
+  const itemImageUrl = reviewPicture(log);
   const rating = Math.max(0, Math.min(5, Number(log.rating ?? 0)));
   const text = plainReview(log.review).trim();
   const likes = log.likes?.[0]?.count ?? 0;

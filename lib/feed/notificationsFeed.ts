@@ -34,7 +34,9 @@ export type NotificationRow = {
   profiles: { username: string; avatar_path: string | null } | null;
 };
 
-type LogInfo = { owner: string; item: string };
+// A review's owner and item, and the picture its author chose (null shows
+// the item's)
+type LogInfo = { owner: string; item: string; picture: string | null };
 type ListInfo = { title: string; items: Thumb[] };
 
 type ItemRow = {
@@ -53,6 +55,7 @@ type FeedQueryRow = NotificationRow & {
   logs: {
     user_id: string;
     item_id: string;
+    image_url: string | null;
     items: ItemRow | null;
     owner: { username: string; admins: { user_id: string } | null } | null;
   } | null;
@@ -126,7 +129,7 @@ async function loadFeed(userId: string): Promise<FeedResult> {
   const { data, error } = await createClient()
     .from("notifications")
     .select(
-      "id, type, read, created_at, log_id, list_id, comment_id, list_comment_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path, admins(user_id)), logs!notifications_log_fkey(user_id, item_id, items!logs_item_id_fkey(title, image_url, image_hidden, nsfw), owner:profiles!logs_user_id_profiles_fkey(username, admins(user_id))), lists!notifications_list_id_fkey(title, list_items(position, items(title, image_url, image_hidden, nsfw)))",
+      "id, type, read, created_at, log_id, list_id, comment_id, list_comment_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path, admins(user_id)), logs!notifications_log_fkey(user_id, item_id, image_url, items!logs_item_id_fkey(title, image_url, image_hidden, nsfw), owner:profiles!logs_user_id_profiles_fkey(username, admins(user_id))), lists!notifications_list_id_fkey(title, list_items(position, items(title, image_url, image_hidden, nsfw)))",
     )
     .eq("recipient_id", userId)
     .order("created_at", { ascending: false })
@@ -146,8 +149,8 @@ async function loadFeed(userId: string): Promise<FeedResult> {
   for (const n of list) {
     if (n.actor_id && n.profiles?.admins) adminIds.add(n.actor_id);
     if (n.log_id && n.logs) {
-      const { user_id, item_id, items: item, owner } = n.logs;
-      logs[n.log_id] = { owner: user_id, item: item_id };
+      const { user_id, item_id, image_url, items: item, owner } = n.logs;
+      logs[n.log_id] = { owner: user_id, item: item_id, picture: image_url };
       if (item) items[item_id] = toThumb(item);
       if (owner) {
         owners[user_id] = owner.username;

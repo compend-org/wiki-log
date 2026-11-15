@@ -12,6 +12,8 @@ export type Review = {
   logged_at: string;
   // Only ever set for the author: removed reviews are hidden from everyone else
   removed_at: string | null;
+  // The picture its author chose; null shows the item's
+  image_url: string | null;
   items: {
     title: string;
     image_url: string | null;
@@ -23,7 +25,7 @@ export type Review = {
 };
 
 const REVIEW_COLUMNS =
-  "id, user_id, item_id, rating, review, logged_at, removed_at, items(title, image_url, image_hidden, nsfw), likes(count), shares(count)";
+  "id, user_id, item_id, rating, review, logged_at, removed_at, image_url, items(title, image_url, image_hidden, nsfw), likes(count), shares(count)";
 
 // The review with this id by this person, or null when there's no such review
 export const getReview = cache(
