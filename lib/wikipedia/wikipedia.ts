@@ -40,7 +40,11 @@ export type ItemData = {
 
 export type LookupResult = { item: ItemData } | { error: string };
 
-type ItemImage = { url: string; nonFree: boolean; filePage: string | null };
+export type ItemImage = {
+  url: string;
+  nonFree: boolean;
+  filePage: string | null;
+};
 
 // -------------------------------------------------------------- wikidata
 
@@ -201,14 +205,14 @@ async function representativeImage(
   }
 }
 
-// Without a representative image, the first usable article image is a fallback.
-// It may depict a related topic rather than the article's subject: API file
-// order and licence don't tell us which image does.
-async function firstArticleImage(
+// The article's usable pictures, in the order the API lists them, leaving out
+// small images, banners, unsupported formats and page furniture. Null if the
+// lookup failed.
+export async function articleImages(
   lang: LangCode,
   title: string,
   deadline: number,
-): Promise<ItemImage | null> {
+): Promise<ItemImage[] | null> {
   try {
     const res = await wikiFetch(
       `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&generator=images&gimlimit=50&prop=imageinfo|categories&iiprop=url|size|mime&iiurlwidth=960&clcategories=${encodeURIComponent("Category:All free media")}&cllimit=max&titles=${encodeURIComponent(title)}`,
@@ -219,38 +223,48 @@ async function firstArticleImage(
       query?: { pages?: ImagePage[] };
     } = await res.json();
 
-    const page = (data.query?.pages ?? []).find((page) => {
+    return (data.query?.pages ?? []).flatMap((page) => {
       const info = page.imageinfo?.[0];
       const width = info?.width ?? 0;
       const height = info?.height ?? 0;
       const ratio = height > 0 ? width / height : 0;
-      return (
-        !!(info?.thumburl ?? info?.url) &&
+      const source = info?.thumburl ?? info?.url;
+      const usable =
+        !!source &&
         !!info?.mime &&
         PICTURE_TYPES.has(info.mime) &&
         width >= 200 &&
         height >= 150 &&
         ratio >= 0.5 &&
         ratio <= 2.2 &&
-        !PAGE_FURNITURE.test(page.title)
-      );
-    });
-    if (!page) return null;
+        !PAGE_FURNITURE.test(page.title);
+      if (!usable) return [];
 
-    const info = page.imageinfo?.[0];
-    const source = info?.thumburl ?? info?.url;
-    if (!source) return null;
-    const url = absolute(source);
-    return {
-      url,
-      nonFree: !fileIsFree(page),
-      filePage:
-        info?.descriptionurl ??
-        filePageFor(lang, url, page.title.replace(/^[^:]+:/, "")),
-    };
+      const url = absolute(source);
+      return [
+        {
+          url,
+          nonFree: !fileIsFree(page),
+          filePage:
+            info?.descriptionurl ??
+            filePageFor(lang, url, page.title.replace(/^[^:]+:/, "")),
+        },
+      ];
+    });
   } catch {
     return null;
   }
+}
+
+// Without a representative image, the first usable article image is a fallback.
+// It may depict a related topic rather than the article's subject: API file
+// order and licence don't tell us which image does.
+async function firstArticleImage(
+  lang: LangCode,
+  title: string,
+  deadline: number,
+): Promise<ItemImage | null> {
+  return (await articleImages(lang, title, deadline))?.[0] ?? null;
 }
 
 // Relevance comes before licence: use Wikipedia's representative image, then
@@ -354,37 +368,117 @@ async function readBadImages(deadline: number): Promise<Set<string> | null> {
   }
 }
 
+// The most files one API request may ask about
+const TITLES_PER_REQUEST = 50;
+
+// The categories of each of these files on one wiki, keyed by file name as
+// the wiki writes it. Files whose lookup failed are left out.
+async function fileCategories(
+  host: string,
+  names: string[],
+  deadline: number,
+): Promise<Map<string, string[]>> {
+  const found = new Map<string, string[]>();
+  const titles = names.map((name) => `File:${name}`).join("|");
+  // A file with many categories can spill into further pages of results
+  let next: Record<string, string> | undefined = {};
+  try {
+    for (let page = 0; next && page < 10; page++) {
+      const more = Object.entries(next)
+        .map(([key, value]) => `&${key}=${encodeURIComponent(value)}`)
+        .join("");
+      const res = await wikiFetch(
+        `https://${host}/w/api.php?action=query&format=json&formatversion=2&prop=categories&cllimit=max&titles=${encodeURIComponent(titles)}${more}`,
+        deadline,
+      );
+      if (!res.ok) break;
+      const data: {
+        continue?: Record<string, string>;
+        query?: {
+          normalized?: { from: string; to: string }[];
+          pages?: ImagePage[];
+        };
+      } = await res.json();
+
+      // The wiki may write a title differently from how it was asked for
+      const asked = new Map(
+        (data.query?.normalized ?? []).map((n) => [n.to, n.from]),
+      );
+      for (const p of data.query?.pages ?? []) {
+        const name = (asked.get(p.title) ?? p.title).replace(/^File:/, "");
+        found.set(name, [
+          ...(found.get(name) ?? []),
+          ...(p.categories ?? []).map((c) => c.title),
+        ]);
+      }
+      next = data.continue;
+    }
+  } catch {
+    // Whatever was read before the failure still counts
+  }
+  return found;
+}
+
+// The images among these that are on the bad image list or filed under
+// explicit categories. A failed lookup counts as no, so the image is shown as
+// usual.
+export async function explicitImages(
+  urls: string[],
+  deadline: number,
+): Promise<Set<string>> {
+  const explicit = new Set<string>();
+  const bad = await badImages(deadline);
+
+  // The images left to check, by the wiki that holds each file and its name
+  const toCheck = new Map<string, Map<string, string[]>>();
+  for (const url of urls) {
+    const fileName = fileNameFromUrl(url);
+    if (!fileName) continue;
+    const name = fileTitle(fileName);
+    if (bad?.has(name)) {
+      explicit.add(url);
+      continue;
+    }
+
+    // Commons files live under /wikipedia/commons/, a wiki's own files under
+    // its language code
+    const parts = new URL(absolute(url)).pathname.split("/").filter(Boolean);
+    const host =
+      parts[1] === "commons"
+        ? "commons.wikimedia.org"
+        : `${parts[1]}.wikipedia.org`;
+    const files = toCheck.get(host) ?? new Map<string, string[]>();
+    files.set(name, [...(files.get(name) ?? []), url]);
+    toCheck.set(host, files);
+  }
+
+  await Promise.all(
+    [...toCheck].flatMap(([host, files]) => {
+      const names = [...files.keys()];
+      const groups: string[][] = [];
+      for (let i = 0; i < names.length; i += TITLES_PER_REQUEST) {
+        groups.push(names.slice(i, i + TITLES_PER_REQUEST));
+      }
+      return groups.map(async (group) => {
+        const categories = await fileCategories(host, group, deadline);
+        for (const name of group) {
+          if (categories.get(name)?.some((c) => EXPLICIT_CATEGORY.test(c))) {
+            for (const url of files.get(name) ?? []) explicit.add(url);
+          }
+        }
+      });
+    }),
+  );
+  return explicit;
+}
+
 // True if the image is on the bad image list or filed under explicit
 // categories. A failed lookup counts as no, so the image is shown as usual.
 async function isExplicitImage(
   url: string,
   deadline: number,
 ): Promise<boolean> {
-  const fileName = fileNameFromUrl(url);
-  if (!fileName) return false;
-  const name = fileTitle(fileName);
-  if ((await badImages(deadline))?.has(name)) return true;
-
-  // Commons files live under /wikipedia/commons/, a wiki's own files under
-  // its language code
-  const parts = new URL(absolute(url)).pathname.split("/").filter(Boolean);
-  const host =
-    parts[1] === "commons"
-      ? "commons.wikimedia.org"
-      : `${parts[1]}.wikipedia.org`;
-  try {
-    const res = await wikiFetch(
-      `https://${host}/w/api.php?action=query&format=json&formatversion=2&prop=categories&cllimit=max&titles=${encodeURIComponent(`File:${name}`)}`,
-      deadline,
-    );
-    if (!res.ok) return false;
-    const data: { query?: { pages?: ImagePage[] } } = await res.json();
-    return (data.query?.pages?.[0]?.categories ?? []).some((c) =>
-      EXPLICIT_CATEGORY.test(c.title),
-    );
-  } catch {
-    return false;
-  }
+  return (await explicitImages([url], deadline)).has(url);
 }
 
 // True if an item is adult content, by what Wikidata says it is or by its image

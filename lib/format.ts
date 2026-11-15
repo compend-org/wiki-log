@@ -67,6 +67,14 @@ export function shownImage(item: {
   return item.image_hidden ? null : item.image_url;
 }
 
+// The picture a review shows: the one its author chose, or else its item's
+export function reviewPicture(log: {
+  image_url: string | null;
+  items: { image_url: string | null; image_hidden?: boolean } | null;
+}): string | null {
+  return log.image_url ?? (log.items ? shownImage(log.items) : null);
+}
+
 // The thumbnail widths Wikimedia serves; it refuses any other width
 const THUMB_WIDTHS = [20, 40, 60, 120, 250, 330, 500, 960, 1280, 1920, 3840];
 

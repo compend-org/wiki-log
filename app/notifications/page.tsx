@@ -140,8 +140,12 @@ export default function NotificationsPage() {
     const item = entry ? items[entry.item] : undefined;
     const title = item?.title ?? "an item";
     const ownerName = entry ? owners[entry.owner] : undefined;
+    // A review's card shows the picture its author chose for it
     const itemSubject: NotificationSubject | null = item
-      ? { kind: "item", item }
+      ? {
+          kind: "item",
+          item: entry?.picture ? { ...item, image_url: entry.picture } : item,
+        }
       : null;
     const list = n.list_id ? lists[n.list_id] : undefined;
     const listSubject: NotificationSubject | null = list

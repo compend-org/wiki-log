@@ -8,7 +8,7 @@ import DiaryReplyCard from "@/components/activity/DiaryReplyCard";
 import type { Card, CardsPage } from "@/components/paging/CardPages";
 import type { ActivityView } from "@/lib/activityView";
 import { FEATURES } from "@/lib/features";
-import { timeAgo } from "@/lib/format";
+import { reviewPicture, timeAgo } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
 import {
   type Keyset,
@@ -44,6 +44,8 @@ type LogRow = {
   rating: number | null;
   review: string;
   logged_at: string;
+  // The picture its author chose; null shows the item's
+  image_url: string | null;
   items: ItemInfo;
   profiles: {
     username: string;
@@ -232,7 +234,7 @@ export async function loadDiaryPage(
   let logsQuery = supabase
     .from("logs")
     .select(
-      "id, item_id, rating, review, logged_at, items(title, image_url, nsfw), profiles!logs_user_id_profiles_fkey(username, user_settings(sfw_mode))",
+      "id, item_id, rating, review, logged_at, image_url, items(title, image_url, nsfw), profiles!logs_user_id_profiles_fkey(username, user_settings(sfw_mode))",
     )
     .eq("user_id", userId);
   if (after.logs) {
@@ -345,7 +347,7 @@ export async function loadDiaryPage(
           logId={l.id}
           itemId={l.item_id}
           title={l.items?.title ?? "Unknown item"}
-          imageUrl={l.items?.image_url ?? null}
+          imageUrl={reviewPicture(l)}
           nsfw={l.items?.nsfw ?? false}
           rating={l.rating === null ? null : Number(l.rating)}
           review={l.review}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { setReviewPicture } from "@/app/actions";
 import RatingInput from "@/components/logs/RatingInput";
 import ReviewTextarea from "@/components/logs/ReviewTextArea";
 import { track } from "@/lib/analytics/analytics";
@@ -12,12 +13,16 @@ export default function EditEntryForm({
   logId,
   initialRating,
   initialReview,
+  pickedPicture,
   onSaved,
   onCancel,
 }: {
   logId: string;
   initialRating: number | null;
   initialReview: string;
+  // A picture picked while editing, saved with the rest: an address, or null
+  // for the item's own. Undefined leaves the review's picture as it is.
+  pickedPicture?: string | null;
   onSaved: (rating: number | null, review: string) => void;
   onCancel: () => void;
 }) {
@@ -48,6 +53,17 @@ export default function EditEntryForm({
     if (!data || data.length === 0) {
       setError("Couldn't save that change.");
       return;
+    }
+    if (pickedPicture !== undefined) {
+      setBusy(true);
+      const picture = await setReviewPicture(logId, pickedPicture).catch(
+        () => ({ error: "Couldn't save the picture. Try again." }),
+      );
+      setBusy(false);
+      if (picture.error) {
+        setError(picture.error);
+        return;
+      }
     }
     track("log_edited", {
       has_rating: newRating !== null,

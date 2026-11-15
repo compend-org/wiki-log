@@ -25,7 +25,7 @@ import {
   toCommentItems,
 } from "@/lib/comments";
 import { getAlsoLiked } from "@/lib/feed/alsoLiked";
-import { starText, timeAgo } from "@/lib/format";
+import { reviewPicture, starText, timeAgo } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { likeKey } from "@/lib/likes";
 import { pageMetadata } from "@/lib/metadata";
@@ -53,8 +53,11 @@ export async function generateMetadata({
   return pageMetadata({
     title: `${profile.username} on ${itemTitle}`,
     description: starText(log.rating) || undefined,
-    image:
-      log.items?.image_url && !log.items.image_hidden
+    // A picture the author chose has its own route; other reviews share their
+    // item's
+    image: log.image_url
+      ? `/u/${encodeURIComponent(profile.username)}/${log.id}/picture`
+      : log.items?.image_url && !log.items.image_hidden
         ? `/item/${log.item_id}/image`
         : null,
   });
@@ -137,44 +140,44 @@ export default async function ReviewPage({
 
   // The part of the card that stays put, with room on the right for the
   // owner's Edit and Delete controls
-  const header = (
-    <div className="flex gap-4">
-      <Link href={`/item/${log.item_id}`} className="shrink-0">
-        <ItemImage
-          src={log.items?.image_url}
-          nsfw={log.items?.nsfw}
-          alt={title}
-          className="h-28 w-28 rounded"
-        />
+  const picture = (
+    <Link href={`/item/${log.item_id}`} className="shrink-0">
+      <ItemImage
+        src={reviewPicture(log)}
+        nsfw={log.items?.nsfw}
+        alt={title}
+        className="h-28 w-28 rounded"
+      />
+    </Link>
+  );
+  const byline = (
+    <div className={`flex min-w-0 flex-col gap-1 ${isOwner ? "pr-16" : ""}`}>
+      <Link href={`/item/${log.item_id}`} className="text-xl font-bold">
+        {title}
       </Link>
-      <div className={`flex min-w-0 flex-col gap-1 ${isOwner ? "pr-16" : ""}`}>
-        <Link href={`/item/${log.item_id}`} className="text-xl font-bold">
-          {title}
-        </Link>
-        {/* The dot before the date sits in the gap left of it, so when the
+      {/* The dot before the date sits in the gap left of it, so when the
             date wraps to the start of a line the dot is clipped away */}
-        <p className="flex flex-wrap items-center gap-x-3.5 overflow-hidden text-sm text-muted">
-          <span className="flex flex-wrap items-center gap-x-1.5">
-            <span>Review by</span>
-            <Link
-              href={`/u/${encodeURIComponent(profile.username)}`}
-              className="inline-flex items-center gap-1.5 hover:underline"
-            >
-              <Avatar
-                name={profile.username}
-                path={profile.avatar_path}
-                size={20}
-              />
-              {profile.username}
-            </Link>
-            {adminIds.has(log.user_id) && <AdminBadge />}
-          </span>
-          <span className="relative before:absolute before:right-full before:mr-1 before:content-['·']">
-            {timeAgo(log.logged_at, renderedAt)}
-          </span>
-        </p>
-        <Stars rating={log.rating} />
-      </div>
+      <p className="flex flex-wrap items-center gap-x-3.5 overflow-hidden text-sm text-muted">
+        <span className="flex flex-wrap items-center gap-x-1.5">
+          <span>Review by</span>
+          <Link
+            href={`/u/${encodeURIComponent(profile.username)}`}
+            className="inline-flex items-center gap-1.5 hover:underline"
+          >
+            <Avatar
+              name={profile.username}
+              path={profile.avatar_path}
+              size={20}
+            />
+            {profile.username}
+          </Link>
+          {adminIds.has(log.user_id) && <AdminBadge />}
+        </span>
+        <span className="relative before:absolute before:right-full before:mr-1 before:content-['·']">
+          {timeAgo(log.logged_at, renderedAt)}
+        </span>
+      </p>
+      <Stars rating={log.rating} />
     </div>
   );
 
@@ -199,12 +202,26 @@ export default async function ReviewPage({
             rating={log.rating === null ? null : Number(log.rating)}
             review={log.review}
             profileHref={`/u/${encodeURIComponent(profile.username)}`}
-            header={header}
+            picture={picture}
+            byline={byline}
             body={body}
+            pictureChoice={
+              /^Q\d+$/.test(log.item_id)
+                ? {
+                    itemId: log.item_id,
+                    title,
+                    url: reviewPicture(log),
+                    nsfw: log.items?.nsfw ?? false,
+                  }
+                : undefined
+            }
           />
         ) : (
           <>
-            {header}
+            <div className="flex gap-4">
+              {picture}
+              {byline}
+            </div>
             {body}
           </>
         )}

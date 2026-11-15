@@ -14,7 +14,7 @@ import LikeButton from "@/components/social/LikeButton";
 import ShareButton from "@/components/social/ShareButton";
 import ShareIcon from "@/components/social/ShareIcon";
 import type { LogRow } from "@/lib/feed/feedData";
-import { timeAgo } from "@/lib/format";
+import { reviewPicture, timeAgo } from "@/lib/format";
 
 // The layout follows the width of the column the card sits in (the "@xl:"
 // variants), not the width of the screen
@@ -73,7 +73,7 @@ export default async function LogCard({
         className="card-link relative z-10 shrink-0 self-center"
       >
         <ItemImage
-          src={row.items?.image_url}
+          src={reviewPicture(row)}
           nsfw={row.items?.nsfw}
           alt={title}
           className="h-20 w-20 rounded"

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { logItem } from "@/app/actions";
+import { useReviewPicture } from "@/components/items/ReviewPictureContext";
 import RatingInput from "@/components/logs/RatingInput";
 import ReviewTextarea from "@/components/logs/ReviewTextArea";
 import { track } from "@/lib/analytics/analytics";
@@ -25,6 +26,8 @@ export default function LogForm({
   const [busy, setBusy] = useState<boolean>(false);
   const [done, setDone] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  // A picture picked on the item's big picture, saved with the entry
+  const { picked, pick } = useReviewPicture();
   const router = useRouter();
 
   async function handleSave() {
@@ -37,6 +40,7 @@ export default function LogForm({
         itemId: id,
         rating: rating > 0 ? rating : null,
         review,
+        imageUrl: picked && !picked.isDefault ? picked.url : null,
       });
     } catch (error) {
       // The server may have saved the entry before its response was lost.
@@ -71,6 +75,7 @@ export default function LogForm({
     // Ready for the next entry
     setRating(0);
     setReview("");
+    pick(null);
     setDone(true);
     router.refresh();
   }

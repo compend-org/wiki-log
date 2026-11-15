@@ -5,7 +5,7 @@ import { FEATURES } from "@/lib/features";
 import { absolute } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
 import { getItemForPage } from "@/lib/items";
-import { COLORS, stillImage } from "@/lib/shareImage";
+import { stillJpegResponse } from "@/lib/shareImage";
 import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia/wikipedia";
 
 export async function GET(
@@ -22,26 +22,5 @@ export async function GET(
   const imageUrl = "item" in result ? result.item.imageUrl : null;
   if (!imageUrl) return new Response("Not found", { status: 404 });
 
-  try {
-    // An animated GIF becomes its first frame, and see-through parts white
-    const picture = await stillImage(absolute(imageUrl), WIKIMEDIA_HEADERS);
-    const jpeg = await picture
-      .flatten({ background: COLORS.background })
-      .jpeg({ quality: 85 })
-      .toBuffer();
-
-    return new Response(new Uint8Array(jpeg), {
-      headers: {
-        "Content-Type": "image/jpeg",
-        // Pictures rarely change, and a hidden one drops out within a day
-        "Cache-Control": "public, max-age=3600, s-maxage=86400",
-      },
-    });
-  } catch (error) {
-    console.error(`Loading the picture for ${id} failed:`, error);
-    return new Response("Picture unavailable", {
-      status: 502,
-      headers: { "Cache-Control": "no-store" },
-    });
-  }
+  return stillJpegResponse(absolute(imageUrl), WIKIMEDIA_HEADERS, id);
 }
