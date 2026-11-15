@@ -85,7 +85,6 @@ test("database refusals the app explains to the person are not reported", async 
   for (const [table, code] of [
     ["likes", "23505"],
     ["list_likes", "23505"],
-    ["pins", "P0001"],
     ["reports", "23505"],
   ]) {
     const failure = await describeFailedRequest(

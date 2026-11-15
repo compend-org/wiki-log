@@ -12,8 +12,6 @@ const HANDLED_FAILURES = new Set([
   "list_items:23505",
   // A page past the end of a list, which lib/listPages.ts follows up on
   "list_items:PGRST103",
-  // The pin limit, whose message PinButton shows as it is
-  "pins:P0001",
   "profiles:23505",
   // A second report of the same thing, which ReportButton treats as done
   "reports:23505",

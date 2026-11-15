@@ -51,6 +51,7 @@ export type AnalyticsEvents = {
   unshared: { target: Target };
   pinned: { target: Target };
   unpinned: { target: Target };
+  pins_reordered: NoProperties;
   share_image_created: { method: "share_sheet" | "download" };
 
   // Finding things to read

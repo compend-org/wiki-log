@@ -18,24 +18,25 @@ import BlockButton from "@/components/people/BlockButton";
 import FollowButton from "@/components/people/FollowButton";
 import Favourites, { type Slot } from "@/components/profile/Favourites";
 import {
+  fetchPinned,
   fetchProfileRows,
-  LIST_FIELDS,
-  LOG_FIELDS,
+  type PinTarget,
+  PROFILE_PAGE_SIZE_INITIAL,
   type ProfileContext,
-  type ProfileListRow,
+  pinSets,
+  renderPinnedCards,
   renderProfileCards,
-  renderProfileList,
-  renderProfileLog,
 } from "@/components/profile/loadProfilePage";
+import PinnedSection, {
+  type PinnedCard,
+} from "@/components/profile/PinnedSection";
 import SettingsIcon from "@/components/ui/SettingsIcon";
 import { isAdmin } from "@/lib/admin/admin";
 import { avatarUrl } from "@/lib/avatar";
 import { getProfileCompounds } from "@/lib/craft/profileCompounds";
-import type { LogRow } from "@/lib/feed/feedData";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { loginHref } from "@/lib/redirect";
-import { aboutAdultItem, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
 
@@ -53,23 +54,13 @@ type FavRow = {
   items: ItemInfo;
 };
 
-type PinRow = {
-  pinned_at: string;
-  log_id: string | null;
-  list_id: string | null;
-};
-
-type Pinned =
-  | { kind: "log"; log: LogRow }
-  | { kind: "list"; list: ProfileListRow };
-
 type ProfileContent = {
   followers: { count: number }[];
   following: { count: number }[];
   log_count: { count: number }[];
   list_count: { count: number }[];
   favourites: FavRow[];
-  pin_rows: PinRow[];
+  pin_rows: (PinTarget & { id: string; position: number })[];
   viewer_follow?: { follower_id: string }[];
   follows_viewer?: { following_id: string }[];
   viewer_block?: { blocker_id: string }[];
@@ -125,11 +116,12 @@ export default async function ProfilePage({
         "log_count:logs!logs_user_id_profiles_fkey(count), " +
         "list_count:lists!lists_user_id_profiles_fkey(count), " +
         "favourites(position, item_id, items(title, image_url, nsfw)), " +
-        "pin_rows:pins(pinned_at, log_id, list_id)" +
+        "pin_rows:pins(id, position, log_id, list_id)" +
         viewerEmbeds,
     )
     .eq("id", profile.id)
-    .order("pinned_at", { referencedTable: "pin_rows", ascending: false });
+    .order("position", { referencedTable: "pin_rows" })
+    .order("id", { referencedTable: "pin_rows" });
   if (viewerId) {
     contentQuery = contentQuery
       .eq("viewer_follow.follower_id", viewerId)
@@ -160,44 +152,30 @@ export default async function ProfilePage({
       : null;
   });
 
-  // What they pinned, loaded on its own whatever page it would be on, and the
-  // first page of their lists and of their reviews without the pinned ones
+  // The first of their pins, loaded on their own whatever page they would be
+  // on, and the first page of their lists and of their reviews without those.
+  // The owner gets every pin, to reorder them all.
+  const isOwner = viewerId === profile.id;
   const pinRows = content?.pin_rows ?? [];
-  const pinnedLogIds = pinRows.flatMap((p) => (p.log_id ? [p.log_id] : []));
-  const pinnedListIds = pinRows.flatMap((p) => (p.list_id ? [p.list_id] : []));
+  const loadedPins = isOwner
+    ? pinRows
+    : pinRows.slice(0, PROFILE_PAGE_SIZE_INITIAL);
   const ctx: ProfileContext = {
     profileId: profile.id,
     viewerId,
-    pinnedLogIds: new Set(pinnedLogIds),
-    pinnedListIds: new Set(pinnedListIds),
+    ...pinSets(pinRows),
   };
   // The lists and reviews below start again from the first page when the pins
   // change, since the pinned cards move out of them or back in
   const pinsKey = pinRows.map((p) => p.log_id ?? p.list_id).join(",");
-  const [
-    pinnedLogsRes,
-    pinnedListsRes,
-    listRows,
-    logRows,
-    ratingCountsRes,
-    allCompounds,
-  ] = await Promise.all([
-    pinnedLogIds.length > 0
-      ? supabase.from("logs").select(LOG_FIELDS).in("id", pinnedLogIds)
-      : { data: [] },
-    pinnedListIds.length > 0
-      ? supabase
-          .from("lists")
-          .select(LIST_FIELDS)
-          .in("id", pinnedListIds)
-          .lte("preview.position", 4)
-          .order("position", { referencedTable: "preview" })
-      : { data: [] },
-    fetchProfileRows(supabase, ctx, "lists", null),
-    fetchProfileRows(supabase, ctx, "reviews", null),
-    supabase.rpc("profile_rating_counts", { p_user: profile.id }),
-    getProfileCompounds(supabase, profile.id),
-  ]);
+  const [{ pinned }, listRows, logRows, ratingCountsRes, allCompounds] =
+    await Promise.all([
+      fetchPinned(supabase, loadedPins),
+      fetchProfileRows(supabase, ctx, "lists", null),
+      fetchProfileRows(supabase, ctx, "reviews", null),
+      supabase.rpc("profile_rating_counts", { p_user: profile.id }),
+      getProfileCompounds(supabase, profile.id),
+    ]);
   // One rating per item they rated, for the histogram
   const ratings = (
     (ratingCountsRes.data ?? []) as {
@@ -205,38 +183,29 @@ export default async function ProfilePage({
       n: number | string;
     }[]
   ).flatMap((r) => Array<number>(Number(r.n)).fill(Number(r.step)));
-  const pinnedLogs = new Map(
-    ((pinnedLogsRes.data ?? []) as unknown as LogRow[]).map((l) => [l.id, l]),
-  );
-  const pinnedLists = new Map(
-    ((pinnedListsRes.data ?? []) as unknown as ProfileListRow[]).map((l) => [
-      l.id,
-      l,
-    ]),
-  );
-  // Newest pin first. A pin whose log or list can't be found is left out.
-  const pinned = pinRows.flatMap((p): Pinned[] => {
-    const log = p.log_id ? pinnedLogs.get(p.log_id) : undefined;
-    if (log) return [{ kind: "log", log }];
-    const list = p.list_id ? pinnedLists.get(p.list_id) : undefined;
-    return list ? [{ kind: "list", list }] : [];
-  });
-
   // What the viewer has liked and shared among the reviews and lists shown
   const viewer = await getViewerState(supabase, viewerId, {
-    logIds: [...pinnedLogs.keys(), ...logRows.rows.map((l) => l.id)],
-    listIds: [...pinnedLists.keys(), ...listRows.rows.map((l) => l.id)],
+    logIds: [
+      ...pinned.flatMap((p) => (p.kind === "log" ? [p.log.id] : [])),
+      ...logRows.rows.map((l) => l.id),
+    ],
+    listIds: [
+      ...pinned.flatMap((p) => (p.kind === "list" ? [p.list.id] : [])),
+      ...listRows.rows.map((l) => l.id),
+    ],
   });
-  // Pinned reviews of adult items are left out when the viewer hides them
-  const shownPins = shownEntries(
-    pinned,
-    viewer.sfwMode,
-    (p) => p.kind === "log" && aboutAdultItem(p.log),
-  );
   // Compounds they crafted; adult ones are left out when the viewer hides them
   const compounds = allCompounds.filter(
     (c) => !(viewer.sfwMode === "hide" && c.nsfw),
   );
+  // Each loaded pin with its card, which is null when the viewer hides it
+  const pinnedCards = new Map(
+    renderPinnedCards(ctx, viewer, pinned).map((c) => [c.key, c.card]),
+  );
+  const pins: PinnedCard[] = loadedPins.map((p) => ({
+    id: p.id,
+    card: pinnedCards.get(p.log_id ?? p.list_id ?? "") ?? null,
+  }));
   const firstLists: CardsPage = {
     cards: renderProfileCards(ctx, viewer, "lists", listRows.rows),
     next: listRows.next,
@@ -248,7 +217,6 @@ export default async function ProfilePage({
     error: logRows.error,
   };
 
-  const isOwner = viewerId === profile.id;
   // Only the owner can read their own suspension
   const { data: suspension } = isOwner
     ? await supabase
@@ -395,17 +363,13 @@ export default async function ProfilePage({
       {(isOwner || slots.some(Boolean)) && (
         <Favourites slots={slots} isOwner={isOwner} />
       )}
-      {shownPins.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-            Pinned
-          </h2>
-          {shownPins.map((p) =>
-            p.kind === "log"
-              ? renderProfileLog(ctx, viewer, p.log, true)
-              : renderProfileList(ctx, viewer, p.list, true),
-          )}
-        </section>
+      {pins.length > 0 && (
+        <PinnedSection
+          profileHref={profileHref}
+          pins={pins}
+          shownCount={PROFILE_PAGE_SIZE_INITIAL}
+          editable={isOwner}
+        />
       )}
       {/* Hiding this for the time being because it is ugly on mobile */}
       {/* <div className="sm:hidden">

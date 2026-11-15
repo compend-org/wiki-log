@@ -7,6 +7,7 @@ import DeleteButton from "@/components/logs/DeleteButton";
 import LogCard from "@/components/logs/LogCard";
 import PinButton from "@/components/logs/PinButton";
 import type { Card, CardsPage } from "@/components/paging/CardPages";
+import { chunks } from "@/lib/allRows";
 import type { ListRow as ListCardRow, LogRow } from "@/lib/feed/feedData";
 import { type Keyset, olderThan } from "@/lib/paging";
 import { aboutAdultItem, shownEntries } from "@/lib/sfw";
@@ -20,27 +21,27 @@ type ItemInfo = {
 } | null;
 
 // The columns a review card needs, for both the review list and the pinned ones
-export const LOG_FIELDS =
+const LOG_FIELDS =
   "id, user_id, item_id, rating, review, logged_at, items(title, image_url, nsfw), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
 
 // The columns a list card needs, with the first items of the list as preview.
 // Ask for `.lte("preview.position", 4)` with it.
-export const LIST_FIELDS =
+const LIST_FIELDS =
   "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), preview:list_items(position, items(title, image_url, nsfw))";
 
-// How many reviews or lists a profile shows at first, and each time "Show
-// more" is pressed
-const PROFILE_PAGE_SIZE_INITIAL = 3;
+// How many pins, reviews or lists a profile shows at first, and how many more
+// reviews or lists each "Show more" adds
+export const PROFILE_PAGE_SIZE_INITIAL = 3;
 const PROFILE_MORE_PAGE = 7;
 
 export type ProfileListRow = ListCardRow & {
   preview: { position: number; items: ItemInfo }[];
 };
 
-// How many things a person can pin. The database enforces the same number.
-const MAX_PINS = 3;
-
 export type ProfileKind = "lists" | "reviews";
+
+// Logs or lists asked about in one .in() filter, which goes in the URL
+const IDS_PER_REQUEST = 100;
 
 // Who is looking at whose profile, and what that person has pinned
 export type ProfileContext = {
@@ -48,7 +49,32 @@ export type ProfileContext = {
   viewerId: string | undefined;
   pinnedLogIds: Set<string>;
   pinnedListIds: Set<string>;
+  // The logs and lists the profile's Pinned section shows, which its Lists
+  // and Reviews leave out
+  pinnedOnTop: Set<string>;
 };
+
+// What one pin points at
+export type PinTarget = { log_id: string | null; list_id: string | null };
+
+export type Pinned =
+  | { kind: "log"; log: LogRow }
+  | { kind: "list"; list: ProfileListRow };
+
+// What a person has pinned, from their pins in order
+export function pinSets(
+  pins: PinTarget[],
+): Pick<ProfileContext, "pinnedLogIds" | "pinnedListIds" | "pinnedOnTop"> {
+  return {
+    pinnedLogIds: new Set(pins.flatMap((p) => p.log_id ?? [])),
+    pinnedListIds: new Set(pins.flatMap((p) => p.list_id ?? [])),
+    pinnedOnTop: new Set(
+      pins
+        .slice(0, PROFILE_PAGE_SIZE_INITIAL)
+        .flatMap((p) => p.log_id ?? p.list_id ?? []),
+    ),
+  };
+}
 
 const KINDS: Record<
   ProfileKind,
@@ -68,17 +94,14 @@ const KINDS: Record<
   },
 };
 
-// Pin and Unpin, on your own profile. Once you have 3 pins, only Unpin shows.
+// Pin and Unpin, on your own profile
 function pinControl(
   ctx: ProfileContext,
   kind: "log" | "list",
   id: string,
   isPinned: boolean,
 ): ReactNode {
-  const pinCount = ctx.pinnedLogIds.size + ctx.pinnedListIds.size;
-  return ctx.viewerId === ctx.profileId &&
-    ctx.viewerId &&
-    (isPinned || pinCount < MAX_PINS) ? (
+  return ctx.viewerId && ctx.viewerId === ctx.profileId ? (
     <PinButton
       userId={ctx.viewerId}
       kind={kind}
@@ -98,7 +121,7 @@ function deleteControl(
   ) : null;
 }
 
-export function renderProfileList(
+function renderProfileList(
   ctx: ProfileContext,
   viewer: ViewerState,
   l: ProfileListRow,
@@ -123,7 +146,7 @@ export function renderProfileList(
   );
 }
 
-export function renderProfileLog(
+function renderProfileLog(
   ctx: ProfileContext,
   viewer: ViewerState,
   log: LogRow,
@@ -143,8 +166,8 @@ export function renderProfileLog(
   );
 }
 
-// The rows of one page, newest first, after `cursor`. Pinned ones are left
-// out, as they show at the top of the profile instead.
+// The rows of one page, newest first, after `cursor`. The pinned ones the
+// profile shows at the top are left out.
 export async function fetchProfileRows(
   supabase: SupabaseClient,
   ctx: ProfileContext,
@@ -183,11 +206,7 @@ export async function fetchProfileRows(
       ? { at: last[time] as string, id: last.id }
       : null;
   const pinned =
-    rating !== undefined || includePinned
-      ? new Set<string>()
-      : kind === "lists"
-        ? ctx.pinnedListIds
-        : ctx.pinnedLogIds;
+    rating !== undefined || includePinned ? new Set<string>() : ctx.pinnedOnTop;
   return {
     rows: page.filter((r) => !pinned.has(r.id)) as unknown as (
       | ProfileListRow
@@ -209,8 +228,8 @@ export function renderProfileCards(
     kind === "lists"
       ? rows
       : shownEntries(rows as LogRow[], viewer.sfwMode, aboutAdultItem);
-  // Pinned ones only come up here among reviews with one rating; the
-  // profile itself shows them in their own section instead
+  // Pinned ones come up here too, apart from those the profile shows at the
+  // top
   return shown.map((row) => ({
     key: row.id,
     card:
@@ -241,17 +260,17 @@ export async function loadProfilePage(
   const supabase = await createClient();
   const [{ data: claimsData }, { data: pins }] = await Promise.all([
     supabase.auth.getClaims(),
-    supabase.from("pins").select("log_id, list_id").eq("user_id", profileId),
+    supabase
+      .from("pins")
+      .select("log_id, list_id")
+      .eq("user_id", profileId)
+      .order("position")
+      .order("id"),
   ]);
-  const pinRows = (pins ?? []) as {
-    log_id: string | null;
-    list_id: string | null;
-  }[];
   const ctx: ProfileContext = {
     profileId,
     viewerId: claimsData?.claims?.sub,
-    pinnedLogIds: new Set(pinRows.flatMap((p) => p.log_id ?? [])),
-    pinnedListIds: new Set(pinRows.flatMap((p) => p.list_id ?? [])),
+    ...pinSets((pins ?? []) as PinTarget[]),
   };
 
   const { rows, next, error } = await fetchProfileRows(
@@ -269,4 +288,121 @@ export async function loadProfilePage(
     kind === "lists" ? { listIds: ids } : { logIds: ids },
   );
   return { cards: renderProfileCards(ctx, viewer, kind, rows), next, error };
+}
+
+// The logs and lists these pins point at, in the pins' order. A pin whose log
+// or list can't be found is left out.
+export async function fetchPinned(
+  supabase: SupabaseClient,
+  pins: PinTarget[],
+): Promise<{ pinned: Pinned[]; error: string }> {
+  const logIds = pins.flatMap((p) => p.log_id ?? []);
+  const listIds = pins.flatMap((p) => p.list_id ?? []);
+  const [logResponses, listResponses] = await Promise.all([
+    Promise.all(
+      chunks(logIds, IDS_PER_REQUEST).map((ids) =>
+        supabase.from("logs").select(LOG_FIELDS).in("id", ids),
+      ),
+    ),
+    Promise.all(
+      chunks(listIds, IDS_PER_REQUEST).map((ids) =>
+        supabase
+          .from("lists")
+          .select(LIST_FIELDS)
+          .in("id", ids)
+          .lte("preview.position", 4)
+          .order("position", { referencedTable: "preview" }),
+      ),
+    ),
+  ]);
+  const logs = new Map(
+    logResponses
+      .flatMap((r) => (r.data ?? []) as unknown as LogRow[])
+      .map((l) => [l.id, l]),
+  );
+  const lists = new Map(
+    listResponses
+      .flatMap((r) => (r.data ?? []) as unknown as ProfileListRow[])
+      .map((l) => [l.id, l]),
+  );
+  const pinned = pins.flatMap((p): Pinned[] => {
+    const log = p.log_id ? logs.get(p.log_id) : undefined;
+    if (log) return [{ kind: "log", log }];
+    const list = p.list_id ? lists.get(p.list_id) : undefined;
+    return list ? [{ kind: "list", list }] : [];
+  });
+  return {
+    pinned,
+    error:
+      [...logResponses, ...listResponses].find((r) => r.error)?.error
+        ?.message ?? "",
+  };
+}
+
+export function renderPinnedCards(
+  ctx: ProfileContext,
+  viewer: ViewerState,
+  pinned: Pinned[],
+): Card[] {
+  // Pinned reviews of adult items are left out when the viewer hides them
+  const shown = shownEntries(
+    pinned,
+    viewer.sfwMode,
+    (p) => p.kind === "log" && aboutAdultItem(p.log),
+  );
+  return shown.map((p) =>
+    p.kind === "log"
+      ? { key: p.log.id, card: renderProfileLog(ctx, viewer, p.log, true) }
+      : { key: p.list.id, card: renderProfileList(ctx, viewer, p.list, true) },
+  );
+}
+
+// The last pin a page of pins took, by its place in the person's order and
+// then its id
+export type PinCursor = { position: number; id: string };
+
+// A page of someone's pins, in their order, after `cursor`
+export async function loadPinnedPage(
+  profileId: string,
+  cursor: PinCursor | null,
+): Promise<CardsPage<PinCursor>> {
+  const size = cursor ? PROFILE_MORE_PAGE : PROFILE_PAGE_SIZE_INITIAL;
+  const supabase = await createClient();
+  let query = supabase
+    .from("pins")
+    .select("id, position, log_id, list_id")
+    .eq("user_id", profileId);
+  if (cursor) {
+    query = query.or(
+      `position.gt.${cursor.position},and(position.eq.${cursor.position},id.gt.${cursor.id})`,
+    );
+  }
+  const [{ data: claimsData }, { data, error }] = await Promise.all([
+    supabase.auth.getClaims(),
+    query
+      .order("position")
+      .order("id")
+      .limit(size + 1),
+  ]);
+  const pins = (data ?? []) as (PinTarget & PinCursor)[];
+  const page = pins.slice(0, size);
+  const last = page.at(-1);
+  const ctx: ProfileContext = {
+    profileId,
+    viewerId: claimsData?.claims?.sub,
+    ...pinSets(page),
+  };
+  const { pinned, error: pinnedError } = await fetchPinned(supabase, page);
+  const viewer = await getViewerState(supabase, ctx.viewerId, {
+    logIds: pinned.flatMap((p) => (p.kind === "log" ? [p.log.id] : [])),
+    listIds: pinned.flatMap((p) => (p.kind === "list" ? [p.list.id] : [])),
+  });
+  return {
+    cards: renderPinnedCards(ctx, viewer, pinned),
+    next:
+      pins.length > size && last
+        ? { position: last.position, id: last.id }
+        : null,
+    error: error?.message ?? pinnedError,
+  };
 }
