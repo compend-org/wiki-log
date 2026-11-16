@@ -1,6 +1,8 @@
 // ABOUTME: A round profile picture, or the default picture for people without one.
 // ABOUTME: Tiny displays load the small stored copy to save bandwidth.
 import { avatarUrl } from "@/lib/avatar";
+import defaultAvatarDark from "@/public/default-avi-dark.png";
+import defaultAvatarLight from "@/public/default-avi-light.png";
 
 export default function Avatar({
   path,
@@ -26,7 +28,7 @@ export default function Avatar({
       <>
         {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
         <img
-          src="/default-avi-light.png"
+          src={defaultAvatarLight.src}
           alt=""
           loading={loading}
           width={size}
@@ -37,7 +39,7 @@ export default function Avatar({
         />
         {/* biome-ignore lint/performance/noImgElement: a plain img is intended */}
         <img
-          src="/default-avi-dark.png"
+          src={defaultAvatarDark.src}
           alt=""
           loading={loading}
           width={size}
