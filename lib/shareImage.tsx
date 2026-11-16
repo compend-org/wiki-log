@@ -85,25 +85,51 @@ export async function stillImage(
     });
 }
 
-// A picture as a still JPEG response, for link previews. Previewers get a
-// small still picture even when the original is a huge animated GIF or comes
-// from a site that blocks them. `label` names the picture in the error log.
-export async function stillJpegResponse(
+// A drawing made a whole number of times bigger, toward PICTURE_SIDE, so
+// every pixel stays a square block, and centred on a square, since link
+// previews show drawings in square cards that would crop the rest. A PNG,
+// which doesn't smudge the pixels.
+async function enlargedDrawing(picture: Sharp): Promise<Buffer> {
+  const { width = 1, height = 1 } = await picture.metadata();
+  const scale = Math.max(1, Math.floor(PICTURE_SIDE / Math.max(width, height)));
+  const [w, h] = [width * scale, height * scale];
+  const side = Math.max(w, h);
+  return picture
+    .resize(w, h, { kernel: "nearest", withoutEnlargement: false })
+    .extend({
+      top: Math.floor((side - h) / 2),
+      bottom: Math.ceil((side - h) / 2),
+      left: Math.floor((side - w) / 2),
+      right: Math.ceil((side - w) / 2),
+      background: COLORS.background,
+    })
+    .png()
+    .toBuffer();
+}
+
+// A picture as a still response, for link previews. Previewers get a small
+// still JPEG even when the original is a huge animated GIF or comes from a
+// site that blocks them. A drawing is too small for previews to show, so it
+// is enlarged with its pixels kept sharp. `label` names the picture in the
+// error log.
+export async function previewImageResponse(
   url: string,
   headers: Record<string, string>,
   label: string,
+  isDrawing = false,
 ): Promise<Response> {
   try {
     // An animated GIF becomes its first frame, and see-through parts white
-    const picture = await stillImage(url, headers);
-    const jpeg = await picture
-      .flatten({ background: COLORS.background })
-      .jpeg({ quality: 85 })
-      .toBuffer();
+    const picture = (await stillImage(url, headers)).flatten({
+      background: COLORS.background,
+    });
+    const image = isDrawing
+      ? await enlargedDrawing(picture)
+      : await picture.jpeg({ quality: 85 }).toBuffer();
 
-    return new Response(new Uint8Array(jpeg), {
+    return new Response(new Uint8Array(image), {
       headers: {
-        "Content-Type": "image/jpeg",
+        "Content-Type": isDrawing ? "image/png" : "image/jpeg",
         // Pictures rarely change, and a hidden one drops out within a day
         "Cache-Control": "public, max-age=3600, s-maxage=86400",
       },

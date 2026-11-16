@@ -5,7 +5,7 @@ import { absolute, entryPicture } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { getProfileByName } from "@/lib/profiles";
 import { getReview } from "@/lib/reviews";
-import { stillJpegResponse } from "@/lib/shareImage";
+import { previewImageResponse } from "@/lib/shareImage";
 import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia/wikipedia";
 
 export async function GET(
@@ -22,5 +22,5 @@ export async function GET(
   const imageUrl = log ? entryPicture(log) : null;
   if (!imageUrl) return new Response("Not found", { status: 404 });
 
-  return stillJpegResponse(absolute(imageUrl), WIKIMEDIA_HEADERS, logId);
+  return previewImageResponse(absolute(imageUrl), WIKIMEDIA_HEADERS, logId);
 }

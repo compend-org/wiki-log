@@ -23,7 +23,7 @@ import { getItemLogs, getMostLikedLogs } from "@/lib/itemLogs";
 import { getItemRatings } from "@/lib/itemRatings";
 import { getItemForPage } from "@/lib/items";
 import { getItemLists } from "@/lib/lists/itemLists";
-import { pageMetadata } from "@/lib/metadata";
+import { itemPreviewImage, pageMetadata } from "@/lib/metadata";
 import { RANDOM_PARAM } from "@/lib/randomItem";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
@@ -63,7 +63,7 @@ export async function generateMetadata({
   const { item } = result;
   return pageMetadata({
     title: item.title,
-    image: item.imageUrl ? `/item/${item.id}/image` : null,
+    ...(item.imageUrl && itemPreviewImage(item.id, item.imageUrl)),
   });
 }
 

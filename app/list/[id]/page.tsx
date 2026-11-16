@@ -24,10 +24,10 @@ import {
   toCommentItems,
 } from "@/lib/comments";
 import { timeAgo } from "@/lib/format";
-import { isUuid } from "@/lib/ids";
+import { isCompoundId, isUuid } from "@/lib/ids";
 import { fetchOwnerLatestLogs } from "@/lib/lists/listOwnerLogs";
 import { fetchListPage, pageCount, parsePage } from "@/lib/lists/listPages";
-import { pageMetadata } from "@/lib/metadata";
+import { itemPreviewImage, pageMetadata } from "@/lib/metadata";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
 
@@ -107,7 +107,10 @@ export async function generateMetadata({
   const shown = entries.find((e) => e.imageUrl && !e.imageHidden);
   return pageMetadata({
     title: owner ? `${list.title} by ${owner}` : list.title,
-    image: shown?.imageUrl,
+    // A compound's drawing is too small to show as it is
+    ...(shown?.imageUrl && isCompoundId(shown.itemId)
+      ? itemPreviewImage(shown.itemId, shown.imageUrl)
+      : { image: shown?.imageUrl }),
   });
 }
 

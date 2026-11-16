@@ -28,7 +28,7 @@ import { getAlsoLiked } from "@/lib/feed/alsoLiked";
 import { entryPicture, starText, timeAgo } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { likeKey } from "@/lib/likes";
-import { pageMetadata } from "@/lib/metadata";
+import { itemPreviewImage, pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { getReview } from "@/lib/reviews";
 import { createClient } from "@/lib/supabase/server";
@@ -55,11 +55,13 @@ export async function generateMetadata({
     description: starText(log.rating) || undefined,
     // A picture the author chose has its own route; other reviews share their
     // item's
-    image: log.image_url
-      ? `/u/${encodeURIComponent(profile.username)}/${log.id}/picture`
-      : log.items?.image_url && !log.items.image_hidden
-        ? `/item/${log.item_id}/image`
-        : null,
+    ...(log.image_url
+      ? {
+          image: `/u/${encodeURIComponent(profile.username)}/${log.id}/picture`,
+        }
+      : log.items?.image_url &&
+        !log.items.image_hidden &&
+        itemPreviewImage(log.item_id, log.items.image_url)),
   });
 }
 
