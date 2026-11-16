@@ -1,4 +1,4 @@
-// ABOUTME: Whole-region transforms for the paint editor: flip, rotate and invert the pixels of a selection.
+// ABOUTME: Region transforms for the paint editor: flip, rotate and invert a selection or the whole picture.
 // ABOUTME: Regions are copied pixels, row by row, four bytes each, as `copyRegion` makes them.
 import type { Bitmap, Rgb } from "@/lib/craft/paint";
 
@@ -48,7 +48,7 @@ function swap(pixels: Bitmap, a: number, b: number): void {
   }
 }
 
-export function flipRegionHorizontal({ pixels, w, h }: RegionPixels): void {
+function flipRegionHorizontal({ pixels, w, h }: RegionPixels): void {
   for (let row = 0; row < h; row++) {
     for (let col = 0; col < Math.floor(w / 2); col++) {
       swap(pixels, (row * w + col) * 4, (row * w + (w - 1 - col)) * 4);
@@ -56,7 +56,7 @@ export function flipRegionHorizontal({ pixels, w, h }: RegionPixels): void {
   }
 }
 
-export function flipRegionVertical({ pixels, w, h }: RegionPixels): void {
+function flipRegionVertical({ pixels, w, h }: RegionPixels): void {
   for (let row = 0; row < Math.floor(h / 2); row++) {
     for (let col = 0; col < w; col++) {
       swap(pixels, (row * w + col) * 4, ((h - 1 - row) * w + col) * 4);
@@ -65,7 +65,7 @@ export function flipRegionVertical({ pixels, w, h }: RegionPixels): void {
 }
 
 // Turns the pixels a quarter turn. The result is h wide and w high.
-export function rotateRegion(
+function rotateRegion(
   { pixels, w, h }: RegionPixels,
   clockwise: boolean,
 ): RegionPixels {
@@ -81,12 +81,33 @@ export function rotateRegion(
   return { pixels: out, w: h, h: w };
 }
 
-export function invertRegion({ pixels }: RegionPixels): void {
+function invertRegion({ pixels }: RegionPixels): void {
   for (let i = 0; i < pixels.length; i += 4) {
     pixels[i] = 255 - pixels[i];
     pixels[i + 1] = 255 - pixels[i + 1];
     pixels[i + 2] = 255 - pixels[i + 2];
   }
+}
+
+// The Image menu's changes to a picture
+export type ImageAction =
+  | "flipH"
+  | "flipV"
+  | "rotateRight"
+  | "rotateLeft"
+  | "invert";
+
+// The pixels after an Image menu change: changed in place, except a quarter
+// turn, which gives new ones
+export function transformRegion(
+  region: RegionPixels,
+  action: ImageAction,
+): RegionPixels {
+  if (action === "flipH") flipRegionHorizontal(region);
+  else if (action === "flipV") flipRegionVertical(region);
+  else if (action === "invert") invertRegion(region);
+  else return rotateRegion(region, action === "rotateRight");
+  return region;
 }
 
 export type Placement = { x: number; y: number; w: number; h: number };
