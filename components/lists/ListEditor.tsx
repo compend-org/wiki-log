@@ -27,6 +27,7 @@ import {
   SAVE_FAILED,
   userFacingErrorMessage,
 } from "@/lib/errors/userFacingErrorMessage";
+import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { useDragSensors } from "@/lib/hooks/useDragSensors";
 import { isCompoundId } from "@/lib/ids";
 import { type EditorSnapshot, SavedListEditing } from "@/lib/lists/listEditing";
@@ -563,6 +564,7 @@ export default function ListEditor({
               e.preventDefault();
               moveToPosition();
             }}
+            onKeyDown={submitOnModEnter}
             className="card sticky bottom-2 z-30 flex flex-wrap items-center gap-2 p-3 text-sm"
           >
             <label className="flex flex-wrap items-center gap-2">
@@ -585,6 +587,7 @@ export default function ListEditor({
             </label>
             <button
               type="submit"
+              data-submit
               disabled={loading || moveTarget === ""}
               className="rounded-lg bg-accent px-3 py-1 text-background disabled:opacity-40"
             >

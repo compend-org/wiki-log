@@ -9,6 +9,7 @@ import { useReviewPicture } from "@/components/items/ReviewPictureContext";
 import RatingInput from "@/components/logs/RatingInput";
 import ReviewTextarea from "@/components/logs/ReviewTextArea";
 import { track } from "@/lib/analytics/analytics";
+import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { useLoginHref } from "@/lib/hooks/useLoginHref";
 
 export default function LogForm({
@@ -89,7 +90,8 @@ export default function LogForm({
   }
 
   return (
-    <div className="flex w-full flex-col gap-3">
+    // biome-ignore lint/a11y/noStaticElementInteractions: the handler only catches Cmd/Ctrl+Enter bubbling up from the fields inside
+    <div className="flex w-full flex-col gap-3" onKeyDown={submitOnModEnter}>
       <RatingInput
         value={rating}
         onChange={(v) => {
@@ -109,6 +111,7 @@ export default function LogForm({
       />
       <button
         type="button"
+        data-submit
         onClick={handleSave}
         disabled={busy}
         className="self-start bg-accent px-4 py-2 text-background disabled:opacity-40"

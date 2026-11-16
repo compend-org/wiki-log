@@ -7,6 +7,7 @@ import {
   SAVE_FAILED,
   userFacingErrorMessage,
 } from "@/lib/errors/userFacingErrorMessage";
+import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import { createClient } from "@/lib/supabase/client";
 
@@ -54,7 +55,11 @@ export default function BioEditor({
   }
 
   return (
-    <form onSubmit={handleSave} className="flex flex-col gap-2">
+    <form
+      onSubmit={handleSave}
+      onKeyDown={submitOnModEnter}
+      className="flex flex-col gap-2"
+    >
       <label htmlFor="bio" className="text-sm">
         Bio
       </label>
@@ -76,6 +81,7 @@ export default function BioEditor({
       <div className="flex items-center gap-3">
         <button
           type="submit"
+          data-submit
           disabled={busy || refreshing || bio === savedBio}
           className="bg-accent px-4 py-2 text-background disabled:opacity-40"
         >

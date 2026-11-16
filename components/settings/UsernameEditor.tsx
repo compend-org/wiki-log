@@ -9,6 +9,7 @@ import {
   SAVE_FAILED,
   userFacingErrorMessage,
 } from "@/lib/errors/userFacingErrorMessage";
+import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import { createClient } from "@/lib/supabase/client";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
@@ -61,7 +62,11 @@ export default function UsernameEditor({
 
   return (
     <>
-      <form onSubmit={handleSave} className="flex flex-col gap-3">
+      <form
+        onSubmit={handleSave}
+        onKeyDown={submitOnModEnter}
+        className="flex flex-col gap-3"
+      >
         <label className="flex flex-col gap-1 text-sm">
           Username
           <input
@@ -75,6 +80,7 @@ export default function UsernameEditor({
         </label>
         <button
           type="submit"
+          data-submit
           disabled={busy || refreshing}
           className="bg-accent px-4 py-2 text-background disabled:opacity-40"
         >

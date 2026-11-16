@@ -5,6 +5,7 @@ import { useId, useState } from "react";
 import Dialog from "@/components/ui/Dialog";
 import { REPORT_REASONS } from "@/lib/admin/moderation";
 import { track } from "@/lib/analytics/analytics";
+import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { useLoginHref } from "@/lib/hooks/useLoginHref";
 import { createClient } from "@/lib/supabase/client";
 
@@ -91,7 +92,11 @@ export default function ReportButton({
               </button>
             </>
           ) : (
-            <form onSubmit={submit} className="flex flex-col gap-3">
+            <form
+              onSubmit={submit}
+              onKeyDown={submitOnModEnter}
+              className="flex flex-col gap-3"
+            >
               <h2 className="text-base font-semibold">
                 {kind === "profile" ? "Report this account" : "Report this"}
               </h2>
@@ -129,6 +134,7 @@ export default function ReportButton({
               <div className="flex gap-2">
                 <button
                   type="submit"
+                  data-submit
                   disabled={busy}
                   className="rounded-lg bg-accent px-3 py-1.5 text-background disabled:opacity-40"
                 >

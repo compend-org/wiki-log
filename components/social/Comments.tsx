@@ -15,6 +15,7 @@ import {
   userFacingErrorMessage,
 } from "@/lib/errors/userFacingErrorMessage";
 import { mentionToken } from "@/lib/format";
+import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { useLoginHref } from "@/lib/hooks/useLoginHref";
 import { createClient } from "@/lib/supabase/client";
 
@@ -255,7 +256,11 @@ export default function Comments({
             )}
 
             {replyTo === c.id && (
-              <form onSubmit={submitReply} className="ml-3 flex flex-col gap-2">
+              <form
+                onSubmit={submitReply}
+                onKeyDown={submitOnModEnter}
+                className="ml-3 flex flex-col gap-2"
+              >
                 <ReviewTextarea
                   value={replyText}
                   onChange={setReplyText}
@@ -269,6 +274,7 @@ export default function Comments({
                   <button
                     type="submit"
                     disabled={busy}
+                    data-submit
                     className="rounded-lg bg-accent px-3 py-1.5 text-sm text-background disabled:opacity-40"
                   >
                     {busy ? "Posting…" : "Reply"}
@@ -292,7 +298,11 @@ export default function Comments({
       })}
 
       {viewerId ? (
-        <form onSubmit={submitTop} className="flex flex-col gap-2">
+        <form
+          onSubmit={submitTop}
+          onKeyDown={submitOnModEnter}
+          className="flex flex-col gap-2"
+        >
           <ReviewTextarea
             value={topText}
             onChange={setTopText}
@@ -303,6 +313,7 @@ export default function Comments({
           />
           <button
             type="submit"
+            data-submit
             disabled={busy || topText.trim().length === 0}
             className="self-start rounded-lg bg-accent px-4 py-2 text-background disabled:opacity-40"
           >

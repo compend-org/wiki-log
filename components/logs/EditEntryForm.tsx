@@ -9,6 +9,7 @@ import {
   SAVE_FAILED,
   userFacingErrorMessage,
 } from "@/lib/errors/userFacingErrorMessage";
+import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { createClient } from "@/lib/supabase/client";
 
 const MAX = 5000;
@@ -77,7 +78,11 @@ export default function EditEntryForm({
   }
 
   return (
-    <form onSubmit={handleSave} className="flex w-full flex-col gap-2">
+    <form
+      onSubmit={handleSave}
+      onKeyDown={submitOnModEnter}
+      className="flex w-full flex-col gap-2"
+    >
       <RatingInput value={rating} onChange={setRating} />
       <ReviewTextarea value={review} onChange={setReview} maxLength={MAX} />
       <div className="flex items-center gap-3">

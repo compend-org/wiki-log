@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/auth/Turnstile";
 import { track } from "@/lib/analytics/analytics";
+import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ForgotPasswordForm() {
@@ -47,7 +48,11 @@ export default function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+    <form
+      onSubmit={handleSubmit}
+      onKeyDown={submitOnModEnter}
+      className="flex flex-col gap-3"
+    >
       <p className="text-sm text-muted">
         Enter the email address you signed up with.
       </p>
@@ -62,6 +67,7 @@ export default function ForgotPasswordForm() {
       <Turnstile key={captchaKey} onToken={setCaptcha} />
       <button
         type="submit"
+        data-submit
         disabled={cannotSend}
         className="bg-accent px-4 py-2 text-background disabled:opacity-40"
       >

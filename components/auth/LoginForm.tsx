@@ -8,6 +8,7 @@ import { signIn } from "@/app/actions";
 import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/auth/Turnstile";
 import { identifyPerson, track } from "@/lib/analytics/analytics";
 import { authMessage } from "@/lib/errors/userFacingErrorMessage";
+import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { applySfw, setStoredSfw } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/client";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
@@ -257,7 +258,11 @@ export default function LoginForm({ next }: { next: string }) {
       </h1>
 
       {mode === "signin" ? (
-        <form onSubmit={handleSignIn} className="flex flex-col gap-3">
+        <form
+          onSubmit={handleSignIn}
+          onKeyDown={submitOnModEnter}
+          className="flex flex-col gap-3"
+        >
           <input
             type="text"
             value={identifier}
@@ -278,6 +283,7 @@ export default function LoginForm({ next }: { next: string }) {
           <Turnstile key={captchaKey} onToken={setCaptcha} />
           <button
             type="submit"
+            data-submit
             disabled={cannotSend}
             className="bg-accent px-4 py-2 text-background disabled:opacity-40"
           >
@@ -288,7 +294,11 @@ export default function LoginForm({ next }: { next: string }) {
           </Link>
         </form>
       ) : (
-        <form onSubmit={handleSignUp} className="flex flex-col gap-3">
+        <form
+          onSubmit={handleSignUp}
+          onKeyDown={submitOnModEnter}
+          className="flex flex-col gap-3"
+        >
           <input
             type="text"
             value={username}
@@ -327,6 +337,7 @@ export default function LoginForm({ next }: { next: string }) {
           <Turnstile key={captchaKey} onToken={setCaptcha} />
           <button
             type="submit"
+            data-submit
             disabled={cannotSend}
             className="bg-accent px-4 py-2 text-background disabled:opacity-40"
           >

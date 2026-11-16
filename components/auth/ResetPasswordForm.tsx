@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { track } from "@/lib/analytics/analytics";
 import { authMessage } from "@/lib/errors/userFacingErrorMessage";
+import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ResetPasswordForm() {
@@ -45,7 +46,11 @@ export default function ResetPasswordForm() {
   const inputClass = "border border-line bg-surface px-4 py-2 text-foreground";
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+    <form
+      onSubmit={handleSubmit}
+      onKeyDown={submitOnModEnter}
+      className="flex flex-col gap-3"
+    >
       <input
         type="password"
         value={password}
@@ -65,6 +70,7 @@ export default function ResetPasswordForm() {
       />
       <button
         type="submit"
+        data-submit
         disabled={busy}
         className="bg-accent px-4 py-2 text-background disabled:opacity-40"
       >
