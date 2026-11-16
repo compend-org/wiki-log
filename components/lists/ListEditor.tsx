@@ -10,19 +10,28 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { addToList, createList, stageItem } from "@/app/actions";
+import {
+  addToList,
+  createList,
+  setListItemPicture,
+  stageItem,
+} from "@/app/actions";
 import ItemImage from "@/components/items/ItemImage";
 import ItemPicker from "@/components/items/ItemPicker";
 import ListPager from "@/components/lists/ListPager";
+import PicturePicker from "@/components/logs/PicturePicker";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import EditIcon from "@/components/ui/EditIcon";
 import { track } from "@/lib/analytics/analytics";
 import { useDragSensors } from "@/lib/hooks/useDragSensors";
+import { isCompoundId } from "@/lib/ids";
 import { type EditorSnapshot, SavedListEditing } from "@/lib/lists/listEditing";
 import {
   fetchListPage,
   LIST_PAGE_SIZE,
   pageCount,
 } from "@/lib/lists/listPages";
+import type { PictureChoice } from "@/lib/pictureChoices";
 import { createClient } from "@/lib/supabase/client";
 
 export type ListEntry = {
@@ -38,6 +47,7 @@ function SortableTile({
   selected,
   onRemove,
   onMove,
+  onPicture,
 }: {
   entry: ListEntry;
   rank: number;
@@ -45,6 +55,8 @@ function SortableTile({
   selected: boolean;
   onRemove: (itemId: string) => void;
   onMove: (itemId: string) => void;
+  // Opens the picture picker. Compounds have no article to pick from.
+  onPicture: (entry: ListEntry) => void;
 }) {
   const {
     attributes,
@@ -90,6 +102,17 @@ function SortableTile({
         >
           ⇅
         </button>
+        {!isCompoundId(entry.itemId) && (
+          <button
+            type="button"
+            onClick={() => onPicture(entry)}
+            aria-label={`Change the picture for ${entry.title}`}
+            title="Change the picture"
+            className="absolute bottom-1 left-1 rounded bg-background/80 px-1.5 py-1"
+          >
+            <EditIcon className="h-3 w-3" />
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onRemove(entry.itemId)}
@@ -125,6 +148,12 @@ export default function ListEditor({
 }) {
   // A new list's items, all kept here until it is created
   const [draftItems, setDraftItems] = useState<ListEntry[]>(initialItems);
+  // A new list's pictures picked from the items' articles, by item
+  const [draftPictures, setDraftPictures] = useState<Record<string, string>>(
+    {},
+  );
+  // The item whose picture picker is open
+  const [picturing, setPicturing] = useState<ListEntry | null>(null);
   // The item whose "Move to position" box is open, and what's typed in it
   const [moving, setMoving] = useState<string | null>(null);
   const [moveTarget, setMoveTarget] = useState<string>("");
@@ -164,6 +193,8 @@ export default function ListEditor({
             remove: (itemId) =>
               rpc("remove_list_item", { p_list: listId, p_item: itemId }),
             add: (itemId) => addToList({ listId, itemId }),
+            setPicture: (itemId, imageUrl) =>
+              setListItemPicture(listId, itemId, imageUrl),
             // Keeps the page in the address, so reloading comes back to it
             pageShown: (wanted) => {
               const path = window.location.pathname;
@@ -284,9 +315,28 @@ export default function ListEditor({
     setError("");
     if (!editing) {
       setDraftItems((prev) => prev.filter((i) => i.itemId !== itemId));
+      setDraftPictures(({ [itemId]: _, ...others }) => others);
       return;
     }
     if (await editing.remove(itemId)) track("list_item_removed");
+  }
+
+  // A saved list keeps the picked picture at once; a new one, when created
+  async function handlePicture(itemId: string, choice: PictureChoice | null) {
+    setError("");
+    // Null is the item's own picture
+    const stored = choice && !choice.isDefault ? choice.url : null;
+    const shown = choice?.url ?? null;
+    if (!editing) {
+      setDraftPictures(({ [itemId]: _, ...others }) =>
+        stored ? { ...others, [itemId]: stored } : others,
+      );
+      setDraftItems((prev) =>
+        prev.map((i) => (i.itemId === itemId ? { ...i, imageUrl: shown } : i)),
+      );
+      return;
+    }
+    await editing.setPicture(itemId, stored, shown);
   }
 
   async function saveList() {
@@ -307,6 +357,7 @@ export default function ListEditor({
         description,
         ranked,
         itemIds: items.map((i) => i.itemId),
+        pictures: draftPictures,
       });
       if (result.error || !result.id) {
         setBusy(false);
@@ -463,6 +514,7 @@ export default function ListEditor({
                   selected={entry.itemId === moving}
                   onRemove={handleRemove}
                   onMove={openMove}
+                  onPicture={setPicturing}
                 />
               ))}
               <li>
@@ -534,6 +586,16 @@ export default function ListEditor({
               Cancel
             </button>
           </form>
+        )}
+
+        {picturing && (
+          <PicturePicker
+            itemId={picturing.itemId}
+            label={`Picture for “${picturing.title}” in this list`}
+            picked={picturing.imageUrl}
+            onPick={(choice) => handlePicture(picturing.itemId, choice)}
+            onClose={() => setPicturing(null)}
+          />
         )}
 
         {notice && (

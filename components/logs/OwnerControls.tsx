@@ -6,7 +6,7 @@ import DeleteButton from "@/components/logs/DeleteButton";
 import EditEntryForm from "@/components/logs/EditEntryForm";
 import PictureButton from "@/components/logs/PictureButton";
 import EditIcon from "@/components/ui/EditIcon";
-import type { PictureChoice } from "@/lib/reviewPictures";
+import type { PictureChoice } from "@/lib/pictureChoices";
 
 export default function OwnerControls({
   logId,

@@ -6,7 +6,7 @@ import { useState } from "react";
 import ItemImage from "@/components/items/ItemImage";
 import PicturePicker from "@/components/logs/PicturePicker";
 import EditIcon from "@/components/ui/EditIcon";
-import type { PictureChoice } from "@/lib/reviewPictures";
+import type { PictureChoice } from "@/lib/pictureChoices";
 
 export default function PictureButton({
   itemId,
@@ -49,6 +49,7 @@ export default function PictureButton({
       {open && (
         <PicturePicker
           itemId={itemId}
+          label="Picture for your review"
           picked={url}
           onPick={onPick}
           onClose={() => setOpen(false)}

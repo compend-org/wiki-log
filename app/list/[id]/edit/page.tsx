@@ -69,7 +69,7 @@ export default async function EditListPage({
     list.ranked,
     page,
     total,
-    initialItems.map((i) => i.itemId),
+    initialItems.map((i) => [i.itemId, i.imageUrl]),
   ]);
 
   return (

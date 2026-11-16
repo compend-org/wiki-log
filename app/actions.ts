@@ -9,6 +9,7 @@ import {
   isReportReason,
   type ModerationInput,
 } from "@/lib/admin/moderation";
+import { chunks } from "@/lib/allRows";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
 import {
   prepareCompoundImage,
@@ -30,7 +31,7 @@ import {
   type PictureChoice,
   pictureChoices,
   storedPicture,
-} from "@/lib/reviewPictures";
+} from "@/lib/pictureChoices";
 import { parseSfwMode, type SfwMode } from "@/lib/sfw";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -40,6 +41,9 @@ import { getItemById } from "@/lib/wikipedia/wikipedia";
 const ITEM_ID = ITEM_ID_PATTERN;
 // Matches limit_list_counts() in supabase/migrations/*_raise_list_limits.sql
 const MAX_LIST_ITEMS = 10000;
+// How many of a new list's pictures are checked or saved at once, so a long
+// list can't start thousands of requests together
+const PICTURES_AT_ONCE = 10;
 
 // A stored item's ID, title and image, or why it couldn't be stored
 type StoredItem =
@@ -240,6 +244,46 @@ export async function setReviewPicture(
     .update({ image_url: picture.url })
     .eq("id", logId)
     .eq("user_id", userId);
+  return error ? { error: error.message } : {};
+}
+
+// Sets the picture an item shows in one of your lists. Null goes back to the
+// item's own.
+export async function setListItemPicture(
+  listId: string,
+  itemId: string,
+  imageUrl: string | null,
+): Promise<{ error?: string }> {
+  if (!isUuid(listId)) return { error: "Invalid list." };
+  if (typeof itemId !== "string" || !ITEM_ID.test(itemId)) {
+    return { error: "Invalid item." };
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { error: "You need to sign in." };
+  if (await accountIsRestricted(supabase, userId)) {
+    return { error: "Your account is suspended" };
+  }
+
+  const { data: entry } = await supabase
+    .from("list_items")
+    .select("item_id, lists!inner(user_id)")
+    .eq("list_id", listId)
+    .eq("item_id", itemId)
+    .eq("lists.user_id", userId)
+    .maybeSingle();
+  if (!entry) return { error: "Couldn't save that change." };
+
+  const picture = await storedPicture(itemId, imageUrl);
+  if ("error" in picture) return picture;
+
+  const { error } = await createAdminClient()
+    .from("list_items")
+    .update({ image_url: picture.url })
+    .eq("list_id", listId)
+    .eq("item_id", itemId);
   return error ? { error: error.message } : {};
 }
 
@@ -471,6 +515,45 @@ export async function setFavourite(input: {
   return {};
 }
 
+// Sets the picture an item shows in your top 5. Null goes back to the item's
+// own. `itemId` is the item the picture was picked for, so a slot that has
+// since been given another item is left alone.
+export async function setFavouritePicture(
+  position: number,
+  itemId: string,
+  imageUrl: string | null,
+): Promise<{ error?: string }> {
+  if (!Number.isInteger(position) || position < 1 || position > 5) {
+    return { error: "Invalid slot." };
+  }
+  if (typeof itemId !== "string" || !ITEM_ID.test(itemId)) {
+    return { error: "Invalid item." };
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { error: "You need to sign in." };
+  if (await accountIsRestricted(supabase, userId)) {
+    return { error: "Your account is suspended" };
+  }
+
+  const picture = await storedPicture(itemId, imageUrl);
+  if ("error" in picture) return picture;
+
+  const { data: updated, error } = await createAdminClient()
+    .from("favourites")
+    .update({ image_url: picture.url })
+    .eq("user_id", userId)
+    .eq("position", position)
+    .eq("item_id", itemId)
+    .select("position");
+  if (error) return { error: error.message };
+  return updated?.length
+    ? {}
+    : { error: "That slot has changed. Reload the page to see it." };
+}
+
 export async function removeFavourite(
   position: number,
 ): Promise<{ error?: string }> {
@@ -512,6 +595,9 @@ export async function createList(input: {
   description: string;
   ranked: boolean;
   itemIds: string[];
+  // Pictures from the items' articles to show instead of the items' own, by
+  // item
+  pictures?: Record<string, string>;
 }): Promise<{ error?: string; id?: string }> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -533,6 +619,24 @@ export async function createList(input: {
     !itemIds.every((id) => ITEM_ID.test(id))
   ) {
     return { error: "Invalid items." };
+  }
+
+  // Checked before saving, so a picture that isn't allowed saves nothing
+  const chosen = Object.entries(input.pictures ?? {});
+  if (chosen.some(([itemId]) => !itemIds.includes(itemId))) {
+    return { error: "Invalid pictures." };
+  }
+  const pictures: { itemId: string; url: string }[] = [];
+  for (const batch of chunks(chosen, PICTURES_AT_ONCE)) {
+    const checked = await Promise.all(
+      batch.map(([itemId, url]) => storedPicture(itemId, url)),
+    );
+    for (const [index, picture] of checked.entries()) {
+      if ("error" in picture) return picture;
+      if (picture.url) {
+        pictures.push({ itemId: batch[index][0], url: picture.url });
+      }
+    }
   }
 
   const { data: list, error } = await supabase
@@ -565,6 +669,32 @@ export async function createList(input: {
   if (itemsError) {
     await supabase.from("lists").delete().eq("id", list.id);
     return { error: itemsError.message };
+  }
+
+  // Only the server may set an entry's picture
+  const admin = createAdminClient();
+  for (const batch of chunks(pictures, PICTURES_AT_ONCE)) {
+    const writes = await Promise.all(
+      batch.map((p) =>
+        admin
+          .from("list_items")
+          .update({ image_url: p.url })
+          .eq("list_id", list.id)
+          .eq("item_id", p.itemId),
+      ),
+    );
+    if (writes.some((w) => w.error)) {
+      // The list goes too, so trying again can't create it twice
+      const { error: undoError } = await supabase
+        .from("lists")
+        .delete()
+        .eq("id", list.id);
+      return {
+        error: undoError
+          ? "Your list was created, but not all its pictures."
+          : "Couldn't create the list. Try again.",
+      };
+    }
   }
   return { id: list.id };
 }

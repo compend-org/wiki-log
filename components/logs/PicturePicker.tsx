@@ -1,4 +1,4 @@
-// ABOUTME: A popup grid of the pictures a review can show: its item's own, then the free pictures in its article.
+// ABOUTME: A popup grid of the pictures a review or list entry can show: its item's own, then its article's free ones.
 // ABOUTME: One tap picks a picture and closes the popup.
 "use client";
 
@@ -6,15 +6,18 @@ import { useEffect, useState } from "react";
 import { itemPictureChoices } from "@/app/actions";
 import ItemImage from "@/components/items/ItemImage";
 import Dialog from "@/components/ui/Dialog";
-import type { PictureChoice } from "@/lib/reviewPictures";
+import type { PictureChoice } from "@/lib/pictureChoices";
 
 export default function PicturePicker({
   itemId,
+  label,
   picked,
   onPick,
   onClose,
 }: {
   itemId: string;
+  // Names the popup, such as "Picture for your review"
+  label: string;
   // The address of the picture shown now, marked in the grid
   picked: string | null;
   // Null goes back to the item's own picture
@@ -41,8 +44,8 @@ export default function PicturePicker({
   }, [itemId]);
 
   return (
-    <Dialog label="Picture for your review" onClose={onClose}>
-      <p className="font-bold">Picture for your review</p>
+    <Dialog label={label} onClose={onClose}>
+      <p className="font-bold">{label}</p>
       {error ? (
         <p className="text-danger">{error}</p>
       ) : choices ? (
@@ -76,8 +79,8 @@ export default function PicturePicker({
         <p className="text-muted">Loading pictures…</p>
       )}
       <div className="flex gap-4">
-        {/* Without a picture of its item's own to pick, a review's chosen
-            picture can still be taken away */}
+        {/* Without a picture of its item's own to pick, a chosen picture
+            can still be taken away */}
         {picked && choices && !choices.some((c) => c.isDefault) && (
           <button
             type="button"

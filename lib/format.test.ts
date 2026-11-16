@@ -3,10 +3,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  entryPicture,
   mentionToken,
   plainReview,
   REVIEW_LINK,
-  reviewPicture,
   shownImage,
   starText,
   thumbUrl,
@@ -58,21 +58,21 @@ test("a review shows its chosen picture, or else its item's shown picture", () =
   const item = "https://example.com/item.jpg";
   const chosen = "https://example.com/chosen.jpg";
   const items = { image_url: item, image_hidden: false };
-  assert.equal(reviewPicture({ image_url: chosen, items }), chosen);
-  assert.equal(reviewPicture({ image_url: null, items }), item);
+  assert.equal(entryPicture({ image_url: chosen, items }), chosen);
+  assert.equal(entryPicture({ image_url: null, items }), item);
   assert.equal(
-    reviewPicture({ image_url: null, items: { ...items, image_hidden: true } }),
+    entryPicture({ image_url: null, items: { ...items, image_hidden: true } }),
     null,
   );
   // A hidden item picture doesn't hide the picture the author chose
   assert.equal(
-    reviewPicture({
+    entryPicture({
       image_url: chosen,
       items: { ...items, image_hidden: true },
     }),
     chosen,
   );
-  assert.equal(reviewPicture({ image_url: null, items: null }), null);
+  assert.equal(entryPicture({ image_url: null, items: null }), null);
 });
 
 test("thumbnails are asked for only at widths Wikimedia serves", () => {

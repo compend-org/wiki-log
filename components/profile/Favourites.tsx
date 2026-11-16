@@ -3,10 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { removeFavourite, setFavourite } from "@/app/actions";
+import {
+  removeFavourite,
+  setFavourite,
+  setFavouritePicture,
+} from "@/app/actions";
 import ItemImage from "@/components/items/ItemImage";
 import ItemPicker from "@/components/items/ItemPicker";
+import PicturePicker from "@/components/logs/PicturePicker";
+import EditIcon from "@/components/ui/EditIcon";
 import { track } from "@/lib/analytics/analytics";
+import { isCompoundId } from "@/lib/ids";
+import type { PictureChoice } from "@/lib/pictureChoices";
 
 export type Slot = {
   itemId: string;
@@ -26,6 +34,8 @@ export default function Favourites({
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [removing, setRemoving] = useState<boolean>(false);
+  // The slot whose picture picker is open
+  const [picturing, setPicturing] = useState<number | null>(null);
   const router = useRouter();
   const hasFavourites = slots.some(Boolean);
   const showRemove = removing && hasFavourites;
@@ -63,6 +73,34 @@ export default function Favourites({
     track("favourite_removed", { position });
     router.refresh();
   }
+
+  async function handlePicture(
+    position: number,
+    itemId: string,
+    choice: PictureChoice | null,
+  ) {
+    setBusy(true);
+    setError("");
+    let result: { error?: string };
+    try {
+      // Null is the item's own picture
+      result = await setFavouritePicture(
+        position,
+        itemId,
+        choice && !choice.isDefault ? choice.url : null,
+      );
+    } catch {
+      result = { error: "Couldn't save the picture. Try again." };
+    }
+    setBusy(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    router.refresh();
+  }
+
+  const picturingSlot = picturing === null ? null : slots[picturing - 1];
 
   return (
     <section>
@@ -126,6 +164,18 @@ export default function Favourites({
                     ×
                   </button>
                 )}
+                {showRemove && !isCompoundId(slot.itemId) && (
+                  <button
+                    type="button"
+                    onClick={() => setPicturing(position)}
+                    disabled={busy}
+                    aria-label={`Change the picture for ${slot.title}`}
+                    title="Change the picture"
+                    className="absolute bottom-6 left-1 rounded bg-background/80 px-1.5 py-1 disabled:opacity-40"
+                  >
+                    <EditIcon className="h-3 w-3" />
+                  </button>
+                )}
                 <span className="block truncate text-xs" title={slot.title}>
                   {slot.title}
                 </span>
@@ -177,6 +227,18 @@ export default function Favourites({
             Cancel
           </button>
         </div>
+      )}
+
+      {picturing !== null && picturingSlot && (
+        <PicturePicker
+          itemId={picturingSlot.itemId}
+          label={`Picture for “${picturingSlot.title}” in your top 5`}
+          picked={picturingSlot.imageUrl}
+          onPick={(choice) =>
+            handlePicture(picturing, picturingSlot.itemId, choice)
+          }
+          onClose={() => setPicturing(null)}
+        />
       )}
 
       {error && <p className="mt-2 text-sm text-danger">{error}</p>}

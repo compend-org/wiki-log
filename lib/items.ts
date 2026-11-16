@@ -136,26 +136,35 @@ async function refreshItem(
 // Where Wikimedia serves the images we store for items
 const WIKIMEDIA_IMAGE = /^https:\/\/(upload|thumb)\.wikimedia\.org\//;
 
+// The tables whose rows can show a picture chosen from their item's article
+const CHOSEN_PICTURE_TABLES = ["logs", "list_items", "favourites"] as const;
+
 // Wikimedia can rename or delete a file, and the image address we stored then
 // stops working. For an image a browser couldn't load, checks that it is
-// really gone, then refreshes the items that show it and sends the reviews
-// that chose it back to their item's picture. Returns the item image to show
-// instead, or null when there isn't one: reviews of different items can share
-// a picture, so a review's replacement shows once the page is loaded again.
+// really gone, then refreshes the items that show it and sends the reviews,
+// list entries and top 5 slots that chose it back to their item's picture.
+// Returns the item image to show instead, or null when there isn't one:
+// entries of different items can share a picture, so an entry's replacement
+// shows once the page is loaded again.
 export async function replaceBrokenImage(url: string): Promise<string | null> {
   if (!WIKIMEDIA_IMAGE.test(url)) return null;
 
   const admin = createAdminClient();
-  const [{ data }, { data: reviews }] = await Promise.all([
+  const [{ data }, ...choosers] = await Promise.all([
     admin
       .from("items")
       .select("id, image_hidden")
       .eq("image_url", url)
       .limit(5),
-    admin.from("logs").select("id").eq("image_url", url).limit(1),
+    ...CHOSEN_PICTURE_TABLES.map((table) =>
+      admin.from(table).select("image_url").eq("image_url", url).limit(1),
+    ),
   ]);
   const rows = (data ?? []) as Pick<ItemRow, "id" | "image_hidden">[];
-  if (rows.length === 0 && !reviews?.length) return null;
+  const chosenIn = CHOSEN_PICTURE_TABLES.filter(
+    (_, i) => choosers[i].data?.length,
+  );
+  if (rows.length === 0 && chosenIn.length === 0) return null;
 
   // Only an image Wikimedia says is missing is replaced, so a browser's
   // network trouble can't make us look items up again
@@ -164,9 +173,11 @@ export async function replaceBrokenImage(url: string): Promise<string | null> {
   );
   if (check?.status !== 404) return null;
 
-  if (reviews?.length) {
-    await admin.from("logs").update({ image_url: null }).eq("image_url", url);
-  }
+  await Promise.all(
+    chosenIn.map((table) =>
+      admin.from(table).update({ image_url: null }).eq("image_url", url),
+    ),
+  );
   let replacement: string | null = null;
   for (const row of rows) {
     const fresh = await refreshItem(row.id, row.image_hidden);

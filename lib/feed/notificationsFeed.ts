@@ -2,7 +2,7 @@
 // ABOUTME: and keeps the last result in the browser so the notifications page opens with it.
 import { MOSAIC_SIZE } from "@/components/social/NotificationThumb";
 import type { Thumb } from "@/lib/feed/feedData";
-import { shownImage } from "@/lib/format";
+import { entryPicture, shownImage } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 
 export type NotificationRow = {
@@ -61,7 +61,8 @@ type FeedQueryRow = NotificationRow & {
   } | null;
   lists: {
     title: string;
-    list_items: { items: ItemRow | null }[];
+    // Each entry's chosen picture; null shows the item's
+    list_items: { image_url: string | null; items: ItemRow | null }[];
   } | null;
 };
 
@@ -129,7 +130,7 @@ async function loadFeed(userId: string): Promise<FeedResult> {
   const { data, error } = await createClient()
     .from("notifications")
     .select(
-      "id, type, read, created_at, log_id, list_id, comment_id, list_comment_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path, admins(user_id)), logs!notifications_log_fkey(user_id, item_id, image_url, items!logs_item_id_fkey(title, image_url, image_hidden, nsfw), owner:profiles!logs_user_id_profiles_fkey(username, admins(user_id))), lists!notifications_list_id_fkey(title, list_items(position, items(title, image_url, image_hidden, nsfw)))",
+      "id, type, read, created_at, log_id, list_id, comment_id, list_comment_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path, admins(user_id)), logs!notifications_log_fkey(user_id, item_id, image_url, items!logs_item_id_fkey(title, image_url, image_hidden, nsfw), owner:profiles!logs_user_id_profiles_fkey(username, admins(user_id))), lists!notifications_list_id_fkey(title, list_items(position, image_url, items(title, image_url, image_hidden, nsfw)))",
     )
     .eq("recipient_id", userId)
     .order("created_at", { ascending: false })
@@ -161,7 +162,7 @@ async function loadFeed(userId: string): Promise<FeedResult> {
       lists[n.list_id] = {
         title: n.lists.title,
         items: n.lists.list_items.flatMap((e) =>
-          e.items ? [toThumb(e.items)] : [],
+          e.items ? [{ ...toThumb(e.items), image_url: entryPicture(e) }] : [],
         ),
       };
     }

@@ -7,7 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 // How many of each list's first items to show on its card
 const PREVIEW_ITEMS = 12;
 
-type PreviewRow = { position: number; items: Thumb | null };
+// The entry's chosen picture in image_url; null shows the item's
+type PreviewRow = {
+  position: number;
+  image_url: string | null;
+  items: Thumb | null;
+};
 
 export type ItemListRow = ListRow & { preview: PreviewRow[] };
 
@@ -17,7 +22,7 @@ export async function getItemLists(itemId: string, after: Keyset | null) {
   let query = supabase
     .from("list_items")
     .select(
-      `added_at, list_id, lists(${LIST_SELECT}, preview:list_items(position, items(title, image_url, nsfw)))`,
+      `added_at, list_id, lists(${LIST_SELECT}, preview:list_items(position, image_url, items(title, image_url, nsfw)))`,
     )
     .eq("item_id", itemId)
     .lte("lists.preview.position", PREVIEW_ITEMS);

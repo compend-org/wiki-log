@@ -25,7 +25,7 @@ import {
   toCommentItems,
 } from "@/lib/comments";
 import { getAlsoLiked } from "@/lib/feed/alsoLiked";
-import { reviewPicture, starText, timeAgo } from "@/lib/format";
+import { entryPicture, starText, timeAgo } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { likeKey } from "@/lib/likes";
 import { pageMetadata } from "@/lib/metadata";
@@ -143,7 +143,7 @@ export default async function ReviewPage({
   const picture = (
     <Link href={`/item/${log.item_id}`} className="shrink-0">
       <ItemImage
-        src={reviewPicture(log)}
+        src={entryPicture(log)}
         nsfw={log.items?.nsfw}
         alt={title}
         className="h-28 w-28 rounded"
@@ -210,7 +210,7 @@ export default async function ReviewPage({
                 ? {
                     itemId: log.item_id,
                     title,
-                    url: reviewPicture(log),
+                    url: entryPicture(log),
                     nsfw: log.items?.nsfw ?? false,
                   }
                 : undefined

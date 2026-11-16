@@ -7,8 +7,8 @@ import ShareIcon from "@/components/social/ShareIcon";
 import { avatarUrl } from "@/lib/avatar";
 import {
   absolute,
+  entryPicture,
   plainReview,
-  reviewPicture,
   shortLabel,
   thumbUrl,
 } from "@/lib/format";
@@ -50,7 +50,7 @@ export async function GET(
   if (!log) return new Response("Not found", { status: 404 });
 
   const title = log.items?.title ?? "Unknown item";
-  const itemImageUrl = reviewPicture(log);
+  const itemImageUrl = entryPicture(log);
   const rating = Math.max(0, Math.min(5, Number(log.rating ?? 0)));
   const text = plainReview(log.review).trim();
   const likes = log.likes?.[0]?.count ?? 0;

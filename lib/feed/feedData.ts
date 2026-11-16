@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cacheLife, cacheTag } from "next/cache";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
-import { shownImage } from "@/lib/format";
+import { entryPicture, shownImage } from "@/lib/format";
 import {
   type ColumnCursor,
   type ColumnEnd,
@@ -85,6 +85,8 @@ export type ShareRow = {
 type PreviewRow = {
   list_id: string;
   position: number;
+  // The entry's chosen picture; null shows the item's
+  image_url: string | null;
   items: (Thumb & { image_hidden: boolean }) | null;
 };
 
@@ -110,7 +112,9 @@ async function loadPreviews(
 
   const { data } = await supabase
     .from("list_items")
-    .select("list_id, position, items(title, image_url, image_hidden, nsfw)")
+    .select(
+      "list_id, position, image_url, items(title, image_url, image_hidden, nsfw)",
+    )
     .in(
       "list_id",
       lists.map((l) => l.id),
@@ -121,7 +125,7 @@ async function loadPreviews(
     const arr = previews[row.list_id] ?? [];
     arr.push({
       title: row.items?.title ?? "Unknown item",
-      image_url: row.items ? shownImage(row.items) : null,
+      image_url: entryPicture(row),
       nsfw: row.items?.nsfw ?? false,
     });
     previews[row.list_id] = arr;
