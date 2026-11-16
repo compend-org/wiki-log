@@ -1,6 +1,7 @@
 // ABOUTME: Loads a list's items one page at a time, with each item's rank.
 // ABOUTME: Lists hold up to 10,000 items but the API returns at most 1,000 rows.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 
 // Items per page of a list. It divides by 3 and 4, so every row of the grid is
 // full on phones and wider screens alike.
@@ -97,11 +98,11 @@ export async function fetchListPage(
       .select("item_id", { count: "exact", head: true })
       .eq("list_id", listId);
     if (counted.error) {
-      return { entries: [], total: 0, error: counted.error.message };
+      return { entries: [], total: 0, error: loadMessage(counted.error) };
     }
     return { entries: [], total: counted.count ?? 0 };
   }
-  if (error) return { entries: [], total: 0, error: error.message };
+  if (error) return { entries: [], total: 0, error: loadMessage(error) };
 
   const entries = ((data ?? []) as unknown as EntryRow[]).map((row, i) => ({
     itemId: row.item_id,

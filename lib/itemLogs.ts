@@ -1,5 +1,7 @@
 // ABOUTME: Loads logs of one item a page at a time: the most liked, the newest, and the ones
 // ABOUTME: one person liked. Each comes with its author and social counts.
+
+import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import {
   inIdOrder,
   type Keyset,
@@ -40,7 +42,7 @@ export async function getMostLikedLogs(itemId: string) {
   });
   const wanted = (ids ?? []) as string[];
   if (error || wanted.length === 0) {
-    return { rows: [] as ItemLogRow[], error: error?.message ?? "" };
+    return { rows: [] as ItemLogRow[], error: loadMessage(error) };
   }
   const { data, error: rowsError } = await supabase
     .from("logs")
@@ -48,7 +50,7 @@ export async function getMostLikedLogs(itemId: string) {
     .in("id", wanted);
   return {
     rows: inIdOrder((data ?? []) as unknown as ItemLogRow[], wanted),
-    error: rowsError?.message ?? "",
+    error: loadMessage(rowsError),
   };
 }
 
@@ -76,7 +78,7 @@ export async function getItemLogs(
     (r) => ({ at: r.logged_at, id: r.id }),
     size,
   );
-  return { rows: page, next, error: error?.message ?? "" };
+  return { rows: page, next, error: loadMessage(error) };
 }
 
 // One page of the logs of one item that one person has liked, most recently
@@ -106,7 +108,7 @@ export async function getItemLogsLikedBy(
     }[],
     (r) => ({ at: r.created_at, id: r.log_id }),
   );
-  return { rows: page.map((r) => r.logs), next, error: error?.message ?? "" };
+  return { rows: page.map((r) => r.logs), next, error: loadMessage(error) };
 }
 
 // One page of the logs of one item with one rating, newest first, after
@@ -131,5 +133,5 @@ export async function getItemLogsRated(
     (data ?? []) as unknown as ItemLogRow[],
     (r) => ({ at: r.logged_at, id: r.id }),
   );
-  return { rows: page, next, error: error?.message ?? "" };
+  return { rows: page, next, error: loadMessage(error) };
 }

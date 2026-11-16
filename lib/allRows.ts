@@ -1,5 +1,6 @@
 // ABOUTME: Reads more rows than one API response carries, a response at a time.
 // ABOUTME: The API returns at most 1,000 rows per request, embedded rows included.
+import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 
 // The most rows the API returns for one request (`max_rows` in
 // supabase/config.toml, and the same in production). Embedded resources are
@@ -23,7 +24,7 @@ export async function fetchRows<Row>(
   while (rows.length < limit) {
     const size = Math.min(API_MAX_ROWS, limit - rows.length);
     const { data, error } = await page(rows.length, rows.length + size - 1);
-    if (error) return { rows, error: error.message };
+    if (error) return { rows, error: loadMessage(error) };
     const got = (data ?? []) as Row[];
     rows.push(...got);
     if (got.length < size) break;

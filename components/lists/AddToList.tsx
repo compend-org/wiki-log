@@ -24,6 +24,10 @@ import { addToList } from "@/app/actions";
 import ItemImage from "@/components/items/ItemImage";
 import { track } from "@/lib/analytics/analytics";
 import {
+  LOAD_FAILED,
+  userFacingErrorMessage,
+} from "@/lib/errors/userFacingErrorMessage";
+import {
   appendLists,
   fetchPickerLists,
   type PickerList,
@@ -230,7 +234,7 @@ export default function AddToList({
         .order("position")
         .limit(MAX_DRAG_PLACE_ITEMS);
       if (error) {
-        setError(error.message);
+        setError(userFacingErrorMessage(error, LOAD_FAILED));
         return;
       }
       const tiles: Tile[] = (

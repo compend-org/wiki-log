@@ -1,5 +1,7 @@
 // ABOUTME: Loads the lists that include one item, most recently added first.
 // ABOUTME: Shown in the "In Lists" section of an item page, a page at a time.
+
+import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import { LIST_SELECT, type ListRow, type Thumb } from "@/lib/feed/feedData";
 import { type Keyset, olderThan, PAGE_SIZE, pageOf } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
@@ -45,6 +47,6 @@ export async function getItemLists(itemId: string, after: Keyset | null) {
     // Lists the viewer can't see come back empty and are left out
     lists: page.flatMap((r) => (r.lists ? [r.lists] : [])),
     next,
-    error: error?.message ?? "",
+    error: loadMessage(error),
   };
 }

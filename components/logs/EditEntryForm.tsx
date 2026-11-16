@@ -5,6 +5,10 @@ import { setReviewPicture } from "@/app/actions";
 import RatingInput from "@/components/logs/RatingInput";
 import ReviewTextarea from "@/components/logs/ReviewTextArea";
 import { track } from "@/lib/analytics/analytics";
+import {
+  SAVE_FAILED,
+  userFacingErrorMessage,
+} from "@/lib/errors/userFacingErrorMessage";
 import { createClient } from "@/lib/supabase/client";
 
 const MAX = 5000;
@@ -46,7 +50,7 @@ export default function EditEntryForm({
     setBusy(false);
 
     if (error) {
-      setError(error.message);
+      setError(userFacingErrorMessage(error, SAVE_FAILED));
       return;
     }
     // Row-level security refuses silently when the entry isn't yours

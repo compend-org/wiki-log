@@ -1042,11 +1042,11 @@ test("only stored Wikimedia images are checked", async () => {
   assert.deepEqual(fixture.writes, []);
 });
 
-test("a failed item upsert prevents the dependent write and returns the error", async () => {
+test("a failed item upsert prevents the dependent write and says saving failed", async () => {
   fixture = setup({ upsertFails: true });
   assert.deepEqual(
     await logItem({ itemId: requestedId, rating: null, review: "" }),
-    { error: "Item storage denied" },
+    { error: "Couldn't save that. Please try again." },
   );
   assert.deepEqual(
     fixture.writes.map((w) => w.table),
@@ -1054,11 +1054,11 @@ test("a failed item upsert prevents the dependent write and returns the error", 
   );
 });
 
-test("dependent write failures still reach the caller", async () => {
+test("dependent write failures still reach the caller, without the database's wording", async () => {
   fixture = setup({ writeFails: true });
   assert.deepEqual(
     await logItem({ itemId: requestedId, rating: null, review: "" }),
-    { error: "Write denied" },
+    { error: "Couldn't save that. Please try again." },
   );
 });
 

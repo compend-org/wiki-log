@@ -10,6 +10,10 @@ import ReportButton from "@/components/moderation/ReportButton";
 import CommentLikeButton from "@/components/social/CommentLikeButton";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { track } from "@/lib/analytics/analytics";
+import {
+  SAVE_FAILED,
+  userFacingErrorMessage,
+} from "@/lib/errors/userFacingErrorMessage";
 import { mentionToken } from "@/lib/format";
 import { useLoginHref } from "@/lib/hooks/useLoginHref";
 import { createClient } from "@/lib/supabase/client";
@@ -83,7 +87,7 @@ export default function Comments({
     setBusy(false);
 
     if (error) {
-      setError(error.message);
+      setError(userFacingErrorMessage(error, SAVE_FAILED));
       return false;
     }
     track("comment_posted", {
@@ -118,7 +122,7 @@ export default function Comments({
       .eq("id", deleting.id);
     setBusy(false);
     if (error) {
-      setError(error.message);
+      setError(userFacingErrorMessage(error, SAVE_FAILED));
       return;
     }
     track("comment_deleted", { target: table === "comments" ? "log" : "list" });

@@ -3,6 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CommentItem } from "@/components/social/Comments";
 import { chunks, fetchRows } from "@/lib/allRows";
+import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import { timeAgo } from "@/lib/format";
 
 // Threads (a top-level comment and its replies) shown at first, and how many
@@ -137,9 +138,8 @@ export async function fetchCommentThreads(
   );
 
   const error =
-    allCount.error?.message ??
-    topCount.error?.message ??
-    top.error ??
+    loadMessage(allCount.error ?? topCount.error) ||
+    top.error ||
     replyBatches.find((b) => b.error)?.error;
   return {
     rows: inThreadOrder(

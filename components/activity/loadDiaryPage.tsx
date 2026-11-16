@@ -7,6 +7,7 @@ import DiaryLogCard from "@/components/activity/DiaryLogCard";
 import DiaryReplyCard from "@/components/activity/DiaryReplyCard";
 import type { Card, CardsPage } from "@/components/paging/CardPages";
 import type { ActivityView } from "@/lib/activityView";
+import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import { FEATURES } from "@/lib/features";
 import { entryPicture, timeAgo } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
@@ -300,7 +301,7 @@ export async function loadDiaryPage(
     repliesRes.error ??
     listRepliesRes.error ??
     craftsRes.error;
-  if (error) return { cards: [], next: null, error: error.message };
+  if (error) return { cards: [], next: null, error: loadMessage(error) };
 
   const replyRows = repliesRes.data as unknown as ReplyRow[];
   const listReplyRows = listRepliesRes.data as unknown as ListReplyRow[];

@@ -7,6 +7,10 @@ import { useRef, useState, useTransition } from "react";
 import Avatar from "@/components/people/Avatar";
 import { track } from "@/lib/analytics/analytics";
 import { AVATAR_SIZE, AVATAR_SMALL_SIZE, smallAvatarPath } from "@/lib/avatar";
+import {
+  SAVE_FAILED,
+  userFacingErrorMessage,
+} from "@/lib/errors/userFacingErrorMessage";
 import { createClient } from "@/lib/supabase/client";
 
 // Centre-crop to a square, shrink, and re-encode as JPEG (this also drops
@@ -99,7 +103,7 @@ export default function AvatarUpload({
     if (uploadError) {
       await supabase.storage.from("avatars").remove(newPaths);
       setBusy(false);
-      setError(uploadError.message);
+      setError("Couldn't upload your picture. Please try again.");
       return;
     }
 
@@ -110,7 +114,7 @@ export default function AvatarUpload({
     if (updateError) {
       await supabase.storage.from("avatars").remove(newPaths);
       setBusy(false);
-      setError(updateError.message);
+      setError(userFacingErrorMessage(updateError, SAVE_FAILED));
       return;
     }
 
@@ -139,7 +143,7 @@ export default function AvatarUpload({
       .eq("id", userId);
     if (updateError) {
       setBusy(false);
-      setError(updateError.message);
+      setError(userFacingErrorMessage(updateError, SAVE_FAILED));
       return;
     }
 

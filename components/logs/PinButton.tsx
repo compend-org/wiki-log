@@ -4,6 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import PinIcon from "@/components/logs/PinIcon";
 import { track } from "@/lib/analytics/analytics";
+import {
+  SAVE_FAILED,
+  userFacingErrorMessage,
+} from "@/lib/errors/userFacingErrorMessage";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import { createClient } from "@/lib/supabase/client";
 
@@ -43,7 +47,7 @@ export default function PinButton({
           .insert({ user_id: userId, [column]: targetId });
     setBusy(false);
     if (error) {
-      setError(error.message);
+      setError(userFacingErrorMessage(error, SAVE_FAILED));
       return;
     }
     track(isPinned ? "unpinned" : "pinned", { target: kind });

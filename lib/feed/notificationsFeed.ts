@@ -1,6 +1,7 @@
 // ABOUTME: Fetches the signed-in person's latest notifications with what their cards show,
 // ABOUTME: and keeps the last result in the browser so the notifications page opens with it.
 import { MOSAIC_SIZE } from "@/components/social/NotificationThumb";
+import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import type { Thumb } from "@/lib/feed/feedData";
 import { entryPicture, shownImage } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
@@ -137,7 +138,7 @@ async function loadFeed(userId: string): Promise<FeedResult> {
     .order("position", { referencedTable: "lists.list_items" })
     .limit(MOSAIC_SIZE, { referencedTable: "lists.list_items" })
     .limit(50);
-  if (error) return { error: error.message };
+  if (error) return { error: loadMessage(error) };
 
   const list = (data ?? []) as unknown as FeedQueryRow[];
   const logs: Record<string, LogInfo> = {};
