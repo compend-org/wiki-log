@@ -204,7 +204,12 @@ export default function NavAccountLinks({
               `/u/${encodeURIComponent(username)}`,
             )}`}
           >
-            <Avatar name={username} path={avatarPath} size={40} />
+            <Avatar
+              name={username}
+              path={avatarPath}
+              size={40}
+              loading="eager"
+            />
             <span className="hidden max-w-[8rem] truncate sm:inline">
               {username}
             </span>

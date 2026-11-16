@@ -6,12 +6,16 @@ export default function Avatar({
   path,
   size = 40,
   className = "",
+  loading = "lazy",
 }: {
   // Still accepted by callers, though the default picture no longer uses it
   name?: string;
   path: string | null | undefined;
   size?: number;
   className?: string;
+  // "eager" for pictures shown from the first paint, which lazy loading
+  // would leave blank until the browser gets round to them
+  loading?: "lazy" | "eager";
 }) {
   const url = avatarUrl(path, size);
   const style = { width: size, height: size };
@@ -24,7 +28,7 @@ export default function Avatar({
         <img
           src="/default-avi-light.png"
           alt=""
-          loading="lazy"
+          loading={loading}
           width={size}
           height={size}
           draggable={false}
@@ -35,7 +39,7 @@ export default function Avatar({
         <img
           src="/default-avi-dark.png"
           alt=""
-          loading="lazy"
+          loading={loading}
           width={size}
           height={size}
           draggable={false}
@@ -51,7 +55,7 @@ export default function Avatar({
     <img
       src={url}
       alt=""
-      loading="lazy"
+      loading={loading}
       width={size}
       height={size}
       draggable={false}
