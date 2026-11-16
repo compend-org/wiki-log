@@ -33,6 +33,9 @@ export type ItemData = {
   imageUrl: string | null;
   imageNonFree: boolean; // true: a fair-use image, shown small with a note
   imageFilePage: string | null; // the page describing the file and its rights
+  // true: a lookup failed before an image was settled on, so a better image
+  // than this one (or than none) may exist
+  imageLookupFailed: boolean;
   pageUrl: string;
   types: string[] | null;
   nsfw: boolean; // true: adult content, blurred for people who turn on SFW mode
@@ -122,31 +125,27 @@ function filePageFor(lang: LangCode, url: string, fileName: string): string {
 }
 
 // A file from one of Wikidata's curated image properties, like "image" (P18)
-// or "logo image" (P154): always a Commons file, so always free
+// or "logo image" (P154): always a Commons file, so always free. Null if the
+// item has none; throws if the lookup fails.
 async function wikidataImage(
   qid: string,
   property: string,
   deadline: number,
 ): Promise<{ url: string; filePage: string | null } | null> {
-  try {
-    const values = await getClaimValues(qid, property, deadline);
-    const file = values?.find((v) => typeof v === "string") as
-      | string
-      | undefined;
-    if (!file) return null;
+  const values = await getClaimValues(qid, property, deadline);
+  if (values === null) throw new Error(`Wikidata ${property} unavailable`);
+  const file = values.find((v) => typeof v === "string") as string | undefined;
+  if (!file) return null;
 
-    const res = await wikiFetch(
-      `https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&prop=imageinfo&iiprop=url|size|mime&iiurlwidth=960&titles=${encodeURIComponent(`File:${file}`)}`,
-      deadline,
-    );
-    if (!res.ok) return null;
-    const data: { query?: { pages?: ImagePage[] } } = await res.json();
-    const info = data.query?.pages?.[0]?.imageinfo?.[0];
-    const url = freeImage(info?.thumburl);
-    return url ? { url, filePage: info?.descriptionurl ?? null } : null;
-  } catch {
-    return null;
-  }
+  const res = await wikiFetch(
+    `https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&prop=imageinfo&iiprop=url|size|mime&iiurlwidth=960&titles=${encodeURIComponent(`File:${file}`)}`,
+    deadline,
+  );
+  if (!res.ok) throw new Error(`Commons ${res.status}`);
+  const data: { query?: { pages?: ImagePage[] } } = await res.json();
+  const info = data.query?.pages?.[0]?.imageinfo?.[0];
+  const url = freeImage(info?.thumburl);
+  return url ? { url, filePage: info?.descriptionurl ?? null } : null;
 }
 
 // Check the rights of the selected lead file itself. Other images in the
@@ -184,25 +183,22 @@ async function leadImage(
 
 // The summary can omit a thumbnail even when PageImages has selected one.
 // Ask for any licence: the default free-only choice may depict a related topic.
+// Null if there is none; throws if the lookup fails.
 async function representativeImage(
   lang: LangCode,
   title: string,
   deadline: number,
 ): Promise<ItemImage | null> {
-  try {
-    const res = await wikiFetch(
-      `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&prop=pageimages&piprop=thumbnail&pithumbsize=960&pilicense=any&titles=${encodeURIComponent(title)}`,
-      deadline,
-    );
-    if (!res.ok) return null;
-    const data: {
-      query?: { pages?: { thumbnail?: { source: string } }[] };
-    } = await res.json();
-    const source = data.query?.pages?.[0]?.thumbnail?.source;
-    return source ? leadImage(lang, absolute(source), deadline) : null;
-  } catch {
-    return null;
-  }
+  const res = await wikiFetch(
+    `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&prop=pageimages&piprop=thumbnail&pithumbsize=960&pilicense=any&titles=${encodeURIComponent(title)}`,
+    deadline,
+  );
+  if (!res.ok) throw new Error(`PageImages ${res.status}`);
+  const data: {
+    query?: { pages?: { thumbnail?: { source: string } }[] };
+  } = await res.json();
+  const source = data.query?.pages?.[0]?.thumbnail?.source;
+  return source ? leadImage(lang, absolute(source), deadline) : null;
 }
 
 // The article's usable pictures, in the order the API lists them, leaving out
@@ -271,19 +267,24 @@ export async function articleImages(
 
 // Without a representative image, the first usable article image is a fallback.
 // It may depict a related topic rather than the article's subject: API file
-// order and licence don't tell us which image does.
+// order and licence don't tell us which image does. Null if there is none;
+// throws if the lookup fails.
 async function firstArticleImage(
   lang: LangCode,
   title: string,
   deadline: number,
 ): Promise<ItemImage | null> {
-  return (await articleImages(lang, title, deadline))?.[0] ?? null;
+  const images = await articleImages(lang, title, deadline);
+  if (!images) throw new Error("Article images lookup failed");
+  return images[0] ?? null;
 }
 
 // Relevance comes before licence: use Wikipedia's representative image, then
 // Wikidata's curated image, then its logo, then the first suitable article
 // image. A free body image never replaces a lead. PageImages never picks a
 // very wide image, so an article led by a wordmark logo reaches the logo step.
+// Throws if a lookup fails, rather than settling for a later, less relevant
+// image.
 async function chooseImage(
   lang: LangCode,
   qid: string,
@@ -540,13 +541,20 @@ export async function getItemByKey(
         : original.source;
   }
 
-  const image = await chooseImage(
-    lang,
-    data.wikibase_item,
-    data.title,
-    leadSource,
-    deadline,
-  );
+  let image: ItemImage | null = null;
+  let imageLookupFailed = false;
+  try {
+    image = await chooseImage(
+      lang,
+      data.wikibase_item,
+      data.title,
+      leadSource,
+      deadline,
+    );
+  } catch (e) {
+    console.warn("Image lookup failed", data.wikibase_item, e);
+    imageLookupFailed = true;
+  }
   const nsfw = await isNsfw(
     data.wikibase_item,
     types,
@@ -562,6 +570,7 @@ export async function getItemByKey(
       imageUrl: image?.url ?? null,
       imageNonFree: image?.nonFree ?? false,
       imageFilePage: image?.filePage ?? null,
+      imageLookupFailed,
       pageUrl:
         data.content_urls?.desktop?.page ??
         `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(key)}`,
