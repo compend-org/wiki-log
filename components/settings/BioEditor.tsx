@@ -3,6 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { track } from "@/lib/analytics/analytics";
+import {
+  SAVE_FAILED,
+  userFacingErrorMessage,
+} from "@/lib/errors/userFacingErrorMessage";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import { createClient } from "@/lib/supabase/client";
 
@@ -39,7 +43,7 @@ export default function BioEditor({
     setBusy(false);
 
     if (error) {
-      setMessage(error.message);
+      setMessage(userFacingErrorMessage(error, SAVE_FAILED));
       return;
     }
     track("profile_updated", { field: "bio" });

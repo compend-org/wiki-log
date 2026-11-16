@@ -7,6 +7,7 @@ import { useState } from "react";
 import { signIn } from "@/app/actions";
 import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/auth/Turnstile";
 import { identifyPerson, track } from "@/lib/analytics/analytics";
+import { authMessage } from "@/lib/errors/userFacingErrorMessage";
 import { applySfw, setStoredSfw } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/client";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
@@ -164,7 +165,10 @@ export default function LoginForm({ next }: { next: string }) {
       setMessage(
         /rate limit|too many/i.test(error.message)
           ? "A lot of people are signing up right now. Please try again in a few minutes."
-          : error.message,
+          : authMessage(
+              error,
+              "Couldn't create your account. Please try again.",
+            ),
       );
       return;
     }
@@ -202,7 +206,7 @@ export default function LoginForm({ next }: { next: string }) {
       setMessage(
         /rate|seconds|too many/i.test(error.message)
           ? "Please wait a minute before asking again."
-          : error.message,
+          : authMessage(error, "Couldn't send the link. Please try again."),
       );
       return;
     }

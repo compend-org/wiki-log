@@ -3,6 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { track } from "@/lib/analytics/analytics";
+import {
+  SAVE_FAILED,
+  userFacingErrorMessage,
+} from "@/lib/errors/userFacingErrorMessage";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import { createClient } from "@/lib/supabase/client";
 
@@ -38,7 +42,7 @@ export default function FollowButton({
           .insert({ follower_id: viewerId, following_id: targetId });
     setBusy(false);
     if (error) {
-      setError(error.message);
+      setError(userFacingErrorMessage(error, SAVE_FAILED));
       return;
     }
     if (shownFollowing) track("user_unfollowed");

@@ -2,6 +2,7 @@
 // ABOUTME: The same for every visitor, so the result is cached in the shared remote cache.
 import { cacheLife, cacheTag } from "next/cache";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
+import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import { createPublicClient } from "@/lib/supabase/public";
 
 // A review counts as long above 720 characters. That number lives in the
@@ -57,6 +58,6 @@ export async function getDigest(
   return {
     logs,
     next: hasMore ? (logs[logs.length - 1]?.logged_at ?? null) : null,
-    error: error?.message ?? "",
+    error: loadMessage(error),
   };
 }

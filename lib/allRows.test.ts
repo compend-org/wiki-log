@@ -52,7 +52,7 @@ test("stops at the limit without asking for more", async () => {
   ]);
 });
 
-test("keeps what it read before an error and says what went wrong", async () => {
+test("keeps what it read before an error and says loading failed", async () => {
   let calls = 0;
   const { rows, error } = await fetchRows(async () => {
     calls += 1;
@@ -61,7 +61,7 @@ test("keeps what it read before an error and says what went wrong", async () => 
       : { data: null, error: { message: "timeout" } };
   });
   assert.equal(rows.length, API_MAX_ROWS);
-  assert.equal(error, "timeout");
+  assert.equal(error, "Couldn't load this. Please try again later.");
 });
 
 test("splits values into runs of at most the given size", () => {

@@ -6,6 +6,10 @@ import { useRemoveCard } from "@/components/paging/CardPages";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DeleteIcon from "@/components/ui/DeleteIcon";
 import { track } from "@/lib/analytics/analytics";
+import {
+  SAVE_FAILED,
+  userFacingErrorMessage,
+} from "@/lib/errors/userFacingErrorMessage";
 import { createClient } from "@/lib/supabase/client";
 
 type Kind = "log" | "list" | "comment" | "list_comment";
@@ -71,7 +75,7 @@ export default function DeleteButton({
       .select("id");
     setBusy(false);
     if (error) {
-      setError(error.message);
+      setError(userFacingErrorMessage(error, SAVE_FAILED));
       return;
     }
     // Row-level security refuses silently when it isn't yours

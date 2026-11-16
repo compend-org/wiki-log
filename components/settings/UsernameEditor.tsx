@@ -5,6 +5,10 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { track } from "@/lib/analytics/analytics";
+import {
+  SAVE_FAILED,
+  userFacingErrorMessage,
+} from "@/lib/errors/userFacingErrorMessage";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import { createClient } from "@/lib/supabase/client";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
@@ -41,7 +45,9 @@ export default function UsernameEditor({
 
     if (error) {
       setMessage(
-        error.code === "23505" ? "That username is taken." : error.message,
+        error.code === "23505"
+          ? "That username is taken."
+          : userFacingErrorMessage(error, SAVE_FAILED),
       );
       return;
     }

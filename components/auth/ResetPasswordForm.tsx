@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { track } from "@/lib/analytics/analytics";
+import { authMessage } from "@/lib/errors/userFacingErrorMessage";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ResetPasswordForm() {
@@ -27,7 +28,9 @@ export default function ResetPasswordForm() {
     const { error } = await createClient().auth.updateUser({ password });
     setBusy(false);
     if (error) {
-      setError(error.message);
+      setError(
+        authMessage(error, "Couldn't change your password. Please try again."),
+      );
       return;
     }
     track("password_reset_completed");

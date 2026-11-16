@@ -153,10 +153,14 @@ test("a page past the end comes back empty, with the list's real length", async 
   assert.equal(pageCount(result.total), 2);
 });
 
-test("other errors are passed on", async () => {
+test("other errors are passed on as a load failure", async () => {
   const { supabase } = fakeSupabase([
     { data: null, count: null, error: { code: "57014", message: "timeout" } },
   ]);
   const result = await fetchListPage(supabase, "list-1", 1);
-  assert.deepEqual(result, { entries: [], total: 0, error: "timeout" });
+  assert.deepEqual(result, {
+    entries: [],
+    total: 0,
+    error: "Couldn't load this. Please try again later.",
+  });
 });

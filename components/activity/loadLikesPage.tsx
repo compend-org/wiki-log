@@ -5,6 +5,7 @@ import DiaryListCard from "@/components/activity/DiaryListCard";
 import DiaryLogCard from "@/components/activity/DiaryLogCard";
 import type { Card, CardsPage } from "@/components/paging/CardPages";
 import type { ActivityView } from "@/lib/activityView";
+import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import { entryPicture, timeAgo } from "@/lib/format";
 import {
   type Keyset,
@@ -115,7 +116,7 @@ export async function loadLikesPage(
       .limit(PAGE_SIZE + 1),
   ]);
   const error = logsRes.error ?? listsRes.error;
-  if (error) return { cards: [], next: null, error: error.message };
+  if (error) return { cards: [], next: null, error: loadMessage(error) };
 
   const likedLogs = logsRes.data as unknown as LikedLog[];
   const likedLists = listsRes.data as unknown as LikedList[];

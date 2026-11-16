@@ -3,6 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cacheLife, cacheTag } from "next/cache";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
+import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import { entryPicture, shownImage } from "@/lib/format";
 import {
   type ColumnCursor,
@@ -257,11 +258,9 @@ async function loadColumn<Row extends { id: string }>(
     ...postRows.filter((r) => have.has(r.id)),
     ...((extraRes.data ?? []) as unknown as Row[]),
   ];
-  const error =
-    postsRes.error?.message ??
-    sharesRes.error?.message ??
-    extraRes.error?.message ??
-    "";
+  const error = loadMessage(
+    postsRes.error ?? sharesRes.error ?? extraRes.error,
+  );
   return { rows, next, end, error };
 }
 
@@ -344,7 +343,7 @@ export async function getFollowingFeed(
   return {
     ...feed,
     shares: (data ?? []) as unknown as ShareRow[],
-    error: feed.error || (error?.message ?? ""),
+    error: feed.error || loadMessage(error),
   };
 }
 
@@ -374,7 +373,7 @@ async function getTrendingRanking(_snapshotMinute: string) {
   return {
     logs: (logRank.data ?? []) as RankRow[],
     lists: (listRank.data ?? []) as RankRow[],
-    error: logRank.error?.message ?? listRank.error?.message ?? "",
+    error: loadMessage(logRank.error ?? listRank.error),
   };
 }
 
@@ -420,7 +419,7 @@ export async function getTrendingFeed(
       .in("id", ids);
     // The ranking's own order
     const rows = inIdOrder((data ?? []) as unknown as Row[], ids);
-    return { rows, next, end, error: error?.message ?? "" };
+    return { rows, next, end, error: loadMessage(error) };
   }
 
   const [logs, lists] = await Promise.all([

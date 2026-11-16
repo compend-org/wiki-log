@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Dialog from "@/components/ui/Dialog";
 import { track } from "@/lib/analytics/analytics";
+import {
+  SAVE_FAILED,
+  userFacingErrorMessage,
+} from "@/lib/errors/userFacingErrorMessage";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import { createClient } from "@/lib/supabase/client";
 
@@ -43,7 +47,7 @@ export default function BlockButton({
           .insert({ blocker_id: viewerId, blocked_id: targetId });
     setBusy(false);
     if (error) {
-      setError(error.message);
+      setError(userFacingErrorMessage(error, SAVE_FAILED));
       return;
     }
     track(shownBlocked ? "user_unblocked" : "user_blocked");

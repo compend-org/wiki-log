@@ -5,6 +5,7 @@
 import { useState } from "react";
 import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/auth/Turnstile";
 import { track } from "@/lib/analytics/analytics";
+import { authMessage } from "@/lib/errors/userFacingErrorMessage";
 import { createClient } from "@/lib/supabase/client";
 
 export default function EmailVerification({
@@ -40,7 +41,7 @@ export default function EmailVerification({
       setMessage(
         /rate|seconds|too many/i.test(error.message)
           ? "Please wait a minute before asking again."
-          : error.message,
+          : authMessage(error, "Couldn't send the link. Please try again."),
       );
       return;
     }

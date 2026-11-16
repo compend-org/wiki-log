@@ -2,6 +2,7 @@
 // ABOUTME: The same for every visitor, so it is cached in the shared remote cache for a while.
 import { cacheLife, cacheTag } from "next/cache";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
+import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import {
   DEFAULT_MIN_RATINGS,
   LEADERBOARD_SIZE,
@@ -53,7 +54,7 @@ export async function getLeaderboard(
   });
   const rows = (data ?? []) as RankRow[];
   if (error || rows.length === 0) {
-    return { entries: [], error: error?.message ?? "" };
+    return { entries: [], error: loadMessage(error) };
   }
 
   const { data: itemData } = await supabase

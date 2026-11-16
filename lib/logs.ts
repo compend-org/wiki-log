@@ -1,5 +1,10 @@
 // ABOUTME: Changes to your own logs, made from the browser.
 // ABOUTME: Returns an error message, or null on success.
+
+import {
+  SAVE_FAILED,
+  userFacingErrorMessage,
+} from "@/lib/errors/userFacingErrorMessage";
 import { createClient } from "@/lib/supabase/client";
 
 export async function updateLog(
@@ -11,5 +16,5 @@ export async function updateLog(
     .from("logs")
     .update({ rating, review: review.slice(0, 5000) })
     .eq("id", logId);
-  return error ? error.message : null;
+  return error ? userFacingErrorMessage(error, SAVE_FAILED) : null;
 }

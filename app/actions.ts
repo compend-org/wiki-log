@@ -18,6 +18,11 @@ import {
   storeCompoundImage,
 } from "@/lib/craft/compoundImage";
 import { withErrorContext } from "@/lib/errors/errorContext";
+import {
+  authMessage,
+  SAVE_FAILED,
+  userFacingErrorMessage,
+} from "@/lib/errors/userFacingErrorMessage";
 import { FEATURES } from "@/lib/features";
 import { ITEM_ID_PATTERN, isCompoundId, isUuid } from "@/lib/ids";
 import {
@@ -95,7 +100,7 @@ async function ensureItem(itemId: string): Promise<StoredItem> {
     .upsert({ id: item.id, ...itemColumns(item) });
   // Wikipedia can resolve a different ID; callers must reference the stored row.
   return error
-    ? { error: error.message }
+    ? { error: userFacingErrorMessage(error, SAVE_FAILED) }
     : { id: item.id, title: item.title, imageUrl: item.imageUrl };
 }
 
@@ -151,7 +156,7 @@ export async function logItem(input: {
         })
         .select("id"),
   );
-  if (error) return { error: error.message };
+  if (error) return { error: userFacingErrorMessage(error, SAVE_FAILED) };
 
   // Only the server may set a review's picture
   const logId = saved?.[0]?.id;
@@ -244,7 +249,7 @@ export async function setReviewPicture(
     .update({ image_url: picture.url })
     .eq("id", logId)
     .eq("user_id", userId);
-  return error ? { error: error.message } : {};
+  return error ? { error: userFacingErrorMessage(error, SAVE_FAILED) } : {};
 }
 
 // Sets the picture an item shows in one of your lists. Null goes back to the
@@ -284,7 +289,7 @@ export async function setListItemPicture(
     .update({ image_url: picture.url })
     .eq("list_id", listId)
     .eq("item_id", itemId);
-  return error ? { error: error.message } : {};
+  return error ? { error: userFacingErrorMessage(error, SAVE_FAILED) } : {};
 }
 
 // Deletes someone's avatar files and their auth user
@@ -299,7 +304,9 @@ async function removeAccount(userId: string): Promise<{ error?: string }> {
       .remove(files.map((f) => `${userId}/${f.name}`));
   }
   const { error } = await admin.auth.admin.deleteUser(userId);
-  if (error) return { error: error.message };
+  if (error) {
+    return { error: authMessage(error, "Couldn't delete your account.") };
+  }
 
   // Their posts are gone from the database, but the feeds, digest and
   // leaderboards keep a copy for a few minutes. Drop those copies now.
@@ -457,7 +464,10 @@ export async function signIn(input: {
   });
   if (error) {
     return {
-      error: error.code === "invalid_credentials" ? generic : error.message,
+      error:
+        error.code === "invalid_credentials"
+          ? generic
+          : authMessage(error, "Couldn't sign you in. Please try again."),
     };
   }
   // The account's SFW mode, so the browser applies it from the first page on
@@ -509,7 +519,7 @@ export async function setFavourite(input: {
       error:
         error.code === "23505"
           ? "That item is already in your top 5."
-          : error.message,
+          : userFacingErrorMessage(error, SAVE_FAILED),
     };
   }
   return {};
@@ -548,7 +558,7 @@ export async function setFavouritePicture(
     .eq("position", position)
     .eq("item_id", itemId)
     .select("position");
-  if (error) return { error: error.message };
+  if (error) return { error: userFacingErrorMessage(error, SAVE_FAILED) };
   return updated?.length
     ? {}
     : { error: "That slot has changed. Reload the page to see it." };
@@ -567,7 +577,7 @@ export async function removeFavourite(
     .delete()
     .eq("user_id", userId)
     .eq("position", position);
-  return error ? { error: error.message } : {};
+  return error ? { error: userFacingErrorMessage(error, SAVE_FAILED) } : {};
 }
 
 // Stores an item (looked up on Wikipedia if need be) so it can go in a list
@@ -650,7 +660,11 @@ export async function createList(input: {
     .select("id")
     .single();
   if (error || !list) {
-    return { error: error?.message ?? "Couldn't create the list." };
+    return {
+      error: error
+        ? userFacingErrorMessage(error, "Couldn't create the list.")
+        : "Couldn't create the list.",
+    };
   }
 
   // One statement, so the items appear together
@@ -668,7 +682,9 @@ export async function createList(input: {
   );
   if (itemsError) {
     await supabase.from("lists").delete().eq("id", list.id);
-    return { error: itemsError.message };
+    return {
+      error: userFacingErrorMessage(itemsError, "Couldn't create the list."),
+    };
   }
 
   // Only the server may set an entry's picture
@@ -766,7 +782,7 @@ export async function addToList(input: {
       error:
         error.code === "23505"
           ? "That item is already in this list."
-          : error.message,
+          : userFacingErrorMessage(error, SAVE_FAILED),
     };
   }
 
@@ -777,7 +793,8 @@ export async function addToList(input: {
       p_item: stored.id,
       p_position: input.position,
     });
-    if (moveError) return { error: moveError.message };
+    if (moveError)
+      return { error: userFacingErrorMessage(moveError, SAVE_FAILED) };
   }
 
   return {
@@ -856,7 +873,7 @@ export async function createCompound(input: {
       p_parts: resolvedParts,
     },
   );
-  if (error) return { error: error.message };
+  if (error) return { error: userFacingErrorMessage(error, SAVE_FAILED) };
 
   const r = result as { id: string; title: string; existing: boolean };
   // Whoever made it first keeps their picture
@@ -932,7 +949,7 @@ export async function updateCompound(input: {
     .from("items")
     .update({ title, description: description || null })
     .eq("id", input.id);
-  if (error) return { error: error.message };
+  if (error) return { error: userFacingErrorMessage(error, SAVE_FAILED) };
 
   let imageUrl: string | null | undefined;
   if (png) {
@@ -976,7 +993,10 @@ export async function deleteCompound(
       error:
         error.code === "23503"
           ? "It's been logged, listed, favourited or used in another compound, so it can't be deleted. You can still edit it."
-          : error.message,
+          : userFacingErrorMessage(
+              error,
+              "Couldn't delete it. Please try again.",
+            ),
     };
   }
   await removeCompoundImage(compoundId);

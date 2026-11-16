@@ -1,6 +1,7 @@
 // ABOUTME: Loads the signed-in person's lists a page at a time for the "Add to list" picker.
 // ABOUTME: Says for each whether it already holds the item, without sending any list ids.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 
 // Lists shown at first, and how many more each "Show more lists" adds
 const PICKER_PAGE_SIZE = 50;
@@ -38,7 +39,7 @@ export async function fetchPickerLists(
     p_offset: offset,
     p_limit: PICKER_PAGE_SIZE,
   });
-  if (error) return { lists: [], total: null, error: error.message };
+  if (error) return { lists: [], total: null, error: loadMessage(error) };
   const rows = (data ?? []) as Row[];
   return {
     lists: rows.map((r) => ({

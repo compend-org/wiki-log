@@ -23,6 +23,10 @@ import PicturePicker from "@/components/logs/PicturePicker";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import EditIcon from "@/components/ui/EditIcon";
 import { track } from "@/lib/analytics/analytics";
+import {
+  SAVE_FAILED,
+  userFacingErrorMessage,
+} from "@/lib/errors/userFacingErrorMessage";
 import { useDragSensors } from "@/lib/hooks/useDragSensors";
 import { isCompoundId } from "@/lib/ids";
 import { type EditorSnapshot, SavedListEditing } from "@/lib/lists/listEditing";
@@ -174,9 +178,12 @@ export default function ListEditor({
   // A saved list is shown a page at a time. Its changes and page loads go
   // through one queue, which reads the page and count as they are when each
   // one runs, so nothing acts on a page that has since changed.
-  const rpc = async (fn: string, args: Record<string, unknown>) => ({
-    error: (await createClient().rpc(fn, args)).error?.message,
-  });
+  const rpc = async (fn: string, args: Record<string, unknown>) => {
+    const { error } = await createClient().rpc(fn, args);
+    return {
+      error: error ? userFacingErrorMessage(error, SAVE_FAILED) : undefined,
+    };
+  };
   const [editing] = useState<SavedListEditing | null>(() =>
     listId === null
       ? null
@@ -378,7 +385,7 @@ export default function ListEditor({
 
     if (error) {
       setBusy(false);
-      setDetailsMessage(error.message);
+      setDetailsMessage(userFacingErrorMessage(error, SAVE_FAILED));
       return;
     }
     track("list_edited", { item_count: total, ranked });
@@ -396,7 +403,12 @@ export default function ListEditor({
       .eq("id", list.id);
     if (error) {
       setBusy(false);
-      setError(error.message);
+      setError(
+        userFacingErrorMessage(
+          error,
+          "Couldn't delete the list. Please try again.",
+        ),
+      );
       return;
     }
     track("list_deleted");

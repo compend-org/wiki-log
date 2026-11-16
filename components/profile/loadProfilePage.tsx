@@ -8,6 +8,7 @@ import LogCard from "@/components/logs/LogCard";
 import PinButton from "@/components/logs/PinButton";
 import type { Card, CardsPage } from "@/components/paging/CardPages";
 import { chunks } from "@/lib/allRows";
+import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import type { ListRow as ListCardRow, LogRow } from "@/lib/feed/feedData";
 import { entryPicture } from "@/lib/format";
 import { type Keyset, olderThan } from "@/lib/paging";
@@ -215,7 +216,7 @@ export async function fetchProfileRows(
       | LogRow
     )[],
     next,
-    error: error?.message ?? "",
+    error: loadMessage(error),
   };
 }
 
@@ -335,9 +336,9 @@ export async function fetchPinned(
   });
   return {
     pinned,
-    error:
-      [...logResponses, ...listResponses].find((r) => r.error)?.error
-        ?.message ?? "",
+    error: loadMessage(
+      [...logResponses, ...listResponses].find((r) => r.error)?.error,
+    ),
   };
 }
 
@@ -405,6 +406,6 @@ export async function loadPinnedPage(
       pins.length > size && last
         ? { position: last.position, id: last.id }
         : null,
-    error: error?.message ?? pinnedError,
+    error: loadMessage(error) || pinnedError,
   };
 }
