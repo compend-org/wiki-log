@@ -90,7 +90,7 @@ export default function PeopleSearch() {
           className="absolute inset-x-2 top-full z-30 mt-2 border border-line bg-background p-2 sm:inset-x-auto sm:left-0 sm:w-72"
         >
           <input
-            type="text"
+            type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
