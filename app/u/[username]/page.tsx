@@ -34,6 +34,7 @@ import SettingsIcon from "@/components/ui/SettingsIcon";
 import { isAdmin } from "@/lib/admin/admin";
 import { avatarUrl } from "@/lib/avatar";
 import { getProfileCompounds } from "@/lib/craft/profileCompounds";
+import { entryPicture } from "@/lib/format";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { loginHref } from "@/lib/redirect";
@@ -51,6 +52,8 @@ type ItemInfo = {
 type FavRow = {
   position: number;
   item_id: string;
+  // The picture its owner chose; null shows the item's
+  image_url: string | null;
   items: ItemInfo;
 };
 
@@ -115,7 +118,7 @@ export default async function ProfilePage({
         "following:follows!follows_follower_id_fkey(count), " +
         "log_count:logs!logs_user_id_profiles_fkey(count), " +
         "list_count:lists!lists_user_id_profiles_fkey(count), " +
-        "favourites(position, item_id, items(title, image_url, nsfw)), " +
+        "favourites(position, item_id, image_url, items(title, image_url, nsfw)), " +
         "pin_rows:pins(id, position, log_id, list_id)" +
         viewerEmbeds,
     )
@@ -146,7 +149,7 @@ export default async function ProfilePage({
       ? {
           itemId: row.item_id,
           title: row.items?.title ?? "Unknown item",
-          imageUrl: row.items?.image_url ?? null,
+          imageUrl: entryPicture(row),
           nsfw: row.items?.nsfw ?? false,
         }
       : null;

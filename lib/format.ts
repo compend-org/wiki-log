@@ -67,12 +67,13 @@ export function shownImage(item: {
   return item.image_hidden ? null : item.image_url;
 }
 
-// The picture a review shows: the one its author chose, or else its item's
-export function reviewPicture(log: {
+// The picture a review or list entry shows: the one its author chose, or else
+// its item's
+export function entryPicture(entry: {
   image_url: string | null;
   items: { image_url: string | null; image_hidden?: boolean } | null;
 }): string | null {
-  return log.image_url ?? (log.items ? shownImage(log.items) : null);
+  return entry.image_url ?? (entry.items ? shownImage(entry.items) : null);
 }
 
 // The thumbnail widths Wikimedia serves; it refuses any other width

@@ -1,8 +1,8 @@
-// ABOUTME: Tests for which pictures a review can choose from, and in what order.
+// ABOUTME: Tests for which pictures a review or list entry can choose from, and in what order.
 // ABOUTME: Covers the item's own picture coming first, free files only, and each file offered once.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { articleFromPageUrl, toChoices } from "./reviewPictures";
+import { articleFromPageUrl, toChoices } from "./pictureChoices";
 
 const commons = (name: string, width = 960) =>
   `https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/${name}/${width}px-${name}`;

@@ -1,4 +1,4 @@
-// ABOUTME: The pictures a review can show: its item's own picture and the free pictures in the item's Wikipedia article.
+// ABOUTME: The pictures a review or list entry can show: its item's own picture and the free pictures in the item's article.
 // ABOUTME: The same for every visitor, so each item's list is kept in the shared remote cache.
 import { cacheLife } from "next/cache";
 import { fileNameFromUrl } from "@/lib/format";
@@ -16,7 +16,8 @@ export type PictureChoice = {
   url: string;
   // The page describing the file and its rights, for the picture's credit
   filePage: string | null;
-  // The item's own picture, which a review shows unless its author picks another
+  // The item's own picture, which a review or list entry shows unless its
+  // author picks another
   isDefault: boolean;
 };
 
@@ -78,9 +79,9 @@ export function toChoices(
   return choices;
 }
 
-// The pictures a review of this item can show. Compounds and items without an
-// article have none. Null if Wikipedia couldn't be reached, which is kept for
-// only a minute so the next try asks again.
+// The pictures a review or list entry of this item can show. Compounds and
+// items without an article have none. Null if Wikipedia couldn't be reached,
+// which is kept for only a minute so the next try asks again.
 export async function pictureChoices(
   itemId: string,
 ): Promise<PictureChoice[] | null> {
@@ -153,8 +154,9 @@ async function itemPictureAndArticle(
   };
 }
 
-// The picture to store for a review: null for the item's own picture, the
-// address for one of the article's pictures, or an error for anything else
+// The picture to store for a review or list entry: null for the item's own
+// picture, the address for one of the article's pictures, or an error for
+// anything else
 export async function storedPicture(
   itemId: string,
   url: string | null,

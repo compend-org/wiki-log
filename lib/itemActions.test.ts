@@ -8,10 +8,13 @@ import server from "next/server";
 import {
   addToList,
   createCompound,
+  createList,
   itemPictureChoices,
   logItem,
   reportBrokenImage,
   setFavourite,
+  setFavouritePicture,
+  setListItemPicture,
   setReviewPicture,
 } from "../app/actions";
 import ItemPage, { generateMetadata } from "../app/item/[id]/page";
@@ -46,6 +49,19 @@ type Review = {
   item_id: string;
   image_url: string | null;
 };
+// An item in a list, and who owns the list
+type ListEntry = {
+  item_id: string;
+  owner: string;
+  image_url: string | null;
+};
+// An item in someone's top 5
+type FavouriteSlot = {
+  user_id: string;
+  position: number;
+  item_id: string;
+  image_url: string | null;
+};
 type Write = {
   table: string;
   body: Record<string, unknown>;
@@ -64,6 +80,9 @@ function setup({
   reviews = [] as Review[],
   suspended = false,
   pictureWriteFails = false,
+  listEntries = [] as ListEntry[],
+  favourites = [] as FavouriteSlot[],
+  undoFails = false,
 } = {}) {
   const previousEnv = { ...process.env };
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
@@ -116,6 +135,11 @@ function setup({
         if (init?.method === "DELETE") {
           const id = url.searchParams.get("id")?.replace(/^eq\./, "");
           writes.push({ table, body: {}, method: init.method, id });
+          if (undoFails)
+            return Response.json(
+              { code: "57014", message: "Statement timeout" },
+              { status: 500 },
+            );
           return new Response(null, { status: 204 });
         }
         if (init?.method === "POST" || init?.method === "PATCH") {
@@ -140,9 +164,38 @@ function setup({
                 { status: 500 },
               );
             return new Response(null, { status: 204 });
+          } else if (
+            ["list_items", "favourites"].includes(table) &&
+            init.method === "PATCH"
+          ) {
+            // Only the server changes a list entry's or slot's picture
+            assert.deepEqual(Object.keys(body), ["image_url"]);
+            if (pictureWriteFails)
+              return Response.json(
+                { code: "57014", message: "Statement timeout" },
+                { status: 500 },
+              );
+            if (table === "favourites") {
+              const filter = (column: string) =>
+                url.searchParams.get(column)?.replace(/^eq\./, "");
+              return Response.json(
+                favourites
+                  .filter(
+                    (f) =>
+                      filter("user_id") === f.user_id &&
+                      filter("position") === String(f.position) &&
+                      filter("item_id") === f.item_id,
+                  )
+                  .map((f) => ({ position: f.position })),
+              );
+            }
+            return new Response(null, { status: 204 });
+          } else if (table === "lists") {
+            return Response.json({ id: listId }, { status: 201 });
           } else if (["logs", "favourites", "list_items"].includes(table)) {
             // Model the FK that failed in production, rather than accepting any ID.
-            if (!items.has(String(body.item_id)))
+            const rows = Array.isArray(body) ? body : [body];
+            if (!rows.every((row) => items.has(String(row.item_id))))
               return Response.json(
                 { code: "23503", message: "Item does not exist" },
                 { status: 409 },
@@ -177,6 +230,17 @@ function setup({
               .map((r) => ({ ...r, items: items.get(r.item_id) ?? null })),
           );
         }
+        if (table === "favourites") {
+          return Response.json(
+            favourites.filter(
+              (f) =>
+                (filter("user_id") ?? f.user_id) === f.user_id &&
+                (filter("position") ?? String(f.position)) ===
+                  String(f.position) &&
+                (filter("image_url") ?? f.image_url) === f.image_url,
+            ),
+          );
+        }
         if (table === "profiles") {
           return Response.json([
             {
@@ -208,6 +272,22 @@ function setup({
           return Response.json([{ id: listId }]);
         }
         assert.equal(table, "list_items");
+        if (url.searchParams.has("lists.user_id") || filter("image_url")) {
+          return Response.json(
+            listEntries
+              .filter(
+                (e) =>
+                  (filter("item_id") ?? e.item_id) === e.item_id &&
+                  (filter("lists.user_id") ?? e.owner) === e.owner &&
+                  (filter("image_url") ?? e.image_url) === e.image_url,
+              )
+              .map((e) => ({
+                list_id: listId,
+                item_id: e.item_id,
+                lists: { user_id: e.owner },
+              })),
+          );
+        }
         return Response.json(
           lastPosition === null ? [] : [{ position: lastPosition }],
         );
@@ -476,6 +556,256 @@ test("a suspended account can't change a review's picture", async () => {
   assert.deepEqual(fixture.writes, []);
 });
 
+test("a list's owner can change an item's picture to one from the article", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    listEntries: [{ item_id: resolvedId, owner: userId, image_url: null }],
+  });
+  assert.deepEqual(
+    await setListItemPicture(listId, resolvedId, articleImageUrl),
+    {},
+  );
+  const write = fixture.writes.find((w) => w.table === "list_items");
+  assert.equal(write?.method, "PATCH");
+  assert.equal(write?.body.image_url, articleImageUrl);
+});
+
+test("an item in a list goes back to its own picture", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    listEntries: [
+      { item_id: resolvedId, owner: userId, image_url: articleImageUrl },
+    ],
+  });
+  assert.deepEqual(await setListItemPicture(listId, resolvedId, null), {});
+  assert.equal(
+    fixture.writes.find((w) => w.table === "list_items")?.body.image_url,
+    null,
+  );
+});
+
+test("someone else's list keeps its pictures", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    listEntries: [
+      {
+        item_id: resolvedId,
+        owner: "44444444-4444-4444-8444-444444444444",
+        image_url: null,
+      },
+    ],
+  });
+  assert.deepEqual(
+    await setListItemPicture(listId, resolvedId, articleImageUrl),
+    { error: "Couldn't save that change." },
+  );
+  assert.deepEqual(fixture.writes, []);
+});
+
+test("a picture that isn't in the item's article isn't saved in a list", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    listEntries: [{ item_id: resolvedId, owner: userId, image_url: null }],
+  });
+  assert.deepEqual(
+    await setListItemPicture(
+      listId,
+      resolvedId,
+      "https://upload.wikimedia.org/wikipedia/commons/a/aa/Elsewhere.jpg",
+    ),
+    { error: "That picture isn't available." },
+  );
+  assert.deepEqual(fixture.writes, []);
+});
+
+test("a suspended account can't change a picture in a list", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    listEntries: [{ item_id: resolvedId, owner: userId, image_url: null }],
+    suspended: true,
+  });
+  assert.deepEqual(
+    await setListItemPicture(listId, resolvedId, articleImageUrl),
+    { error: "Your account is suspended" },
+  );
+  assert.deepEqual(fixture.writes, []);
+});
+
+test("a top 5 slot can show a picture from its item's article", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    favourites: [
+      { user_id: userId, position: 2, item_id: resolvedId, image_url: null },
+    ],
+  });
+  assert.deepEqual(
+    await setFavouritePicture(2, resolvedId, articleImageUrl),
+    {},
+  );
+  const write = fixture.writes.find((w) => w.table === "favourites");
+  assert.equal(write?.method, "PATCH");
+  assert.equal(write?.body.image_url, articleImageUrl);
+});
+
+test("a top 5 slot goes back to its item's own picture", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    favourites: [
+      {
+        user_id: userId,
+        position: 2,
+        item_id: resolvedId,
+        image_url: articleImageUrl,
+      },
+    ],
+  });
+  assert.deepEqual(await setFavouritePicture(2, resolvedId, null), {});
+  assert.equal(
+    fixture.writes.find((w) => w.table === "favourites")?.body.image_url,
+    null,
+  );
+});
+
+test("a picture picked before the slot was given another item isn't saved there", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    favourites: [
+      {
+        user_id: userId,
+        position: 2,
+        item_id: "Q2",
+        image_url: articleImageUrl,
+      },
+    ],
+  });
+  // Picked for the item the slot used to hold, in a page opened earlier
+  assert.deepEqual(await setFavouritePicture(2, resolvedId, null), {
+    error: "That slot has changed. Reload the page to see it.",
+  });
+});
+
+test("someone else's top 5 slot keeps its picture", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    favourites: [
+      {
+        user_id: "44444444-4444-4444-8444-444444444444",
+        position: 2,
+        item_id: resolvedId,
+        image_url: null,
+      },
+    ],
+  });
+  assert.deepEqual(await setFavouritePicture(2, resolvedId, articleImageUrl), {
+    error: "That slot has changed. Reload the page to see it.",
+  });
+});
+
+test("a top 5 slot only shows pictures from its item's article", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    favourites: [
+      { user_id: userId, position: 2, item_id: resolvedId, image_url: null },
+    ],
+  });
+  assert.deepEqual(
+    await setFavouritePicture(
+      2,
+      resolvedId,
+      "https://upload.wikimedia.org/wikipedia/commons/a/aa/Elsewhere.jpg",
+    ),
+    { error: "That picture isn't available." },
+  );
+  assert.deepEqual(fixture.writes, []);
+});
+
+const newList = { title: "Folk", description: "", ranked: false };
+
+test("creating a list saves the pictures picked for its items", async () => {
+  fixture = setup({ cached: [folkItem] });
+  assert.deepEqual(
+    await createList({
+      ...newList,
+      itemIds: [resolvedId],
+      pictures: { [resolvedId]: articleImageUrl },
+    }),
+    { id: listId },
+  );
+  const entryWrites = fixture.writes.filter((w) => w.table === "list_items");
+  assert.deepEqual(
+    entryWrites.map((w) => w.method),
+    ["POST", "PATCH"],
+  );
+  assert.equal(
+    (entryWrites[0].body as unknown as { image_url?: string }[])[0].image_url,
+    undefined,
+  );
+  assert.equal(entryWrites[1].body.image_url, articleImageUrl);
+});
+
+test("creating a list with a picture that isn't in the article saves nothing", async () => {
+  fixture = setup({ cached: [folkItem] });
+  assert.deepEqual(
+    await createList({
+      ...newList,
+      itemIds: [resolvedId],
+      pictures: {
+        [resolvedId]:
+          "https://upload.wikimedia.org/wikipedia/commons/a/aa/Elsewhere.jpg",
+      },
+    }),
+    { error: "That picture isn't available." },
+  );
+  assert.deepEqual(fixture.writes, []);
+});
+
+test("a picture for an item that isn't in the new list is refused", async () => {
+  fixture = setup({ cached: [folkItem] });
+  assert.deepEqual(
+    await createList({
+      ...newList,
+      itemIds: [resolvedId],
+      pictures: { Q1: articleImageUrl },
+    }),
+    { error: "Invalid pictures." },
+  );
+  assert.deepEqual(fixture.writes, []);
+});
+
+test("a list whose pictures can't be saved is taken back out, so trying again can't create it twice", async () => {
+  fixture = setup({ cached: [folkItem], pictureWriteFails: true });
+  assert.deepEqual(
+    await createList({
+      ...newList,
+      itemIds: [resolvedId],
+      pictures: { [resolvedId]: articleImageUrl },
+    }),
+    { error: "Couldn't create the list. Try again." },
+  );
+  assert.deepEqual(fixture.writes.at(-1), {
+    table: "lists",
+    body: {},
+    method: "DELETE",
+    id: listId,
+  });
+});
+
+test("a list that can't be taken back out after its pictures failed says it was created", async () => {
+  fixture = setup({
+    cached: [folkItem],
+    pictureWriteFails: true,
+    undoFails: true,
+  });
+  assert.deepEqual(
+    await createList({
+      ...newList,
+      itemIds: [resolvedId],
+      pictures: { [resolvedId]: articleImageUrl },
+    }),
+    { error: "Your list was created, but not all its pictures." },
+  );
+});
+
 test("adding to a ranked list uses the resolved ID in the row, move and response", async () => {
   fixture = setup({ lastPosition: 2 });
   assert.deepEqual(
@@ -655,6 +985,39 @@ test("a review whose chosen picture is gone goes back to its item's picture", as
   // Reviews of other items may share the picture, so none is offered in its place
   assert.equal(await reportBrokenImage(renamedImageUrl), null);
   const write = fixture.writes.find((w) => w.table === "logs");
+  assert.equal(write?.method, "PATCH");
+  assert.equal(write?.body.image_url, null);
+});
+
+test("a list entry whose chosen picture is gone goes back to its item's picture", async () => {
+  fixture = setup({
+    cached: [{ ...folkItem, image_hidden: false }],
+    listEntries: [
+      { item_id: resolvedId, owner: userId, image_url: renamedImageUrl },
+    ],
+    imageStatus: 404,
+  });
+  assert.equal(await reportBrokenImage(renamedImageUrl), null);
+  const write = fixture.writes.find((w) => w.table === "list_items");
+  assert.equal(write?.method, "PATCH");
+  assert.equal(write?.body.image_url, null);
+});
+
+test("a top 5 slot whose chosen picture is gone goes back to its item's picture", async () => {
+  fixture = setup({
+    cached: [{ ...folkItem, image_hidden: false }],
+    favourites: [
+      {
+        user_id: userId,
+        position: 1,
+        item_id: resolvedId,
+        image_url: renamedImageUrl,
+      },
+    ],
+    imageStatus: 404,
+  });
+  assert.equal(await reportBrokenImage(renamedImageUrl), null);
+  const write = fixture.writes.find((w) => w.table === "favourites");
   assert.equal(write?.method, "PATCH");
   assert.equal(write?.body.image_url, null);
 });

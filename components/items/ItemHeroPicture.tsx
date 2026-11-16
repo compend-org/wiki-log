@@ -84,6 +84,7 @@ export default function ItemHeroPicture({
       {open && (
         <PicturePicker
           itemId={itemId}
+          label="Picture for your review"
           picked={shown}
           onPick={pick}
           onClose={() => setOpen(false)}

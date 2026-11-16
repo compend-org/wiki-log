@@ -8,7 +8,7 @@ import DiaryReplyCard from "@/components/activity/DiaryReplyCard";
 import type { Card, CardsPage } from "@/components/paging/CardPages";
 import type { ActivityView } from "@/lib/activityView";
 import { FEATURES } from "@/lib/features";
-import { reviewPicture, timeAgo } from "@/lib/format";
+import { entryPicture, timeAgo } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
 import {
   type Keyset,
@@ -59,7 +59,8 @@ type ListRow = {
   ranked: boolean;
   created_at: string;
   list_items: { count: number }[];
-  preview: { items: ItemInfo }[];
+  // Each entry's chosen picture; null shows the item's
+  preview: { image_url: string | null; items: ItemInfo }[];
 };
 
 // A reply to a comment on a review
@@ -243,7 +244,7 @@ export async function loadDiaryPage(
   let listsQuery = supabase
     .from("lists")
     .select(
-      "id, title, ranked, created_at, list_items(count), preview:list_items(items(title, image_url, nsfw))",
+      "id, title, ranked, created_at, list_items(count), preview:list_items(image_url, items(title, image_url, nsfw))",
     )
     .eq("user_id", userId);
   if (after.lists) {
@@ -347,7 +348,7 @@ export async function loadDiaryPage(
           logId={l.id}
           itemId={l.item_id}
           title={l.items?.title ?? "Unknown item"}
-          imageUrl={reviewPicture(l)}
+          imageUrl={entryPicture(l)}
           nsfw={l.items?.nsfw ?? false}
           rating={l.rating === null ? null : Number(l.rating)}
           review={l.review}
@@ -376,7 +377,7 @@ export async function loadDiaryPage(
           count={l.list_items?.[0]?.count ?? 0}
           previews={l.preview.map((p) => ({
             title: p.items?.title ?? "Unknown item",
-            imageUrl: p.items?.image_url ?? null,
+            imageUrl: entryPicture(p),
             nsfw: p.items?.nsfw ?? false,
           }))}
           ago={timeAgo(l.created_at, now)}

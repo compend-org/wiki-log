@@ -3,7 +3,7 @@
 "use client";
 
 import { createContext, type ReactNode, useContext, useState } from "react";
-import type { PictureChoice } from "@/lib/reviewPictures";
+import type { PictureChoice } from "@/lib/pictureChoices";
 
 type ReviewPicture = {
   // Null until a picture is picked, and again once the entry is saved

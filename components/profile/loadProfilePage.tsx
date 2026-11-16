@@ -9,6 +9,7 @@ import PinButton from "@/components/logs/PinButton";
 import type { Card, CardsPage } from "@/components/paging/CardPages";
 import { chunks } from "@/lib/allRows";
 import type { ListRow as ListCardRow, LogRow } from "@/lib/feed/feedData";
+import { entryPicture } from "@/lib/format";
 import { type Keyset, olderThan } from "@/lib/paging";
 import { aboutAdultItem, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
@@ -27,7 +28,7 @@ const LOG_FIELDS =
 // The columns a list card needs, with the first items of the list as preview.
 // Ask for `.lte("preview.position", 4)` with it.
 const LIST_FIELDS =
-  "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), preview:list_items(position, items(title, image_url, nsfw))";
+  "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), preview:list_items(position, image_url, items(title, image_url, nsfw))";
 
 // How many pins, reviews or lists a profile shows at first, and how many more
 // reviews or lists each "Show more" adds
@@ -35,7 +36,8 @@ export const PROFILE_PAGE_SIZE_INITIAL = 3;
 const PROFILE_MORE_PAGE = 7;
 
 export type ProfileListRow = ListCardRow & {
-  preview: { position: number; items: ItemInfo }[];
+  // Each entry's chosen picture; null shows the item's
+  preview: { position: number; image_url: string | null; items: ItemInfo }[];
 };
 
 export type ProfileKind = "lists" | "reviews";
@@ -133,7 +135,7 @@ function renderProfileList(
       list={l}
       thumbs={l.preview.map((p) => ({
         title: p.items?.title ?? "Unknown item",
-        image_url: p.items?.image_url ?? null,
+        image_url: entryPicture(p),
         nsfw: p.items?.nsfw ?? false,
       }))}
       viewerId={ctx.viewerId}

@@ -28,7 +28,7 @@ function deferred<T>() {
 // Lets every queued promise callback run
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
-type Kind = "fetchPage" | "move" | "remove" | "add";
+type Kind = "fetchPage" | "move" | "remove" | "add" | "setPicture";
 
 // A list held in memory, standing in for the database. Any kind of request
 // can be held until the test lets it go, or made to fail outright.
@@ -78,6 +78,10 @@ function fakeList(count: number) {
       }
       ids.push(itemId);
       return { item: entry(itemId) };
+    },
+    async setPicture(itemId, imageUrl) {
+      await gate("setPicture", [itemId, imageUrl]);
+      return {};
     },
   };
 
@@ -339,4 +343,52 @@ test("a page past the end of a list that got shorter shows its last page", async
   await editing.goToPage(3);
   assert.equal(editing.snapshot.page, 2);
   assert.equal(editing.snapshot.total, 200);
+});
+
+test("a picked picture shows on its tile once it's saved", async () => {
+  const { list, editing } = editorOn(3, 1);
+  const saving = list.hold("setPicture");
+  const picking = editing.setPicture(
+    "Q2",
+    "https://example.com/b.jpg",
+    "https://example.com/b.jpg",
+  );
+  await settle();
+  assert.equal(editing.snapshot.items[1].imageUrl, null);
+  assert.equal(editing.snapshot.busy, true);
+
+  saving.resolve();
+  assert.equal(await picking, true);
+  assert.equal(editing.snapshot.items[1].imageUrl, "https://example.com/b.jpg");
+  assert.deepEqual(list.calls.at(-1), {
+    kind: "setPicture",
+    args: ["Q2", "https://example.com/b.jpg"],
+  });
+  assert.equal(editing.snapshot.busy, false);
+});
+
+test("going back to the item's own picture saves no picture but shows the item's", async () => {
+  const { list, editing } = editorOn(3, 1);
+  await editing.setPicture("Q1", null, "https://example.com/own.jpg");
+  assert.deepEqual(list.calls.at(-1)?.args, ["Q1", null]);
+  assert.equal(
+    editing.snapshot.items[0].imageUrl,
+    "https://example.com/own.jpg",
+  );
+});
+
+test("a picture that couldn't be saved leaves the tile as it was", async () => {
+  const { list, editing } = editorOn(3, 1);
+  list.fail("setPicture");
+  assert.equal(
+    await editing.setPicture(
+      "Q1",
+      "https://example.com/a.jpg",
+      "https://example.com/a.jpg",
+    ),
+    false,
+  );
+  assert.equal(editing.snapshot.items[0].imageUrl, null);
+  assert.equal(editing.snapshot.error, UNREACHABLE);
+  assert.equal(editing.snapshot.busy, false);
 });

@@ -11,13 +11,17 @@ export type ListPageEntry = {
   // 1-based place in the whole list
   rank: number;
   title: string;
+  // The picture the list's owner chose, or else the item's own
   imageUrl: string | null;
+  // Whether the item's own picture is hidden; a chosen picture never is
   imageHidden: boolean;
   nsfw: boolean;
 };
 
 type EntryRow = {
   item_id: string;
+  // The picture the list's owner chose; null shows the item's
+  image_url: string | null;
   items: {
     title: string;
     image_url: string | null;
@@ -78,7 +82,7 @@ export async function fetchListPage(
   const { from, to } = pageRange(page);
   const { data, count, error } = await supabase
     .from("list_items")
-    .select("item_id, items(title, image_url, image_hidden, nsfw)", {
+    .select("item_id, image_url, items(title, image_url, image_hidden, nsfw)", {
       count: "exact",
     })
     .eq("list_id", listId)
@@ -103,8 +107,8 @@ export async function fetchListPage(
     itemId: row.item_id,
     rank: from + i + 1,
     title: row.items?.title ?? "Unknown item",
-    imageUrl: row.items?.image_url ?? null,
-    imageHidden: row.items?.image_hidden ?? false,
+    imageUrl: row.image_url ?? row.items?.image_url ?? null,
+    imageHidden: row.image_url ? false : (row.items?.image_hidden ?? false),
     nsfw: row.items?.nsfw ?? false,
   }));
   return { entries, total: count ?? entries.length };

@@ -5,6 +5,7 @@ import ListCard from "@/components/lists/ListCard";
 import ItemLogCard from "@/components/logs/ItemLogCard";
 import type { CardsPage } from "@/components/paging/CardPages";
 import { getAdminIds } from "@/lib/admin/admin";
+import { entryPicture } from "@/lib/format";
 import {
   getItemLogs,
   getItemLogsLikedBy,
@@ -28,7 +29,7 @@ export function renderItemListCards(
         list={l}
         thumbs={l.preview.map((p) => ({
           title: p.items?.title ?? "Unknown item",
-          image_url: p.items?.image_url ?? null,
+          image_url: entryPicture(p),
           nsfw: p.items?.nsfw ?? false,
         }))}
         viewerId={viewerId}

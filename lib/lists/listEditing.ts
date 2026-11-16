@@ -28,6 +28,12 @@ export type EditorRequests = {
   move(itemId: string, position: number): Promise<{ error?: string }>;
   remove(itemId: string): Promise<{ error?: string }>;
   add(itemId: string): Promise<{ error?: string; item?: EditorEntry }>;
+  // Saves the picture an item shows in the list: an address, or null for the
+  // item's own
+  setPicture(
+    itemId: string,
+    imageUrl: string | null,
+  ): Promise<{ error?: string }>;
   // The page now on screen, to keep it in the address
   pageShown?(page: number): void;
 };
@@ -191,6 +197,31 @@ export class SavedListEditing {
       ) {
         await this.load(this.state.page);
       }
+      return true;
+    });
+  }
+
+  // Saves the picture an item shows in the list (`stored`, null for the
+  // item's own), then shows `shown` on its tile if it's still on screen
+  setPicture(
+    itemId: string,
+    stored: string | null,
+    shown: string | null,
+  ): Promise<boolean> {
+    this.set({ error: "", notice: null });
+    return this.run(async () => {
+      const error = await this.send(() =>
+        this.requests.setPicture(itemId, stored),
+      );
+      if (error) {
+        this.set({ error });
+        return false;
+      }
+      this.set({
+        items: this.state.items.map((i) =>
+          i.itemId === itemId ? { ...i, imageUrl: shown } : i,
+        ),
+      });
       return true;
     });
   }
