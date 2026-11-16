@@ -90,4 +90,9 @@ test("sign-in failures inside Supabase are hidden", () => {
     fallback,
   );
   assert.equal(authMessage({ message: "fetch failed" }, fallback), fallback);
+  // How Supabase reports a request that never reached it
+  assert.equal(
+    authMessage({ status: 0, message: "fetch failed" }, fallback),
+    fallback,
+  );
 });

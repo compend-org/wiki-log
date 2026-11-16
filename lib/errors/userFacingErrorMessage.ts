@@ -29,12 +29,13 @@ export function userFacingErrorMessage(
 
 // What to show for a failed sign-in, sign-up or account request. Supabase
 // writes these messages for people, except when its server or the database
-// fails, when they say what failed inside; those show `fallback`.
+// fails, or the request never reached it (status 0 or none), when they say
+// what failed inside; those show `fallback`.
 export function authMessage(
   error: { status?: number; message: string },
   fallback: string,
 ): string {
-  if ((error.status ?? 500) >= 500 || /database error/i.test(error.message)) {
+  if ((error.status || 500) >= 500 || /database error/i.test(error.message)) {
     return fallback;
   }
   return error.message;
