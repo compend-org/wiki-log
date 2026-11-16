@@ -14,6 +14,7 @@ export default function DiaryCraftCard({
   title,
   description,
   imageUrl,
+  nsfw,
   parts,
   ago,
   owner,
@@ -22,6 +23,7 @@ export default function DiaryCraftCard({
   title: string;
   description: string;
   imageUrl: string | null;
+  nsfw: boolean;
   // The names of what it was made from, in order
   parts: string[];
   // When it was crafted, as shown: "5m ago", or the date once it's a day old
@@ -47,6 +49,7 @@ export default function DiaryCraftCard({
       <ItemImage
         src={shownImage}
         alt={shownTitle}
+        nsfw={nsfw}
         className="h-14 w-14 shrink-0 rounded"
       />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
