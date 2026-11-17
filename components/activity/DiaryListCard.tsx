@@ -4,7 +4,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import ItemImage from "@/components/items/ItemImage";
 import ListPreview from "@/components/lists/ListPreview";
 import DeleteButton from "@/components/logs/DeleteButton";
 import EditIcon from "@/components/ui/EditIcon";
@@ -90,28 +89,17 @@ export default function DiaryListCard({
       >
         {title}
       </Link>
-      {groupPreviews ? (
+      {(groupPreviews || previews.length > 0) && (
         <ListPreview
-          thumbs={[]}
+          thumbs={previews.map((p) => ({
+            title: p.title,
+            image_url: p.imageUrl,
+            nsfw: p.nsfw,
+          }))}
           total={count}
           groups={groupPreviews}
           href={`/list/${listId}`}
         />
-      ) : (
-        previews.length > 0 && (
-          <div className="flex gap-1">
-            {previews.map((p, i) => (
-              <ItemImage
-                // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
-                key={i}
-                src={p.imageUrl}
-                nsfw={p.nsfw}
-                alt={p.title}
-                className="h-14 w-14 rounded"
-              />
-            ))}
-          </div>
-        )
       )}
       <span className="text-xs text-muted">{itemsLabel(count, groups)}</span>
     </div>

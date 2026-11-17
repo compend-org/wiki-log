@@ -38,7 +38,7 @@ export type DiaryCursor = {
 };
 
 // How many pictures each list shows
-const PREVIEW_SIZE = 4;
+const PREVIEW_SIZE = 12;
 
 type ItemInfo = {
   title: string;

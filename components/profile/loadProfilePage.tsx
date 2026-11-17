@@ -27,7 +27,7 @@ const LOG_FIELDS =
   "id, user_id, item_id, rating, review, logged_at, image_url, items(title, image_url, nsfw), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
 
 // The columns a list card needs, with the first items of the list as preview.
-// Ask for `.lte("preview.position", 4)` with it.
+// Ask for `.lte("preview.position", 12)` with it.
 const LIST_FIELDS =
   "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), last_bumped_at, activity_at, grouped, list_groups(count), preview:list_items(position, image_url, items(title, image_url, nsfw))";
 
@@ -188,7 +188,7 @@ export async function fetchProfileRows(
   const { table, select, time, owner } = KINDS[kind];
 
   let query = supabase.from(table).select(select).eq(owner, ctx.profileId);
-  if (kind === "lists") query = query.lte("preview.position", 4);
+  if (kind === "lists") query = query.lte("preview.position", 12);
   if (rating !== undefined) query = query.eq("rating", rating);
   if (cursor) query = query.or(olderThan(time, cursor));
   query = query
@@ -315,7 +315,7 @@ export async function fetchPinned(
           .from("lists")
           .select(LIST_FIELDS)
           .in("id", ids)
-          .lte("preview.position", 4)
+          .lte("preview.position", 12)
           .order("position", { referencedTable: "preview" }),
       ),
     ),
