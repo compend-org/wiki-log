@@ -26,9 +26,10 @@ export function aboutAdultItem(post: { items: { nsfw: boolean } | null }) {
   return post.items?.nsfw ?? false;
 }
 
-// Commons and Wikipedia file categories that describe explicit pictures
+// Commons and Wikipedia file categories that describe explicit pictures,
+// including Commons' warning for sexually explicit photos under 18 U.S.C. 2257
 export const EXPLICIT_CATEGORY =
-  /\b(nude|nudes|nudity|naked|topless|erotic|erotica|pornograph\w*|genitalia|genitals|penis|penises|vulva|vulvas|vagina|vaginas|human sexual activity|sexual intercourse|sex acts?|sex positions?|sex toys?|intercourse|masturbation|fellatio|cunnilingus|anilingus|bdsm|hentai|nipples?)\b/i;
+  /\b(nude|nudes|nudity|naked|topless|erotic|erotica|pornograph\w*|genitalia|genitals|penis|penises|vulva|vulvas|vagina|vaginas|human sexual activity|sexual intercourse|sex acts?|sex positions?|sex toys?|intercourse|masturbation|fellatio|cunnilingus|anilingus|bdsm|hentai|nipples?|child protection and obscenity enforcement act)\b/i;
 
 // The browser's copy of the account's mode, read before the first paint
 const SFW_KEY = "sfw";
