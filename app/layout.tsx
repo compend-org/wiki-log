@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "flag-icons/css/flag-icons.min.css";
 import { Suspense } from "react";
+import BrowserSettingsSync from "@/components/layout/BrowserSettingsSync";
 import Footer from "@/components/layout/Footer";
 import Nav from "@/components/layout/Nav";
 import NavAccount from "@/components/layout/NavAccount";
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: iphoneViewportScript }} />
       </head>
       <body className="min-h-full flex flex-col">
+        <BrowserSettingsSync />
         <Nav
           account={
             <Suspense fallback={<NavAccountPlaceholder />}>

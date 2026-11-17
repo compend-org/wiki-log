@@ -42,6 +42,14 @@ export function setStoredSfw(mode: SfwMode): void {
   }
 }
 
+export function getStoredSfw(): SfwMode {
+  try {
+    return parseSfwMode(localStorage.getItem(SFW_KEY));
+  } catch {
+    return "off";
+  }
+}
+
 // Fired on window whenever the page's mode changes
 export const SFW_CHANGE_EVENT = "sfw-mode-change";
 
