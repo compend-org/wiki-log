@@ -268,7 +268,10 @@ export default function LoginForm({ next }: { next: string }) {
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             placeholder="Email or username"
+            autoComplete="username"
+            spellCheck={false}
             autoCapitalize="none"
+            autoCorrect="off"
             required
             className={inputClass}
           />
@@ -277,6 +280,7 @@ export default function LoginForm({ next }: { next: string }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
+            autoComplete="current-password"
             required
             className={inputClass}
           />
@@ -304,6 +308,10 @@ export default function LoginForm({ next }: { next: string }) {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
+            autoComplete="username"
+            spellCheck={false}
+            autoCapitalize="none"
+            autoCorrect="off"
             required
             className={inputClass}
           />
@@ -312,6 +320,8 @@ export default function LoginForm({ next }: { next: string }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
+            autoComplete="email"
+            spellCheck={false}
             required
             className={inputClass}
           />
@@ -322,6 +332,7 @@ export default function LoginForm({ next }: { next: string }) {
             onPaste={(e) => e.preventDefault()}
             placeholder="Type your email again"
             autoComplete="off"
+            spellCheck={false}
             required
             className={inputClass}
           />
@@ -330,6 +341,7 @@ export default function LoginForm({ next }: { next: string }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password (8+ characters)"
+            autoComplete="new-password"
             required
             minLength={8}
             className={inputClass}

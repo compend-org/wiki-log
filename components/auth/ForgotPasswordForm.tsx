@@ -61,6 +61,7 @@ export default function ForgotPasswordForm() {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="Email"
+        spellCheck={false}
         required
         className="border border-line bg-surface px-4 py-2 text-foreground"
       />

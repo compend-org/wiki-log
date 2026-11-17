@@ -56,6 +56,7 @@ export default function ResetPasswordForm() {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="New password (8+ characters)"
+        autoComplete="new-password"
         required
         minLength={8}
         className={inputClass}
@@ -65,6 +66,7 @@ export default function ResetPasswordForm() {
         value={confirm}
         onChange={(e) => setConfirm(e.target.value)}
         placeholder="Repeat the new password"
+        autoComplete="new-password"
         required
         className={inputClass}
       />
