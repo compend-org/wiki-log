@@ -271,6 +271,7 @@ export default function LoginForm({ next }: { next: string }) {
             autoComplete="username"
             spellCheck={false}
             autoCapitalize="none"
+            autoCorrect="off"
             required
             className={inputClass}
           />
@@ -309,6 +310,8 @@ export default function LoginForm({ next }: { next: string }) {
             placeholder="Username"
             autoComplete="username"
             spellCheck={false}
+            autoCapitalize="none"
+            autoCorrect="off"
             required
             className={inputClass}
           />
@@ -318,6 +321,7 @@ export default function LoginForm({ next }: { next: string }) {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
             autoComplete="email"
+            spellCheck={false}
             required
             className={inputClass}
           />
@@ -328,6 +332,7 @@ export default function LoginForm({ next }: { next: string }) {
             onPaste={(e) => e.preventDefault()}
             placeholder="Type your email again"
             autoComplete="off"
+            spellCheck={false}
             required
             className={inputClass}
           />
