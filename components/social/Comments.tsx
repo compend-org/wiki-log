@@ -7,6 +7,7 @@ import ReviewText from "@/components/logs/ReviewText";
 import ReviewTextarea from "@/components/logs/ReviewTextArea";
 import AdminBadge from "@/components/moderation/AdminBadge";
 import ReportButton from "@/components/moderation/ReportButton";
+import Avatar from "@/components/people/Avatar";
 import CommentLikeButton from "@/components/social/CommentLikeButton";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { track } from "@/lib/analytics/analytics";
@@ -26,6 +27,7 @@ export type CommentItem = {
   date: string;
   authorId: string;
   authorName: string;
+  authorAvatarPath: string | null;
   likeCount: number;
   liked: boolean;
   authorIsAdmin?: boolean;
@@ -33,6 +35,10 @@ export type CommentItem = {
   removed?: boolean;
   edited?: boolean;
 };
+
+// Profile picture widths, in pixels. Replies get smaller ones than the
+// comments they answer.
+const AVATAR_SIZE = { comment: 32, reply: 24 };
 
 export default function Comments({
   comments,
@@ -173,8 +179,9 @@ export default function Comments({
 
   function renderComment(c: CommentItem, rootId: string) {
     const canDelete = viewerId === c.authorId || viewerId === ownerId;
+    const profileHref = `/u/${encodeURIComponent(c.authorName)}`;
     return (
-      <div key={c.id} className="flex flex-col gap-1">
+      <div key={c.id} className="flex gap-2">
         {deleting && (
           <ConfirmDialog
             title="Delete this comment?"
@@ -190,123 +197,133 @@ export default function Comments({
             )}
           </ConfirmDialog>
         )}
-        <div className="flex items-center gap-2 text-sm">
-          <Link
-            href={`/u/${encodeURIComponent(c.authorName)}`}
-            className="font-semibold hover:underline"
-          >
-            {c.authorName}
-          </Link>
-          {c.authorIsAdmin && <AdminBadge />}
-          <span className="text-xs text-muted">
-            {c.date}
-            {c.edited && " · edited"}
-          </span>
-          {c.removed && (
-            <span className="text-xs font-medium text-danger">
-              Removed by the moderators · only you can see it
+        {/* The name beside it is the same link, so this one is skipped by
+            keyboards and screen readers */}
+        <Link href={profileHref} aria-hidden tabIndex={-1} className="shrink-0">
+          <Avatar
+            path={c.authorAvatarPath}
+            size={c.parentId ? AVATAR_SIZE.reply : AVATAR_SIZE.comment}
+          />
+        </Link>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex items-center gap-2 text-sm">
+            <Link
+              href={profileHref}
+              className="min-w-0 truncate font-semibold hover:underline"
+            >
+              {c.authorName}
+            </Link>
+            {c.authorIsAdmin && <AdminBadge />}
+            <span className="text-xs text-muted">
+              {c.date}
+              {c.edited && " · edited"}
             </span>
+            {c.removed && (
+              <span className="text-xs font-medium text-danger">
+                Removed by the moderators · only you can see it
+              </span>
+            )}
+          </div>
+          {editing?.id === c.id ? (
+            <form
+              onSubmit={submitEdit}
+              onKeyDown={submitOnModEnter}
+              className="flex flex-col gap-2"
+            >
+              <ReviewTextarea
+                value={editText}
+                onChange={setEditText}
+                rows={2}
+                maxLength={1000}
+                autoFocus
+                className={inputClass}
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  data-submit
+                  disabled={busy || editText.trim().length === 0}
+                  className="rounded-lg bg-accent px-3 py-1.5 text-sm text-background disabled:opacity-40"
+                >
+                  {busy ? "Saving…" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(null);
+                    setError("");
+                  }}
+                  className="rounded-lg border border-line px-3 py-1.5 text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <p className="whitespace-pre-wrap break-words text-sm">
+              <ReviewText text={c.body} />
+            </p>
           )}
-        </div>
-        {editing?.id === c.id ? (
-          <form
-            onSubmit={submitEdit}
-            onKeyDown={submitOnModEnter}
-            className="flex flex-col gap-2"
-          >
-            <ReviewTextarea
-              value={editText}
-              onChange={setEditText}
-              rows={2}
-              maxLength={1000}
-              autoFocus
-              className={inputClass}
+          <div className="flex gap-3 text-xs text-muted">
+            <CommentLikeButton
+              viewerId={viewerId}
+              commentTable={table}
+              commentId={c.id}
+              authorId={c.authorId}
+              likeCount={c.likeCount}
+              liked={c.liked}
             />
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                data-submit
-                disabled={busy || editText.trim().length === 0}
-                className="rounded-lg bg-accent px-3 py-1.5 text-sm text-background disabled:opacity-40"
-              >
-                {busy ? "Saving…" : "Save"}
-              </button>
+            <ReportButton
+              viewerId={viewerId}
+              ownerId={c.authorId}
+              kind={table === "comments" ? "comment" : "list_comment"}
+              targetId={c.id}
+              className="hover:underline"
+            />
+            {viewerId && (
               <button
                 type="button"
                 onClick={() => {
-                  setEditing(null);
+                  setReplyTo(rootId);
+                  setReplyText(
+                    c.parentId
+                      ? `${mentionToken(c.authorId, c.authorName)} `
+                      : "",
+                  );
                   setError("");
                 }}
-                className="rounded-lg border border-line px-3 py-1.5 text-sm"
+                className="hover:underline"
               >
-                Cancel
+                Reply
               </button>
-            </div>
-          </form>
-        ) : (
-          <p className="whitespace-pre-wrap text-sm">
-            <ReviewText text={c.body} />
-          </p>
-        )}
-        <div className="flex gap-3 text-xs text-muted">
-          <CommentLikeButton
-            viewerId={viewerId}
-            commentTable={table}
-            commentId={c.id}
-            authorId={c.authorId}
-            likeCount={c.likeCount}
-            liked={c.liked}
-          />
-          <ReportButton
-            viewerId={viewerId}
-            ownerId={c.authorId}
-            kind={table === "comments" ? "comment" : "list_comment"}
-            targetId={c.id}
-            className="hover:underline"
-          />
-          {viewerId && (
-            <button
-              type="button"
-              onClick={() => {
-                setReplyTo(rootId);
-                setReplyText(
-                  c.parentId
-                    ? `${mentionToken(c.authorId, c.authorName)} `
-                    : "",
-                );
-                setError("");
-              }}
-              className="hover:underline"
-            >
-              Reply
-            </button>
-          )}
-          {viewerId === c.authorId && !c.removed && editing?.id !== c.id && (
-            <button
-              type="button"
-              onClick={() => {
-                setError("");
-                setEditing(c);
-                setEditText(c.body);
-              }}
-              className="hover:underline"
-            >
-              Edit
-            </button>
-          )}
-          {canDelete && (
-            <button
-              type="button"
-              onClick={() => {
-                setError("");
-                setDeleting(c);
-              }}
-              disabled={busy}
-              className="hover:underline"
-            >
-              Delete
-            </button>
-          )}
+            )}
+            {viewerId === c.authorId && !c.removed && editing?.id !== c.id && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setEditing(c);
+                  setEditText(c.body);
+                }}
+                className="hover:underline"
+              >
+                Edit
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setDeleting(c);
+                }}
+                disabled={busy}
+                className="hover:underline"
+              >
+                Delete
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -343,7 +360,7 @@ export default function Comments({
             {renderComment(c, c.id)}
 
             {replies.length > 0 && (
-              <div className="ml-3 flex flex-col gap-3 border-l border-line pl-3">
+              <div className="ml-4 flex flex-col gap-3 border-l border-line pl-5">
                 {replies.map((r) => renderComment(r, c.id))}
               </div>
             )}
@@ -352,7 +369,7 @@ export default function Comments({
               <form
                 onSubmit={submitReply}
                 onKeyDown={submitOnModEnter}
-                className="ml-3 flex flex-col gap-2"
+                className="ml-10 flex flex-col gap-2"
               >
                 <ReviewTextarea
                   value={replyText}
