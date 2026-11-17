@@ -144,6 +144,8 @@ export default function ListEditor({
     title: string;
     description: string | null;
     ranked: boolean;
+    // A grouped list shown plain (grouped lists are off) is never ranked
+    grouped?: boolean;
   };
   ownerName: string;
   // A saved list arrives a page at a time; a new one holds all its items here
@@ -478,14 +480,16 @@ export default function ListEditor({
             className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"
           />
         </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={ranked}
-            onChange={(e) => setRanked(e.target.checked)}
-          />
-          Ranked list (items are numbered)
-        </label>
+        {!list.grouped && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={ranked}
+              onChange={(e) => setRanked(e.target.checked)}
+            />
+            Ranked list (items are numbered)
+          </label>
+        )}
       </form>
 
       <section className="flex flex-col gap-3">

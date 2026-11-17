@@ -6,6 +6,11 @@ import Link from "next/link";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ItemImage from "@/components/items/ItemImage";
 import { firstLetter } from "@/lib/format";
+import {
+  type GroupPreview,
+  previewLayout,
+  slotsFor,
+} from "@/lib/lists/groupPreview";
 
 type Thumb = { title: string; image_url: string | null; nsfw: boolean };
 type Tip = { text: string; x: number; y: number };
@@ -55,15 +60,34 @@ const MOST_THUMBS = HIDDEN_UNLESS_MORE_THAN.length - 1;
 export default function ListPreview({
   thumbs,
   total,
+  groups,
   href,
 }: {
   thumbs: Thumb[];
   total: number;
+  // A grouped list's groups, each with its size and first few items. Its row
+  // is then laid out by script, to keep several groups in view.
+  groups?: GroupPreview[] | null;
   // Where a click on a thumbnail goes: the list it belongs to
   href: string;
 }) {
   const [tip, setTip] = useState<Tip | null>(null);
   const tipBox = useRef<HTMLDivElement>(null);
+
+  // A grouped list's row holds as many tiles as its width allows, which is
+  // known only once it is on screen
+  const row = useRef<HTMLDivElement>(null);
+  const [capacity, setCapacity] = useState<number | null>(null);
+  const grouped = !!groups && groups.length > 0;
+  useIsoLayoutEffect(() => {
+    const el = row.current;
+    if (!grouped || !el) return;
+    const measure = () => setCapacity(slotsFor(el.clientWidth));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [grouped]);
 
   // The tooltip is positioned against the window, so it hides on scroll
   useEffect(() => {
@@ -114,6 +138,112 @@ export default function ListPreview({
       >
         +{count}
       </Link>
+    );
+  }
+
+  // A grouped list draws each group in a dashed box. Every tile contributes
+  // a slice of it: top and bottom edges, which run on through the gap to the
+  // next tile, plus the left edge on the group's first tile and the right
+  // edge on its last. The ends of a group have their pictures drawn narrower
+  // so the boxes sit clear of each other; every tile keeps its size.
+  const box = (first: boolean, last: boolean) =>
+    [
+      "before:absolute before:-bottom-0.5 before:-top-0.5 before:border-y before:border-dashed before:border-muted",
+      first ? "before:left-0.5 before:border-l" : "before:left-0",
+      last ? "before:right-0.5 before:border-r" : "before:-right-1",
+      first && last
+        ? "justify-center"
+        : first
+          ? "justify-end"
+          : last
+            ? "justify-start"
+            : "",
+    ].join(" ");
+  const pictureWidth = (first: boolean, last: boolean) =>
+    first && last ? "w-12" : first || last ? "w-[3.25rem]" : "w-14";
+
+  const layout =
+    grouped && groups && capacity !== null
+      ? previewLayout(
+          groups.map((g) => ({ size: g.size, available: g.thumbs.length })),
+          capacity,
+        )
+      : null;
+
+  if (grouped && groups) {
+    return (
+      <>
+        <div
+          ref={row}
+          // Its boxes reach 0.25rem past the pictures, so the row is that much
+          // taller each side, cancelled out by negative margins
+          className={`-my-1 flex h-16 gap-1 overflow-hidden py-1 ${
+            layout ? "" : "invisible"
+          }`}
+        >
+          {layout?.groups.map((shown, g) => {
+            const group = groups[g];
+            return (
+              <Fragment key={group.id}>
+                {group.thumbs.slice(0, shown.shown).map((p, i) => {
+                  const first = i === 0;
+                  const last = shown.more === 0 && i === shown.shown - 1;
+                  return (
+                    <Link
+                      // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
+                      key={i}
+                      href={href}
+                      aria-label={p.title}
+                      className={`${tile} ${box(first, last)}`}
+                      onMouseEnter={(e) => show(e.currentTarget, p.title)}
+                      onMouseLeave={hide}
+                      onFocus={(e) => show(e.currentTarget, p.title)}
+                      onBlur={hide}
+                    >
+                      <ItemImage
+                        src={p.image_url}
+                        nsfw={p.nsfw}
+                        alt=""
+                        placeholder={firstLetter(p.title)}
+                        className={`h-14 rounded ${pictureWidth(first, last)}`}
+                        sourceWidth={120}
+                      />
+                    </Link>
+                  );
+                })}
+                {shown.more > 0 && (
+                  <Link
+                    href={href}
+                    className={`${tile} ${box(false, true)}`}
+                    onMouseEnter={(e) =>
+                      show(e.currentTarget, more(shown.more))
+                    }
+                    onMouseLeave={hide}
+                    onFocus={(e) => show(e.currentTarget, more(shown.more))}
+                    onBlur={hide}
+                  >
+                    <span className="flex h-14 w-[3.25rem] items-center justify-center border border-line bg-surface text-sm font-semibold text-muted">
+                      +{shown.more}
+                    </span>
+                  </Link>
+                )}
+              </Fragment>
+            );
+          })}
+          {layout && layout.rest > 0 && moreTile(layout.rest, "")}
+        </div>
+
+        {tip && (
+          <div
+            ref={tipBox}
+            role="tooltip"
+            style={{ left: tip.x, top: tip.y + 8 }}
+            className="card pointer-events-none fixed z-50 max-w-[16rem] -translate-x-1/2 px-2 py-1 text-xs"
+          >
+            {tip.text}
+          </div>
+        )}
+      </>
     );
   }
 

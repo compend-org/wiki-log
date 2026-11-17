@@ -29,7 +29,7 @@ const LOG_FIELDS =
 // The columns a list card needs, with the first items of the list as preview.
 // Ask for `.lte("preview.position", 4)` with it.
 const LIST_FIELDS =
-  "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), last_bumped_at, activity_at, preview:list_items(position, image_url, items(title, image_url, nsfw))";
+  "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), last_bumped_at, activity_at, grouped, list_groups(count), preview:list_items(position, image_url, items(title, image_url, nsfw))";
 
 // How many pins, reviews or lists a profile shows at first, and how many more
 // reviews or lists each "Show more" adds

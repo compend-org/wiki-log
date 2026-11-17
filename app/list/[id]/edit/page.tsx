@@ -1,8 +1,17 @@
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
+import GroupedListEditor from "@/components/lists/GroupedListEditor";
 import ListEditor, { type ListEntry } from "@/components/lists/ListEditor";
+import { FEATURES } from "@/lib/features";
 import { isUuid } from "@/lib/ids";
-import { fetchListPage, pageCount, parsePage } from "@/lib/lists/listPages";
+import { draftGroupsFrom } from "@/lib/lists/listGroups";
+import {
+  fetchGroupedEntries,
+  fetchGroups,
+  fetchListPage,
+  pageCount,
+  parsePage,
+} from "@/lib/lists/listPages";
 import { loginHref } from "@/lib/redirect";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,6 +23,8 @@ type ListRow = {
   title: string;
   description: string | null;
   ranked: boolean;
+  grouped: boolean;
+  group_labels: boolean;
   profiles: { username: string } | null;
 };
 
@@ -37,7 +48,7 @@ export default async function EditListPage({
   const { data } = await supabase
     .from("lists")
     .select(
-      "id, user_id, title, description, ranked, profiles!lists_user_id_profiles_fkey(username)",
+      "id, user_id, title, description, ranked, grouped, group_labels, profiles!lists_user_id_profiles_fkey(username)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -46,6 +57,39 @@ export default async function EditListPage({
 
   // Only the owner edits
   if (list.user_id !== viewerId) redirect(`/list/${id}`);
+
+  // A grouped list (at most 300 items) is edited whole, in its groups
+  if (list.grouped && FEATURES.groupedLists) {
+    const [groups, { entries: all, error }] = await Promise.all([
+      fetchGroups(supabase, id),
+      fetchGroupedEntries(supabase, id),
+    ]);
+    if (error) throw new Error(error);
+    const draftGroups = draftGroupsFrom(groups, all);
+    return (
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
+        <GroupedListEditor
+          key={JSON.stringify([
+            list.title,
+            list.description,
+            draftGroups.map((g) => [
+              g.key,
+              g.name,
+              g.items.map((i) => [i.itemId, i.imageUrl]),
+            ]),
+          ])}
+          list={{
+            id: list.id,
+            title: list.title,
+            description: list.description,
+            labeled: list.group_labels,
+          }}
+          ownerName={list.profiles?.username ?? ""}
+          initialGroups={draftGroups}
+        />
+      </main>
+    );
+  }
 
   // Lists can be longer than one response carries, so they're edited a page
   // at a time
@@ -81,6 +125,7 @@ export default async function EditListPage({
           title: list.title,
           description: list.description,
           ranked: list.ranked,
+          grouped: list.grouped,
         }}
         ownerName={list.profiles?.username ?? ""}
         initialItems={initialItems}
