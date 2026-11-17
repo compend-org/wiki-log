@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/public", "!.claude/skills"]
+    "includes": ["**", "!**/public", "!.claude/skills", "!.agents/skills"]
   },
   "formatter": {
     "enabled": true,
