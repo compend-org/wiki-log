@@ -2,7 +2,12 @@
 // ABOUTME: Only hide mode leaves anything out; unknown modes read as off.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { aboutAdultItem, parseSfwMode, shownEntries } from "./sfw";
+import {
+  aboutAdultItem,
+  EXPLICIT_CATEGORY,
+  parseSfwMode,
+  shownEntries,
+} from "./sfw";
 
 const posts = [
   { id: "a", items: { nsfw: false } },
@@ -29,4 +34,12 @@ test("anything but a known mode reads as off", () => {
   assert.equal(parseSfwMode("on"), "off");
   assert.equal(parseSfwMode(undefined), "off");
   assert.equal(parseSfwMode(null), "off");
+});
+
+test("Commons' 2257 warning marks a file as explicit", () => {
+  assert.ok(
+    EXPLICIT_CATEGORY.test(
+      "Category:Files with Child Protection and Obscenity Enforcement Act warnings",
+    ),
+  );
 });
