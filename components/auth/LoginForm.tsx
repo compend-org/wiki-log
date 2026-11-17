@@ -269,6 +269,7 @@ export default function LoginForm({ next }: { next: string }) {
             onChange={(e) => setIdentifier(e.target.value)}
             placeholder="Email or username"
             autoComplete="username"
+            spellCheck={false}
             autoCapitalize="none"
             required
             className={inputClass}
@@ -307,6 +308,7 @@ export default function LoginForm({ next }: { next: string }) {
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
             autoComplete="username"
+            spellCheck={false}
             required
             className={inputClass}
           />
