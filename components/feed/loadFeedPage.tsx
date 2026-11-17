@@ -170,7 +170,7 @@ export async function loadFeedPage(
     listEntries = lists.map(
       (list): Entry => ({
         kind: "list",
-        date: effective(list.id, list.created_at),
+        date: effective(list.id, list.activity_at),
         list,
         sharers: sharedBy.get(list.id)?.sharers ?? [],
       }),

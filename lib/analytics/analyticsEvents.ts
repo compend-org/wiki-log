@@ -46,6 +46,7 @@ export type AnalyticsEvents = {
   liked: { target: Target | "comment" };
   unliked: { target: Target | "comment" };
   comment_posted: { target: Target; is_reply: boolean; length: number };
+  comment_edited: { target: Target; length: number };
   comment_deleted: { target: Target };
   shared_to_followers: { target: Target };
   unshared: { target: Target };

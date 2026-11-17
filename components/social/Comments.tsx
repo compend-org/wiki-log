@@ -33,6 +33,7 @@ export type CommentItem = {
   authorIsAdmin?: boolean;
   // Removed by the moderators. Only its author is ever sent one of these.
   removed?: boolean;
+  edited?: boolean;
 };
 
 // Profile picture widths, in pixels. Replies get smaller ones than the
@@ -68,6 +69,8 @@ export default function Comments({
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [deleting, setDeleting] = useState<CommentItem | null>(null);
+  const [editing, setEditing] = useState<CommentItem | null>(null);
+  const [editText, setEditText] = useState<string>("");
   const router = useRouter();
 
   const topLevel = comments.filter((c) => c.parentId === null);
@@ -117,6 +120,43 @@ export default function Comments({
       setReplyTo(null);
       setReplyText("");
     }
+  }
+
+  async function submitEdit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!viewerId || !editing) return;
+    const trimmed = editText.trim();
+    if (trimmed.length < 1 || trimmed.length > 1000) {
+      setError("Comments are 1–1000 characters.");
+      return;
+    }
+    if (trimmed === editing.body) {
+      setEditing(null);
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+    const { data, error } = await createClient()
+      .from(table)
+      .update({ body: trimmed })
+      .eq("id", editing.id)
+      .select("id");
+    setBusy(false);
+
+    // Nothing changed with no error: it isn't theirs to edit, or was removed
+    if (error || !data || data.length === 0) {
+      setError(
+        error ? userFacingErrorMessage(error, SAVE_FAILED) : SAVE_FAILED,
+      );
+      return;
+    }
+    track("comment_edited", {
+      target: table === "comments" ? "log" : "list",
+      length: trimmed.length,
+    });
+    setEditing(null);
+    router.refresh();
   }
 
   async function confirmDelete() {
@@ -174,16 +214,56 @@ export default function Comments({
               {c.authorName}
             </Link>
             {c.authorIsAdmin && <AdminBadge />}
-            <span className="text-xs text-muted">{c.date}</span>
+            <span className="text-xs text-muted">
+              {c.date}
+              {c.edited && " · edited"}
+            </span>
             {c.removed && (
               <span className="text-xs font-medium text-danger">
                 Removed by the moderators · only you can see it
               </span>
             )}
           </div>
-          <p className="whitespace-pre-wrap break-words text-sm">
-            <ReviewText text={c.body} />
-          </p>
+          {editing?.id === c.id ? (
+            <form
+              onSubmit={submitEdit}
+              onKeyDown={submitOnModEnter}
+              className="flex flex-col gap-2"
+            >
+              <ReviewTextarea
+                value={editText}
+                onChange={setEditText}
+                rows={2}
+                maxLength={1000}
+                autoFocus
+                className={inputClass}
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  data-submit
+                  disabled={busy || editText.trim().length === 0}
+                  className="rounded-lg bg-accent px-3 py-1.5 text-sm text-background disabled:opacity-40"
+                >
+                  {busy ? "Saving…" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(null);
+                    setError("");
+                  }}
+                  className="rounded-lg border border-line px-3 py-1.5 text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <p className="whitespace-pre-wrap break-words text-sm">
+              <ReviewText text={c.body} />
+            </p>
+          )}
           <div className="flex gap-3 text-xs text-muted">
             <CommentLikeButton
               viewerId={viewerId}
@@ -215,6 +295,19 @@ export default function Comments({
                 className="hover:underline"
               >
                 Reply
+              </button>
+            )}
+            {viewerId === c.authorId && !c.removed && editing?.id !== c.id && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setEditing(c);
+                  setEditText(c.body);
+                }}
+                className="hover:underline"
+              >
+                Edit
               </button>
             )}
             {canDelete && (

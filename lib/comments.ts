@@ -20,6 +20,7 @@ export type CommentTable = "comments" | "list_comments";
 
 export type CommentRow = {
   id: string;
+  edited_at: string | null;
   parent_id: string | null;
   body: string;
   created_at: string;
@@ -32,9 +33,9 @@ export type CommentRow = {
 
 const SELECT: Record<CommentTable, string> = {
   comments:
-    "id, parent_id, body, created_at, user_id, removed_at, profiles!comments_user_id_profiles_fkey(username, avatar_path), likes:comment_likes(count)",
+    "id, parent_id, body, created_at, user_id, edited_at, removed_at, profiles!comments_user_id_profiles_fkey(username, avatar_path), likes:comment_likes(count)",
   list_comments:
-    "id, parent_id, body, created_at, user_id, removed_at, profiles!list_comments_user_id_profiles_fkey(username, avatar_path), likes:list_comment_likes(count)",
+    "id, parent_id, body, created_at, user_id, edited_at, removed_at, profiles!list_comments_user_id_profiles_fkey(username, avatar_path), likes:list_comment_likes(count)",
 };
 
 // What the comments hang off: a review for "comments", a list for
@@ -169,6 +170,7 @@ export function toCommentItems(
     authorAvatarPath: c.profiles?.avatar_path ?? null,
     authorIsAdmin: adminIds.has(c.user_id),
     removed: c.removed_at !== null,
+    edited: c.edited_at !== null,
     likeCount: c.likes?.[0]?.count ?? 0,
     liked: liked.has(c.id),
   }));
