@@ -12,6 +12,7 @@ import ShareButton from "@/components/social/ShareButton";
 import ShareIcon from "@/components/social/ShareIcon";
 import type { ListRow, Thumb } from "@/lib/feed/feedData";
 import { timeAgo } from "@/lib/format";
+import { listCardTime } from "@/lib/lists/listCardTime";
 
 export default async function ListCard({
   list: l,
@@ -45,7 +46,7 @@ export default async function ListCard({
   const author = l.profiles?.username;
   const avatarPath = l.profiles?.avatar_path ?? null;
   const itemCount = l.list_items?.[0]?.count ?? 0;
-  const bumped = showActivity && l.last_bumped_at !== null;
+  const { bumped, time } = listCardTime(l, showActivity);
 
   return (
     <div className="card relative flex flex-col gap-2 p-3 hover-or-tap:border-accent/60">
@@ -80,7 +81,7 @@ export default async function ListCard({
           {!showAuthor && l.ranked && <span>Ranked list ·</span>}
           <span className="whitespace-nowrap">
             {showAuthor && "· "}
-            {timeAgo(bumped ? l.activity_at : l.created_at, renderedAt)}
+            {timeAgo(time, renderedAt)}
           </span>
         </span>
         {topControls}
