@@ -94,7 +94,11 @@ export default function PeopleSearch() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && ready && results[0]) {
+              // Enter that confirms IME composition (CJK input) isn't a
+              // submit; Safari reports it only through keyCode 229
+              const composing =
+                e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229;
+              if (e.key === "Enter" && !composing && ready && results[0]) {
                 router.push(`/u/${encodeURIComponent(results[0].username)}`);
                 close();
               }

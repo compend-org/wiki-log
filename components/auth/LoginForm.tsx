@@ -268,6 +268,7 @@ export default function LoginForm({ next }: { next: string }) {
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             placeholder="Email or username"
+            autoComplete="username"
             autoCapitalize="none"
             required
             className={inputClass}
@@ -277,6 +278,7 @@ export default function LoginForm({ next }: { next: string }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
+            autoComplete="current-password"
             required
             className={inputClass}
           />
@@ -304,6 +306,7 @@ export default function LoginForm({ next }: { next: string }) {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
+            autoComplete="username"
             required
             className={inputClass}
           />
@@ -312,6 +315,7 @@ export default function LoginForm({ next }: { next: string }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
+            autoComplete="email"
             required
             className={inputClass}
           />
@@ -330,6 +334,7 @@ export default function LoginForm({ next }: { next: string }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password (8+ characters)"
+            autoComplete="new-password"
             required
             minLength={8}
             className={inputClass}

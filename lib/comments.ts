@@ -79,7 +79,7 @@ export function inThreadOrder<C extends { created_at: string; id: string }>(
 ): C[] {
   const byTime = (a: C, b: C) =>
     a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id);
-  return [...top].reverse().concat([...replies].sort(byTime));
+  return top.toReversed().concat(replies.toSorted(byTime));
 }
 
 // The newest `threads` threads on a review or list, with every reply to them,

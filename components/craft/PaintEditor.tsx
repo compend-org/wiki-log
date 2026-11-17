@@ -951,7 +951,7 @@ export default function PaintEditor({
 
   function zoomBy(direction: 1 | -1) {
     const bigger = ZOOMS.find((z) => z > zoom);
-    const smaller = [...ZOOMS].reverse().find((z) => z < zoom);
+    const smaller = ZOOMS.findLast((z) => z < zoom);
     setZoom(
       direction === 1
         ? (bigger ?? ZOOMS[ZOOMS.length - 1])
