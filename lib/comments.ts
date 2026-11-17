@@ -26,15 +26,15 @@ export type CommentRow = {
   user_id: string;
   // Only ever set on the viewer's own comments: other removed ones are hidden
   removed_at: string | null;
-  profiles: { username: string } | null;
+  profiles: { username: string; avatar_path: string | null } | null;
   likes: { count: number }[];
 };
 
 const SELECT: Record<CommentTable, string> = {
   comments:
-    "id, parent_id, body, created_at, user_id, removed_at, profiles!comments_user_id_profiles_fkey(username), likes:comment_likes(count)",
+    "id, parent_id, body, created_at, user_id, removed_at, profiles!comments_user_id_profiles_fkey(username, avatar_path), likes:comment_likes(count)",
   list_comments:
-    "id, parent_id, body, created_at, user_id, removed_at, profiles!list_comments_user_id_profiles_fkey(username), likes:list_comment_likes(count)",
+    "id, parent_id, body, created_at, user_id, removed_at, profiles!list_comments_user_id_profiles_fkey(username, avatar_path), likes:list_comment_likes(count)",
 };
 
 // What the comments hang off: a review for "comments", a list for
@@ -166,6 +166,7 @@ export function toCommentItems(
     date: timeAgo(c.created_at, renderedAt),
     authorId: c.user_id,
     authorName: c.profiles?.username ?? "Someone",
+    authorAvatarPath: c.profiles?.avatar_path ?? null,
     authorIsAdmin: adminIds.has(c.user_id),
     removed: c.removed_at !== null,
     likeCount: c.likes?.[0]?.count ?? 0,
