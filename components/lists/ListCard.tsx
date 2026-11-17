@@ -45,6 +45,7 @@ export default async function ListCard({
   const author = l.profiles?.username;
   const avatarPath = l.profiles?.avatar_path ?? null;
   const itemCount = l.list_items?.[0]?.count ?? 0;
+  const bumped = showActivity && l.last_bumped_at !== null;
 
   return (
     <div className="card relative flex flex-col gap-2 p-3 hover-or-tap:border-accent/60">
@@ -69,14 +70,17 @@ export default async function ListCard({
                 avatarPath={avatarPath}
               />
               {showActivity && (
-                <span>made a {l.ranked ? "ranked " : ""}list</span>
+                <span>
+                  {bumped ? "added to their" : "made a"}{" "}
+                  {l.ranked ? "ranked " : ""}list
+                </span>
               )}
             </>
           )}
           {!showAuthor && l.ranked && <span>Ranked list ·</span>}
           <span className="whitespace-nowrap">
             {showAuthor && "· "}
-            {timeAgo(l.created_at, renderedAt)}
+            {timeAgo(bumped ? l.activity_at : l.created_at, renderedAt)}
           </span>
         </span>
         {topControls}
