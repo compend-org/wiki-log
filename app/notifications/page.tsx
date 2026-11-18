@@ -35,7 +35,6 @@ const EMPTY_FEED: NotificationsFeed = {
   lists: {},
   owners: {},
   adminIds: new Set(),
-  followingIds: new Set(),
   myId: "",
   loadedAt: 0,
 };
@@ -79,8 +78,7 @@ export default function NotificationsPage() {
       : { loaded: false, signedIn: false, error: "", feed: EMPTY_FEED };
   });
   const { loaded, signedIn, error, feed } = state;
-  const { logs, items, lists, owners, adminIds, followingIds, myId, loadedAt } =
-    feed;
+  const { logs, items, lists, owners, adminIds, myId, loadedAt } = feed;
   // Notices about reviews of adult items are left out when the viewer hides
   // them. Moderators' messages always show.
   const rows = shownEntries(feed.rows, sfwMode, (n) => {
@@ -358,14 +356,17 @@ export default function NotificationsPage() {
                 {timeAgo(n.created_at, loadedAt)}
               </span>
             </div>
-            {n.type === "follow" && n.actor_id && (
+            {n.type === "follow" && n.actor_id && n.profiles && (
               // Above the card's full-card link, like the names
               <div className="relative z-10">
+                {/* Each fetched feed starts the button over from what it
+                    says, even if the follow changed elsewhere and back */}
                 <FollowButton
+                  key={loadedAt}
                   viewerId={myId}
                   targetId={n.actor_id}
-                  following={followingIds.has(n.actor_id)}
-                  followsViewer
+                  following={n.profiles.viewer_follow.length > 0}
+                  followsViewer={n.profiles.follows_viewer.length > 0}
                   compact
                 />
               </div>
