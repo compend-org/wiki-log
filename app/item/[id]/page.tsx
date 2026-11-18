@@ -385,7 +385,7 @@ export default async function ItemPage({
             imageUrl={item.imageUrl}
             signedIn={Boolean(viewerId)}
             aside={
-              <div className="hidden shrink-0 sm:block">
+              <div className="hidden shrink-0 sm:ml-auto sm:not-empty:block">
                 <RatingHistogram
                   ratings={ratings}
                   highlight={myRating}

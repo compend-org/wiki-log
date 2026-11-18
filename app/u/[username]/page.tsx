@@ -38,7 +38,6 @@ import { getProfileCompounds } from "@/lib/craft/profileCompounds";
 import { entryPicture } from "@/lib/format";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
-import { loginHref } from "@/lib/redirect";
 import { SITE_NAME } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
@@ -295,11 +294,7 @@ export default async function ProfilePage({
         )}
         <div className="mt-2 flex items-center justify-between gap-4">
           <div className="mt-2 flex min-w-0 flex-1 flex-wrap items-center gap-4">
-            {!viewerId ? (
-              <Link href={loginHref(profileHref)} className="underline">
-                Sign in to follow
-              </Link>
-            ) : isOwner ? (
+            {!viewerId ? null : isOwner ? (
               <div className="flex items-center gap-4">
                 <Link
                   href="/settings"
