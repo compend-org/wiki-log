@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 import type { CaptureResult } from "posthog-js";
-import { holdLandingPageView } from "./landingPageView";
+import { HELD_PAGE_VIEW_EVENT, holdLandingPageView } from "./landingPageView";
 
 function pageView(
   uuid: string,
@@ -35,12 +35,14 @@ function hold(sentAs: Record<string, unknown>) {
   const sent: (CaptureResult | null)[] = [];
   const landingPageView = holdLandingPageView((held) => {
     sent.push(
-      landingPageView.beforeSend(
-        pageView(held.uuid, {
+      landingPageView.beforeSend({
+        uuid: held.uuid,
+        event: HELD_PAGE_VIEW_EVENT,
+        properties: {
           ...sentAs,
           $current_url: "https://example.com/somewhere-else",
-        }),
-      ),
+        },
+      }),
     );
   });
   return { landingPageView, sent };
@@ -49,6 +51,7 @@ function hold(sentAs: Record<string, unknown>) {
 test("holds the landing page view and sends it as the signed-in person", () => {
   const { landingPageView, sent } = hold({
     distinct_id: "user-1",
+    $user_id: "user-1",
     $is_identified: true,
     $process_person_profile: true,
   });
@@ -60,6 +63,7 @@ test("holds the landing page view and sends it as the signed-in person", () => {
     sentPageView(
       pageView("landing", {
         distinct_id: "user-1",
+        $user_id: "user-1",
         $is_identified: true,
         $process_person_profile: true,
         $current_url: "https://example.com/notifications",

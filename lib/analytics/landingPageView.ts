@@ -5,18 +5,24 @@ import type { CaptureResult } from "posthog-js";
 // How long a held page view waits for the page to say who is signed in
 const LANDING_PAGE_VIEW_WAIT_MS = 10_000;
 
+// The event a held page view is sent as. It comes back out as the held page
+// view, without moving PostHog on to a new page the way a page view would.
+export const HELD_PAGE_VIEW_EVENT = "held_page_view";
+
 // Properties that say who sent an event. A held page view takes these from
 // the moment it's sent; everything else stays as it was when the page loaded.
 const IDENTITY_PROPERTIES = [
   "distinct_id",
+  "$user_id",
   "$user_state",
   "$is_identified",
   "$process_person_profile",
   "$anon_distinct_id",
 ];
 
-// `send` captures a page view with the held one's uuid and timestamp. `leaving`
-// is true when the page is being closed, so it must go out straight away.
+// `send` captures HELD_PAGE_VIEW_EVENT with the held page view's uuid and
+// timestamp. `leaving` is true when the page is being hidden, possibly for
+// good, so it must go out straight away.
 type SendHeldPageView = (held: CaptureResult, leaving: boolean) => void;
 
 export function holdLandingPageView(send: SendHeldPageView) {
@@ -50,8 +56,11 @@ export function holdLandingPageView(send: SendHeldPageView) {
     state = "holding";
     held = event;
     setTimeout(() => release(), LANDING_PAGE_VIEW_WAIT_MS);
-    if (typeof window !== "undefined") {
-      window.addEventListener("pagehide", () => release(true), { once: true });
+    // Phones can close a page hidden in the background without telling it
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") release(true);
+      });
     }
     return null;
   }

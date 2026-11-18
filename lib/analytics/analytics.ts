@@ -6,15 +6,20 @@ import {
   type AnalyticsEventArgs,
   type AnalyticsEventName,
 } from "@/lib/analytics/analyticsEvents";
-import { holdLandingPageView } from "@/lib/analytics/landingPageView";
+import {
+  HELD_PAGE_VIEW_EVENT,
+  holdLandingPageView,
+} from "@/lib/analytics/landingPageView";
 
 const landingPageView = holdLandingPageView((held, leaving) => {
   posthog.capture(
-    "$pageview",
+    HELD_PAGE_VIEW_EVENT,
     {},
     {
       uuid: held.uuid,
       timestamp: held.timestamp,
+      // The page view already counted against the limit when it was held
+      skip_client_rate_limiting: true,
       ...(leaving && { send_instantly: true, transport: "sendBeacon" }),
     },
   );
