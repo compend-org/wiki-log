@@ -51,7 +51,11 @@ type ItemRow = {
 // named on its card is an admin
 type FeedQueryRow = NotificationRow & {
   profiles:
-    | (NotificationRow["profiles"] & { admins: { user_id: string } | null })
+    | (NotificationRow["profiles"] & {
+        admins: { user_id: string } | null;
+        // The viewer's follow of this person, if any
+        viewer_follow: { follower_id: string }[];
+      })
     | null;
   logs: {
     user_id: string;
@@ -78,6 +82,8 @@ export type NotificationsFeed = {
   lists: Record<string, ListInfo>;
   owners: Record<string, string>;
   adminIds: Set<string>;
+  // Everyone named as a notification's actor whom the viewer follows
+  followingIds: Set<string>;
   myId: string;
   // When the data arrived, which is what the times on the cards count from
   loadedAt: number;
@@ -131,9 +137,10 @@ async function loadFeed(userId: string): Promise<FeedResult> {
   const { data, error } = await createClient()
     .from("notifications")
     .select(
-      "id, type, read, created_at, log_id, list_id, comment_id, list_comment_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path, admins(user_id)), logs!notifications_log_fkey(user_id, item_id, image_url, items!logs_item_id_fkey(title, image_url, image_hidden, nsfw), owner:profiles!logs_user_id_profiles_fkey(username, admins(user_id))), lists!notifications_list_id_fkey(title, list_items(position, image_url, items(title, image_url, image_hidden, nsfw)))",
+      "id, type, read, created_at, log_id, list_id, comment_id, list_comment_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path, admins(user_id), viewer_follow:follows!follows_following_id_fkey(follower_id)), logs!notifications_log_fkey(user_id, item_id, image_url, items!logs_item_id_fkey(title, image_url, image_hidden, nsfw), owner:profiles!logs_user_id_profiles_fkey(username, admins(user_id))), lists!notifications_list_id_fkey(title, list_items(position, image_url, items(title, image_url, image_hidden, nsfw)))",
     )
     .eq("recipient_id", userId)
+    .eq("profiles.viewer_follow.follower_id", userId)
     .order("created_at", { ascending: false })
     .order("position", { referencedTable: "lists.list_items" })
     .limit(MOSAIC_SIZE, { referencedTable: "lists.list_items" })
@@ -148,8 +155,12 @@ async function loadFeed(userId: string): Promise<FeedResult> {
   // Everyone named on a card who is an admin. Notices from the moderators
   // have no actor.
   const adminIds = new Set<string>();
+  const followingIds = new Set<string>();
   for (const n of list) {
     if (n.actor_id && n.profiles?.admins) adminIds.add(n.actor_id);
+    if (n.actor_id && n.profiles?.viewer_follow.length) {
+      followingIds.add(n.actor_id);
+    }
     if (n.log_id && n.logs) {
       const { user_id, item_id, image_url, items: item, owner } = n.logs;
       logs[n.log_id] = { owner: user_id, item: item_id, picture: image_url };
@@ -177,6 +188,7 @@ async function loadFeed(userId: string): Promise<FeedResult> {
       lists,
       owners,
       adminIds,
+      followingIds,
       myId: userId,
       loadedAt: Date.now(),
     },

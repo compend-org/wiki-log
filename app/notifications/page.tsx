@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import AdminBadge from "@/components/moderation/AdminBadge";
+import FollowButton from "@/components/people/FollowButton";
 import NotificationThumb, {
   type NotificationSubject,
 } from "@/components/social/NotificationThumb";
@@ -34,6 +35,7 @@ const EMPTY_FEED: NotificationsFeed = {
   lists: {},
   owners: {},
   adminIds: new Set(),
+  followingIds: new Set(),
   myId: "",
   loadedAt: 0,
 };
@@ -77,7 +79,8 @@ export default function NotificationsPage() {
       : { loaded: false, signedIn: false, error: "", feed: EMPTY_FEED };
   });
   const { loaded, signedIn, error, feed } = state;
-  const { logs, items, lists, owners, adminIds, myId, loadedAt } = feed;
+  const { logs, items, lists, owners, adminIds, followingIds, myId, loadedAt } =
+    feed;
   // Notices about reviews of adult items are left out when the viewer hides
   // them. Moderators' messages always show.
   const rows = shownEntries(feed.rows, sfwMode, (n) => {
@@ -355,6 +358,18 @@ export default function NotificationsPage() {
                 {timeAgo(n.created_at, loadedAt)}
               </span>
             </div>
+            {n.type === "follow" && n.actor_id && (
+              // Above the card's full-card link, like the names
+              <div className="relative z-10">
+                <FollowButton
+                  viewerId={myId}
+                  targetId={n.actor_id}
+                  following={followingIds.has(n.actor_id)}
+                  followsViewer
+                  compact
+                />
+              </div>
+            )}
             {subject && <NotificationThumb subject={subject} />}
           </div>
         );
