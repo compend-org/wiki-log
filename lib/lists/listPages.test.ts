@@ -90,6 +90,7 @@ test("asks for one page of rows in a stable order, with the total", async () => 
         {
           item_id: "Dune",
           group_id: "grp-1",
+          note: "Long, but worth it.",
           items: {
             title: "Dune",
             image_url: "d.jpg",
@@ -126,6 +127,7 @@ test("asks for one page of rows in a stable order, with the total", async () => 
       imageHidden: false,
       nsfw: true,
       groupId: "grp-1",
+      note: "Long, but worth it.",
     },
     {
       itemId: "Gone",
@@ -135,6 +137,7 @@ test("asks for one page of rows in a stable order, with the total", async () => 
       imageHidden: false,
       nsfw: false,
       groupId: null,
+      note: null,
     },
   ]);
 });

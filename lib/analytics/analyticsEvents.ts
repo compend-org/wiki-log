@@ -31,6 +31,7 @@ export type AnalyticsEvents = {
   log_deleted: NoProperties;
   favourite_set: { position: number };
   favourite_removed: { position: number };
+  favourites_reordered: NoProperties;
 
   // Lists
   list_created: { item_count: number; ranked: boolean; grouped?: boolean };
@@ -39,6 +40,8 @@ export type AnalyticsEvents = {
   list_item_added: NoProperties;
   list_item_removed: NoProperties;
   list_reordered: NoProperties;
+  list_note_saved: { length: number; from: "editor" | "add_to_list" };
+  list_note_removed: NoProperties;
 
   // Social
   user_followed: { follows_you: boolean };

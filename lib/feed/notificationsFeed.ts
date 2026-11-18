@@ -32,7 +32,14 @@ export type NotificationRow = {
   // Moderators' messages have no actor, just a body
   actor_id: string | null;
   body: string | null;
-  profiles: { username: string; avatar_path: string | null } | null;
+  profiles: {
+    username: string;
+    avatar_path: string | null;
+    // The viewer's follow of this person, if any
+    viewer_follow: { follower_id: string }[];
+    // This person's follow of the viewer, if any
+    follows_viewer: { following_id: string }[];
+  } | null;
 };
 
 // A review's owner and item, and the picture its author chose (null shows
@@ -131,9 +138,11 @@ async function loadFeed(userId: string): Promise<FeedResult> {
   const { data, error } = await createClient()
     .from("notifications")
     .select(
-      "id, type, read, created_at, log_id, list_id, comment_id, list_comment_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path, admins(user_id)), logs!notifications_log_fkey(user_id, item_id, image_url, items!logs_item_id_fkey(title, image_url, image_hidden, nsfw), owner:profiles!logs_user_id_profiles_fkey(username, admins(user_id))), lists!notifications_list_id_fkey(title, list_items(position, image_url, items(title, image_url, image_hidden, nsfw)))",
+      "id, type, read, created_at, log_id, list_id, comment_id, list_comment_id, actor_id, body, profiles!notifications_actor_fkey(username, avatar_path, admins(user_id), viewer_follow:follows!follows_following_id_fkey(follower_id), follows_viewer:follows!follows_follower_id_fkey(following_id)), logs!notifications_log_fkey(user_id, item_id, image_url, items!logs_item_id_fkey(title, image_url, image_hidden, nsfw), owner:profiles!logs_user_id_profiles_fkey(username, admins(user_id))), lists!notifications_list_id_fkey(title, list_items(position, image_url, items(title, image_url, image_hidden, nsfw)))",
     )
     .eq("recipient_id", userId)
+    .eq("profiles.viewer_follow.follower_id", userId)
+    .eq("profiles.follows_viewer.following_id", userId)
     .order("created_at", { ascending: false })
     .order("position", { referencedTable: "lists.list_items" })
     .limit(MOSAIC_SIZE, { referencedTable: "lists.list_items" })

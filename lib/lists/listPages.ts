@@ -20,6 +20,8 @@ export type ListPageEntry = {
   nsfw: boolean;
   // The group a grouped list's item is in
   groupId: string | null;
+  // Why the list's owner put the item on the list, if they said
+  note: string | null;
 };
 
 type EntryRow = {
@@ -27,6 +29,7 @@ type EntryRow = {
   group_id: string | null;
   // The picture the list's owner chose; null shows the item's
   image_url: string | null;
+  note: string | null;
   items: {
     title: string;
     image_url: string | null;
@@ -88,7 +91,7 @@ export async function fetchListPage(
   const { data, count, error } = await supabase
     .from("list_items")
     .select(
-      "item_id, group_id, image_url, items(title, image_url, image_hidden, nsfw)",
+      "item_id, group_id, image_url, note, items(title, image_url, image_hidden, nsfw)",
       {
         count: "exact",
       },
@@ -119,6 +122,7 @@ export async function fetchListPage(
     imageHidden: row.image_url ? false : (row.items?.image_hidden ?? false),
     nsfw: row.items?.nsfw ?? false,
     groupId: row.group_id ?? null,
+    note: row.note ?? null,
   }));
   return { entries, total: count ?? entries.length };
 }

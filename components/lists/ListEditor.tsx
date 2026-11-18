@@ -1,3 +1,5 @@
+// ABOUTME: Creates a list, or edits a saved one: its details, items, order, pictures and notes.
+// ABOUTME: A saved list's item changes save as they're made; its details save with the button.
 "use client";
 
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
@@ -9,19 +11,22 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   addToList,
   createList,
+  setListItemNote,
   setListItemPicture,
   stageItem,
 } from "@/app/actions";
 import ItemImage from "@/components/items/ItemImage";
 import ItemPicker from "@/components/items/ItemPicker";
 import ListPager from "@/components/lists/ListPager";
+import NoteBox, { WIDE_COLUMNS } from "@/components/lists/NoteBox";
+import UnsavedNoteDialog from "@/components/lists/UnsavedNoteDialog";
 import PicturePicker from "@/components/logs/PicturePicker";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import EditIcon from "@/components/ui/EditIcon";
+import PictureIcon from "@/components/ui/PictureIcon";
 import { track } from "@/lib/analytics/analytics";
 import {
   SAVE_FAILED,
@@ -31,6 +36,7 @@ import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { useDragSensors } from "@/lib/hooks/useDragSensors";
 import { isCompoundId } from "@/lib/ids";
 import { type EditorSnapshot, SavedListEditing } from "@/lib/lists/listEditing";
+import { cleanListNote, noteProblem } from "@/lib/lists/listNotes";
 import {
   fetchListPage,
   LIST_PAGE_SIZE,
@@ -43,25 +49,97 @@ export type ListEntry = {
   itemId: string;
   title: string;
   imageUrl: string | null;
+  // Why the owner put the item on the list, if they said
+  note: string | null;
 };
+
+// What to do once a note with unsaved changes is saved or its changes are
+// thrown away
+type NextStep =
+  | { kind: "save" }
+  | { kind: "note"; itemId: string }
+  | { kind: "move"; itemId: string }
+  | { kind: "picture"; itemId: string }
+  | { kind: "page"; page: number }
+  | { kind: "close" };
+
+// How long "✓ Saved" shows beside an item after its note is saved
+const SAVED_SHOWN_MS = 2000;
+
+// Under each tile: the note, which opens it for editing, or a box to add one
+function NoteButton({
+  entry,
+  editing,
+  onNote,
+}: {
+  entry: ListEntry;
+  editing: boolean;
+  onNote: (entry: ListEntry) => void;
+}) {
+  const common = {
+    type: "button" as const,
+    "data-note-button": entry.itemId,
+    "aria-expanded": editing,
+    onClick: () => onNote(entry),
+  };
+  if (editing) {
+    return (
+      <button
+        {...common}
+        aria-label={`Close the note for ${entry.title}`}
+        className="min-h-11 text-left text-xs italic text-muted"
+      >
+        Editing…
+      </button>
+    );
+  }
+  if (entry.note) {
+    return (
+      <button
+        {...common}
+        aria-label={`Edit the note for ${entry.title}`}
+        className="min-h-11 text-left text-xs text-accent"
+      >
+        <span className="line-clamp-2 break-words">{entry.note}</span>
+      </button>
+    );
+  }
+  return (
+    <button
+      {...common}
+      aria-label={`Add a note for ${entry.title}`}
+      className="min-h-11 rounded-lg border border-dashed border-line px-2 text-left text-xs text-accent"
+    >
+      + Add note
+    </button>
+  );
+}
 
 function SortableTile({
   entry,
   rank,
   ranked,
   selected,
+  noting,
+  saved,
   onRemove,
   onMove,
   onPicture,
+  onNote,
 }: {
   entry: ListEntry;
   rank: number;
   ranked: boolean;
   selected: boolean;
-  onRemove: (itemId: string) => void;
+  // Whether this item's note is open
+  noting: boolean;
+  // Whether its note was just saved
+  saved: boolean;
+  onRemove: (entry: ListEntry) => void;
   onMove: (itemId: string) => void;
   // Opens the picture picker. Compounds have no article to pick from.
   onPicture: (entry: ListEntry) => void;
+  onNote: (entry: ListEntry) => void;
 }) {
   const {
     attributes,
@@ -90,7 +168,7 @@ function SortableTile({
           src={entry.imageUrl}
           alt={entry.title}
           className={`aspect-square w-full rounded-lg ${
-            selected ? "ring-2 ring-accent" : ""
+            selected || noting ? "ring-2 ring-accent" : ""
           }`}
         />
         {ranked && (
@@ -115,19 +193,27 @@ function SortableTile({
             title="Change the picture"
             className="absolute bottom-1 left-1 rounded bg-background/80 px-1.5 py-1"
           >
-            <EditIcon className="h-3 w-3" />
+            <PictureIcon className="h-3 w-3" />
           </button>
         )}
         <button
           type="button"
-          onClick={() => onRemove(entry.itemId)}
+          onClick={() => onRemove(entry)}
           aria-label={`Remove ${entry.title}`}
           className="absolute right-1 top-1 rounded bg-background/80 px-1.5 text-sm"
         >
           ×
         </button>
       </div>
-      <span className="truncate text-xs">{entry.title}</span>
+      <span className="flex min-w-0 items-baseline gap-1.5 text-xs">
+        <span className="truncate">{entry.title}</span>
+        {saved && (
+          <span role="status" className="shrink-0 text-muted">
+            ✓ Saved
+          </span>
+        )}
+      </span>
+      <NoteButton entry={entry} editing={noting} onNote={onNote} />
     </li>
   );
 }
@@ -174,6 +260,21 @@ export default function ListEditor({
   const [detailsMessage, setDetailsMessage] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [confirmingDelete, setConfirmingDelete] = useState<boolean>(false);
+  // The item whose note is open, and what's typed in it
+  const [noting, setNoting] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState<string>("");
+  const [noteBusy, setNoteBusy] = useState<boolean>(false);
+  const [noteError, setNoteError] = useState<string>("");
+  // The item whose note was just saved, for a moment
+  const [justSaved, setJustSaved] = useState<string | null>(null);
+  // What was asked for while the open note had unsaved changes, waiting on
+  // what to do with them; then, once they're dealt with, what to do next
+  const [pending, setPending] = useState<NextStep | null>(null);
+  const [queued, setQueued] = useState<NextStep | null>(null);
+  // An item with a note that is about to be removed, waiting on a yes
+  const [confirmingRemove, setConfirmingRemove] = useState<ListEntry | null>(
+    null,
+  );
   const router = useRouter();
 
   const listId = list.id;
@@ -202,9 +303,15 @@ export default function ListEditor({
               }),
             remove: (itemId) =>
               rpc("remove_list_item", { p_list: listId, p_item: itemId }),
-            add: (itemId) => addToList({ listId, itemId }),
+            add: async (itemId) => {
+              const result = await addToList({ listId, itemId });
+              return result.item
+                ? { item: { ...result.item, note: null } }
+                : { error: result.error };
+            },
             setPicture: (itemId, imageUrl) =>
               setListItemPicture(listId, itemId, imageUrl),
+            setNote: (itemId, note) => setListItemNote(listId, itemId, note),
             // Keeps the page in the address, so reloading comes back to it
             pageShown: (wanted) => {
               const path = window.location.pathname;
@@ -238,10 +345,180 @@ export default function ListEditor({
   const lastPage = pageCount(total);
   const movingEntry = items.find((i) => i.itemId === moving) ?? null;
   const movingRank = movingEntry ? offset + items.indexOf(movingEntry) + 1 : 0;
+  const notingIndex = items.findIndex((i) => i.itemId === noting);
+  const notingEntry = notingIndex >= 0 ? items[notingIndex] : null;
+  // The last tile in the wide grid's row holding the open note's item, which
+  // the note box opens after
+  const noteRowEnd =
+    notingIndex < 0
+      ? -1
+      : Math.min(
+          items.length - 1,
+          Math.floor(notingIndex / WIDE_COLUMNS) * WIDE_COLUMNS +
+            WIDE_COLUMNS -
+            1,
+        );
+  const noteDirty =
+    notingEntry !== null && cleanListNote(noteDraft) !== notingEntry.note;
+  // Why the open note's changes can't be saved, if they can't
+  const noteSaveProblem =
+    noteProblem(noteDraft) ??
+    (cleanListNote(noteDraft) === null
+      ? "The note is empty. Keep editing to remove it with Remove note."
+      : null);
+
+  // A note with unsaved changes isn't lost by leaving the page
+  useEffect(() => {
+    if (!noteDirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [noteDirty]);
+
+  // Runs what was asked for once the note it waited on is dealt with, with
+  // this render's state, which includes the note just saved
+  useEffect(() => {
+    if (!queued) return;
+    setQueued(null);
+    perform(queued);
+  });
+
+  // Does `step`, first asking what to do with the open note if it has
+  // unsaved changes. Only one box is open at a time, so any open note closes.
+  // Nothing else starts while a note is saving, so its answer can't land on
+  // another item's note.
+  function guard(step: NextStep) {
+    if (noteBusy) return;
+    if (noteDirty) {
+      setPending(step);
+      return;
+    }
+    if (noting !== null) closeNote(step.kind === "close");
+    perform(step);
+  }
+
+  function perform(step: NextStep) {
+    switch (step.kind) {
+      case "save":
+        saveList();
+        return;
+      case "note":
+        openNote(step.itemId);
+        return;
+      case "move":
+        openMove(step.itemId);
+        return;
+      case "picture":
+        setPicturing(items.find((i) => i.itemId === step.itemId) ?? null);
+        return;
+      case "page":
+        setError("");
+        editing?.goToPage(step.page);
+        return;
+      case "close":
+        return;
+    }
+  }
 
   function goToPage(wanted: number) {
-    setError("");
-    editing?.goToPage(wanted);
+    guard({ kind: "page", page: wanted });
+  }
+
+  function openNote(itemId: string) {
+    const entry = items.find((i) => i.itemId === itemId);
+    if (!entry) return;
+    setMoving(null);
+    setNoting(itemId);
+    setNoteDraft(entry.note ?? "");
+    setNoteError("");
+  }
+
+  // Closes the open note. Unless something else opens next and takes focus,
+  // focus goes back to the note's button.
+  function closeNote(restoreFocus = true) {
+    const itemId = noting;
+    setNoting(null);
+    setNoteError("");
+    if (itemId === null || !restoreFocus) return;
+    requestAnimationFrame(() =>
+      document
+        .querySelector<HTMLElement>(
+          `[data-note-button="${window.CSS.escape(itemId)}"]`,
+        )
+        ?.focus(),
+    );
+  }
+
+  function toggleNote(entry: ListEntry) {
+    guard(
+      noting === entry.itemId
+        ? { kind: "close" }
+        : { kind: "note", itemId: entry.itemId },
+    );
+  }
+
+  // Saves an item's note, or removes it with null. A saved list keeps it at
+  // once; a new one, when it's created.
+  async function storeNote(
+    itemId: string,
+    note: string | null,
+    restoreFocus = true,
+  ): Promise<boolean> {
+    setNoteError("");
+    if (editing) {
+      setNoteBusy(true);
+      const saved = await editing.setNote(itemId, note);
+      setNoteBusy(false);
+      if (!saved) {
+        setNoteError(editing.snapshot.error || SAVE_FAILED);
+        return false;
+      }
+    } else {
+      setDraftItems((prev) =>
+        prev.map((i) => (i.itemId === itemId ? { ...i, note } : i)),
+      );
+    }
+    if (note === null) track("list_note_removed");
+    else track("list_note_saved", { length: note.length, from: "editor" });
+    closeNote(restoreFocus);
+    setJustSaved(itemId);
+    setTimeout(
+      () => setJustSaved((shown) => (shown === itemId ? null : shown)),
+      SAVED_SHOWN_MS,
+    );
+    return true;
+  }
+
+  async function saveNote(restoreFocus = true): Promise<boolean> {
+    if (!notingEntry || noteSaveProblem) return false;
+    return storeNote(
+      notingEntry.itemId,
+      cleanListNote(noteDraft),
+      restoreFocus,
+    );
+  }
+
+  // The unsaved-note question's answers
+  async function saveNoteAndContinue() {
+    if (await saveNote(pending?.kind === "close")) {
+      setQueued(pending);
+      setPending(null);
+    }
+  }
+
+  function discardNoteAndContinue() {
+    closeNote(pending?.kind === "close");
+    setQueued(pending);
+    setPending(null);
+  }
+
+  function keepEditingNote() {
+    setPending(null);
+    requestAnimationFrame(() =>
+      document
+        .querySelector<HTMLTextAreaElement>("[data-note-box] textarea")
+        ?.focus(),
+    );
   }
 
   const sensors = useDragSensors();
@@ -306,7 +583,7 @@ export default function ListEditor({
         setError(result.error ?? "Something went wrong.");
         return;
       }
-      const added = result.item;
+      const added = { ...result.item, note: null };
       setDraftItems((prev) =>
         prev.some((i) => i.itemId === added.itemId) ? prev : [...prev, added],
       );
@@ -320,8 +597,15 @@ export default function ListEditor({
     }
   }
 
+  // Removing an item with a note deletes the note too, so that asks first
+  function askToRemove(entry: ListEntry) {
+    if (entry.note) setConfirmingRemove(entry);
+    else handleRemove(entry.itemId);
+  }
+
   async function handleRemove(itemId: string) {
     if (moving === itemId) setMoving(null);
+    if (noting === itemId) setNoting(null);
     setError("");
     if (!editing) {
       setDraftItems((prev) => prev.filter((i) => i.itemId !== itemId));
@@ -368,6 +652,9 @@ export default function ListEditor({
         ranked,
         itemIds: items.map((i) => i.itemId),
         pictures: draftPictures,
+        notes: Object.fromEntries(
+          items.flatMap((i) => (i.note ? [[i.itemId, i.note]] : [])),
+        ),
       });
       if (result.error || !result.id) {
         setBusy(false);
@@ -457,7 +744,7 @@ export default function ListEditor({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          saveList();
+          guard({ kind: "save" });
         }}
         className="flex flex-col gap-3"
       >
@@ -493,11 +780,20 @@ export default function ListEditor({
       </form>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-          Items
-          {total > 0 &&
-            ` · ${total.toLocaleString("en-US")} · drag or ⇅ to reorder`}
-        </h2>
+        <div className="flex flex-col gap-1">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+            Items
+            {total > 0 &&
+              ` · ${total.toLocaleString("en-US")} · drag or ⇅ to reorder`}
+          </h2>
+          {total > 0 && (
+            <p className="text-sm text-muted">
+              {list.id !== null &&
+                "Items, order and pictures save immediately. "}
+              Select a note to edit it, or + Add note to write one.
+            </p>
+          )}
+        </div>
 
         <ListPager
           page={page}
@@ -523,16 +819,41 @@ export default function ListEditor({
               }`}
             >
               {items.map((entry, index) => (
-                <SortableTile
-                  key={entry.itemId}
-                  entry={entry}
-                  rank={offset + index + 1}
-                  ranked={ranked}
-                  selected={entry.itemId === moving}
-                  onRemove={handleRemove}
-                  onMove={openMove}
-                  onPicture={setPicturing}
-                />
+                <Fragment key={entry.itemId}>
+                  <SortableTile
+                    entry={entry}
+                    rank={offset + index + 1}
+                    ranked={ranked}
+                    selected={entry.itemId === moving}
+                    noting={entry.itemId === noting}
+                    saved={entry.itemId === justSaved}
+                    onRemove={askToRemove}
+                    onMove={(itemId) => guard({ kind: "move", itemId })}
+                    onPicture={(picked) =>
+                      guard({ kind: "picture", itemId: picked.itemId })
+                    }
+                    onNote={toggleNote}
+                  />
+                  {notingEntry && index === noteRowEnd && (
+                    <NoteBox
+                      // A new box for each item, so its text box takes focus
+                      key={notingEntry.itemId}
+                      title={notingEntry.title}
+                      rank={ranked ? offset + notingIndex + 1 : null}
+                      imageUrl={notingEntry.imageUrl}
+                      column={notingIndex % WIDE_COLUMNS}
+                      draft={noteDraft}
+                      onDraft={setNoteDraft}
+                      hasNote={notingEntry.note !== null}
+                      busy={noteBusy || loading}
+                      error={noteError}
+                      onSave={saveNote}
+                      onRemove={() => storeNote(notingEntry.itemId, null)}
+                      onCancel={() => closeNote()}
+                      onDismiss={() => guard({ kind: "close" })}
+                    />
+                  )}
+                </Fragment>
               ))}
               <li>
                 <button
@@ -617,6 +938,41 @@ export default function ListEditor({
           />
         )}
 
+        {pending && notingEntry && (
+          <UnsavedNoteDialog
+            title={notingEntry.title}
+            draft={noteDraft}
+            isNew={notingEntry.note === null}
+            consequence={
+              pending.kind !== "save"
+                ? ""
+                : list.id === null
+                  ? "Continuing creates the list."
+                  : "Continuing saves the list's details and opens the list."
+            }
+            saveProblem={noteSaveProblem}
+            busy={noteBusy}
+            onSave={saveNoteAndContinue}
+            onDiscard={discardNoteAndContinue}
+            onKeepEditing={keepEditingNote}
+          />
+        )}
+
+        {confirmingRemove && (
+          <ConfirmDialog
+            title={`Remove ${confirmingRemove.title}?`}
+            confirmLabel="Remove"
+            busyLabel="Removing…"
+            onConfirm={() => {
+              handleRemove(confirmingRemove.itemId);
+              setConfirmingRemove(null);
+            }}
+            onCancel={() => setConfirmingRemove(null)}
+          >
+            <p>Its note is deleted too.</p>
+          </ConfirmDialog>
+        )}
+
         {notice && (
           <p className="text-sm text-muted">
             {notice.text}{" "}
@@ -648,7 +1004,7 @@ export default function ListEditor({
       <section className="flex flex-col gap-2">
         <button
           type="button"
-          onClick={saveList}
+          onClick={() => guard({ kind: "save" })}
           disabled={busy}
           className="self-start rounded-lg bg-accent px-6 py-2 text-background disabled:opacity-40"
         >
@@ -658,7 +1014,7 @@ export default function ListEditor({
               : "Create list"
             : busy
               ? "Saving…"
-              : "Save list"}
+              : "Save details"}
         </button>
         {detailsMessage && (
           <p className="text-sm text-danger">{detailsMessage}</p>
@@ -666,7 +1022,7 @@ export default function ListEditor({
         <p className="text-xs text-muted">
           {list.id === null
             ? "Nobody sees this list until you create it."
-            : "Items are saved as you add and move them. This saves the title, description and ranking, then opens the list."}
+            : "Saves the title, description and ranking, then opens the list."}
         </p>
       </section>
       {list.id !== null && (
