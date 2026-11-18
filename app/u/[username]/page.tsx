@@ -292,7 +292,9 @@ export default async function ProfilePage({
             {profile.bio}
           </p>
         )}
-        <div className="mt-2 flex items-center justify-between gap-4">
+        {/* Hidden when neither side has anything, as for a signed-out
+            visitor on a profile with too few ratings for the histogram */}
+        <div className="mt-2 hidden items-center justify-between gap-4 has-[>:not(:empty)]:flex">
           <div className="mt-2 flex min-w-0 flex-1 flex-wrap items-center gap-4">
             {!viewerId ? null : isOwner ? (
               <div className="flex items-center gap-4">
