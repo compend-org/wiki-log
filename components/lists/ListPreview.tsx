@@ -76,6 +76,47 @@ function TipText({ tip }: { tip: Tip }) {
   );
 }
 
+// What a "+N" tile shows: the number of items left out, over a dimmed picture
+// of the first of them when it is known
+function MoreFace({
+  count,
+  picture,
+  className,
+}: {
+  count: number;
+  picture?: Thumb;
+  className: string;
+}) {
+  return (
+    <span
+      className={`relative flex items-center justify-center overflow-hidden rounded border border-line bg-surface text-sm font-semibold ${className}`}
+    >
+      {picture && (
+        // The picture goes in a box of its own to fill the tile: an adult
+        // item's picture sets its own position, which would put it beside
+        // the number instead of behind it
+        <span className="absolute inset-0 flex">
+          <ItemImage
+            src={picture.image_url}
+            nsfw={picture.nsfw}
+            alt=""
+            placeholder={firstLetter(picture.title)}
+            className="h-full w-full"
+            sourceWidth={120}
+          />
+        </span>
+      )}
+      <span
+        className={`relative flex h-full w-full items-center justify-center ${
+          picture ? "bg-background/70 text-foreground" : "text-muted"
+        }`}
+      >
+        +{count}
+      </span>
+    </span>
+  );
+}
+
 export default function ListPreview({
   thumbs,
   total,
@@ -170,18 +211,18 @@ export default function ListPreview({
     "card-link relative z-10 flex h-[var(--tile)] w-[var(--tile)] shrink-0";
 
   // A tile in place of the items that don't fit, shown only at the row
-  // widths that `visibility` names
-  function moreTile(count: number, visibility: string) {
+  // widths that `visibility` names. `picture` is the first of those items.
+  function moreTile(count: number, visibility: string, picture?: Thumb) {
     return (
       <Link
         href={href}
-        className={`${tile} ${visibility} items-center justify-center border border-line bg-surface text-sm font-semibold text-muted no-underline`}
+        className={`${tile} ${visibility} no-underline`}
         onMouseEnter={(e) => show(e.currentTarget, more(count))}
         onMouseLeave={hide}
         onFocus={(e) => show(e.currentTarget, more(count))}
         onBlur={hide}
       >
-        +{count}
+        <MoreFace count={count} picture={picture} className="h-14 w-14" />
       </Link>
     );
   }
@@ -232,27 +273,11 @@ export default function ListPreview({
         onFocus={(e) => show(e.currentTarget, text, only)}
         onBlur={hide}
       >
-        <span className="relative flex h-[var(--tile)] w-[calc(var(--tile)-0.5rem)] items-center justify-center overflow-hidden rounded border border-line bg-surface">
-          {picture && (
-            <ItemImage
-              src={picture.image_url}
-              nsfw={picture.nsfw}
-              alt=""
-              placeholder={firstLetter(picture.title)}
-              className="absolute inset-0 h-full w-full"
-              sourceWidth={120}
-            />
-          )}
-          <span
-            className={`relative text-sm font-semibold ${
-              picture
-                ? "flex h-full w-full items-center justify-center bg-background/70 text-foreground"
-                : "text-muted"
-            }`}
-          >
-            +{count}
-          </span>
-        </span>
+        <MoreFace
+          count={count}
+          picture={picture}
+          className="h-[var(--tile)] w-[calc(var(--tile)-0.5rem)]"
+        />
       </Link>
     );
   }
@@ -326,9 +351,11 @@ export default function ListPreview({
                     }
                     onBlur={hide}
                   >
-                    <span className="flex h-[var(--tile)] w-[calc(var(--tile)-0.25rem)] items-center justify-center border border-line bg-surface text-sm font-semibold text-muted">
-                      +{shown.more}
-                    </span>
+                    <MoreFace
+                      count={shown.more}
+                      picture={group.thumbs[shown.shown]}
+                      className="h-[var(--tile)] w-[calc(var(--tile)-0.25rem)]"
+                    />
                   </Link>
                 )}
               </Fragment>
@@ -383,11 +410,16 @@ export default function ListPreview({
               moreTile(
                 total - i,
                 `${HIDDEN_UNLESS_MORE_THAN[i]} ${HIDDEN_IF_MORE_THAN[i + 1]}`,
+                p,
               )}
           </Fragment>
         ))}
         {total > shown.length &&
-          moreTile(total - shown.length, HIDDEN_UNLESS_MORE_THAN[shown.length])}
+          moreTile(
+            total - shown.length,
+            HIDDEN_UNLESS_MORE_THAN[shown.length],
+            thumbs[shown.length],
+          )}
       </div>
 
       {tip && (
