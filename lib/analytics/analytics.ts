@@ -6,6 +6,34 @@ import {
   type AnalyticsEventArgs,
   type AnalyticsEventName,
 } from "@/lib/analytics/analyticsEvents";
+import {
+  HELD_PAGE_VIEW_EVENT,
+  holdLandingPageView,
+} from "@/lib/analytics/landingPageView";
+
+const landingPageView = holdLandingPageView((held, leaving) => {
+  posthog.capture(
+    HELD_PAGE_VIEW_EVENT,
+    {},
+    {
+      uuid: held.uuid,
+      timestamp: held.timestamp,
+      // The page view already counted against the limit when it was held
+      skip_client_rate_limiting: true,
+      ...(leaving && { send_instantly: true, transport: "sendBeacon" }),
+    },
+  );
+});
+
+// Passed to PostHog as before_send: holds the landing page view until
+// sendLandingPageView runs
+export const holdLandingPageViewBeforeSend = landingPageView.beforeSend;
+
+// Sends the landing page view as whoever this browser's events are tied to now.
+// Call once the page knows who is signed in, after identifying them.
+export function sendLandingPageView() {
+  landingPageView.release();
+}
 
 export function track<K extends AnalyticsEventName>(
   name: K,
