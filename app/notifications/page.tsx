@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import AdminBadge from "@/components/moderation/AdminBadge";
+import FollowButton from "@/components/people/FollowButton";
 import NotificationThumb, {
   type NotificationSubject,
 } from "@/components/social/NotificationThumb";
@@ -355,6 +356,21 @@ export default function NotificationsPage() {
                 {timeAgo(n.created_at, loadedAt)}
               </span>
             </div>
+            {n.type === "follow" && n.actor_id && n.profiles && (
+              // Above the card's full-card link, like the names
+              <div className="relative z-10">
+                {/* Each fetched feed starts the button over from what it
+                    says, even if the follow changed elsewhere and back */}
+                <FollowButton
+                  key={loadedAt}
+                  viewerId={myId}
+                  targetId={n.actor_id}
+                  following={n.profiles.viewer_follow.length > 0}
+                  followsViewer={n.profiles.follows_viewer.length > 0}
+                  compact
+                />
+              </div>
+            )}
             {subject && <NotificationThumb subject={subject} />}
           </div>
         );
