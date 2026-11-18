@@ -50,6 +50,8 @@ export default function ReviewTextarea({
   maxLength = 5000,
   className = "",
   autoFocus = false,
+  mentions = true,
+  id,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -58,6 +60,10 @@ export default function ReviewTextarea({
   maxLength?: number;
   className?: string;
   autoFocus?: boolean;
+  // Whether typing @ opens a search to mention a person
+  mentions?: boolean;
+  // For a label to point at
+  id?: string;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const backdrop = useRef<HTMLDivElement>(null);
@@ -153,7 +159,7 @@ export default function ReviewTextarea({
         at: caret - LINK_TRIGGER.length,
         trigger: LINK_TRIGGER,
       });
-    } else if (/(^|\s)@$/.test(before)) {
+    } else if (mentions && /(^|\s)@$/.test(before)) {
       setPicking({
         kind: "person",
         at: caret - MENTION_TRIGGER.length,
@@ -226,6 +232,7 @@ export default function ReviewTextarea({
           {coloured}
         </div>
         <textarea
+          id={id}
           ref={ref}
           value={draft.text}
           onChange={handleChange}

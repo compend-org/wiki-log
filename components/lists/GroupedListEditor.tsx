@@ -22,6 +22,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { createGroupedList, stageItem } from "@/app/actions";
 import ItemImage from "@/components/items/ItemImage";
 import ItemPicker from "@/components/items/ItemPicker";
+import ReviewTextarea from "@/components/logs/ReviewTextArea";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { track } from "@/lib/analytics/analytics";
 import {
@@ -377,16 +378,18 @@ export default function GroupedListEditor({
             className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Description (optional)
-          <textarea
+        <div className="flex flex-col gap-1 text-sm">
+          <label htmlFor="list-description">Description (optional)</label>
+          <ReviewTextarea
+            id="list-description"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={setDescription}
             maxLength={500}
             rows={2}
+            mentions={false}
             className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"
           />
-        </label>
+        </div>
       </div>
 
       <div className="flex flex-col gap-1">

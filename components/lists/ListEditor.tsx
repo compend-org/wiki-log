@@ -25,6 +25,7 @@ import ListPager from "@/components/lists/ListPager";
 import NoteBox, { WIDE_COLUMNS } from "@/components/lists/NoteBox";
 import UnsavedNoteDialog from "@/components/lists/UnsavedNoteDialog";
 import PicturePicker from "@/components/logs/PicturePicker";
+import ReviewTextarea from "@/components/logs/ReviewTextArea";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PictureIcon from "@/components/ui/PictureIcon";
 import { track } from "@/lib/analytics/analytics";
@@ -757,16 +758,18 @@ export default function ListEditor({
             className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Description (optional)
-          <textarea
+        <div className="flex flex-col gap-1 text-sm">
+          <label htmlFor="list-description">Description (optional)</label>
+          <ReviewTextarea
+            id="list-description"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={setDescription}
             maxLength={500}
             rows={2}
+            mentions={false}
             className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"
           />
-        </label>
+        </div>
         {!list.grouped && (
           <label className="flex items-center gap-2 text-sm">
             <input

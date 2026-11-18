@@ -278,7 +278,9 @@ export default async function ListPage({
           </span>
         </p>
         {list.description && (
-          <p className="mt-2 whitespace-pre-wrap">{list.description}</p>
+          <p className="mt-2 whitespace-pre-wrap">
+            <ReviewText text={list.description} />
+          </p>
         )}
         <div className="mt-2 flex items-center gap-4">
           <ListLikeButton
