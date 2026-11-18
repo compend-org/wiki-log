@@ -100,7 +100,9 @@ export default async function ListCard({
         {topControls}
       </div>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="font-semibold">{l.title}</span>
+        <span className="min-w-0 line-clamp-2 [overflow-wrap:anywhere] font-semibold">
+          {l.title}
+        </span>
         {controls}
       </div>
       {preview.length > 0 && (

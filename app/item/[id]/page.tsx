@@ -284,7 +284,9 @@ export default async function ItemPage({
             )}
 
             <div className="flex items-start justify-between gap-3">
-              <h1 className="text-3xl font-bold">{item.title}</h1>
+              <h1 className="min-w-0 text-3xl font-bold [overflow-wrap:anywhere]">
+                {item.title}
+              </h1>
               {compound && viewerId && creatorId === viewerId && (
                 <span className="flex items-center gap-4 pt-1.5">
                   <CompoundEditButton

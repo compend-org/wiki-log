@@ -85,7 +85,7 @@ export default function DiaryListCard({
       </div>
       <Link
         href={`/list/${listId}`}
-        className="card-link relative z-10 w-fit font-semibold hover:underline"
+        className="card-link relative z-10 w-fit block max-w-full min-w-0 line-clamp-2 [overflow-wrap:anywhere] font-semibold hover:underline"
       >
         {title}
       </Link>

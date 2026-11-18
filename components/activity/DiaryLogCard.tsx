@@ -121,7 +121,7 @@ export default function DiaryLogCard({
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <Link
               href={`/item/${itemId}`}
-              className="relative z-10 w-fit font-semibold"
+              className="relative z-10 w-fit block max-w-full min-w-0 line-clamp-2 [overflow-wrap:anywhere] font-semibold"
             >
               {title}
             </Link>

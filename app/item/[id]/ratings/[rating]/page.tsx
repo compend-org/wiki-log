@@ -58,7 +58,7 @@ export default async function RatedReviewsPage({
       <Link href={`/item/${id}`} className="text-sm text-muted">
         ‹ Back to {title}
       </Link>
-      <h1 className="text-xl font-bold">
+      <h1 className="text-xl font-bold [overflow-wrap:anywhere]">
         <span className="text-star">{starText(rating)}</span> reviews of {title}
       </h1>
       {first.cards.length === 0 && !first.next && !first.error && (

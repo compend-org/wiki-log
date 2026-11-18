@@ -159,7 +159,10 @@ export default async function ReviewPage({
   );
   const byline = (
     <div className={`flex min-w-0 flex-col gap-1 ${isOwner ? "pr-16" : ""}`}>
-      <Link href={`/item/${log.item_id}`} className="text-xl font-bold">
+      <Link
+        href={`/item/${log.item_id}`}
+        className="text-xl font-bold [overflow-wrap:anywhere]"
+      >
         {title}
       </Link>
       {/* The dot before the date sits in the gap left of it, so when the
@@ -192,7 +195,7 @@ export default async function ReviewPage({
   const body = (
     <>
       {log.review && (
-        <p className="whitespace-pre-wrap">
+        <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">
           <ReviewText text={log.review} />
         </p>
       )}

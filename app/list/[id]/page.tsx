@@ -247,7 +247,9 @@ export default async function ListPage({
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       {list.removed_at && <RemovedNotice noun="list" />}
       <header className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold">{list.title}</h1>
+        <h1 className="text-3xl font-bold [overflow-wrap:anywhere]">
+          {list.title}
+        </h1>
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
           <span>
             A {list.ranked ? "ranked " : grouped ? "grouped " : ""}list by

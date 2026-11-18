@@ -61,7 +61,10 @@ export default function DiaryReplyCard({
           <DeleteButton kind={kind} targetId={replyId} cardKey={cardKey} />
         )}
       </div>
-      <Link href={href} className="card-link relative z-10 w-fit font-semibold">
+      <Link
+        href={href}
+        className="card-link relative z-10 w-fit block max-w-full min-w-0 line-clamp-2 [overflow-wrap:anywhere] font-semibold"
+      >
         {where}
       </Link>
       <p className="line-clamp-3 whitespace-pre-wrap break-words border-l-2 border-dashed border-line pl-3 text-sm">

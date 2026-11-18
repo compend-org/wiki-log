@@ -112,7 +112,7 @@ export default async function LogCard({
         <div className="flex items-baseline justify-between gap-3">
           <Link
             href={`/item/${row.item_id}`}
-            className="relative z-10 w-fit font-semibold"
+            className="relative z-10 w-fit block max-w-full min-w-0 line-clamp-2 [overflow-wrap:anywhere] font-semibold"
           >
             {title}
           </Link>
