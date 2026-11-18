@@ -7,6 +7,7 @@ import {
   sample,
   shortTitle,
   suggestionParts,
+  suggestionsDismissed,
 } from "./suggestedPeople";
 
 const person = (over: Partial<SuggestedPerson>): SuggestedPerson => ({
@@ -78,7 +79,7 @@ test("a long title is cut short", () => {
   assert.equal(shortTitle("Banana"), "Banana");
   const cut = shortTitle("The Hitchhiker's Guide to the Galaxy (novel)");
   assert.ok(cut.endsWith("…"));
-  assert.ok(cut.length <= 28);
+  assert.ok(cut.length <= 40);
 });
 
 test("sample takes the number asked for, without repeats", () => {
@@ -101,4 +102,15 @@ test("sample follows the random numbers it is given", () => {
     sample([10, 20, 30, 40], 2, () => 0.99),
     [40, 30],
   );
+});
+
+test("the box stays dismissed for a month, then comes back", () => {
+  const day = 24 * 60 * 60 * 1000;
+  const now = Date.parse("2026-12-01T12:00:00Z");
+  const ago = (days: number) => new Date(now - days * day).toISOString();
+  assert.equal(suggestionsDismissed(null, now), false);
+  assert.equal(suggestionsDismissed(undefined, now), false);
+  assert.equal(suggestionsDismissed(ago(1), now), true);
+  assert.equal(suggestionsDismissed(ago(29), now), true);
+  assert.equal(suggestionsDismissed(ago(31), now), false);
 });

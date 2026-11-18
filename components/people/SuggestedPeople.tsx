@@ -14,6 +14,7 @@ import {
   shortTitle,
   suggestionParts,
 } from "@/lib/feed/suggestedPeople";
+import { createClient } from "@/lib/supabase/client";
 
 export default function SuggestedPeople({
   viewerId,
@@ -28,6 +29,7 @@ export default function SuggestedPeople({
   // Following someone refreshes the page, which would drop them from a fresh
   // list. Keeping the first list leaves their button showing "Following".
   const [shown] = useState(people);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     track("suggested_people_shown", {
@@ -36,13 +38,40 @@ export default function SuggestedPeople({
     });
   }, [shown.length, viewerId]);
 
+  async function dismiss() {
+    if (!viewerId) return;
+    setDismissed(true);
+    track("suggested_people_dismissed");
+    // If this doesn't save, the box is only back on the next visit
+    await createClient().from("user_settings").upsert({
+      user_id: viewerId,
+      suggested_people_dismissed_at: new Date().toISOString(),
+    });
+  }
+
+  if (dismissed) return null;
+
   return (
     <section
       aria-label={heading}
       // As wide as the tabs above the feed
-      className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-lg border border-line p-4 lg:w-[calc(50%-0.75rem)]"
+      className="relative mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-lg border border-line p-4 lg:w-[calc(50%-0.75rem)]"
     >
-      <h2 className="font-semibold">{heading}</h2>
+      {/* Only signed-in people can close it, as it is remembered on their account */}
+      {viewerId && (
+        <button
+          type="button"
+          onClick={dismiss}
+          aria-label="Dismiss suggestions"
+          title="Hide this for a while"
+          className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded text-danger hover:opacity-70"
+        >
+          <span aria-hidden className="text-2xl leading-none">
+            ×
+          </span>
+        </button>
+      )}
+      <h2 className={`font-semibold ${viewerId ? "pr-8" : ""}`}>{heading}</h2>
       <ul className="flex flex-col gap-3">
         {shown.map((p) => (
           <li key={p.id} className="flex items-center gap-3">

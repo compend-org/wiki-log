@@ -63,6 +63,8 @@ export type AnalyticsEvents = {
   // page is the page number just loaded, showing how far people scroll
   feed_more_loaded: { feed: string; page: number };
   suggested_people_shown: { count: number; signed_in: boolean };
+  // A signed-in person closed the box, which keeps it away for a while
+  suggested_people_dismissed: NoProperties;
   // A signed-out visitor pressed Follow on a suggested person and went to sign up
   suggested_people_signup_clicked: NoProperties;
   daily_pick_clicked: { kind: "popular" | "unpopular" };

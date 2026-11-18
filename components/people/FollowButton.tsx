@@ -54,7 +54,9 @@ export default function FollowButton({
     if (shownFollowing) track("user_unfollowed");
     else track("user_followed", { follows_you: followsViewer, source });
     setShownFollowing(!shownFollowing);
-    router.refresh(); // updates the follower counts
+    // Updates the follower counts. Skipped in the suggestions box, where a
+    // refresh would remove the box under the person's cursor.
+    if (source !== "suggestions") router.refresh();
   }
 
   return (

@@ -10,7 +10,9 @@ import {
   getSuggestedPeople,
   SUGGEST_BELOW,
   SUGGESTIONS_SHOWN,
+  type SuggestedPerson,
   sample,
+  suggestionsDismissed,
 } from "@/lib/feed/suggestedPeople";
 import { FIRST_PAGE } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
@@ -30,14 +32,23 @@ export default async function Feed({ mode }: { mode: FeedMode }) {
   // On Following, people who follow few others get people to follow, picked
   // for them. Signed-out visitors, who follow no one, get a few active people.
   const viewerId = page.viewerId;
-  const suggestions =
-    mode !== "following"
-      ? []
-      : viewerId
-        ? page.followedCount < SUGGEST_BELOW
-          ? await getSuggestedPeople(await createClient(), SUGGESTIONS_SHOWN)
-          : []
-        : sample(await getPublicSuggestedPeople(), SUGGESTIONS_SHOWN);
+  let suggestions: SuggestedPerson[] = [];
+  if (mode === "following") {
+    if (!viewerId) {
+      suggestions = sample(await getPublicSuggestedPeople(), SUGGESTIONS_SHOWN);
+    } else if (page.followedCount < SUGGEST_BELOW) {
+      // Someone who dismissed the box isn't shown it again for a while
+      const supabase = await createClient();
+      const { data: settings } = await supabase
+        .from("user_settings")
+        .select("suggested_people_dismissed_at")
+        .eq("user_id", viewerId)
+        .maybeSingle();
+      if (!suggestionsDismissed(settings?.suggested_people_dismissed_at)) {
+        suggestions = await getSuggestedPeople(supabase, SUGGESTIONS_SHOWN);
+      }
+    }
+  }
 
   return (
     <section className="flex flex-col gap-4">

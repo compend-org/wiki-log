@@ -3,10 +3,24 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// The Following tab suggests people to anyone following fewer than this many
-export const SUGGEST_BELOW = 5;
+// The Following tab suggests people only to someone following fewer than this
+// many, i.e. nobody yet. Following from the box doesn't hide it straight away
+// (the follow button skips its refresh there); it's gone on the next load.
+export const SUGGEST_BELOW = 1;
 // How many people it suggests at a time
 export const SUGGESTIONS_SHOWN = 6;
+// After someone dismisses the box, it stays away this many days
+const DISMISS_DAYS = 30;
+
+// Whether the box was dismissed recently enough to keep it hidden. `dismissedAt`
+// is when they dismissed it, if they ever did.
+export function suggestionsDismissed(
+  dismissedAt: string | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  if (!dismissedAt) return false;
+  return now - Date.parse(dismissedAt) < DISMISS_DAYS * 24 * 60 * 60 * 1000;
+}
 
 export type SuggestedPerson = {
   id: string;
