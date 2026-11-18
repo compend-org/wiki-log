@@ -126,11 +126,17 @@ export function wantedPositions(sizes: number[]): number[] {
 
 export type GroupPreview = {
   id: string;
+  // The group's name; null when the list's groups have none
+  name: string | null;
   size: number;
   thumbs: { title: string; image_url: string | null; nsfw: boolean }[];
 };
 
-type GroupRow = { id: string; list_items: { count: number }[] };
+type GroupRow = {
+  id: string;
+  name: string | null;
+  list_items: { count: number }[];
+};
 
 type ItemRow = {
   group_id: string | null;
@@ -151,12 +157,13 @@ export async function fetchGroupPreviews(
 ): Promise<GroupPreview[] | null> {
   const { data: groupRows, error } = await supabase
     .from("list_groups")
-    .select("id, list_items(count)")
+    .select("id, name, list_items(count)")
     .eq("list_id", listId)
     .order("position");
   if (error || !groupRows || groupRows.length === 0) return null;
   const groups = (groupRows as unknown as GroupRow[]).map((g) => ({
     id: g.id,
+    name: g.name,
     size: g.list_items?.[0]?.count ?? 0,
   }));
 

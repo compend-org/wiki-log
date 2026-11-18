@@ -13,7 +13,8 @@ import {
 } from "@/lib/lists/groupPreview";
 
 type Thumb = { title: string; image_url: string | null; nsfw: boolean };
-type Tip = { text: string; x: number; y: number };
+// A tooltip: what the tile is, and the name of its group if it has one
+type Tip = { text: string; group: string | null; x: number; y: number };
 
 // useLayoutEffect only produces a warning when rendered on the server
 const useIsoLayoutEffect =
@@ -56,6 +57,16 @@ const HIDDEN_IF_MORE_THAN = [
 ];
 // The most thumbnails the classes above can place
 const MOST_THUMBS = HIDDEN_UNLESS_MORE_THAN.length - 1;
+
+// A tooltip's words: the group's name, emphasised, above the item's
+function TipText({ tip }: { tip: Tip }) {
+  return (
+    <>
+      {tip.group && <span className="block font-semibold">{tip.group}</span>}
+      {tip.text}
+    </>
+  );
+}
 
 export default function ListPreview({
   thumbs,
@@ -107,9 +118,31 @@ export default function ListPreview({
     box.style.left = `${x}px`;
   }, [tip]);
 
-  function show(el: HTMLElement, text: string) {
+  // A tile in a group centres its tooltip on the whole group, so the tooltip
+  // stays put as the pointer moves between the group's tiles
+  function show(
+    el: HTMLElement,
+    text: string,
+    group?: { id: string; name: string | null },
+  ) {
     const r = el.getBoundingClientRect();
-    setTip({ text, x: r.left + r.width / 2, y: r.bottom });
+    let left = r.left;
+    let right = r.right;
+    if (group) {
+      for (const tile of el.parentElement?.querySelectorAll(
+        `[data-group="${group.id}"]`,
+      ) ?? []) {
+        const t = tile.getBoundingClientRect();
+        left = Math.min(left, t.left);
+        right = Math.max(right, t.right);
+      }
+    }
+    setTip({
+      text,
+      group: group?.name ?? null,
+      x: (left + right) / 2,
+      y: r.bottom,
+    });
   }
   const hide = () => setTip(null);
 
@@ -194,10 +227,13 @@ export default function ListPreview({
                       key={i}
                       href={href}
                       aria-label={p.title}
+                      data-group={group.id}
                       className={`${tile} ${box(first, last)}`}
-                      onMouseEnter={(e) => show(e.currentTarget, p.title)}
+                      onMouseEnter={(e) =>
+                        show(e.currentTarget, p.title, group)
+                      }
                       onMouseLeave={hide}
-                      onFocus={(e) => show(e.currentTarget, p.title)}
+                      onFocus={(e) => show(e.currentTarget, p.title, group)}
                       onBlur={hide}
                     >
                       <ItemImage
@@ -214,12 +250,15 @@ export default function ListPreview({
                 {shown.more > 0 && (
                   <Link
                     href={href}
+                    data-group={group.id}
                     className={`${tile} ${box(false, true)}`}
                     onMouseEnter={(e) =>
-                      show(e.currentTarget, more(shown.more))
+                      show(e.currentTarget, more(shown.more), group)
                     }
                     onMouseLeave={hide}
-                    onFocus={(e) => show(e.currentTarget, more(shown.more))}
+                    onFocus={(e) =>
+                      show(e.currentTarget, more(shown.more), group)
+                    }
                     onBlur={hide}
                   >
                     <span className="flex h-14 w-[3.25rem] items-center justify-center border border-line bg-surface text-sm font-semibold text-muted">
@@ -240,7 +279,7 @@ export default function ListPreview({
             style={{ left: tip.x, top: tip.y + 8 }}
             className="card pointer-events-none fixed z-50 max-w-[16rem] -translate-x-1/2 px-2 py-1 text-xs"
           >
-            {tip.text}
+            <TipText tip={tip} />
           </div>
         )}
       </>
@@ -293,7 +332,7 @@ export default function ListPreview({
           style={{ left: tip.x, top: tip.y + 8 }}
           className="card pointer-events-none fixed z-50 max-w-[16rem] -translate-x-1/2 px-2 py-1 text-xs"
         >
-          {tip.text}
+          <TipText tip={tip} />
         </div>
       )}
     </>
