@@ -12,7 +12,7 @@ import {
 import { LIST_PAGE_SIZE } from "@/lib/lists/listPages";
 
 function entry(id: string): EditorEntry {
-  return { itemId: id, title: id, imageUrl: null };
+  return { itemId: id, title: id, imageUrl: null, note: null };
 }
 
 function deferred<T>() {
@@ -28,7 +28,7 @@ function deferred<T>() {
 // Lets every queued promise callback run
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
-type Kind = "fetchPage" | "move" | "remove" | "add" | "setPicture";
+type Kind = "fetchPage" | "move" | "remove" | "add" | "setPicture" | "setNote";
 
 // A list held in memory, standing in for the database. Any kind of request
 // can be held until the test lets it go, or made to fail outright.
@@ -81,6 +81,10 @@ function fakeList(count: number) {
     },
     async setPicture(itemId, imageUrl) {
       await gate("setPicture", [itemId, imageUrl]);
+      return {};
+    },
+    async setNote(itemId, note) {
+      await gate("setNote", [itemId, note]);
       return {};
     },
   };
@@ -389,6 +393,38 @@ test("a picture that couldn't be saved leaves the tile as it was", async () => {
     false,
   );
   assert.equal(editing.snapshot.items[0].imageUrl, null);
+  assert.equal(editing.snapshot.error, UNREACHABLE);
+  assert.equal(editing.snapshot.busy, false);
+});
+
+test("a saved note shows on its tile", async () => {
+  const { list, editing } = editorOn(3, 1);
+  const saving = list.hold("setNote");
+  const writing = editing.setNote("Q2", "Fight me.");
+  await settle();
+  assert.equal(editing.snapshot.items[1].note, null);
+
+  saving.resolve();
+  assert.equal(await writing, true);
+  assert.equal(editing.snapshot.items[1].note, "Fight me.");
+  assert.deepEqual(list.calls.at(-1), {
+    kind: "setNote",
+    args: ["Q2", "Fight me."],
+  });
+});
+
+test("removing a note clears it from its tile", async () => {
+  const { editing } = editorOn(3, 1);
+  await editing.setNote("Q1", "Fight me.");
+  await editing.setNote("Q1", null);
+  assert.equal(editing.snapshot.items[0].note, null);
+});
+
+test("a note that couldn't be saved leaves the tile as it was and says why", async () => {
+  const { list, editing } = editorOn(3, 1);
+  list.fail("setNote");
+  assert.equal(await editing.setNote("Q1", "Fight me."), false);
+  assert.equal(editing.snapshot.items[0].note, null);
   assert.equal(editing.snapshot.error, UNREACHABLE);
   assert.equal(editing.snapshot.busy, false);
 });

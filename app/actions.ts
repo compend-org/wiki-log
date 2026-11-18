@@ -32,6 +32,7 @@ import {
   replaceBrokenImage,
   STALE_COPY_WAIT_MS,
 } from "@/lib/items";
+import { cleanListNote, noteProblem } from "@/lib/lists/listNotes";
 import {
   type PictureChoice,
   pictureChoices,
@@ -293,6 +294,40 @@ export async function setListItemPicture(
     .eq("list_id", listId)
     .eq("item_id", itemId);
   return error ? { error: userFacingErrorMessage(error, SAVE_FAILED) } : {};
+}
+
+// Sets why an item is on one of your lists. Null, or only spaces, removes the
+// note.
+export async function setListItemNote(
+  listId: string,
+  itemId: string,
+  note: string | null,
+): Promise<{ error?: string }> {
+  if (!isUuid(listId)) return { error: "Invalid list." };
+  if (typeof itemId !== "string" || !ITEM_ID.test(itemId)) {
+    return { error: "Invalid item." };
+  }
+  if (note !== null && typeof note !== "string") {
+    return { error: "Invalid note." };
+  }
+  const problem = note === null ? null : noteProblem(note);
+  if (problem) return { error: problem };
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims?.sub) return { error: "You need to sign in." };
+
+  // The database lets only the list's owner change its items, and not while
+  // their account is suspended
+  const { data: updated, error } = await supabase
+    .from("list_items")
+    .update({ note: note === null ? null : cleanListNote(note) })
+    .eq("list_id", listId)
+    .eq("item_id", itemId)
+    .select("item_id");
+  if (error) return { error: userFacingErrorMessage(error, SAVE_FAILED) };
+  if (!updated?.length) return { error: "Couldn't save that change." };
+  return {};
 }
 
 // Deletes someone's avatar files and their auth user
@@ -611,6 +646,8 @@ export async function createList(input: {
   // Pictures from the items' articles to show instead of the items' own, by
   // item
   pictures?: Record<string, string>;
+  // Why each item is on the list, by item, for the items that have a note
+  notes?: Record<string, string>;
 }): Promise<{ error?: string; id?: string }> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -632,6 +669,17 @@ export async function createList(input: {
     !itemIds.every((id) => ITEM_ID.test(id))
   ) {
     return { error: "Invalid items." };
+  }
+
+  const notes = new Map<string, string>();
+  for (const [itemId, text] of Object.entries(input.notes ?? {})) {
+    if (!itemIds.includes(itemId) || typeof text !== "string") {
+      return { error: "Invalid notes." };
+    }
+    const problem = noteProblem(text);
+    if (problem) return { error: problem };
+    const note = cleanListNote(text);
+    if (note) notes.set(itemId, note);
   }
 
   // Checked before saving, so a picture that isn't allowed saves nothing
@@ -680,6 +728,7 @@ export async function createList(input: {
           list_id: list.id,
           item_id: itemId,
           position: index + 1,
+          note: notes.get(itemId) ?? null,
         })),
       ),
   );

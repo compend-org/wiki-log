@@ -6,6 +6,8 @@ export type EditorEntry = {
   itemId: string;
   title: string;
   imageUrl: string | null;
+  // Why the owner put the item on the list, if they said
+  note: string | null;
 };
 
 // What the editor shows. `busy` is true while anything is queued or running.
@@ -34,6 +36,8 @@ export type EditorRequests = {
     itemId: string,
     imageUrl: string | null,
   ): Promise<{ error?: string }>;
+  // Saves an item's note, or removes it with null
+  setNote(itemId: string, note: string | null): Promise<{ error?: string }>;
   // The page now on screen, to keep it in the address
   pageShown?(page: number): void;
 };
@@ -208,18 +212,38 @@ export class SavedListEditing {
     stored: string | null,
     shown: string | null,
   ): Promise<boolean> {
+    return this.saveEntry(
+      itemId,
+      () => this.requests.setPicture(itemId, stored),
+      { imageUrl: shown },
+    );
+  }
+
+  // Saves an item's note (null removes it), then shows it on its tile if
+  // it's still on screen
+  setNote(itemId: string, note: string | null): Promise<boolean> {
+    return this.saveEntry(itemId, () => this.requests.setNote(itemId, note), {
+      note,
+    });
+  }
+
+  // Sends `request` once everything before it is done and, if it's saved,
+  // applies `change` to the item's tile
+  private saveEntry(
+    itemId: string,
+    request: () => Promise<{ error?: string }>,
+    change: Partial<EditorEntry>,
+  ): Promise<boolean> {
     this.set({ error: "", notice: null });
     return this.run(async () => {
-      const error = await this.send(() =>
-        this.requests.setPicture(itemId, stored),
-      );
+      const error = await this.send(request);
       if (error) {
         this.set({ error });
         return false;
       }
       this.set({
         items: this.state.items.map((i) =>
-          i.itemId === itemId ? { ...i, imageUrl: shown } : i,
+          i.itemId === itemId ? { ...i, ...change } : i,
         ),
       });
       return true;

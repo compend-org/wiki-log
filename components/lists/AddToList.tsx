@@ -20,13 +20,16 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { addToList } from "@/app/actions";
+import { addToList, setListItemNote } from "@/app/actions";
 import ItemImage from "@/components/items/ItemImage";
+import NoteField from "@/components/lists/NoteField";
 import { track } from "@/lib/analytics/analytics";
 import {
   LOAD_FAILED,
   userFacingErrorMessage,
 } from "@/lib/errors/userFacingErrorMessage";
+import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
+import { cleanListNote, noteProblem } from "@/lib/lists/listNotes";
 import {
   appendLists,
   fetchPickerLists,
@@ -143,6 +146,12 @@ export default function AddToList({
   const [busy, setBusy] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
   const [error, setError] = useState<string>("");
+  // The list the item was just added to, offered a note for it there
+  const [noting, setNoting] = useState<{
+    listId: string;
+    itemId: string;
+  } | null>(null);
+  const [noteDraft, setNoteDraft] = useState<string>("");
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -189,6 +198,7 @@ export default function AddToList({
     const next = !open;
     setOpen(next);
     setPlacing(null);
+    setNoting(null);
     setMessage("");
     setError("");
     if (next) loadListPage(search, 0);
@@ -213,7 +223,26 @@ export default function AddToList({
     // Confirmed here rather than by re-rendering the whole page, which takes
     // several database requests. "In Lists" catches up on the next page load.
     setMessage(`Added to “${list.title}”.`);
+    // The list holds the stored item, whose ID can differ from this page's
+    setNoting({ listId: list.id, itemId: result.item?.itemId ?? itemId });
+    setNoteDraft("");
     return true;
+  }
+
+  async function saveNote() {
+    const note = cleanListNote(noteDraft);
+    if (!noting || note === null || noteProblem(noteDraft)) return;
+    setBusy(true);
+    setError("");
+    const result = await setListItemNote(noting.listId, noting.itemId, note);
+    setBusy(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    track("list_note_saved", { length: note.length, from: "add_to_list" });
+    setNoting(null);
+    setMessage(`${message} Note saved.`);
   }
 
   async function choose(list: ListOption) {
@@ -445,6 +474,47 @@ export default function AddToList({
                 </button>
               </div>
             </>
+          ) : noting ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                saveNote();
+              }}
+              onKeyDown={submitOnModEnter}
+              className="flex flex-col gap-2 text-sm"
+            >
+              <p className="text-accent">{message}</p>
+              <span>
+                <span className="font-semibold">Note</span>{" "}
+                <span className="text-muted">(optional)</span>
+              </span>
+              <NoteField
+                label="Note (optional)"
+                value={noteDraft}
+                onChange={setNoteDraft}
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  data-submit
+                  disabled={
+                    busy ||
+                    cleanListNote(noteDraft) === null ||
+                    noteProblem(noteDraft) !== null
+                  }
+                  className="rounded-lg bg-accent px-4 py-2 text-background disabled:opacity-40"
+                >
+                  {busy ? "Saving…" : "Save note"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNoting(null)}
+                  className="rounded-lg border border-line px-4 py-2"
+                >
+                  Done
+                </button>
+              </div>
+            </form>
           ) : (
             <>
               {lists !== null && (search !== "" || listTotal > SEARCH_FROM) && (
@@ -503,7 +573,9 @@ export default function AddToList({
             </>
           )}
 
-          {message && <p className="text-sm text-accent">{message}</p>}
+          {message && !noting && (
+            <p className="text-sm text-accent">{message}</p>
+          )}
           {error && <p className="text-sm text-danger">{error}</p>}
         </div>
       )}
