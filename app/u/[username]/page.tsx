@@ -38,6 +38,7 @@ import { entryPicture } from "@/lib/format";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { loginHref } from "@/lib/redirect";
+import { SITE_NAME } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
 
@@ -79,8 +80,11 @@ export async function generateMetadata({
   const profile = await getProfileByName(username);
   if (!profile) return {};
 
+  const summary = `${profile.username}'s ratings, reviews and lists on ${SITE_NAME}.`;
   return pageMetadata({
     title: profile.username,
+    description: profile.bio ? `${profile.bio} ${summary}` : summary,
+    path: `/u/${encodeURIComponent(profile.username)}`,
     image: avatarUrl(profile.avatar_path),
     squareImage: true,
   });
