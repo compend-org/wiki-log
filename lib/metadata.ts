@@ -1,9 +1,8 @@
 // ABOUTME: Builds the metadata a page shows in link previews and search results: title, description, image and address.
 // ABOUTME: Keeps the Open Graph and Twitter card fields in step with each other.
 import type { Metadata } from "next";
-import { absolute } from "@/lib/format";
+import { absolute, truncate } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
-import { ratingHistogram } from "@/lib/ratingHistogram";
 import { SITE_NAME, SITE_PREVIEW_IMAGE } from "@/lib/site";
 
 // Search results show about this many characters of a description
@@ -11,11 +10,7 @@ const DESCRIPTION_LENGTH = 160;
 
 // The text on one line, cut at a word to fit a search result
 export function shortDescription(text: string): string {
-  const line = text.replace(/\s+/g, " ").trim();
-  if (line.length <= DESCRIPTION_LENGTH) return line;
-  const cut = line.slice(0, DESCRIPTION_LENGTH - 1);
-  const lastSpace = cut.lastIndexOf(" ");
-  return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).replace(/[\s.,;:!?-]+$/, "")}…`;
+  return truncate(text.replace(/\s+/g, " ").trim(), DESCRIPTION_LENGTH);
 }
 
 // A square image, like an avatar, is shown as a small thumbnail beside the
@@ -39,11 +34,12 @@ export function pageMetadata({
   const description = fullDescription && shortDescription(fullDescription);
   return {
     title,
-    description,
+    // Left out when empty, so the site's description still applies. Open
+    // Graph and Twitter cards take theirs from it.
+    ...(description && { description }),
     ...(path && { alternates: { canonical: path } }),
     openGraph: {
       title,
-      description,
       url: path,
       images,
       siteName: SITE_NAME,
@@ -52,7 +48,6 @@ export function pageMetadata({
     twitter: {
       card: image && !squareImage ? "summary_large_image" : "summary",
       title,
-      description,
       images,
     },
   };
@@ -83,7 +78,8 @@ export function itemDescription({
   ratings: number[];
 }): string {
   const summary = about && `${about.charAt(0).toUpperCase()}${about.slice(1)}.`;
-  const { average, people } = ratingHistogram(ratings);
+  const people = ratings.length;
+  const average = ratings.reduce((sum, r) => sum + r, 0) / people;
   const rated =
     people === 0
       ? `Rate and review ${title} on ${SITE_NAME}.`

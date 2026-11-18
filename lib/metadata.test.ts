@@ -49,6 +49,21 @@ test("cuts a long description at a word to fit a search result", () => {
   assert.match(description, /word…$/);
 });
 
+test("keeps emoji whole when cutting a description", () => {
+  const description = shortDescription("🍌".repeat(200));
+  assert.equal(description, `${"🍌".repeat(159)}…`);
+});
+
+test("keeps the start of a long description written without spaces", () => {
+  const description = shortDescription(`★★★★ ${"好".repeat(170)}`);
+  assert.equal(Array.from(description).length, 160);
+  assert.ok(description.startsWith("★★★★ 好"));
+});
+
+test("leaves the description out when the page has none", () => {
+  assert.equal("description" in pageMetadata({ title: "Somebody" }), false);
+});
+
 test("gives a page's address as its canonical and Open Graph address", () => {
   const metadata = pageMetadata({ title: "Machine", path: "/item/Q11019" });
   assert.equal(metadata.alternates?.canonical, "/item/Q11019");

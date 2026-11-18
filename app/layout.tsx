@@ -35,15 +35,10 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
   openGraph: {
     siteName: SITE_NAME,
-    description: SITE_DESCRIPTION,
     type: "website",
     images: [SITE_PREVIEW_IMAGE],
   },
-  twitter: {
-    card: "summary",
-    description: SITE_DESCRIPTION,
-    images: [SITE_PREVIEW_IMAGE],
-  },
+  twitter: { card: "summary", images: [SITE_PREVIEW_IMAGE] },
   icons: {
     icon: [
       { url: "/logo-light.png", media: "(prefers-color-scheme: light)" },

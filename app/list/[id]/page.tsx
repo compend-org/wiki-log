@@ -138,16 +138,18 @@ export async function generateMetadata({
 
   const owner = list.profiles?.username;
   // The picture comes from the top of the list whichever page is open
-  const { entries, total } = await getListPage(id, 1);
+  const { entries, total, error } = await getListPage(id, 1);
   const shown = entries.find((e) => e.imageUrl && !e.imageHidden);
-  const summary = `A list of ${total} ${total === 1 ? "item" : "items"}${owner ? ` by ${owner}` : ""} on ${SITE_NAME}.`;
+  // Without its items, the list's size isn't known
+  const size = error ? "" : ` of ${total} ${total === 1 ? "item" : "items"}`;
+  const summary = `A list${size}${owner ? ` by ${owner}` : ""} on ${SITE_NAME}.`;
   return pageMetadata({
     title: owner ? `${list.title} by ${owner}` : list.title,
     description: list.description
       ? `${plainReview(list.description)} ${summary}`
       : summary,
     // Each page holds different items, so each is its own address
-    path: pageHref(id, page),
+    path: pageHref(list.id, page),
     // A compound's drawing is too small to show as it is
     ...(shown?.imageUrl && isCompoundId(shown.itemId)
       ? itemPreviewImage(shown.itemId, shown.imageUrl)
