@@ -10,9 +10,9 @@ export default function SignUpPrompt({ reason }: { reason: string }) {
   const pathname = usePathname() || "/";
 
   return (
-    <div className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="card flex flex-col gap-3 p-4">
       <p className="text-sm">{reason}</p>
-      <div className="flex shrink-0 items-center gap-4">
+      <div className="flex items-center justify-center gap-6">
         <Link
           href={signUpHref(pathname)}
           prefetch={false}
