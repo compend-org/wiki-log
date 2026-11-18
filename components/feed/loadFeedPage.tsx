@@ -54,6 +54,9 @@ export type FeedPage = {
   error: string;
   needsSignIn: boolean;
   noFollows: boolean;
+  // The signed-in viewer, and how many people they follow (Following only)
+  viewerId: string | undefined;
+  followedCount: number;
 };
 
 // One page of a feed as it stood at `asOf`, rendered for the viewer. Each of
@@ -232,5 +235,7 @@ export async function loadFeedPage(
     error: errorMessage,
     needsSignIn: mode === "following" && !viewerId,
     noFollows: mode === "following" && Boolean(viewerId) && followedCount === 0,
+    viewerId,
+    followedCount,
   };
 }

@@ -68,17 +68,10 @@ export default async function Home({
             <div className="grid grid-cols-[1fr_auto_1fr] items-center">
               <p className="col-start-2 text-center text-sm">
                 <Link
-                  href="/login"
+                  href="/login?mode=signup"
                   className="text-accent underline hover:no-underline"
                 >
                   Create an account
-                </Link>{" "}
-                or{" "}
-                <Link
-                  href="/?tab=everyone"
-                  className="text-accent underline hover:no-underline"
-                >
-                  browse
                 </Link>
               </p>
               {sharePicks && (

@@ -13,9 +13,16 @@ import { applySfw, setStoredSfw } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/client";
 import { cleanName, isValidName, NAME_RULES } from "@/lib/username";
 
-export default function LoginForm({ next }: { next: string }) {
+export default function LoginForm({
+  next,
+  initialMode = "signin",
+}: {
+  next: string;
+  // The form it opens on
+  initialMode?: "signin" | "signup";
+}) {
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [identifier, setIdentifier] = useState<string>("");
   const [username, setUsername] = useState<string>("");
   const [email, setEmail] = useState<string>("");

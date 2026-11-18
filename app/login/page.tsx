@@ -9,10 +9,10 @@ export const instant = false;
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; mode?: string }>;
 }) {
   await connection();
-  const { next } = await searchParams;
+  const { next, mode } = await searchParams;
 
   let target = safeNext(next);
   if (target.startsWith("/login")) target = "/";
@@ -23,5 +23,10 @@ export default async function LoginPage({
   const { data } = await supabase.auth.getUser();
   if (data.user) redirect(target);
 
-  return <LoginForm next={target} />;
+  return (
+    <LoginForm
+      next={target}
+      initialMode={mode === "signup" ? "signup" : "signin"}
+    />
+  );
 }
