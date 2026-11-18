@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import {
   forgetPerson,
   identifyPerson,
+  sendLandingPageView,
   updatePerson,
 } from "@/lib/analytics/analytics";
 import { createClient } from "@/lib/supabase/client";
@@ -26,8 +27,12 @@ export default function AnalyticsIdentity({
   const signedOut = useRef<string | null>(null);
 
   useEffect(() => {
-    const { data } = createClient().auth.onAuthStateChange((event) => {
-      if (event !== "SIGNED_OUT" || !identified.current) return;
+    const { data } = createClient().auth.onAuthStateChange((event, session) => {
+      // A sign-out in another tab while this page loaded shows up as
+      // starting with no session, since sign-outs aren't replayed
+      const signedOutHere =
+        event === "SIGNED_OUT" || (event === "INITIAL_SESSION" && !session);
+      if (!signedOutHere || !identified.current) return;
       signedOut.current = identified.current;
       identified.current = null;
       forgetPerson();
@@ -38,9 +43,9 @@ export default function AnalyticsIdentity({
   useEffect(() => {
     if (userId !== signedOut.current) signedOut.current = null;
     if (!userId || userId === signedOut.current) {
-      // Analytics may have started as a session the server has since rejected
-      forgetPerson();
+      if (identified.current) forgetPerson();
       identified.current = null;
+      sendLandingPageView();
       return;
     }
     const properties = { username, is_admin: isAdmin };
@@ -51,6 +56,7 @@ export default function AnalyticsIdentity({
     if (identified.current) forgetPerson();
     identifyPerson(userId, properties);
     identified.current = userId;
+    sendLandingPageView();
   }, [userId, username, isAdmin]);
 
   return null;
