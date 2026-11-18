@@ -1,5 +1,5 @@
 // ABOUTME: Three lines of text, marking something that has written words.
-// ABOUTME: Used on avatars of reviews that have a review body.
+// ABOUTME: Marks reviews that have a review body, and list items that have a note.
 export default function TextLinesIcon({
   className = "",
   size = 12,
