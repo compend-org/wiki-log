@@ -1,8 +1,8 @@
-// ABOUTME: Tests for placing pinned posts in the Trending ranking.
-// ABOUTME: Checks the place, lists counting, a short ranking and a pin that is already ranked.
+// ABOUTME: Tests for placing pinned posts and lists in the Trending ranking.
+// ABOUTME: Checks the place, kinds counting together, a short ranking and a pin that is already ranked.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { pinLogs, type RankedRow } from "./trendingPins";
+import { pinPosts, type RankedRow } from "./trendingPins";
 
 const row = (id: string, n: number): RankedRow => ({
   row_id: id,
@@ -21,25 +21,49 @@ function shown(logs: RankedRow[], lists: RankedRow[]) {
     .map((r) => r.row_id);
 }
 
-test("a pin lands at its place among logs and lists together", () => {
+const listPin = (id: string, position: number) => ({
+  log_id: null,
+  list_id: id,
+  position,
+});
+
+test("a pinned list lands at its place among posts and lists together", () => {
   const logs = [row("a", 9), row("b", 7), row("c", 5)];
   const lists = [row("x", 8), row("y", 6)];
-  const out = pinLogs(logs, lists, [{ log_id: "p", position: 3 }]);
-  assert.deepEqual(shown(out, lists).slice(0, 5), ["a", "x", "p", "b", "y"]);
+  const out = pinPosts(logs, lists, [listPin("p", 3)]);
+  assert.deepEqual(shown(out.logs, out.lists).slice(0, 5), [
+    "a",
+    "x",
+    "p",
+    "b",
+    "y",
+  ]);
+});
+
+test("a pinned post lands the same way", () => {
+  const logs = [row("a", 9), row("b", 7)];
+  const lists = [row("x", 8)];
+  const out = pinPosts(logs, lists, [
+    { log_id: "p", list_id: null, position: 2 },
+  ]);
+  assert.deepEqual(shown(out.logs, out.lists), ["a", "p", "x", "b"]);
 });
 
 test("a pin on a short ranking goes last", () => {
-  const out = pinLogs([row("a", 4)], [], [{ log_id: "p", position: 3 }]);
-  assert.deepEqual(shown(out, []), ["a", "p"]);
+  const out = pinPosts([row("a", 4)], [], [listPin("p", 3)]);
+  assert.deepEqual(shown(out.logs, out.lists), ["a", "p"]);
 });
 
-test("a pin for a post that is already ranked moves it", () => {
-  const logs = [row("a", 9), row("b", 7), row("p", 1)];
-  const out = pinLogs(logs, [], [{ log_id: "p", position: 1 }]);
-  assert.deepEqual(shown(out, []), ["p", "a", "b"]);
+test("a pin for a list that is already ranked moves it", () => {
+  const lists = [row("a", 9), row("b", 7), row("p", 1)];
+  const out = pinPosts([], lists, [listPin("p", 1)]);
+  assert.deepEqual(shown(out.logs, out.lists), ["p", "a", "b"]);
 });
 
 test("no pins leaves the ranking alone", () => {
   const logs = [row("a", 9)];
-  assert.equal(pinLogs(logs, [], []), logs);
+  const lists = [row("x", 1)];
+  const out = pinPosts(logs, lists, []);
+  assert.equal(out.logs, logs);
+  assert.equal(out.lists, lists);
 });

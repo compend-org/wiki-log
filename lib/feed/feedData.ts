@@ -17,7 +17,7 @@ import {
 } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
 import { createPublicClient } from "@/lib/supabase/public";
-import { pinLogs } from "./trendingPins";
+import { pinPosts } from "./trendingPins";
 
 export type LogRow = {
   id: string;
@@ -376,15 +376,19 @@ async function getTrendingRanking(_snapshotMinute: string) {
       p_limit: TRENDING_DEPTH,
     }),
   ]);
-  const lists = (listRank.data ?? []) as RankRow[];
-  // Posts pinned to a place for a while. If this can't be read, Trending is
-  // simply the plain ranking.
+  // Posts and lists pinned to a place for a while. If this can't be read,
+  // Trending is simply the plain ranking.
   const { data: pins } = await supabase
     .from("trending_pins")
-    .select("log_id, position")
+    .select("log_id, list_id, position")
     .gt("expires_at", new Date().toISOString());
+  const { logs, lists } = pinPosts(
+    (logRank.data ?? []) as RankRow[],
+    (listRank.data ?? []) as RankRow[],
+    pins ?? [],
+  );
   return {
-    logs: pinLogs((logRank.data ?? []) as RankRow[], lists, pins ?? []),
+    logs,
     lists,
     error: loadMessage(logRank.error ?? listRank.error),
   };
