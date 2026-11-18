@@ -38,7 +38,8 @@ export default function AnalyticsIdentity({
   useEffect(() => {
     if (userId !== signedOut.current) signedOut.current = null;
     if (!userId || userId === signedOut.current) {
-      if (identified.current) forgetPerson();
+      // Analytics may have started as a session the server has since rejected
+      forgetPerson();
       identified.current = null;
       return;
     }
