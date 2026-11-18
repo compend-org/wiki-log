@@ -98,7 +98,7 @@ function tooltipPosition(index: number): string {
 // 4px, plus the 0.75rem gaps, are counted out of the full width).
 const BOX = [
   "[--cols:3] sm:[--cols:4] [--n:min(var(--count),var(--cols))]",
-  "rounded-lg border-2 border-dashed border-line p-3 max-w-full",
+  "rounded-lg border-2 border-dashed border-line px-3 pt-3 pb-1.5 max-w-full",
   "w-[calc((100%_-_1.5rem_-_4px_-_(var(--cols)_-_1)_*_0.75rem)_/_var(--cols)_*_var(--n)_+_(var(--n)_-_1)_*_0.75rem_+_1.5rem_+_4px)]",
 ].join(" ");
 
@@ -109,7 +109,7 @@ const BOX = [
 const NOTCH = [
   "pointer-events-none bg-background",
   "[grid-column:var(--s3)/-1] sm:[grid-column:var(--s4)/-1]",
-  "mb-[calc(-0.75rem-2px)] mr-[calc(-0.75rem-2px)]",
+  "-mt-1.5 mb-[calc(-0.375rem-2px)] mr-[calc(-0.75rem-2px)]",
   "border-l-2 border-t-2 border-dashed border-line",
 ].join(" ");
 
