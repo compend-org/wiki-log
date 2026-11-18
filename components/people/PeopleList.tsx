@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import AdminBadge from "@/components/moderation/AdminBadge";
 import Avatar from "@/components/people/Avatar";
+import FollowButton from "@/components/people/FollowButton";
 import PeopleTabs from "@/components/people/PeopleTabs";
 import { getAdminIds } from "@/lib/admin/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -14,6 +15,11 @@ import { escapeLike, isValidName } from "@/lib/username";
 const MAX_PEOPLE = 200;
 
 type PersonRow = { id: string; username: string; avatar_path: string | null };
+type FollowState = {
+  following: boolean;
+  follows_you: boolean;
+  blocked: boolean;
+};
 
 export default async function PeopleList({
   rawName,
@@ -73,6 +79,17 @@ export default async function PeopleList({
   const followersTotal = followersRes.count ?? followers.length;
   const followingTotal = followingRes.count ?? following.length;
 
+  // How the viewer stands with each person listed, for the follow buttons
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const viewerId: string | undefined = claimsData?.claims?.sub;
+  const states = new Map<string, FollowState>();
+  if (viewerId) {
+    const ids = [...new Set([...followers, ...following].map((p) => p.id))];
+    const { data } = await supabase.rpc("follow_states", { p_ids: ids });
+    for (const row of (data ?? []) as (FollowState & { id: string })[])
+      states.set(row.id, row);
+  }
+
   const adminIds = await getAdminIds();
   const profileHref = `/u/${encodeURIComponent(profile.username)}`;
 
@@ -83,10 +100,13 @@ export default async function PeopleList({
       <>
         <ul className="flex w-full flex-col">
           {people.map((p) => (
-            <li key={p.id}>
+            <li
+              key={p.id}
+              className="my-1 flex items-center gap-2 border-2 border-dashed border-line pr-2 hover:bg-surface"
+            >
               <Link
                 href={`/u/${encodeURIComponent(p.username)}`}
-                className="flex items-center gap-3 px-2 py-2 my-1 no-underline hover:bg-surface border-2 border-dashed border-line p-1"
+                className="flex min-w-0 flex-1 items-center gap-3 px-2 py-2 no-underline"
               >
                 <Avatar name={p.username} path={p.avatar_path} size={40} />
                 <span className="flex min-w-0 items-center gap-2">
@@ -94,6 +114,15 @@ export default async function PeopleList({
                   {adminIds.has(p.id) && <AdminBadge />}
                 </span>
               </Link>
+              {viewerId && p.id !== viewerId && !states.get(p.id)?.blocked && (
+                <FollowButton
+                  viewerId={viewerId}
+                  targetId={p.id}
+                  following={states.get(p.id)?.following ?? false}
+                  followsViewer={states.get(p.id)?.follows_you ?? false}
+                  compact
+                />
+              )}
             </li>
           ))}
         </ul>
