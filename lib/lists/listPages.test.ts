@@ -89,6 +89,7 @@ test("asks for one page of rows in a stable order, with the total", async () => 
       data: [
         {
           item_id: "Dune",
+          note: "Long, but worth it.",
           items: {
             title: "Dune",
             image_url: "d.jpg",
@@ -124,6 +125,7 @@ test("asks for one page of rows in a stable order, with the total", async () => 
       imageUrl: "d.jpg",
       imageHidden: false,
       nsfw: true,
+      note: "Long, but worth it.",
     },
     {
       itemId: "Gone",
@@ -132,6 +134,7 @@ test("asks for one page of rows in a stable order, with the total", async () => 
       imageUrl: null,
       imageHidden: false,
       nsfw: false,
+      note: null,
     },
   ]);
 });

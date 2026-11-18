@@ -57,6 +57,7 @@ export default async function EditListPage({
     itemId: e.itemId,
     title: e.title,
     imageUrl: e.imageUrl,
+    note: e.note,
   }));
 
   // Visited pages stay mounted while hidden, and the editor works on its own
@@ -69,7 +70,7 @@ export default async function EditListPage({
     list.ranked,
     page,
     total,
-    initialItems.map((i) => [i.itemId, i.imageUrl]),
+    initialItems.map((i) => [i.itemId, i.imageUrl, i.note]),
   ]);
 
   return (

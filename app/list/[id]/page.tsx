@@ -5,7 +5,9 @@ import { connection } from "next/server";
 import { cache } from "react";
 import ItemImage from "@/components/items/ItemImage";
 import ListLikeButton from "@/components/lists/ListLikeButton";
+import ListNotesHint from "@/components/lists/ListNotesHint";
 import ListPager from "@/components/lists/ListPager";
+import ListRows from "@/components/lists/ListRows";
 import RemovedNotice from "@/components/logs/RemovedNotice";
 import ReviewText from "@/components/logs/ReviewText";
 import Stars from "@/components/logs/Stars";
@@ -33,8 +35,20 @@ import { getViewerState } from "@/lib/viewerState";
 
 export const instant = false;
 
-function pageHref(id: string, page: number): string {
-  return page === 1 ? `/list/${id}` : `/list/${id}?page=${page}`;
+// A list with notes is shown as rows unless the reader asks for the grid
+type View = "notes" | "grid";
+
+function parseView(value: string | string[] | undefined): View | null {
+  return value === "notes" || value === "grid" ? value : null;
+}
+
+// The address of a page of the list, keeping the view the reader picked
+function pageHref(id: string, page: number, view: View | null): string {
+  const params = new URLSearchParams();
+  if (page !== 1) params.set("page", String(page));
+  if (view) params.set("view", view);
+  const query = params.toString();
+  return query ? `/list/${id}?${query}` : `/list/${id}`;
 }
 
 type ListRow = {
@@ -127,6 +141,7 @@ export default async function ListPage({
   if (!isUuid(id)) notFound();
   const query = await searchParams;
   const page = parsePage(query.page);
+  const pickedView = parseView(query.view);
 
   const supabase = await createClient();
 
@@ -137,10 +152,32 @@ export default async function ListPage({
   const viewerId: string | undefined = claimsData?.claims?.sub;
   const isOwner = viewerId === list.user_id;
 
-  const { entries, total } = await getListPage(id, page);
+  const [{ entries, total }, noted] = await Promise.all([
+    getListPage(id, page),
+    // How many of the list's items have a note, on any page
+    supabase
+      .from("list_items")
+      .select("item_id", { count: "exact", head: true })
+      .eq("list_id", id)
+      .not("note", "is", null),
+  ]);
+  const notedCount = noted.count ?? 0;
+  const view: View = notedCount > 0 && pickedView !== "grid" ? "notes" : "grid";
   const lastPage = pageCount(total);
   // A page past the end (say, after items were removed) goes to the last one
-  if (page > lastPage) redirect(pageHref(id, lastPage));
+  if (page > lastPage) redirect(pageHref(id, lastPage, pickedView));
+
+  // The owner is asked to write notes until the list has some, unless they
+  // said not to
+  let suggestNotes = false;
+  if (isOwner && viewerId && notedCount === 0 && total > 0) {
+    const { data: settings } = await supabase
+      .from("user_settings")
+      .select("list_notes_hint_dismissed")
+      .eq("user_id", viewerId)
+      .maybeSingle();
+    suggestNotes = !settings?.list_notes_hint_dismissed;
+  }
 
   // The list owner's latest log of each item on this page, and how many
   // times they have logged it. Alongside, the newest threads of comments,
@@ -232,74 +269,154 @@ export default async function ListPage({
             </Link>
           )}
         </div>
+        {suggestNotes && viewerId && (
+          <ListNotesHint userId={viewerId} editHref={`/list/${id}/edit`} />
+        )}
       </header>
 
       {total === 0 && <p className="text-muted">This list is empty.</p>}
 
-      <ListPager page={page} last={lastPage} href={(p) => pageHref(id, p)} />
-
-      <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-        {entries.map((entry, index) => {
-          const title = entry.title;
-          const info = ownerLatest.get(entry.itemId);
-
-          return (
-            <li key={entry.itemId} className="group relative">
-              <Link
-                href={`/item/${entry.itemId}`}
-                className="flex flex-col gap-1"
-              >
-                <div className="relative">
-                  <ItemImage
-                    src={entry.imageUrl}
-                    nsfw={entry.nsfw}
-                    alt={title}
-                    className="aspect-square w-full rounded-lg"
-                  />
-                  {list.ranked && (
-                    <span className="absolute left-1 top-1 rounded bg-background/80 px-1.5 text-sm font-bold text-accent">
-                      {entry.rank}
-                    </span>
-                  )}
-                </div>
-                <span className="truncate text-xs">{title}</span>
-              </Link>
-
-              {info && (
-                <div
-                  role="tooltip"
-                  className={`card pointer-events-none absolute bottom-full z-30 mb-2 hidden w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 p-3 text-left group-hover:flex group-focus-within:flex ${tooltipPosition(
-                    index,
-                  )}`}
+      {notedCount > 0 && (
+        <nav
+          aria-label="View"
+          className="-my-3 flex flex-wrap items-center gap-x-1 text-[0.95rem]"
+        >
+          {(["notes", "grid"] as const).map((option, index) => (
+            <span key={option} className="flex items-center gap-x-1">
+              {index > 0 && <span className="text-muted">·</span>}
+              {option === view ? (
+                <span aria-current="page" className="px-1.5 py-3 font-bold">
+                  {option === "notes" ? "Notes" : "Grid"}
+                </span>
+              ) : (
+                <Link
+                  href={pageHref(id, page, option)}
+                  className="px-1.5 py-3 text-accent underline"
                 >
-                  <span className="text-xs text-muted">
-                    {owner ? `${owner}'s latest` : "Latest"} ·{" "}
-                    {timeAgo(info.latest.logged_at, renderedAt)}
-                  </span>
-                  <Stars rating={info.latest.rating} />
-                  {info.latest.review && (
-                    <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
-                      {<ReviewText text={info.latest.review} plain />}
-                    </p>
-                  )}
-                  {info.latest.rating === null && !info.latest.review && (
-                    <p className="text-sm text-muted">
-                      Logged, with no rating or review.
-                    </p>
-                  )}
-                  {info.count > 1 && (
-                    <span className="text-xs text-muted">
-                      {info.count} entries
-                    </span>
-                  )}
-                </div>
+                  {option === "notes" ? "Notes" : "Grid"}
+                </Link>
               )}
-            </li>
-          );
-        })}
-      </ul>
+            </span>
+          ))}
+          <span className="ml-2 text-muted">
+            {notedCount.toLocaleString("en-US")} of{" "}
+            {total.toLocaleString("en-US")} have notes
+          </span>
+        </nav>
+      )}
 
-      <ListPager page={page} last={lastPage} href={(p) => pageHref(id, p)} />
+      <ListPager
+        page={page}
+        last={lastPage}
+        href={(p) => pageHref(id, p, pickedView)}
+      />
+
+      {view === "notes" ? (
+        <ListRows
+          entries={entries}
+          ranked={list.ranked}
+          owner={owner}
+          ownerLatest={ownerLatest}
+        />
+      ) : (
+        <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+          {entries.map((entry, index) => {
+            const title = entry.title;
+            const info = ownerLatest.get(entry.itemId);
+            const hasCard = info !== undefined || entry.note !== null;
+
+            return (
+              <li key={entry.itemId} className="group relative">
+                <Link
+                  href={`/item/${entry.itemId}`}
+                  className="flex flex-col gap-1"
+                >
+                  <div className="relative">
+                    <ItemImage
+                      src={entry.imageUrl}
+                      nsfw={entry.nsfw}
+                      alt={title}
+                      className={`aspect-square w-full rounded-lg ${
+                        hasCard
+                          ? "group-hover:ring-2 group-hover:ring-accent group-focus-within:ring-2 group-focus-within:ring-accent"
+                          : ""
+                      }`}
+                    />
+                    {list.ranked && (
+                      <span className="absolute left-1 top-1 rounded bg-background/80 px-1.5 text-sm font-bold text-accent">
+                        {entry.rank}
+                      </span>
+                    )}
+                    {entry.note && (
+                      <span
+                        title="Has a note"
+                        className="absolute right-1 top-1 rounded bg-background/80 px-1.5 text-sm text-accent"
+                      >
+                        <span aria-hidden="true">❝</span>
+                        <span className="sr-only">Has a note</span>
+                      </span>
+                    )}
+                  </div>
+                  <span className="truncate text-xs">{title}</span>
+                </Link>
+
+                {hasCard && (
+                  <div
+                    role="tooltip"
+                    className={`card pointer-events-none absolute bottom-full z-30 mb-2 hidden w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 p-3 text-left group-hover:flex group-focus-within:flex ${tooltipPosition(
+                      index,
+                    )}`}
+                  >
+                    <span className="font-semibold">{title}</span>
+                    {entry.note && (
+                      <>
+                        <span className="text-xs text-muted">List note</span>
+                        <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
+                          {entry.note}
+                        </p>
+                      </>
+                    )}
+                    {info && (
+                      <div
+                        className={`flex flex-col gap-1 ${
+                          entry.note ? "mt-1 border-t border-line pt-2" : ""
+                        }`}
+                      >
+                        <span className="text-xs text-muted">
+                          {owner ? `${owner}'s latest` : "Latest"} ·{" "}
+                          {timeAgo(info.latest.logged_at, renderedAt)}
+                        </span>
+                        <Stars rating={info.latest.rating} />
+                        {info.latest.review && (
+                          <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
+                            {<ReviewText text={info.latest.review} plain />}
+                          </p>
+                        )}
+                        {info.latest.rating === null && !info.latest.review && (
+                          <p className="text-sm text-muted">
+                            Logged, with no rating or review.
+                          </p>
+                        )}
+                        {info.count > 1 && (
+                          <span className="text-xs text-muted">
+                            {info.count} entries
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <ListPager
+        page={page}
+        last={lastPage}
+        href={(p) => pageHref(id, p, pickedView)}
+      />
 
       <Comments
         comments={comments}
