@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { type CSSProperties, cache } from "react";
+import SignUpPrompt from "@/components/auth/SignUpPrompt";
 import ItemImage from "@/components/items/ItemImage";
 import ListLikeButton from "@/components/lists/ListLikeButton";
 import ListNotesHint from "@/components/lists/ListNotesHint";
@@ -308,6 +309,10 @@ export default async function ListPage({
           <ListNotesHint userId={viewerId} editHref={`/list/${id}/edit`} />
         )}
       </header>
+
+      {!viewerId && (
+        <SignUpPrompt reason="Create a free account to like and share this list, and make lists of your own." />
+      )}
 
       {total === 0 && <p className="text-muted">This list is empty.</p>}
 

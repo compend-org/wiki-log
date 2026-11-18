@@ -7,6 +7,7 @@ import { connection } from "next/server";
 import { loadMoreProfile } from "@/app/profileActions";
 import DiaryIcon from "@/components/activity/DiaryIcon";
 import SignOutButton from "@/components/auth/SignOutButton";
+import SignUpPrompt from "@/components/auth/SignUpPrompt";
 import ItemImage from "@/components/items/ItemImage";
 import RatingHistogram from "@/components/logs/RatingsHistogram";
 import AdminBadge from "@/components/moderation/AdminBadge";
@@ -367,6 +368,11 @@ export default async function ProfilePage({
           </div>
         </div>
       </header>
+      {!viewerId && (
+        <SignUpPrompt
+          reason={`Create a free account to follow ${profile.username} and rate, review and list things of your own.`}
+        />
+      )}
       {(isOwner || slots.some(Boolean)) && (
         <Favourites slots={slots} isOwner={isOwner} />
       )}

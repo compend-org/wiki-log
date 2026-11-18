@@ -17,3 +17,10 @@ export function loginHref(next: string): string {
   if (safe === "/" || safe.startsWith("/login")) return "/login";
   return `/login?next=${encodeURIComponent(safe)}`;
 }
+
+// The address of the login page opened on its sign-up form, returning to
+// `next` afterwards
+export function signUpHref(next: string): string {
+  const login = loginHref(next);
+  return `${login}${login.includes("?") ? "&" : "?"}mode=signup`;
+}
