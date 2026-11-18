@@ -66,6 +66,7 @@ type ListRow = {
   list_items: { count: number }[];
   grouped: boolean;
   list_groups: { count: number }[];
+  of_reviews: boolean;
   // Each entry's chosen picture; null shows the item's
   preview: { image_url: string | null; items: ItemInfo }[];
 };
@@ -268,7 +269,7 @@ export async function loadDiaryPage(
   let listsQuery = supabase
     .from("lists")
     .select(
-      "id, title, ranked, created_at, list_items(count), grouped, list_groups(count), preview:list_items(image_url, items(title, image_url, nsfw))",
+      "id, title, ranked, created_at, list_items(count), grouped, list_groups(count), of_reviews, preview:list_items(image_url, items(title, image_url, nsfw))",
     )
     .eq("user_id", userId);
   if (after.lists) {
@@ -405,6 +406,7 @@ export async function loadDiaryPage(
           ranked={l.ranked}
           groups={shownGroups(l)}
           groupPreviews={groupPreviews.get(l.id) ?? null}
+          ofReviews={l.of_reviews}
           count={l.list_items?.[0]?.count ?? 0}
           previews={l.preview.map((p) => ({
             title: p.items?.title ?? "Unknown item",

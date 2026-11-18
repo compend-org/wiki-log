@@ -7,6 +7,7 @@ import ItemImage from "@/components/items/ItemImage";
 import ListLikeButton from "@/components/lists/ListLikeButton";
 import ListNotesHint from "@/components/lists/ListNotesHint";
 import ListPager from "@/components/lists/ListPager";
+import ReviewRows from "@/components/lists/ReviewRows";
 import RemovedNotice from "@/components/logs/RemovedNotice";
 import ReviewText from "@/components/logs/ReviewText";
 import AdminBadge from "@/components/moderation/AdminBadge";
@@ -52,6 +53,7 @@ type ListRow = {
   ranked: boolean;
   grouped: boolean;
   group_labels: boolean;
+  of_reviews: boolean;
   // Only ever set for the author: removed lists are hidden from everyone else
   removed_at: string | null;
   profiles: { username: string; avatar_path: string | null } | null;
@@ -106,7 +108,7 @@ const getList = cache(async (id: string): Promise<ListRow | null> => {
   const { data } = await supabase
     .from("lists")
     .select(
-      "id, user_id, title, description, ranked, grouped, group_labels, removed_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_likes(count), shares(count)",
+      "id, user_id, title, description, ranked, grouped, group_labels, of_reviews, removed_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_likes(count), shares(count)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -184,7 +186,13 @@ export default async function ListPage({
   // The owner is asked to write notes until the list has some, unless they
   // said not to
   let suggestNotes = false;
-  if (isOwner && viewerId && notedCount === 0 && total > 0) {
+  if (
+    isOwner &&
+    viewerId &&
+    !list.of_reviews &&
+    notedCount === 0 &&
+    total > 0
+  ) {
     const { data: settings } = await supabase
       .from("user_settings")
       .select("list_notes_hint_dismissed")
@@ -228,6 +236,14 @@ export default async function ListPage({
     grouped ? await fetchGroups(supabase, id) : [],
     entries,
   );
+  // A review list shows the reviews the viewer can see, leaving out those by
+  // people they've blocked
+  const reviews = entries.flatMap((e) =>
+    e.review && !viewer.blocked.has(e.review.authorId)
+      ? [{ ...e, review: e.review }]
+      : [],
+  );
+  const noun = list.of_reviews ? "review" : "item";
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
@@ -236,7 +252,8 @@ export default async function ListPage({
         <h1 className="text-3xl font-bold">{list.title}</h1>
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
           <span>
-            A {list.ranked ? "ranked " : grouped ? "grouped " : ""}list by
+            A {list.ranked ? "ranked " : grouped ? "grouped " : ""}list
+            {list.of_reviews && " of reviews"} by
           </span>
           {list.profiles ? (
             <Link
@@ -255,7 +272,7 @@ export default async function ListPage({
           )}
           {adminIds.has(list.user_id) && <AdminBadge />}
           <span>
-            · {total.toLocaleString("en-US")} {total === 1 ? "item" : "items"}
+            · {total.toLocaleString("en-US")} {total === 1 ? noun : `${noun}s`}
           </span>
         </p>
         {list.description && (
@@ -296,12 +313,27 @@ export default async function ListPage({
         )}
       </header>
 
-      {total === 0 && <p className="text-muted">This list is empty.</p>}
+      {total === 0 && (
+        <p className="text-muted">
+          This list is empty.
+          {isOwner &&
+            list.of_reviews &&
+            " Add reviews to it from any review's page."}
+        </p>
+      )}
 
       <ListPager page={page} last={lastPage} href={(p) => pageHref(id, p)} />
 
+      {list.of_reviews && reviews.length > 0 && (
+        <ReviewRows
+          entries={reviews}
+          ranked={list.ranked}
+          renderedAt={renderedAt}
+        />
+      )}
+
       {runs
-        .filter((run) => run.entries.length > 0)
+        .filter((run) => !list.of_reviews && run.entries.length > 0)
         .map((run, runIndex) => (
           // A grouped list has a dashed box round each group, with the group's
           // name above it; a plain list's items are in one run

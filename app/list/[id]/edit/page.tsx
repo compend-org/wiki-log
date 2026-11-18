@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import GroupedListEditor from "@/components/lists/GroupedListEditor";
 import ListEditor, { type ListEntry } from "@/components/lists/ListEditor";
+import ReviewListEditor from "@/components/lists/ReviewListEditor";
 import { FEATURES } from "@/lib/features";
 import { isUuid } from "@/lib/ids";
 import { draftGroupsFrom } from "@/lib/lists/listGroups";
@@ -10,6 +11,7 @@ import {
   fetchGroups,
   fetchListPage,
   pageCount,
+  pageRange,
   parsePage,
 } from "@/lib/lists/listPages";
 import { loginHref } from "@/lib/redirect";
@@ -25,6 +27,7 @@ type ListRow = {
   ranked: boolean;
   grouped: boolean;
   group_labels: boolean;
+  of_reviews: boolean;
   profiles: { username: string } | null;
 };
 
@@ -48,7 +51,7 @@ export default async function EditListPage({
   const { data } = await supabase
     .from("lists")
     .select(
-      "id, user_id, title, description, ranked, grouped, group_labels, profiles!lists_user_id_profiles_fkey(username)",
+      "id, user_id, title, description, ranked, grouped, group_labels, of_reviews, profiles!lists_user_id_profiles_fkey(username)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -96,6 +99,41 @@ export default async function EditListPage({
   const { entries, total } = await fetchListPage(supabase, id, page);
   const lastPage = pageCount(total);
   if (page > lastPage) redirect(`/list/${id}/edit?page=${lastPage}`);
+
+  // A review list's reviews are reordered and removed; new ones are added
+  // from their own pages
+  if (list.of_reviews) {
+    return (
+      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
+        <ReviewListEditor
+          key={JSON.stringify([
+            list.title,
+            list.description,
+            list.ranked,
+            page,
+            total,
+            entries.map((e) => e.entryId),
+          ])}
+          list={{
+            id: list.id,
+            title: list.title,
+            description: list.description,
+            ranked: list.ranked,
+          }}
+          ownerName={list.profiles?.username ?? ""}
+          initialEntries={entries.map((e) => ({
+            entryId: e.entryId,
+            title: e.title,
+            imageUrl: e.imageHidden ? null : e.imageUrl,
+            author: e.review?.username ?? null,
+          }))}
+          page={page}
+          lastPage={lastPage}
+          offset={pageRange(page).from}
+        />
+      </main>
+    );
+  }
 
   const initialItems: ListEntry[] = entries.map((e) => ({
     itemId: e.itemId,

@@ -22,6 +22,7 @@ export default function DiaryListCard({
   ranked,
   groups = null,
   groupPreviews = null,
+  ofReviews = false,
   count,
   previews,
   ago,
@@ -35,6 +36,8 @@ export default function DiaryListCard({
   groups?: number | null;
   // A grouped list's groups, each with its first few items
   groupPreviews?: GroupPreview[] | null;
+  // Whether the list holds reviews rather than items
+  ofReviews?: boolean;
   // How many items the list holds
   count: number;
   // The first few of them
@@ -101,7 +104,9 @@ export default function DiaryListCard({
           href={`/list/${listId}`}
         />
       )}
-      <span className="text-xs text-muted">{itemsLabel(count, groups)}</span>
+      <span className="text-xs text-muted">
+        {itemsLabel(count, groups, ofReviews)}
+      </span>
     </div>
   );
 }

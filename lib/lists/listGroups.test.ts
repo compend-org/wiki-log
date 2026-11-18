@@ -210,3 +210,8 @@ test("itemsLabel adds the group count only for grouped lists", () => {
   assert.equal(itemsLabel(12, 3), "12 items · 3 groups");
   assert.equal(itemsLabel(2, 1), "2 items · 1 group");
 });
+
+test("itemsLabel counts a review list's reviews", () => {
+  assert.equal(itemsLabel(1, null, true), "1 review");
+  assert.equal(itemsLabel(5, null, true), "5 reviews");
+});

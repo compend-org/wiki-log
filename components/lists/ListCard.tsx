@@ -134,7 +134,7 @@ export default async function ListCard({
         commentHref={`/list/${l.id}#comments`}
         commentCount={l.list_comments?.[0]?.count ?? 0}
       >
-        {itemsLabel(itemCount, groups)}
+        {itemsLabel(itemCount, groups, l.of_reviews)}
       </CardActions>
     </div>
   );

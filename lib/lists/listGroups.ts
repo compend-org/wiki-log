@@ -235,9 +235,15 @@ export function groupRuns<T extends { groupId: string | null }>(
   return runs;
 }
 
-// "12 items", or for a grouped list "12 items · 3 groups"
-export function itemsLabel(items: number, groups: number | null): string {
-  const base = `${items} ${items === 1 ? "item" : "items"}`;
+// "12 items", for a grouped list "12 items · 3 groups", and for a review list
+// "12 reviews"
+export function itemsLabel(
+  items: number,
+  groups: number | null,
+  ofReviews = false,
+): string {
+  const noun = ofReviews ? "review" : "item";
+  const base = `${items} ${items === 1 ? noun : `${noun}s`}`;
   return groups === null
     ? base
     : `${base} · ${groups} ${groups === 1 ? "group" : "groups"}`;

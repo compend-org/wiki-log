@@ -7,6 +7,7 @@ import {
   loadItemLogsPage,
   loadLikedReviewsPage,
   loadRatedReviewsPage,
+  loadReviewListsPage,
 } from "@/components/items/loadItemPages";
 import type { CardsPage } from "@/components/paging/CardPages";
 import { ITEM_ID_PATTERN, isUuid } from "@/lib/ids";
@@ -44,6 +45,17 @@ export async function loadMoreItemLists(
     throw new Error("That isn't a page of an item's lists.");
   }
   return loadItemListsPage(itemId, after);
+}
+
+export async function loadMoreReviewLists(
+  logId: unknown,
+  cursor: unknown,
+): Promise<CardsPage> {
+  const after = parseKeyset(cursor);
+  if (typeof logId !== "string" || !isUuid(logId) || !after) {
+    throw new Error("That isn't a page of a review's lists.");
+  }
+  return loadReviewListsPage(logId, after);
 }
 
 export async function loadMoreLikedReviews(

@@ -1,5 +1,5 @@
 // ABOUTME: Loads the paged sections about one item a page at a time, rendered as cards:
-// ABOUTME: its reviews, the lists that include it, and the reviews of it one person liked.
+// ABOUTME: its reviews, the lists that include it or one review of it, and the reviews of it one person liked.
 
 import ListCard from "@/components/lists/ListCard";
 import ItemLogCard from "@/components/logs/ItemLogCard";
@@ -12,7 +12,11 @@ import {
   getItemLogsRated,
   type ItemLogRow,
 } from "@/lib/itemLogs";
-import { getItemLists, type ItemListRow } from "@/lib/lists/itemLists";
+import {
+  getItemLists,
+  getReviewLists,
+  type ItemListRow,
+} from "@/lib/lists/itemLists";
 import type { Keyset } from "@/lib/paging";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState, type ViewerState } from "@/lib/viewerState";
@@ -73,12 +77,31 @@ async function requestViewer() {
 }
 
 // A later page of the lists that include an item, for the server action
-export async function loadItemListsPage(
+export function loadItemListsPage(
   itemId: string,
   after: Keyset,
 ): Promise<CardsPage> {
+  return listCardsPage(() => getItemLists(itemId, after));
+}
+
+// A page of the lists that include a review
+export function loadReviewListsPage(
+  logId: string,
+  after: Keyset | null,
+): Promise<CardsPage> {
+  return listCardsPage(() => getReviewLists(logId, after));
+}
+
+// Renders a page of lists for whoever is looking
+async function listCardsPage(
+  load: () => Promise<{
+    lists: ItemListRow[];
+    next: Keyset | null;
+    error: string;
+  }>,
+): Promise<CardsPage> {
   const { supabase, viewerId: id } = await requestViewer();
-  const { lists, next, error } = await getItemLists(itemId, after);
+  const { lists, next, error } = await load();
   const viewer = await getViewerState(supabase, id, {
     listIds: lists.map((l) => l.id),
   });

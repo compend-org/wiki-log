@@ -62,6 +62,7 @@ type LikedList = {
     list_items: { count: number }[];
     grouped: boolean;
     list_groups: { count: number }[];
+    of_reviews: boolean;
     // Each entry's chosen picture; null shows the item's
     preview: { image_url: string | null; items: ItemInfo }[];
     profiles: { username: string } | null;
@@ -101,7 +102,7 @@ export async function loadLikesPage(
   let listsQuery = supabase
     .from("list_likes")
     .select(
-      "created_at, list_id, lists!inner(id, user_id, title, ranked, list_items(count), grouped, list_groups(count), preview:list_items(image_url, items(title, image_url, nsfw)), profiles!lists_user_id_profiles_fkey(username))",
+      "created_at, list_id, lists!inner(id, user_id, title, ranked, list_items(count), grouped, list_groups(count), of_reviews, preview:list_items(image_url, items(title, image_url, nsfw)), profiles!lists_user_id_profiles_fkey(username))",
     )
     .eq("user_id", userId);
   if (after.lists) {
@@ -192,6 +193,7 @@ export async function loadLikesPage(
             ranked={l.ranked}
             groups={shownGroups(l)}
             groupPreviews={groupPreviews.get(l.id) ?? null}
+            ofReviews={l.of_reviews}
             count={l.list_items?.[0]?.count ?? 0}
             previews={l.preview.map((p) => ({
               title: p.items?.title ?? "Unknown item",

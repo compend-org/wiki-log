@@ -241,6 +241,12 @@ export default function NotificationsPage() {
           href: listHref,
           subject: listSubject,
         };
+      case "list_review":
+        return {
+          rest: ` added your review of ${title} to their list “${listTitle}”`,
+          href: n.list_id ? `/list/${n.list_id}` : "/",
+          subject: itemSubject,
+        };
       case "list_comment_like":
         return {
           rest: ` liked your comment on the list “${listTitle}”`,

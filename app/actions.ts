@@ -1006,6 +1006,108 @@ export async function addToList(input: {
   };
 }
 
+// Adds a review to the end of one of your review lists. The database tells the
+// review's author.
+export async function addReviewToList(input: {
+  listId: string;
+  logId: string;
+}): Promise<{ error?: string }> {
+  if (!FEATURES.reviewLists) return { error: "Review lists are turned off." };
+  if (!isUuid(input.listId)) return { error: "Invalid list." };
+  if (!isUuid(input.logId)) return { error: "Invalid review." };
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { error: "You need to sign in." };
+
+  const { data: list, error: listError } = await supabase
+    .from("lists")
+    .select("id")
+    .eq("id", input.listId)
+    .eq("user_id", userId)
+    .eq("of_reviews", true)
+    .maybeSingle();
+  if (listError)
+    return { error: "Couldn't add to that list. Please try again." };
+  if (!list) return { error: "That list isn't yours." };
+
+  return appendReview(supabase, input.listId, input.logId);
+}
+
+// Makes a review list holding the review it was made from
+export async function createReviewList(input: {
+  title: string;
+  logId: string;
+}): Promise<{ error?: string; id?: string }> {
+  if (!FEATURES.reviewLists) return { error: "Review lists are turned off." };
+  if (!isUuid(input.logId)) return { error: "Invalid review." };
+  const title = input.title.trim();
+  if (title.length < 1 || title.length > 80) {
+    return { error: "Titles are 1–80 characters." };
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { error: "You need to sign in." };
+
+  const { data: list, error } = await supabase
+    .from("lists")
+    .insert({ user_id: userId, title, of_reviews: true })
+    .select("id")
+    .single();
+  if (error || !list) {
+    return {
+      error: error
+        ? userFacingErrorMessage(error, "Couldn't create the list.")
+        : "Couldn't create the list.",
+    };
+  }
+
+  const added = await appendReview(supabase, list.id, input.logId);
+  if (added.error) {
+    // The list goes too, so trying again can't create it twice
+    await supabase.from("lists").delete().eq("id", list.id);
+    return added;
+  }
+  return { id: list.id };
+}
+
+// Puts a review at the end of a review list. The database fills in the item
+// reviewed, and refuses a review that can't be listed.
+async function appendReview(
+  supabase: SupabaseClient,
+  listId: string,
+  logId: string,
+): Promise<{ error?: string }> {
+  const { data: last } = await supabase
+    .from("list_items")
+    .select("position")
+    .eq("list_id", listId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const position = (last?.position ?? 0) + 1;
+  const { error } = await withErrorContext(
+    "list_review",
+    { listId, logId, position },
+    () =>
+      supabase
+        .from("list_items")
+        .insert({ list_id: listId, log_id: logId, position }),
+  );
+  if (error) {
+    return {
+      error:
+        error.code === "23505"
+          ? "That review is already in this list."
+          : userFacingErrorMessage(error, SAVE_FAILED),
+    };
+  }
+  return {};
+}
+
 export async function createCompound(input: {
   title: string;
   description: string;
