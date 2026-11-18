@@ -355,7 +355,7 @@ export default function AddToList({
   // Nothing to offer signed-out visitors (the review form already says so),
   // but the aside still has its place
   if (!signedIn) {
-    return aside ? <div className="flex justify-end">{aside}</div> : null;
+    return aside ?? null;
   }
 
   // Lists not loaded yet, once the shown ones belong to the search typed

@@ -1,16 +1,15 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { logItem } from "@/app/actions";
+import SignUpPrompt from "@/components/auth/SignUpPrompt";
 import { useReviewPicture } from "@/components/items/ReviewPictureContext";
 import RatingInput from "@/components/logs/RatingInput";
 import ReviewTextarea from "@/components/logs/ReviewTextArea";
 import { track } from "@/lib/analytics/analytics";
 import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
-import { useLoginHref } from "@/lib/hooks/useLoginHref";
 
 export default function LogForm({
   id,
@@ -21,7 +20,6 @@ export default function LogForm({
   signedIn: boolean;
   alreadyLogged?: boolean;
 }) {
-  const loginHref = useLoginHref();
   const [rating, setRating] = useState<number>(0);
   const [review, setReview] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
@@ -83,9 +81,7 @@ export default function LogForm({
 
   if (!signedIn) {
     return (
-      <Link href={loginHref} className="underline">
-        Sign in to review this
-      </Link>
+      <SignUpPrompt reason="Create a free account to rate and review this, and make lists of your own." />
     );
   }
 
