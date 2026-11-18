@@ -1,13 +1,20 @@
 "use client";
 
 // ABOUTME: A profile's top 5: five slots that the owner fills, clears and gives pictures.
-// ABOUTME: While editing, the owner drags an item onto another slot to swap the two.
+// ABOUTME: The owner drags an item onto another slot to swap the two.
 
-import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
+import {
+  type CollisionDetection,
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  pointerWithin,
+} from "@dnd-kit/core";
 import {
   arraySwap,
-  rectSwappingStrategy,
   SortableContext,
+  type SortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS, useCombinedRefs } from "@dnd-kit/utilities";
@@ -41,20 +48,53 @@ export type Slot = {
   nsfw: boolean;
 };
 
-// One of the five places in the grid. While editing, a filled one can be
-// dragged onto another, and any of them can be dropped on.
+// What a slot is known by while dragging: its item, so after a swap the item
+// itself moves rather than the slots trading pictures, or its place if empty
+function slotId(slot: Slot | null, index: number): string {
+  return slot ? slot.itemId : `empty-${index + 1}`;
+}
+
+// The slot an item is dropped on: the one under the mouse or finger, so letting
+// go over an empty slot or outside the grid moves nothing. A keyboard drag has
+// no pointer, so it goes to the nearest slot.
+const slotUnderPointer: CollisionDetection = (args) =>
+  args.pointerCoordinates ? pointerWithin(args) : closestCenter(args);
+
+// While dragging, the slots stay where they are: a copy of the dragged item
+// follows the pointer and the slot it would swap with is outlined
+const keepInPlace: SortingStrategy = () => null;
+
+function SlotImage({ slot }: { slot: Slot }) {
+  return (
+    <ItemImage
+      src={slot.imageUrl}
+      nsfw={slot.nsfw}
+      alt={slot.title}
+      className="aspect-square w-full rounded"
+    />
+  );
+}
+
+// One of the five places in the grid. For the owner, a filled one can be
+// dragged onto another filled one, and the two swap. Dragging with the
+// keyboard is only offered while editing, when the slot isn't a link.
 function SwappableSlot({
-  position,
+  id,
+  swappable,
   editing,
   filled,
+  lastDragged,
   children,
 }: {
-  position: number;
+  id: string;
+  swappable: boolean;
   editing: boolean;
   filled: boolean;
+  // Whether this is the item dragged most recently
+  lastDragged: boolean;
   children: ReactNode;
 }) {
-  const draggable = editing && filled;
+  const draggable = swappable && filled;
   const {
     attributes,
     listeners,
@@ -63,9 +103,14 @@ function SwappableSlot({
     transform,
     transition,
     isDragging,
+    isOver,
   } = useSortable({
-    id: position,
-    disabled: { draggable: !draggable, droppable: !editing },
+    id,
+    // Only items trade places, so nothing moves into an empty slot past them
+    disabled: { draggable: !draggable, droppable: !draggable },
+    // After a drop, the item swapped out glides to the dragged one's old
+    // place. The dragged one doesn't: its copy is already where it lands.
+    animateLayoutChanges: ({ wasDragging }) => wasDragging && !lastDragged,
   });
   // The whole slot is the activator, so Enter or Space on a button inside it
   // presses that button rather than starting a drag
@@ -77,13 +122,15 @@ function SwappableSlot({
       style={{
         transform: CSS.Translate.toString(transform),
         transition,
-        opacity: isDragging ? 0.6 : 1,
-        zIndex: isDragging ? 20 : undefined,
+        opacity: isDragging ? 0.4 : 1,
       }}
-      {...(draggable ? { ...attributes, ...listeners } : {})}
-      className={`relative min-w-0 ${
-        draggable
-          ? "cursor-grab select-none [-webkit-touch-callout:none] active:cursor-grabbing"
+      {...(draggable && editing ? attributes : {})}
+      {...(draggable ? listeners : {})}
+      className={`relative min-w-0 rounded ${
+        draggable ? "select-none [-webkit-touch-callout:none]" : ""
+      } ${draggable && editing ? "cursor-grab active:cursor-grabbing" : ""} ${
+        isOver && !isDragging
+          ? "ring-2 ring-accent ring-offset-2 ring-offset-background"
           : ""
       }`}
     >
@@ -107,6 +154,9 @@ export default function Favourites({
   const [picturing, setPicturing] = useState<number | null>(null);
   // Swaps show at once, until the server sends the saved slots
   const [order, setOrder] = useLocalCopy(slots);
+  // The item being dragged, shown following the pointer, or the last one
+  // dragged once it's dropped
+  const [dragged, setDragged] = useState<Slot | null>(null);
   // Slots stay locked after a swap until the server sends them, so a button
   // can't act on a position that holds something else by then
   const [refreshing, startRefresh] = useTransition();
@@ -180,20 +230,21 @@ export default function Favourites({
     const { active, over } = event;
     // Ignored while the last change is still being saved
     if (saving || !over || active.id === over.id) return;
-    const from = Number(active.id);
-    const to = Number(over.id);
-    const moved = order[from - 1];
-    if (!moved) return;
+    const ids = order.map(slotId);
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    const moved = order[from];
+    if (!moved || to < 0) return;
 
     const before = order;
-    setOrder(arraySwap(order, from - 1, to - 1));
+    setOrder(arraySwap(order, from, to));
     // The slot being added to may be the one just filled
     setEditing(null);
     setBusy(true);
     setError("");
     const { error } = await createClient().rpc("move_favourite", {
       p_item: moved.itemId,
-      p_position: to,
+      p_position: to + 1,
     });
     setBusy(false);
     if (error) {
@@ -230,21 +281,26 @@ export default function Favourites({
       <DndContext
         id="favourites"
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={slotUnderPointer}
+        onDragStart={({ active }) =>
+          setDragged(
+            order.find((slot, i) => slotId(slot, i) === active.id) ?? null,
+          )
+        }
         onDragEnd={handleDragEnd}
       >
-        <SortableContext
-          items={order.map((_, i) => i + 1)}
-          strategy={rectSwappingStrategy}
-        >
+        <SortableContext items={order.map(slotId)} strategy={keepInPlace}>
           <div aria-busy={saving} className="grid grid-cols-5 gap-2">
             {order.map((slot, i) => {
               const position = i + 1;
+              const id = slotId(slot, i);
 
               return (
                 <SwappableSlot
-                  key={position}
-                  position={position}
+                  key={id}
+                  id={id}
+                  swappable={isOwner}
+                  lastDragged={slot !== null && slot.itemId === dragged?.itemId}
                   editing={showRemove}
                   filled={Boolean(slot)}
                 >
@@ -253,24 +309,14 @@ export default function Favourites({
                       {/* While removing, the image isn't a link, so a missed tap
                     can't navigate away mid-request */}
                       {showRemove ? (
-                        <ItemImage
-                          src={slot.imageUrl}
-                          nsfw={slot.nsfw}
-                          alt={slot.title}
-                          className="aspect-square w-full rounded"
-                        />
+                        <SlotImage slot={slot} />
                       ) : (
                         <Link
                           href={`/item/${slot.itemId}`}
                           title={slot.title}
                           className="block transition-transform hover:-translate-y-0.5"
                         >
-                          <ItemImage
-                            src={slot.imageUrl}
-                            nsfw={slot.nsfw}
-                            alt={slot.title}
-                            className="aspect-square w-full rounded"
-                          />
+                          <SlotImage slot={slot} />
                         </Link>
                       )}
 
@@ -328,6 +374,13 @@ export default function Favourites({
             })}
           </div>
         </SortableContext>
+        <DragOverlay>
+          {dragged && (
+            <div className="cursor-grabbing select-none rounded shadow-lg [-webkit-touch-callout:none]">
+              <SlotImage slot={dragged} />
+            </div>
+          )}
+        </DragOverlay>
       </DndContext>
 
       {isOwner && editing !== null && (
