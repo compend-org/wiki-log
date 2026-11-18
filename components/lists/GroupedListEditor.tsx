@@ -72,8 +72,10 @@ function SortableTile({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       {...attributes}
       {...listeners}
-      className={`flex cursor-grab touch-manipulation flex-col gap-1 ${
-        isDragging ? "opacity-40" : ""
+      className={`relative flex cursor-grab select-none flex-col gap-1 [-webkit-touch-callout:none] active:cursor-grabbing ${
+        // The picture that follows the pointer is drawn by the overlay; this
+        // tile only holds the place the item will drop into
+        isDragging ? "invisible" : ""
       }`}
     >
       <div className="relative">
@@ -536,7 +538,7 @@ export default function GroupedListEditor({
         ))}
         <DragOverlay>
           {activeEntry && (
-            <div className="flex w-24 flex-col gap-1 opacity-90 shadow-lg">
+            <div className="flex cursor-grabbing select-none flex-col gap-1 opacity-60">
               <ItemImage
                 src={activeEntry.imageUrl}
                 alt={activeEntry.title}
