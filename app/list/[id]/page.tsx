@@ -7,7 +7,6 @@ import ItemImage from "@/components/items/ItemImage";
 import ListLikeButton from "@/components/lists/ListLikeButton";
 import ListNotesHint from "@/components/lists/ListNotesHint";
 import ListPager from "@/components/lists/ListPager";
-import ListRows from "@/components/lists/ListRows";
 import RemovedNotice from "@/components/logs/RemovedNotice";
 import ReviewText from "@/components/logs/ReviewText";
 import Stars from "@/components/logs/Stars";
@@ -16,6 +15,7 @@ import ReportButton from "@/components/moderation/ReportButton";
 import Avatar from "@/components/people/Avatar";
 import Comments from "@/components/social/Comments";
 import ShareButton from "@/components/social/ShareButton";
+import TextLinesIcon from "@/components/ui/TextLinesIcon";
 import { getAdminIds } from "@/lib/admin/admin";
 import { withoutBlockedComments } from "@/lib/blocks";
 import {
@@ -42,20 +42,9 @@ import { getViewerState } from "@/lib/viewerState";
 
 export const instant = false;
 
-// A list with notes is shown as rows unless the reader asks for the grid
-type View = "notes" | "grid";
-
-function parseView(value: string | string[] | undefined): View | null {
-  return value === "notes" || value === "grid" ? value : null;
-}
-
-// The address of a page of the list, keeping the view the reader picked
-function pageHref(id: string, page: number, view: View | null): string {
-  const params = new URLSearchParams();
-  if (page !== 1) params.set("page", String(page));
-  if (view) params.set("view", view);
-  const query = params.toString();
-  return query ? `/list/${id}?${query}` : `/list/${id}`;
+// The address of a page of the list
+function pageHref(id: string, page: number): string {
+  return page === 1 ? `/list/${id}` : `/list/${id}?page=${page}`;
 }
 
 type ListRow = {
@@ -171,7 +160,6 @@ export default async function ListPage({
   if (!isUuid(id)) notFound();
   const query = await searchParams;
   const page = parsePage(query.page);
-  const pickedView = parseView(query.view);
 
   const supabase = await createClient();
 
@@ -192,10 +180,9 @@ export default async function ListPage({
       .not("note", "is", null),
   ]);
   const notedCount = noted.count ?? 0;
-  const view: View = notedCount > 0 && pickedView !== "grid" ? "notes" : "grid";
   const lastPage = pageCount(total);
   // A page past the end (say, after items were removed) goes to the last one
-  if (page > lastPage) redirect(pageHref(id, lastPage, pickedView));
+  if (page > lastPage) redirect(pageHref(id, lastPage));
 
   // The owner is asked to write notes until the list has some, unless they
   // said not to
@@ -317,40 +304,7 @@ export default async function ListPage({
 
       {total === 0 && <p className="text-muted">This list is empty.</p>}
 
-      {notedCount > 0 && (
-        <nav
-          aria-label="View"
-          className="-my-3 flex flex-wrap items-center gap-x-1 text-[0.95rem]"
-        >
-          {(["notes", "grid"] as const).map((option, index) => (
-            <span key={option} className="flex items-center gap-x-1">
-              {index > 0 && <span className="text-muted">·</span>}
-              {option === view ? (
-                <span aria-current="page" className="px-1.5 py-3 font-bold">
-                  {option === "notes" ? "Notes" : "Grid"}
-                </span>
-              ) : (
-                <Link
-                  href={pageHref(id, page, option)}
-                  className="px-1.5 py-3 text-accent underline"
-                >
-                  {option === "notes" ? "Notes" : "Grid"}
-                </Link>
-              )}
-            </span>
-          ))}
-          <span className="ml-2 text-muted">
-            {notedCount.toLocaleString("en-US")} of{" "}
-            {total.toLocaleString("en-US")} have notes
-          </span>
-        </nav>
-      )}
-
-      <ListPager
-        page={page}
-        last={lastPage}
-        href={(p) => pageHref(id, p, pickedView)}
-      />
+      <ListPager page={page} last={lastPage} href={(p) => pageHref(id, p)} />
 
       {runs
         .filter((run) => run.entries.length > 0)
@@ -364,153 +318,136 @@ export default async function ListPage({
             {grouped && list.group_labels && run.group?.name && (
               <h2 className="text-lg font-semibold">{run.group.name}</h2>
             )}
-            {view === "notes" ? (
-              <div
-                className={
-                  grouped
-                    ? "rounded-lg border-2 border-dashed border-line px-3 [&>ul]:border-b-0 [&>ul>li:first-child]:border-t-0"
-                    : ""
-                }
-              >
-                <ListRows
-                  entries={run.entries}
-                  ranked={list.ranked}
-                  owner={owner}
-                  ownerLatest={ownerLatest}
-                />
-              </div>
-            ) : (
-              // The box is only as wide as its items need
-              <div
-                style={
-                  {
-                    "--count": run.entries.length,
-                    // Where the unfilled part of the last row starts, in a
-                    // grid of 3 columns and one of 4
-                    "--s3": (run.entries.length % 3) + 1,
-                    "--s4": (run.entries.length % 4) + 1,
-                  } as CSSProperties
-                }
-                className={BOX}
-              >
-                <ul className="grid grid-cols-[repeat(var(--n),minmax(0,1fr))] gap-3">
-                  {run.entries.map((entry, index) => {
-                    const title = entry.title;
-                    const info = ownerLatest.get(entry.itemId);
-                    const hasCard = info !== undefined || entry.note !== null;
+            {/* The box is only as wide as its items need */}
+            <div
+              style={
+                {
+                  "--count": run.entries.length,
+                  // Where the unfilled part of the last row starts, in a
+                  // grid of 3 columns and one of 4
+                  "--s3": (run.entries.length % 3) + 1,
+                  "--s4": (run.entries.length % 4) + 1,
+                } as CSSProperties
+              }
+              className={BOX}
+            >
+              <ul className="grid grid-cols-[repeat(var(--n),minmax(0,1fr))] gap-3">
+                {run.entries.map((entry, index) => {
+                  const title = entry.title;
+                  const info = ownerLatest.get(entry.itemId);
+                  const hasCard = info !== undefined || entry.note !== null;
 
-                    return (
-                      <li key={entry.itemId} className="group relative">
-                        <Link
-                          href={`/item/${entry.itemId}`}
-                          className="flex flex-col gap-1"
+                  return (
+                    <li key={entry.itemId} className="group relative">
+                      <Link
+                        href={`/item/${entry.itemId}`}
+                        className="flex flex-col gap-1"
+                      >
+                        <div className="relative">
+                          <ItemImage
+                            src={entry.imageUrl}
+                            nsfw={entry.nsfw}
+                            alt={title}
+                            className={`aspect-square w-full rounded-lg ${
+                              hasCard
+                                ? "group-hover:ring-2 group-hover:ring-accent group-focus-within:ring-2 group-focus-within:ring-accent"
+                                : ""
+                            }`}
+                          />
+                          {list.ranked && (
+                            <span className="absolute left-1 top-1 rounded bg-background/80 px-1.5 text-sm font-bold text-accent">
+                              {entry.rank}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="min-w-0 flex-1 truncate text-xs">
+                            {title}
+                          </span>
+                          {entry.note && (
+                            <span
+                              title="Has a note"
+                              className="shrink-0 self-center"
+                            >
+                              <TextLinesIcon />
+                              <span className="sr-only">Has a note</span>
+                            </span>
+                          )}
+                        </div>
+                      </Link>
+
+                      {hasCard && (
+                        <div
+                          role="tooltip"
+                          className={`card pointer-events-none absolute bottom-full z-30 mb-2 hidden w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 p-3 text-left group-hover:flex group-focus-within:flex ${tooltipPosition(
+                            index,
+                          )}`}
                         >
-                          <div className="relative">
-                            <ItemImage
-                              src={entry.imageUrl}
-                              nsfw={entry.nsfw}
-                              alt={title}
-                              className={`aspect-square w-full rounded-lg ${
-                                hasCard
-                                  ? "group-hover:ring-2 group-hover:ring-accent group-focus-within:ring-2 group-focus-within:ring-accent"
+                          <span className="font-semibold">{title}</span>
+                          {entry.note && (
+                            <>
+                              <span className="text-xs text-muted">
+                                List note
+                              </span>
+                              <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
+                                {entry.note}
+                              </p>
+                            </>
+                          )}
+                          {info && (
+                            <div
+                              className={`flex flex-col gap-1 ${
+                                entry.note
+                                  ? "mt-1 border-t border-line pt-2"
                                   : ""
                               }`}
-                            />
-                            {list.ranked && (
-                              <span className="absolute left-1 top-1 rounded bg-background/80 px-1.5 text-sm font-bold text-accent">
-                                {entry.rank}
+                            >
+                              <span className="text-xs text-muted">
+                                {owner ? `${owner}'s latest` : "Latest"} ·{" "}
+                                {timeAgo(info.latest.logged_at, renderedAt)}
                               </span>
-                            )}
-                            {entry.note && (
-                              <span
-                                title="Has a note"
-                                className="absolute right-1 top-1 rounded bg-background/80 px-1.5 text-sm text-accent"
-                              >
-                                <span aria-hidden="true">❝</span>
-                                <span className="sr-only">Has a note</span>
-                              </span>
-                            )}
-                          </div>
-                          <span className="truncate text-xs">{title}</span>
-                        </Link>
-
-                        {hasCard && (
-                          <div
-                            role="tooltip"
-                            className={`card pointer-events-none absolute bottom-full z-30 mb-2 hidden w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 p-3 text-left group-hover:flex group-focus-within:flex ${tooltipPosition(
-                              index,
-                            )}`}
-                          >
-                            <span className="font-semibold">{title}</span>
-                            {entry.note && (
-                              <>
-                                <span className="text-xs text-muted">
-                                  List note
-                                </span>
+                              <Stars rating={info.latest.rating} />
+                              {info.latest.review && (
                                 <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
-                                  {entry.note}
+                                  {
+                                    <ReviewText
+                                      text={info.latest.review}
+                                      plain
+                                    />
+                                  }
                                 </p>
-                              </>
-                            )}
-                            {info && (
-                              <div
-                                className={`flex flex-col gap-1 ${
-                                  entry.note
-                                    ? "mt-1 border-t border-line pt-2"
-                                    : ""
-                                }`}
-                              >
-                                <span className="text-xs text-muted">
-                                  {owner ? `${owner}'s latest` : "Latest"} ·{" "}
-                                  {timeAgo(info.latest.logged_at, renderedAt)}
-                                </span>
-                                <Stars rating={info.latest.rating} />
-                                {info.latest.review && (
-                                  <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
-                                    {
-                                      <ReviewText
-                                        text={info.latest.review}
-                                        plain
-                                      />
-                                    }
+                              )}
+                              {info.latest.rating === null &&
+                                !info.latest.review && (
+                                  <p className="text-sm text-muted">
+                                    Logged, with no rating or review.
                                   </p>
                                 )}
-                                {info.latest.rating === null &&
-                                  !info.latest.review && (
-                                    <p className="text-sm text-muted">
-                                      Logged, with no rating or review.
-                                    </p>
-                                  )}
-                                {info.count > 1 && (
-                                  <span className="text-xs text-muted">
-                                    {info.count} entries
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                  {/* When the last row isn't full, the box steps in round the
+                              {info.count > 1 && (
+                                <span className="text-xs text-muted">
+                                  {info.count} entries
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+                {/* When the last row isn't full, the box steps in round the
                       empty space: this fills it with the page's colour, over
                       the box's own border, and draws the step */}
-                  <li
-                    aria-hidden="true"
-                    className={`${run.entries.length > 3 && run.entries.length % 3 !== 0 ? "block" : "hidden"} ${run.entries.length > 4 && run.entries.length % 4 !== 0 ? "sm:block" : "sm:hidden"} ${NOTCH}`}
-                  />
-                </ul>
-              </div>
-            )}
+                <li
+                  aria-hidden="true"
+                  className={`${run.entries.length > 3 && run.entries.length % 3 !== 0 ? "block" : "hidden"} ${run.entries.length > 4 && run.entries.length % 4 !== 0 ? "sm:block" : "sm:hidden"} ${NOTCH}`}
+                />
+              </ul>
+            </div>
           </section>
         ))}
 
-      <ListPager
-        page={page}
-        last={lastPage}
-        href={(p) => pageHref(id, p, pickedView)}
-      />
+      <ListPager page={page} last={lastPage} href={(p) => pageHref(id, p)} />
 
       <Comments
         comments={comments}
