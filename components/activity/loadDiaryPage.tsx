@@ -11,6 +11,8 @@ import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import { FEATURES } from "@/lib/features";
 import { entryPicture, timeAgo } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
+import { fetchManyGroupPreviews } from "@/lib/lists/groupPreview";
+import { shownGroups } from "@/lib/lists/listGroups";
 import {
   type Keyset,
   olderThan,
@@ -36,7 +38,7 @@ export type DiaryCursor = {
 };
 
 // How many pictures each list shows
-const PREVIEW_SIZE = 4;
+const PREVIEW_SIZE = 12;
 
 type ItemInfo = {
   title: string;
@@ -62,6 +64,8 @@ type ListRow = {
   ranked: boolean;
   created_at: string;
   list_items: { count: number }[];
+  grouped: boolean;
+  list_groups: { count: number }[];
   // Each entry's chosen picture; null shows the item's
   preview: { image_url: string | null; items: ItemInfo }[];
 };
@@ -264,7 +268,7 @@ export async function loadDiaryPage(
   let listsQuery = supabase
     .from("lists")
     .select(
-      "id, title, ranked, created_at, list_items(count), preview:list_items(image_url, items(title, image_url, nsfw))",
+      "id, title, ranked, created_at, list_items(count), grouped, list_groups(count), preview:list_items(image_url, items(title, image_url, nsfw))",
     )
     .eq("user_id", userId);
   if (after.lists) {
@@ -383,6 +387,11 @@ export async function loadDiaryPage(
       ),
     },
   }));
+  // A grouped list's card shows several of its groups
+  const groupPreviews = await fetchManyGroupPreviews(
+    supabase,
+    listRows.filter((l) => shownGroups(l) !== null).map((l) => l.id),
+  );
   const lists: Entry[] = listRows.map((l) => ({
     at: l.created_at,
     id: l.id,
@@ -394,6 +403,8 @@ export async function loadDiaryPage(
           listId={l.id}
           title={l.title}
           ranked={l.ranked}
+          groups={shownGroups(l)}
+          groupPreviews={groupPreviews.get(l.id) ?? null}
           count={l.list_items?.[0]?.count ?? 0}
           previews={l.preview.map((p) => ({
             title: p.items?.title ?? "Unknown item",

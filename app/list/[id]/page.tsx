@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
-import { cache } from "react";
+import { type CSSProperties, cache } from "react";
 import ItemImage from "@/components/items/ItemImage";
 import ListLikeButton from "@/components/lists/ListLikeButton";
 import ListNotesHint from "@/components/lists/ListNotesHint";
@@ -25,10 +25,17 @@ import {
   threadsHref,
   toCommentItems,
 } from "@/lib/comments";
+import { FEATURES } from "@/lib/features";
 import { timeAgo } from "@/lib/format";
 import { isCompoundId, isUuid } from "@/lib/ids";
+import { groupRuns } from "@/lib/lists/listGroups";
 import { fetchOwnerLatestLogs } from "@/lib/lists/listOwnerLogs";
-import { fetchListPage, pageCount, parsePage } from "@/lib/lists/listPages";
+import {
+  fetchGroups,
+  fetchListPage,
+  pageCount,
+  parsePage,
+} from "@/lib/lists/listPages";
 import { itemPreviewImage, pageMetadata } from "@/lib/metadata";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
@@ -57,6 +64,8 @@ type ListRow = {
   title: string;
   description: string | null;
   ranked: boolean;
+  grouped: boolean;
+  group_labels: boolean;
   // Only ever set for the author: removed lists are hidden from everyone else
   removed_at: string | null;
   profiles: { username: string; avatar_path: string | null } | null;
@@ -83,6 +92,27 @@ function tooltipPosition(index: number): string {
   return `${base} ${wide}`;
 }
 
+// The dashed box round a run of items. The grid inside has 3 columns on phones
+// and 4 from sm up; --n is how many of them the run fills, and the box is
+// exactly wide enough for that many (the box's padding and border, 1.5rem and
+// 4px, plus the 0.75rem gaps, are counted out of the full width).
+const BOX = [
+  "[--cols:3] sm:[--cols:4] [--n:min(var(--count),var(--cols))]",
+  "rounded-lg border-2 border-dashed border-line p-3 max-w-full",
+  "w-[calc((100%_-_1.5rem_-_4px_-_(var(--cols)_-_1)_*_0.75rem)_/_var(--cols)_*_var(--n)_+_(var(--n)_-_1)_*_0.75rem_+_1.5rem_+_4px)]",
+].join(" ");
+
+// The empty space after a short last row, in the grid's bottom right corner.
+// It reaches out over the box's padding and border (0.75rem and 2px) and has
+// the page's colour, so the box's border doesn't show there; its own top and
+// left borders are the step.
+const NOTCH = [
+  "pointer-events-none bg-background",
+  "[grid-column:var(--s3)/-1] sm:[grid-column:var(--s4)/-1]",
+  "mb-[calc(-0.75rem-2px)] mr-[calc(-0.75rem-2px)]",
+  "border-l-2 border-t-2 border-dashed border-line",
+].join(" ");
+
 // The list and a page of its entries are cached per request, so the page and
 // its metadata share them
 const getList = cache(async (id: string): Promise<ListRow | null> => {
@@ -90,7 +120,7 @@ const getList = cache(async (id: string): Promise<ListRow | null> => {
   const { data } = await supabase
     .from("lists")
     .select(
-      "id, user_id, title, description, ranked, removed_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_likes(count), shares(count)",
+      "id, user_id, title, description, ranked, grouped, group_labels, removed_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_likes(count), shares(count)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -211,13 +241,22 @@ export default async function ListPage({
 
   const owner = list.profiles?.username;
 
+  // A grouped list is shown in its groups (a plain one when the feature is off)
+  const grouped = list.grouped && FEATURES.groupedLists;
+  const runs = groupRuns(
+    grouped ? await fetchGroups(supabase, id) : [],
+    entries,
+  );
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       {list.removed_at && <RemovedNotice noun="list" />}
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold">{list.title}</h1>
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
-          <span>A {list.ranked ? "ranked " : ""}list by</span>
+          <span>
+            A {list.ranked ? "ranked " : grouped ? "grouped " : ""}list by
+          </span>
           {list.profiles ? (
             <Link
               href={`/u/${encodeURIComponent(list.profiles.username)}`}
@@ -311,106 +350,159 @@ export default async function ListPage({
         href={(p) => pageHref(id, p, pickedView)}
       />
 
-      {view === "notes" ? (
-        <ListRows
-          entries={entries}
-          ranked={list.ranked}
-          owner={owner}
-          ownerLatest={ownerLatest}
-        />
-      ) : (
-        <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-          {entries.map((entry, index) => {
-            const title = entry.title;
-            const info = ownerLatest.get(entry.itemId);
-            const hasCard = info !== undefined || entry.note !== null;
+      {runs
+        .filter((run) => run.entries.length > 0)
+        .map((run, runIndex) => (
+          // A grouped list has a dashed box round each group, with the group's
+          // name above it; a plain list's items are in one run
+          <section
+            key={run.group?.id ?? `run-${runIndex}`}
+            className="flex flex-col gap-1.5"
+          >
+            {grouped && list.group_labels && run.group?.name && (
+              <h2 className="text-lg font-semibold">{run.group.name}</h2>
+            )}
+            {view === "notes" ? (
+              <div
+                className={
+                  grouped
+                    ? "rounded-lg border-2 border-dashed border-line px-3 [&>ul]:border-b-0 [&>ul>li:first-child]:border-t-0"
+                    : ""
+                }
+              >
+                <ListRows
+                  entries={run.entries}
+                  ranked={list.ranked}
+                  owner={owner}
+                  ownerLatest={ownerLatest}
+                />
+              </div>
+            ) : (
+              // The box is only as wide as its items need
+              <div
+                style={
+                  {
+                    "--count": run.entries.length,
+                    // Where the unfilled part of the last row starts, in a
+                    // grid of 3 columns and one of 4
+                    "--s3": (run.entries.length % 3) + 1,
+                    "--s4": (run.entries.length % 4) + 1,
+                  } as CSSProperties
+                }
+                className={BOX}
+              >
+                <ul className="grid grid-cols-[repeat(var(--n),minmax(0,1fr))] gap-3">
+                  {run.entries.map((entry, index) => {
+                    const title = entry.title;
+                    const info = ownerLatest.get(entry.itemId);
+                    const hasCard = info !== undefined || entry.note !== null;
 
-            return (
-              <li key={entry.itemId} className="group relative">
-                <Link
-                  href={`/item/${entry.itemId}`}
-                  className="flex flex-col gap-1"
-                >
-                  <div className="relative">
-                    <ItemImage
-                      src={entry.imageUrl}
-                      nsfw={entry.nsfw}
-                      alt={title}
-                      className={`aspect-square w-full rounded-lg ${
-                        hasCard
-                          ? "group-hover:ring-2 group-hover:ring-accent group-focus-within:ring-2 group-focus-within:ring-accent"
-                          : ""
-                      }`}
-                    />
-                    {list.ranked && (
-                      <span className="absolute left-1 top-1 rounded bg-background/80 px-1.5 text-sm font-bold text-accent">
-                        {entry.rank}
-                      </span>
-                    )}
-                    {entry.note && (
-                      <span
-                        title="Has a note"
-                        className="absolute right-1 top-1 rounded bg-background/80 px-1.5 text-sm text-accent"
-                      >
-                        <span aria-hidden="true">❝</span>
-                        <span className="sr-only">Has a note</span>
-                      </span>
-                    )}
-                  </div>
-                  <span className="truncate text-xs">{title}</span>
-                </Link>
+                    return (
+                      <li key={entry.itemId} className="group relative">
+                        <Link
+                          href={`/item/${entry.itemId}`}
+                          className="flex flex-col gap-1"
+                        >
+                          <div className="relative">
+                            <ItemImage
+                              src={entry.imageUrl}
+                              nsfw={entry.nsfw}
+                              alt={title}
+                              className={`aspect-square w-full rounded-lg ${
+                                hasCard
+                                  ? "group-hover:ring-2 group-hover:ring-accent group-focus-within:ring-2 group-focus-within:ring-accent"
+                                  : ""
+                              }`}
+                            />
+                            {list.ranked && (
+                              <span className="absolute left-1 top-1 rounded bg-background/80 px-1.5 text-sm font-bold text-accent">
+                                {entry.rank}
+                              </span>
+                            )}
+                            {entry.note && (
+                              <span
+                                title="Has a note"
+                                className="absolute right-1 top-1 rounded bg-background/80 px-1.5 text-sm text-accent"
+                              >
+                                <span aria-hidden="true">❝</span>
+                                <span className="sr-only">Has a note</span>
+                              </span>
+                            )}
+                          </div>
+                          <span className="truncate text-xs">{title}</span>
+                        </Link>
 
-                {hasCard && (
-                  <div
-                    role="tooltip"
-                    className={`card pointer-events-none absolute bottom-full z-30 mb-2 hidden w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 p-3 text-left group-hover:flex group-focus-within:flex ${tooltipPosition(
-                      index,
-                    )}`}
-                  >
-                    <span className="font-semibold">{title}</span>
-                    {entry.note && (
-                      <>
-                        <span className="text-xs text-muted">List note</span>
-                        <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
-                          {entry.note}
-                        </p>
-                      </>
-                    )}
-                    {info && (
-                      <div
-                        className={`flex flex-col gap-1 ${
-                          entry.note ? "mt-1 border-t border-line pt-2" : ""
-                        }`}
-                      >
-                        <span className="text-xs text-muted">
-                          {owner ? `${owner}'s latest` : "Latest"} ·{" "}
-                          {timeAgo(info.latest.logged_at, renderedAt)}
-                        </span>
-                        <Stars rating={info.latest.rating} />
-                        {info.latest.review && (
-                          <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
-                            {<ReviewText text={info.latest.review} plain />}
-                          </p>
+                        {hasCard && (
+                          <div
+                            role="tooltip"
+                            className={`card pointer-events-none absolute bottom-full z-30 mb-2 hidden w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 p-3 text-left group-hover:flex group-focus-within:flex ${tooltipPosition(
+                              index,
+                            )}`}
+                          >
+                            <span className="font-semibold">{title}</span>
+                            {entry.note && (
+                              <>
+                                <span className="text-xs text-muted">
+                                  List note
+                                </span>
+                                <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
+                                  {entry.note}
+                                </p>
+                              </>
+                            )}
+                            {info && (
+                              <div
+                                className={`flex flex-col gap-1 ${
+                                  entry.note
+                                    ? "mt-1 border-t border-line pt-2"
+                                    : ""
+                                }`}
+                              >
+                                <span className="text-xs text-muted">
+                                  {owner ? `${owner}'s latest` : "Latest"} ·{" "}
+                                  {timeAgo(info.latest.logged_at, renderedAt)}
+                                </span>
+                                <Stars rating={info.latest.rating} />
+                                {info.latest.review && (
+                                  <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
+                                    {
+                                      <ReviewText
+                                        text={info.latest.review}
+                                        plain
+                                      />
+                                    }
+                                  </p>
+                                )}
+                                {info.latest.rating === null &&
+                                  !info.latest.review && (
+                                    <p className="text-sm text-muted">
+                                      Logged, with no rating or review.
+                                    </p>
+                                  )}
+                                {info.count > 1 && (
+                                  <span className="text-xs text-muted">
+                                    {info.count} entries
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         )}
-                        {info.latest.rating === null && !info.latest.review && (
-                          <p className="text-sm text-muted">
-                            Logged, with no rating or review.
-                          </p>
-                        )}
-                        {info.count > 1 && (
-                          <span className="text-xs text-muted">
-                            {info.count} entries
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                      </li>
+                    );
+                  })}
+                  {/* When the last row isn't full, the box steps in round the
+                      empty space: this fills it with the page's colour, over
+                      the box's own border, and draws the step */}
+                  <li
+                    aria-hidden="true"
+                    className={`${run.entries.length > 3 && run.entries.length % 3 !== 0 ? "block" : "hidden"} ${run.entries.length > 4 && run.entries.length % 4 !== 0 ? "sm:block" : "sm:hidden"} ${NOTCH}`}
+                  />
+                </ul>
+              </div>
+            )}
+          </section>
+        ))}
 
       <ListPager
         page={page}

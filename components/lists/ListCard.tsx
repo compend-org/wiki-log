@@ -12,7 +12,10 @@ import ShareButton from "@/components/social/ShareButton";
 import ShareIcon from "@/components/social/ShareIcon";
 import type { ListRow, Thumb } from "@/lib/feed/feedData";
 import { timeAgo } from "@/lib/format";
+import { fetchGroupPreviews } from "@/lib/lists/groupPreview";
 import { listCardTime } from "@/lib/lists/listCardTime";
+import { itemsLabel, shownGroups } from "@/lib/lists/listGroups";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function ListCard({
   list: l,
@@ -46,7 +49,16 @@ export default async function ListCard({
   const author = l.profiles?.username;
   const avatarPath = l.profiles?.avatar_path ?? null;
   const itemCount = l.list_items?.[0]?.count ?? 0;
+  // How many groups a grouped list has; null for a plain one
+  const groups = shownGroups(l);
+  const kind = groups !== null ? "grouped " : l.ranked ? "ranked " : "";
   const { bumped, time } = listCardTime(l, showActivity);
+  // A grouped list's preview shows several of its groups, so it needs the
+  // groups and their first items, not just the list's first ones
+  const groupPreviews =
+    groups !== null
+      ? await fetchGroupPreviews(await createClient(), l.id)
+      : null;
 
   return (
     <div className="card relative flex flex-col gap-2 p-3 hover-or-tap:border-accent/60">
@@ -72,13 +84,14 @@ export default async function ListCard({
               />
               {showActivity && (
                 <span>
-                  {bumped ? "added to their" : "made a"}{" "}
-                  {l.ranked ? "ranked " : ""}list
+                  {bumped ? "added to their" : "made a"} {kind}list
                 </span>
               )}
             </>
           )}
-          {!showAuthor && l.ranked && <span>Ranked list ·</span>}
+          {!showAuthor && kind && (
+            <span>{kind === "grouped " ? "Grouped" : "Ranked"} list ·</span>
+          )}
           <span className="whitespace-nowrap">
             {showAuthor && "· "}
             {timeAgo(time, renderedAt)}
@@ -94,6 +107,7 @@ export default async function ListCard({
         <ListPreview
           thumbs={preview}
           total={itemCount}
+          groups={groupPreviews}
           href={`/list/${l.id}`}
         />
       )}
@@ -120,7 +134,7 @@ export default async function ListCard({
         commentHref={`/list/${l.id}#comments`}
         commentCount={l.list_comments?.[0]?.count ?? 0}
       >
-        {itemCount} {itemCount === 1 ? "item" : "items"}
+        {itemsLabel(itemCount, groups)}
       </CardActions>
     </div>
   );

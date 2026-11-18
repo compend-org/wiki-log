@@ -2,6 +2,7 @@
 // ABOUTME: Lists hold up to 10,000 items but the API returns at most 1,000 rows.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
+import { MAX_GROUPED_ITEMS, type SavedGroup } from "@/lib/lists/listGroups";
 
 // Items per page of a list. It divides by 3 and 4, so every row of the grid is
 // full on phones and wider screens alike.
@@ -17,12 +18,15 @@ export type ListPageEntry = {
   // Whether the item's own picture is hidden; a chosen picture never is
   imageHidden: boolean;
   nsfw: boolean;
+  // The group a grouped list's item is in
+  groupId: string | null;
   // Why the list's owner put the item on the list, if they said
   note: string | null;
 };
 
 type EntryRow = {
   item_id: string;
+  group_id: string | null;
   // The picture the list's owner chose; null shows the item's
   image_url: string | null;
   note: string | null;
@@ -87,7 +91,7 @@ export async function fetchListPage(
   const { data, count, error } = await supabase
     .from("list_items")
     .select(
-      "item_id, image_url, note, items(title, image_url, image_hidden, nsfw)",
+      "item_id, group_id, image_url, note, items(title, image_url, image_hidden, nsfw)",
       {
         count: "exact",
       },
@@ -117,7 +121,37 @@ export async function fetchListPage(
     imageUrl: row.image_url ?? row.items?.image_url ?? null,
     imageHidden: row.image_url ? false : (row.items?.image_hidden ?? false),
     nsfw: row.items?.nsfw ?? false,
+    groupId: row.group_id ?? null,
     note: row.note ?? null,
   }));
   return { entries, total: count ?? entries.length };
+}
+
+// A grouped list's groups, in order
+export async function fetchGroups(
+  supabase: SupabaseClient,
+  listId: string,
+): Promise<SavedGroup[]> {
+  const { data } = await supabase
+    .from("list_groups")
+    .select("id, name")
+    .eq("list_id", listId)
+    .order("position");
+  return (data ?? []) as SavedGroup[];
+}
+
+// All of a grouped list's items in order (it holds at most 300, a few pages),
+// for editing
+export async function fetchGroupedEntries(
+  supabase: SupabaseClient,
+  listId: string,
+): Promise<{ entries: ListPageEntry[]; error?: string }> {
+  const entries: ListPageEntry[] = [];
+  for (let page = 1; page <= pageCount(MAX_GROUPED_ITEMS); page++) {
+    const result = await fetchListPage(supabase, listId, page);
+    if (result.error) return { entries: [], error: result.error };
+    entries.push(...result.entries);
+    if (entries.length >= result.total) break;
+  }
+  return { entries };
 }

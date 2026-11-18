@@ -47,6 +47,9 @@ export type ListRow = {
   created_at: string;
   profiles: { username: string; avatar_path: string | null } | null;
   list_items: { count: number }[];
+  // Grouped lists (see lib/lists/listGroups.ts), and how many groups they have
+  grouped?: boolean;
+  list_groups?: { count: number }[];
   list_likes: { count: number }[];
   list_comments: { count: number }[];
   shares: { count: number }[];
@@ -98,7 +101,7 @@ type RankRow = { row_id: string; recent_likes: number | string };
 const LOG_SELECT =
   "id, user_id, item_id, rating, review, logged_at, image_url, items(title, image_url, image_hidden, nsfw), profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
 export const LIST_SELECT =
-  "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), last_bumped_at, activity_at";
+  "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), last_bumped_at, activity_at, grouped, list_groups(count)";
 
 // Empty lists stay out of the feed until they have something in them
 function nonEmpty(lists: ListRow[]): ListRow[] {

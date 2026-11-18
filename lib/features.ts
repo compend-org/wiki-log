@@ -20,4 +20,7 @@ export const FEATURES = {
   trending: flag(process.env.NEXT_PUBLIC_FEATURE_TRENDING, true),
   // leaderboards page
   leaderboards: flag(process.env.NEXT_PUBLIC_FEATURE_LEADERBOARDS, false),
+  // Grouped lists: lists whose items sit in groups, labeled or not. Off hides
+  // the option to make one and shows existing ones as plain lists.
+  groupedLists: flag(process.env.NEXT_PUBLIC_FEATURE_GROUPED_LISTS, false),
 };

@@ -32,6 +32,7 @@ import {
   replaceBrokenImage,
   STALE_COPY_WAIT_MS,
 } from "@/lib/items";
+import { MAX_GROUPED_ITEMS, MAX_GROUPS } from "@/lib/lists/listGroups";
 import { cleanListNote, noteProblem } from "@/lib/lists/listNotes";
 import {
   type PictureChoice,
@@ -767,6 +768,82 @@ export async function createList(input: {
   return { id: list.id };
 }
 
+// Creates a grouped list with its groups and items at once. The items must
+// already be stored (stageItem). Each group is { name, itemIds } in the order
+// to show them; names are used only when the list is labeled.
+export async function createGroupedList(input: {
+  title: string;
+  description: string;
+  labeled: boolean;
+  groups: { name: string | null; items: string[] }[];
+}): Promise<{ error?: string; id?: string }> {
+  if (!FEATURES.groupedLists) return { error: "Grouped lists are turned off." };
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
+  if (!userId) return { error: "You need to sign in." };
+
+  const title = input.title.trim();
+  if (title.length < 1 || title.length > 80) {
+    return { error: "Titles are 1–80 characters." };
+  }
+  const description = input.description.trim();
+  if (description.length > 500) {
+    return { error: "Descriptions are at most 500 characters." };
+  }
+  if (
+    !Array.isArray(input.groups) ||
+    input.groups.length < 1 ||
+    input.groups.length > MAX_GROUPS ||
+    !input.groups.every(
+      (g) => Array.isArray(g.items) && g.items.every((id) => ITEM_ID.test(id)),
+    )
+  ) {
+    return { error: "Invalid groups." };
+  }
+  if (input.groups.flatMap((g) => g.items).length < 1) {
+    return { error: "Add at least one item." };
+  }
+
+  const { data: list, error } = await supabase
+    .from("lists")
+    .insert({
+      user_id: userId,
+      title,
+      description: description || null,
+      ranked: false,
+      grouped: true,
+      group_labels: input.labeled,
+    })
+    .select("id")
+    .single();
+  if (error || !list) {
+    return {
+      error: error
+        ? userFacingErrorMessage(error, "Couldn't create the list.")
+        : "Couldn't create the list.",
+    };
+  }
+
+  // The groups and items go in together, so nobody sees it half-built
+  const { error: groupsError } = await withErrorContext(
+    "list_groups",
+    { listId: list.id, count: input.groups.length },
+    () =>
+      supabase.rpc("set_list_groups", {
+        p_list: list.id,
+        p_groups: input.groups,
+      }),
+  );
+  if (groupsError) {
+    await supabase.from("lists").delete().eq("id", list.id);
+    return {
+      error: userFacingErrorMessage(groupsError, "Couldn't create the list."),
+    };
+  }
+  return { id: list.id };
+}
+
 export async function addToList(input: {
   listId: string;
   itemId: string;
@@ -794,13 +871,38 @@ export async function addToList(input: {
 
   const { data: list, error: listError } = await supabase
     .from("lists")
-    .select("id")
+    .select("id, grouped")
     .eq("id", input.listId)
     .eq("user_id", userId)
     .maybeSingle();
   if (listError)
     return { error: "Couldn't add to that list. Please try again." };
   if (!list) return { error: "That list isn't yours." };
+
+  // A grouped list's new items go in its last group, and it holds fewer items
+  // than a plain one
+  let groupId: string | null = null;
+  if (list.grouped && FEATURES.groupedLists) {
+    const [{ data: lastGroup }, { count }] = await Promise.all([
+      supabase
+        .from("list_groups")
+        .select("id")
+        .eq("list_id", input.listId)
+        .order("position", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("list_items")
+        .select("item_id", { count: "exact", head: true })
+        .eq("list_id", input.listId),
+    ]);
+    if ((count ?? 0) >= MAX_GROUPED_ITEMS) {
+      return {
+        error: `A grouped list can hold at most ${MAX_GROUPED_ITEMS} items.`,
+      };
+    }
+    groupId = lastGroup?.id ?? null;
+  }
 
   const stored = await ensureItem(input.itemId);
   if ("error" in stored) return { error: stored.error };
@@ -827,6 +929,7 @@ export async function addToList(input: {
         list_id: input.listId,
         item_id: stored.id,
         position,
+        ...(groupId ? { group_id: groupId } : {}),
       }),
   );
   if (error) {

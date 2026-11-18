@@ -34,8 +34,8 @@ export type AnalyticsEvents = {
   favourites_reordered: NoProperties;
 
   // Lists
-  list_created: { item_count: number; ranked: boolean };
-  list_edited: { item_count: number; ranked: boolean };
+  list_created: { item_count: number; ranked: boolean; grouped?: boolean };
+  list_edited: { item_count: number; ranked: boolean; grouped?: boolean };
   list_deleted: NoProperties;
   list_item_added: NoProperties;
   list_item_removed: NoProperties;
