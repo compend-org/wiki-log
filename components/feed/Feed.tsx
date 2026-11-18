@@ -4,8 +4,17 @@ import Link from "next/link";
 import { connection } from "next/server";
 import FeedPages from "@/components/feed/FeedPages";
 import { type FeedMode, loadFeedPage } from "@/components/feed/loadFeedPage";
+import SuggestedPeople from "@/components/people/SuggestedPeople";
+import { getPublicSuggestedPeople } from "@/lib/feed/publicSuggestedPeople";
+import {
+  getSuggestedPeople,
+  SUGGEST_BELOW,
+  SUGGESTIONS_SHOWN,
+  sample,
+} from "@/lib/feed/suggestedPeople";
 import { FIRST_PAGE } from "@/lib/paging";
 import { TRENDING_HOURS } from "@/lib/site";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function Feed({ mode }: { mode: FeedMode }) {
   await connection();
@@ -17,6 +26,18 @@ export default async function Feed({ mode }: { mode: FeedMode }) {
   const hasMore = Boolean(page.next.reviews || page.next.lists);
   const empty =
     page.reviews.length === 0 && page.lists.length === 0 && !hasMore;
+
+  // On Following, people who follow few others get people to follow, picked
+  // for them. Signed-out visitors, who follow no one, get a few active people.
+  const viewerId = page.viewerId;
+  const suggestions =
+    mode !== "following"
+      ? []
+      : viewerId
+        ? page.followedCount < SUGGEST_BELOW
+          ? await getSuggestedPeople(await createClient(), SUGGESTIONS_SHOWN)
+          : []
+        : sample(await getPublicSuggestedPeople(), SUGGESTIONS_SHOWN);
 
   return (
     <section className="flex flex-col gap-4">
@@ -31,10 +52,23 @@ export default async function Feed({ mode }: { mode: FeedMode }) {
 
       {page.noFollows && (
         <p className="text-center text-muted">
-          You&apos;re not following anyone yet. Use the search icon at the top
-          to find people and follow them to fill this feed, or switch to
-          Everyone.
+          You&apos;re not following anyone yet.{" "}
+          {suggestions.length > 0
+            ? "Follow a few people below to fill this feed, use the search icon at the top to find others, or switch to Everyone."
+            : "Use the search icon at the top to find people and follow them to fill this feed, or switch to Everyone."}
         </p>
+      )}
+
+      {suggestions.length > 0 && (
+        <SuggestedPeople
+          viewerId={viewerId}
+          people={suggestions}
+          heading={
+            page.noFollows || page.needsSignIn
+              ? "People to follow"
+              : "Suggested for you"
+          }
+        />
       )}
 
       {page.error && <p className="text-center text-danger">{page.error}</p>}

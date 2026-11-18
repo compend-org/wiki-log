@@ -16,6 +16,7 @@ export default function FollowButton({
   following,
   followsViewer = false,
   compact = false,
+  source,
 }: {
   viewerId: string;
   targetId: string;
@@ -24,6 +25,8 @@ export default function FollowButton({
   followsViewer?: boolean;
   // A smaller button, for tight spots such as a notification card
   compact?: boolean;
+  // Where the button is shown, when it matters to how often it is used
+  source?: "suggestions";
 }) {
   const [shownFollowing, setShownFollowing] = useLocalCopy(following);
   const [busy, setBusy] = useState<boolean>(false);
@@ -49,7 +52,7 @@ export default function FollowButton({
       return;
     }
     if (shownFollowing) track("user_unfollowed");
-    else track("user_followed", { follows_you: followsViewer });
+    else track("user_followed", { follows_you: followsViewer, source });
     setShownFollowing(!shownFollowing);
     router.refresh(); // updates the follower counts
   }
