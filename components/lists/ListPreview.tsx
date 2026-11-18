@@ -3,13 +3,21 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  Fragment,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import ItemImage from "@/components/items/ItemImage";
 import { firstLetter } from "@/lib/format";
 import {
   type GroupPreview,
   previewLayout,
   slotsFor,
+  tileSize,
 } from "@/lib/lists/groupPreview";
 
 type Thumb = { title: string; image_url: string | null; nsfw: boolean };
@@ -88,12 +96,13 @@ export default function ListPreview({
   // A grouped list's row holds as many tiles as its width allows, which is
   // known only once it is on screen
   const row = useRef<HTMLDivElement>(null);
-  const [capacity, setCapacity] = useState<number | null>(null);
+  const [rowWidth, setRowWidth] = useState<number | null>(null);
+  const capacity = rowWidth === null ? null : slotsFor(rowWidth);
   const grouped = !!groups && groups.length > 0;
   useIsoLayoutEffect(() => {
     const el = row.current;
     if (!grouped || !el) return;
-    const measure = () => setCapacity(slotsFor(el.clientWidth));
+    const measure = () => setRowWidth(el.clientWidth);
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
@@ -156,6 +165,9 @@ export default function ListPreview({
   // Each tile sits above the card's overlay link (relative z-10), so it can
   // show its own tooltip, and it leads to the same list when clicked
   const tile = "card-link relative z-10 flex h-14 w-14 shrink-0";
+  // A grouped list's tiles are as wide as its row makes them (--tile)
+  const groupTile =
+    "card-link relative z-10 flex h-[var(--tile)] w-[var(--tile)] shrink-0";
 
   // A tile in place of the items that don't fit, shown only at the row
   // widths that `visibility` names
@@ -193,8 +205,60 @@ export default function ListPreview({
             : "",
     ].join(" ");
   const pictureWidth = (first: boolean, last: boolean) =>
-    first && last ? "w-12" : first || last ? "w-[3.25rem]" : "w-14";
+    first && last
+      ? "w-[calc(var(--tile)-0.5rem)]"
+      : first || last
+        ? "w-[calc(var(--tile)-0.25rem)]"
+        : "w-[var(--tile)]";
 
+  // The groups the row has no room for stand together in one last tile: a
+  // dashed box like any group's, with the first picture of the first of them
+  // under the number of items they hold. A single group is named in the tooltip.
+  function restTile(count: number) {
+    const left = groups?.slice(layout?.groups.length ?? 0) ?? [];
+    const only = left.length === 1 ? left[0] : undefined;
+    const picture = left[0]?.thumbs[0];
+    const text =
+      left.length > 1
+        ? `${more(count)} in ${left.length} more groups`
+        : more(count);
+    return (
+      <Link
+        href={href}
+        data-group={only?.id}
+        className={`${groupTile} ${box(true, true)}`}
+        onMouseEnter={(e) => show(e.currentTarget, text, only)}
+        onMouseLeave={hide}
+        onFocus={(e) => show(e.currentTarget, text, only)}
+        onBlur={hide}
+      >
+        <span className="relative flex h-[var(--tile)] w-[calc(var(--tile)-0.5rem)] items-center justify-center overflow-hidden rounded border border-line bg-surface">
+          {picture && (
+            <ItemImage
+              src={picture.image_url}
+              nsfw={picture.nsfw}
+              alt=""
+              placeholder={firstLetter(picture.title)}
+              className="absolute inset-0 h-full w-full"
+              sourceWidth={120}
+            />
+          )}
+          <span
+            className={`relative text-sm font-semibold ${
+              picture
+                ? "flex h-full w-full items-center justify-center bg-background/70 text-foreground"
+                : "text-muted"
+            }`}
+          >
+            +{count}
+          </span>
+        </span>
+      </Link>
+    );
+  }
+
+  const tilePx =
+    rowWidth !== null && capacity ? tileSize(rowWidth, capacity) : 56;
   const layout =
     grouped && groups && capacity !== null
       ? previewLayout(
@@ -208,9 +272,10 @@ export default function ListPreview({
       <>
         <div
           ref={row}
+          style={{ "--tile": `${tilePx}px` } as CSSProperties}
           // Its boxes reach 0.25rem past the pictures, so the row is that much
           // taller each side, cancelled out by negative margins
-          className={`-my-1 flex h-16 gap-1 overflow-hidden py-1 ${
+          className={`-my-1 flex h-[calc(var(--tile)+0.5rem)] gap-1 overflow-hidden py-1 ${
             layout ? "" : "invisible"
           }`}
         >
@@ -228,7 +293,7 @@ export default function ListPreview({
                       href={href}
                       aria-label={p.title}
                       data-group={group.id}
-                      className={`${tile} ${box(first, last)}`}
+                      className={`${groupTile} ${box(first, last)}`}
                       onMouseEnter={(e) =>
                         show(e.currentTarget, p.title, group)
                       }
@@ -241,7 +306,7 @@ export default function ListPreview({
                         nsfw={p.nsfw}
                         alt=""
                         placeholder={firstLetter(p.title)}
-                        className={`h-14 rounded ${pictureWidth(first, last)}`}
+                        className={`h-[var(--tile)] rounded ${pictureWidth(first, last)}`}
                         sourceWidth={120}
                       />
                     </Link>
@@ -251,7 +316,7 @@ export default function ListPreview({
                   <Link
                     href={href}
                     data-group={group.id}
-                    className={`${tile} ${box(false, true)}`}
+                    className={`${groupTile} ${box(false, true)}`}
                     onMouseEnter={(e) =>
                       show(e.currentTarget, more(shown.more), group)
                     }
@@ -261,7 +326,7 @@ export default function ListPreview({
                     }
                     onBlur={hide}
                   >
-                    <span className="flex h-14 w-[3.25rem] items-center justify-center border border-line bg-surface text-sm font-semibold text-muted">
+                    <span className="flex h-[var(--tile)] w-[calc(var(--tile)-0.25rem)] items-center justify-center border border-line bg-surface text-sm font-semibold text-muted">
                       +{shown.more}
                     </span>
                   </Link>
@@ -269,7 +334,7 @@ export default function ListPreview({
               </Fragment>
             );
           })}
-          {layout && layout.rest > 0 && moreTile(layout.rest, "")}
+          {layout && layout.rest > 0 && restTile(layout.rest)}
         </div>
 
         {tip && (

@@ -5,6 +5,7 @@ import { test } from "node:test";
 import {
   previewLayout,
   slotsFor,
+  tileSize,
   wantedPositions,
 } from "@/lib/lists/groupPreview";
 
@@ -127,12 +128,22 @@ test("a row too narrow for a +N shows just the first item", () => {
   ]);
 });
 
-test("slotsFor counts 56px tiles with 4px between them", () => {
-  assert.equal(slotsFor(56), 1);
-  assert.equal(slotsFor(116), 2);
-  assert.equal(slotsFor(115), 1);
+test("slotsFor counts tiles of at least 52px with 4px between them", () => {
+  assert.equal(slotsFor(52), 1);
+  assert.equal(slotsFor(108), 2);
+  assert.equal(slotsFor(107), 1);
+  // nine tiles of about 55px fit in a row that holds eight whole ones
+  assert.equal(slotsFor(528), 9);
   assert.equal(slotsFor(5000), 13);
   assert.equal(slotsFor(0), 0);
+});
+
+test("tileSize shrinks tiles only as far as it takes to fit the slots", () => {
+  assert.equal(tileSize(5000, 13), 56);
+  assert.equal(tileSize(536, 9), 56);
+  assert.ok(Math.abs(tileSize(528, 9) - 55.11) < 0.01);
+  assert.equal(tileSize(108, 2), 52);
+  assert.equal(tileSize(0, 0), 56);
 });
 
 test("a small list loads every item", () => {

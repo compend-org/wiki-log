@@ -93,10 +93,25 @@ export function previewLayout(
   };
 }
 
-// How many slots fit in a row `width` pixels wide: tiles are 56px with 4px
-// between them
+// A tile is 56px wide, with 4px between tiles. A row squeezes its tiles up to
+// 4px to fit one more, rather than leave nearly a tile's width empty.
+const TILE = 56;
+const MIN_TILE = 52;
+const GAP = 4;
+
+// How many slots fit in a row `width` pixels wide
 export function slotsFor(width: number): number {
-  return Math.max(0, Math.min(MAX_PREVIEW_SLOTS, Math.floor((width + 4) / 60)));
+  return Math.max(
+    0,
+    Math.min(MAX_PREVIEW_SLOTS, Math.floor((width + GAP) / (MIN_TILE + GAP))),
+  );
+}
+
+// How wide each of `slots` tiles is drawn in a row `width` pixels wide: full
+// size where there is room, a little less where the row is just wide enough
+export function tileSize(width: number, slots: number): number {
+  if (slots < 1) return TILE;
+  return Math.min(TILE, (width + GAP) / slots - GAP);
 }
 
 // The positions of the items to load: the first few of each group, and all of
