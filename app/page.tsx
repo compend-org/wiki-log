@@ -1,3 +1,6 @@
+// ABOUTME: The home page: today's popular and unpopular picks, item search and the feed.
+// ABOUTME: Also tells search engines the site's name and its one address.
+import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import Digest from "@/components/feed/Digest";
@@ -8,9 +11,21 @@ import PickSquare from "@/components/items/PickSquare";
 import ShareImageButton from "@/components/social/ShareImageButton";
 import { FEATURES } from "@/lib/features";
 import { getDailyPicks } from "@/lib/feed/dailyPicks";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 
 export const instant = false;
+
+// The feed tabs are views of this one page
+export const metadata: Metadata = { alternates: { canonical: "/" } };
+
+// Lets search engines show the site's name beside its results
+const websiteJsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE_NAME,
+  url: SITE_URL,
+});
 
 export default async function Home({
   searchParams,
@@ -48,6 +63,11 @@ export default async function Home({
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 p-4 sm:p-8">
+      <script
+        type="application/ld+json"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: the site's own constant structured data
+        dangerouslySetInnerHTML={{ __html: websiteJsonLd }}
+      />
       {/* The two squares sit at the far left and far right. On wide screens
           the search is between them. Below that, they form a row above it. */}
       <div className="grid grid-cols-2 items-center gap-4 xl:grid-cols-[1fr_minmax(0,42rem)_1fr] xl:gap-8">

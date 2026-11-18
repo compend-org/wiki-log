@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import {
   forgetPerson,
   identifyPerson,
+  sendLandingPageView,
   updatePerson,
 } from "@/lib/analytics/analytics";
 import { createClient } from "@/lib/supabase/client";
@@ -40,6 +41,7 @@ export default function AnalyticsIdentity({
     if (!userId || userId === signedOut.current) {
       if (identified.current) forgetPerson();
       identified.current = null;
+      sendLandingPageView();
       return;
     }
     const properties = { username, is_admin: isAdmin };
@@ -50,6 +52,7 @@ export default function AnalyticsIdentity({
     if (identified.current) forgetPerson();
     identifyPerson(userId, properties);
     identified.current = userId;
+    sendLandingPageView();
   }, [userId, username, isAdmin]);
 
   return null;

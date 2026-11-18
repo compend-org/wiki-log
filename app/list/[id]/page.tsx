@@ -25,6 +25,7 @@ import {
   toCommentItems,
 } from "@/lib/comments";
 import { FEATURES } from "@/lib/features";
+import { plainReview } from "@/lib/format";
 import { isCompoundId, isUuid } from "@/lib/ids";
 import { groupRuns } from "@/lib/lists/listGroups";
 import {
@@ -34,6 +35,7 @@ import {
   parsePage,
 } from "@/lib/lists/listPages";
 import { itemPreviewImage, pageMetadata } from "@/lib/metadata";
+import { SITE_NAME } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
 
@@ -122,21 +124,32 @@ const getListPage = cache(async (id: string, page: number) => {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   await connection();
   const { id } = await params;
   if (!isUuid(id)) return {};
   const list = await getList(id);
   if (!list) return {};
+  const page = parsePage((await searchParams).page);
 
   const owner = list.profiles?.username;
   // The picture comes from the top of the list whichever page is open
-  const { entries } = await getListPage(id, 1);
+  const { entries, total, error } = await getListPage(id, 1);
   const shown = entries.find((e) => e.imageUrl && !e.imageHidden);
+  // Without its items, the list's size isn't known
+  const size = error ? "" : ` of ${total} ${total === 1 ? "item" : "items"}`;
+  const summary = `A list${size}${owner ? ` by ${owner}` : ""} on ${SITE_NAME}.`;
   return pageMetadata({
     title: owner ? `${list.title} by ${owner}` : list.title,
+    description: list.description
+      ? `${plainReview(list.description)} ${summary}`
+      : summary,
+    // Each page holds different items, so each is its own address
+    path: pageHref(list.id, page),
     // A compound's drawing is too small to show as it is
     ...(shown?.imageUrl && isCompoundId(shown.itemId)
       ? itemPreviewImage(shown.itemId, shown.imageUrl)

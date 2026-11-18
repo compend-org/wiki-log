@@ -39,10 +39,9 @@ function cleanTitle(title: string): string {
   return out || title.trim();
 }
 
-// The text shown in an empty image box: no parentheticals, and cut off with an
-// ellipsis after `max` characters (at a word boundary when there's one nearby)
-export function shortLabel(title: string, max = 32): string {
-  const text = cleanTitle(title);
+// The text cut off with an ellipsis after `max` characters, at a word boundary
+// when there's one nearby. Emoji and other multi-unit characters stay whole.
+export function truncate(text: string, max: number): string {
   const chars = Array.from(text);
   if (chars.length <= max) return text;
 
@@ -50,6 +49,12 @@ export function shortLabel(title: string, max = 32): string {
   const lastSpace = cut.lastIndexOf(" ");
   const base = lastSpace >= max * 0.6 ? cut.slice(0, lastSpace) : cut;
   return `${base.trimEnd()}…`;
+}
+
+// The text shown in an empty image box: no parentheticals, and cut off with an
+// ellipsis after `max` characters (at a word boundary when there's one nearby)
+export function shortLabel(title: string, max = 32): string {
+  return truncate(cleanTitle(title), max);
 }
 
 // The first letter or digit of a title, capitalised. A title with neither is

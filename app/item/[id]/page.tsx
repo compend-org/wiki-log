@@ -23,7 +23,11 @@ import { getItemLogs, getMostLikedLogs } from "@/lib/itemLogs";
 import { getItemRatings } from "@/lib/itemRatings";
 import { getItemForPage } from "@/lib/items";
 import { getItemLists } from "@/lib/lists/itemLists";
-import { itemPreviewImage, pageMetadata } from "@/lib/metadata";
+import {
+  itemDescription,
+  itemPreviewImage,
+  pageMetadata,
+} from "@/lib/metadata";
 import { RANDOM_PARAM } from "@/lib/randomItem";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
@@ -61,8 +65,16 @@ export async function generateMetadata({
   if ("error" in result) return {};
 
   const { item } = result;
+  // The page reads the same ratings, so this costs no extra request
+  const { ratings } = await getItemRatings(id);
   return pageMetadata({
     title: item.title,
+    description: itemDescription({
+      title: item.title,
+      about: item.description,
+      ratings,
+    }),
+    path: `/item/${item.id}`,
     ...(item.imageUrl && itemPreviewImage(item.id, item.imageUrl)),
   });
 }

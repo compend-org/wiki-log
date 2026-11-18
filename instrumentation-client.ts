@@ -2,6 +2,7 @@
 // ABOUTME: Sentry sends only errors; PostHog sends page views and named events, keeping nothing in cookies.
 import * as Sentry from "@sentry/nextjs";
 import posthog from "posthog-js";
+import { holdLandingPageViewBeforeSend } from "@/lib/analytics/analytics";
 import {
   ANALYTICS_PROXY_PATH,
   ANALYTICS_TOKEN,
@@ -29,6 +30,8 @@ if (ANALYTICS_TOKEN) {
     capture_exceptions: false,
     disable_session_recording: true,
     disable_surveys: true,
+    // The page view sent now waits until the page knows who is signed in
+    before_send: holdLandingPageViewBeforeSend,
   });
 }
 
