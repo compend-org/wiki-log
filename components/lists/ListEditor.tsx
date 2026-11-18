@@ -383,12 +383,15 @@ export default function ListEditor({
 
   // Does `step`, first asking what to do with the open note if it has
   // unsaved changes. Only one box is open at a time, so any open note closes.
+  // Nothing else starts while a note is saving, so its answer can't land on
+  // another item's note.
   function guard(step: NextStep) {
+    if (noteBusy) return;
     if (noteDirty) {
       setPending(step);
       return;
     }
-    if (noting !== null) closeNote();
+    if (noting !== null) closeNote(step.kind === "close");
     perform(step);
   }
 
@@ -428,12 +431,13 @@ export default function ListEditor({
     setNoteError("");
   }
 
-  // Closes the open note and puts focus back on its button
-  function closeNote() {
+  // Closes the open note. Unless something else opens next and takes focus,
+  // focus goes back to the note's button.
+  function closeNote(restoreFocus = true) {
     const itemId = noting;
     setNoting(null);
     setNoteError("");
-    if (itemId === null) return;
+    if (itemId === null || !restoreFocus) return;
     requestAnimationFrame(() =>
       document
         .querySelector<HTMLElement>(
@@ -456,6 +460,7 @@ export default function ListEditor({
   async function storeNote(
     itemId: string,
     note: string | null,
+    restoreFocus = true,
   ): Promise<boolean> {
     setNoteError("");
     if (editing) {
@@ -473,7 +478,7 @@ export default function ListEditor({
     }
     if (note === null) track("list_note_removed");
     else track("list_note_saved", { length: note.length, from: "editor" });
-    closeNote();
+    closeNote(restoreFocus);
     setJustSaved(itemId);
     setTimeout(
       () => setJustSaved((shown) => (shown === itemId ? null : shown)),
@@ -482,21 +487,25 @@ export default function ListEditor({
     return true;
   }
 
-  async function saveNote(): Promise<boolean> {
+  async function saveNote(restoreFocus = true): Promise<boolean> {
     if (!notingEntry || noteSaveProblem) return false;
-    return storeNote(notingEntry.itemId, cleanListNote(noteDraft));
+    return storeNote(
+      notingEntry.itemId,
+      cleanListNote(noteDraft),
+      restoreFocus,
+    );
   }
 
   // The unsaved-note question's answers
   async function saveNoteAndContinue() {
-    if (await saveNote()) {
+    if (await saveNote(pending?.kind === "close")) {
       setQueued(pending);
       setPending(null);
     }
   }
 
   function discardNoteAndContinue() {
-    closeNote();
+    closeNote(pending?.kind === "close");
     setQueued(pending);
     setPending(null);
   }
@@ -823,6 +832,8 @@ export default function ListEditor({
                   />
                   {notingEntry && index === noteRowEnd && (
                     <NoteBox
+                      // A new box for each item, so its text box takes focus
+                      key={notingEntry.itemId}
                       title={notingEntry.title}
                       rank={ranked ? offset + notingIndex + 1 : null}
                       imageUrl={notingEntry.imageUrl}
@@ -834,7 +845,7 @@ export default function ListEditor({
                       error={noteError}
                       onSave={saveNote}
                       onRemove={() => storeNote(notingEntry.itemId, null)}
-                      onCancel={closeNote}
+                      onCancel={() => closeNote()}
                       onDismiss={() => guard({ kind: "close" })}
                     />
                   )}

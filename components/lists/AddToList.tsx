@@ -29,6 +29,7 @@ import {
   userFacingErrorMessage,
 } from "@/lib/errors/userFacingErrorMessage";
 import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
+import { UNREACHABLE } from "@/lib/lists/listEditing";
 import { cleanListNote, noteProblem } from "@/lib/lists/listNotes";
 import {
   appendLists,
@@ -234,8 +235,14 @@ export default function AddToList({
     if (!noting || note === null || noteProblem(noteDraft)) return;
     setBusy(true);
     setError("");
-    const result = await setListItemNote(noting.listId, noting.itemId, note);
-    setBusy(false);
+    let result: { error?: string };
+    try {
+      result = await setListItemNote(noting.listId, noting.itemId, note);
+    } catch {
+      result = { error: UNREACHABLE };
+    } finally {
+      setBusy(false);
+    }
     if (result.error) {
       setError(result.error);
       return;
@@ -492,6 +499,7 @@ export default function AddToList({
                 label="Note (optional)"
                 value={noteDraft}
                 onChange={setNoteDraft}
+                readOnly={busy}
               />
               <div className="flex gap-2">
                 <button
@@ -509,7 +517,8 @@ export default function AddToList({
                 <button
                   type="button"
                   onClick={() => setNoting(null)}
-                  className="rounded-lg border border-line px-4 py-2"
+                  disabled={busy}
+                  className="rounded-lg border border-line px-4 py-2 disabled:opacity-40"
                 >
                   Done
                 </button>

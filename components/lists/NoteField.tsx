@@ -15,6 +15,7 @@ export default function NoteField({
   placeholder,
   autoFocus = false,
   rows = 3,
+  readOnly = false,
 }: {
   label: string;
   value: string;
@@ -22,6 +23,8 @@ export default function NoteField({
   placeholder?: string;
   autoFocus?: boolean;
   rows?: number;
+  // While the note is saving, so what's sent is what's shown
+  readOnly?: boolean;
 }) {
   const problem = noteProblem(value);
   return (
@@ -33,6 +36,7 @@ export default function NoteField({
         aria-invalid={problem !== null}
         placeholder={placeholder}
         rows={rows}
+        readOnly={readOnly}
         // biome-ignore lint/a11y/noAutofocus: opened by the user to write a note
         autoFocus={autoFocus}
         className="max-h-[30vh] w-full resize-none rounded-lg border border-line bg-surface px-3 py-2 text-base text-foreground sm:max-h-none sm:resize-y"

@@ -57,7 +57,9 @@ export default function NoteBox({
       <button
         type="button"
         aria-label="Close"
-        onClick={onDismiss}
+        onClick={() => {
+          if (!busy) onDismiss();
+        }}
         className="fixed inset-0 z-40 cursor-default bg-black/40 sm:hidden"
       />
       <form
@@ -70,7 +72,7 @@ export default function NoteBox({
         onKeyDown={(e) => {
           if (e.key === "Escape") {
             e.preventDefault();
-            onCancel();
+            if (!busy) onCancel();
             return;
           }
           submitOnModEnter(e);
@@ -96,6 +98,7 @@ export default function NoteBox({
           onChange={onDraft}
           autoFocus
           rows={4}
+          readOnly={busy}
         />
 
         {error && (
@@ -116,7 +119,8 @@ export default function NoteBox({
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-11 rounded-lg border border-line px-4 sm:min-h-0 sm:px-3 sm:py-1"
+            disabled={busy}
+            className="min-h-11 rounded-lg border border-line px-4 disabled:opacity-40 sm:min-h-0 sm:px-3 sm:py-1"
           >
             Cancel
           </button>
