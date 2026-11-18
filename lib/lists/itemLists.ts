@@ -1,5 +1,5 @@
-// ABOUTME: Loads the lists that include one item, most recently added first.
-// ABOUTME: Shown in the "In Lists" section of an item page, a page at a time.
+// ABOUTME: Loads the lists that include one item, or one review, most recently added first.
+// ABOUTME: Shown in an item page's "In Lists" section and a review's lists page, a page at a time.
 
 import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import { LIST_SELECT, type ListRow, type Thumb } from "@/lib/feed/feedData";
@@ -18,16 +18,33 @@ type PreviewRow = {
 
 export type ItemListRow = ListRow & { preview: PreviewRow[] };
 
-// One page of lists after `after`, and where the next page starts
-export async function getItemLists(itemId: string, after: Keyset | null) {
+// One page of the item lists holding an item, after `after`, and where the
+// next page starts
+export function getItemLists(itemId: string, after: Keyset | null) {
+  return getListsHolding({ itemId }, after);
+}
+
+// One page of the review lists holding a review, after `after`, and where the
+// next page starts
+export function getReviewLists(logId: string, after: Keyset | null) {
+  return getListsHolding({ logId }, after);
+}
+
+async function getListsHolding(
+  entry: { itemId: string } | { logId: string },
+  after: Keyset | null,
+) {
   const supabase = await createClient();
   let query = supabase
     .from("list_items")
     .select(
       `added_at, list_id, lists(${LIST_SELECT}, preview:list_items(position, image_url, items(title, image_url, nsfw)))`,
     )
-    .eq("item_id", itemId)
     .lte("lists.preview.position", PREVIEW_ITEMS);
+  query =
+    "logId" in entry
+      ? query.eq("log_id", entry.logId)
+      : query.eq("item_id", entry.itemId).is("log_id", null);
   if (after) query = query.or(olderThan("added_at", after, "list_id"));
   const { data, error } = await query
     .order("added_at", { ascending: false })

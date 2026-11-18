@@ -88,6 +88,7 @@ test("asks for one page of rows in a stable order, with the total", async () => 
     {
       data: [
         {
+          id: "entry-1",
           item_id: "Dune",
           group_id: "grp-1",
           note: "Long, but worth it.",
@@ -98,7 +99,7 @@ test("asks for one page of rows in a stable order, with the total", async () => 
             nsfw: true,
           },
         },
-        { item_id: "Gone", items: null },
+        { id: "entry-2", item_id: "Gone", items: null },
       ],
       count: 1200,
       error: null,
@@ -111,7 +112,7 @@ test("asks for one page of rows in a stable order, with the total", async () => 
   assert.deepEqual(range?.args, [2 * LIST_PAGE_SIZE, 3 * LIST_PAGE_SIZE - 1]);
   assert.deepEqual(
     calls.filter((c) => c.method === "order").map((c) => c.args[0]),
-    ["position", "item_id"],
+    ["position", "item_id", "id"],
   );
   assert.deepEqual(calls.find((c) => c.method === "eq")?.args, [
     "list_id",
@@ -120,6 +121,7 @@ test("asks for one page of rows in a stable order, with the total", async () => 
   assert.equal(result.total, 1200);
   assert.deepEqual(result.entries, [
     {
+      entryId: "entry-1",
       itemId: "Dune",
       rank: 2 * LIST_PAGE_SIZE + 1,
       title: "Dune",
@@ -128,8 +130,10 @@ test("asks for one page of rows in a stable order, with the total", async () => 
       nsfw: true,
       groupId: "grp-1",
       note: "Long, but worth it.",
+      review: null,
     },
     {
+      entryId: "entry-2",
       itemId: "Gone",
       rank: 2 * LIST_PAGE_SIZE + 2,
       title: "Unknown item",
@@ -138,8 +142,54 @@ test("asks for one page of rows in a stable order, with the total", async () => 
       nsfw: false,
       groupId: null,
       note: null,
+      review: null,
     },
   ]);
+});
+
+test("a review list's entries carry their review and its picture", async () => {
+  const { supabase } = fakeSupabase([
+    {
+      data: [
+        {
+          id: "entry-1",
+          item_id: "Q1",
+          image_url: null,
+          items: {
+            title: "Capybara",
+            image_url: "item.jpg",
+            image_hidden: true,
+            nsfw: false,
+          },
+          logs: {
+            id: "log-1",
+            user_id: "user-1",
+            review: "Sits in a hot spring.",
+            rating: "4.5",
+            logged_at: "2026-11-15T00:00:00Z",
+            image_url: "chosen.jpg",
+            profiles: { username: "margot", avatar_path: null },
+          },
+        },
+      ],
+      count: 1,
+      error: null,
+    },
+  ]);
+
+  const { entries } = await fetchListPage(supabase, "list-1", 1);
+
+  assert.equal(entries[0].imageUrl, "chosen.jpg");
+  assert.equal(entries[0].imageHidden, false);
+  assert.deepEqual(entries[0].review, {
+    logId: "log-1",
+    authorId: "user-1",
+    username: "margot",
+    avatarPath: null,
+    text: "Sits in a hot spring.",
+    rating: 4.5,
+    loggedAt: "2026-11-15T00:00:00Z",
+  });
 });
 
 test("a page past the end comes back empty, with the list's real length", async () => {

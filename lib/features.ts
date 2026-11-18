@@ -23,4 +23,8 @@ export const FEATURES = {
   // Grouped lists: lists whose items sit in groups, labeled or not. Off hides
   // the option to make one and shows existing ones as plain lists.
   groupedLists: flag(process.env.NEXT_PUBLIC_FEATURE_GROUPED_LISTS, true),
+  // Review lists: lists of people's reviews, added to from a review's page.
+  // Off hides Add to list and "In n lists" on reviews; existing review lists
+  // still show.
+  reviewLists: flag(process.env.NEXT_PUBLIC_FEATURE_REVIEW_LISTS, false),
 };

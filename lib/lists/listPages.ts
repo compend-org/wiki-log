@@ -1,4 +1,4 @@
-// ABOUTME: Loads a list's items one page at a time, with each item's rank.
+// ABOUTME: Loads a list's items, or a review list's reviews, one page at a time, with each one's rank.
 // ABOUTME: Lists hold up to 10,000 items but the API returns at most 1,000 rows.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
@@ -8,7 +8,20 @@ import { MAX_GROUPED_ITEMS, type SavedGroup } from "@/lib/lists/listGroups";
 // full on phones and wider screens alike.
 export const LIST_PAGE_SIZE = 120;
 
+// The review a review list's entry is for
+export type ListPageReview = {
+  logId: string;
+  authorId: string;
+  username: string;
+  avatarPath: string | null;
+  text: string;
+  rating: number | null;
+  loggedAt: string;
+};
+
 export type ListPageEntry = {
+  // The entry itself, as an item can be in a review list more than once
+  entryId: string;
   itemId: string;
   // 1-based place in the whole list
   rank: number;
@@ -22,9 +35,13 @@ export type ListPageEntry = {
   groupId: string | null;
   // Why the list's owner put the item on the list, if they said
   note: string | null;
+  // In a review list, the review; null in an item list, and for a review the
+  // viewer can't see (removed, or by a banned author)
+  review: ListPageReview | null;
 };
 
 type EntryRow = {
+  id: string;
   item_id: string;
   group_id: string | null;
   // The picture the list's owner chose; null shows the item's
@@ -35,6 +52,15 @@ type EntryRow = {
     image_url: string | null;
     image_hidden: boolean;
     nsfw: boolean;
+  } | null;
+  logs: {
+    id: string;
+    user_id: string;
+    review: string;
+    rating: number | string | null;
+    logged_at: string;
+    image_url: string | null;
+    profiles: { username: string; avatar_path: string | null } | null;
   } | null;
 };
 
@@ -91,7 +117,7 @@ export async function fetchListPage(
   const { data, count, error } = await supabase
     .from("list_items")
     .select(
-      "item_id, group_id, image_url, note, items(title, image_url, image_hidden, nsfw)",
+      "id, item_id, group_id, image_url, note, items(title, image_url, image_hidden, nsfw), logs(id, user_id, review, rating, logged_at, image_url, profiles!logs_user_id_profiles_fkey(username, avatar_path))",
       {
         count: "exact",
       },
@@ -99,6 +125,7 @@ export async function fetchListPage(
     .eq("list_id", listId)
     .order("position")
     .order("item_id")
+    .order("id")
     .range(from, to);
   // A page past the end is refused (416) rather than coming back empty, so
   // count the list on its own to say where it ends
@@ -114,16 +141,32 @@ export async function fetchListPage(
   }
   if (error) return { entries: [], total: 0, error: loadMessage(error) };
 
-  const entries = ((data ?? []) as unknown as EntryRow[]).map((row, i) => ({
-    itemId: row.item_id,
-    rank: from + i + 1,
-    title: row.items?.title ?? "Unknown item",
-    imageUrl: row.image_url ?? row.items?.image_url ?? null,
-    imageHidden: row.image_url ? false : (row.items?.image_hidden ?? false),
-    nsfw: row.items?.nsfw ?? false,
-    groupId: row.group_id ?? null,
-    note: row.note ?? null,
-  }));
+  const entries = ((data ?? []) as unknown as EntryRow[]).map((row, i) => {
+    // A review's chosen picture stands in for the item's, as an entry's does
+    const chosen = row.image_url ?? row.logs?.image_url ?? null;
+    return {
+      entryId: row.id,
+      itemId: row.item_id,
+      rank: from + i + 1,
+      title: row.items?.title ?? "Unknown item",
+      imageUrl: chosen ?? row.items?.image_url ?? null,
+      imageHidden: chosen ? false : (row.items?.image_hidden ?? false),
+      nsfw: row.items?.nsfw ?? false,
+      groupId: row.group_id ?? null,
+      note: row.note ?? null,
+      review: row.logs?.profiles
+        ? {
+            logId: row.logs.id,
+            authorId: row.logs.user_id,
+            username: row.logs.profiles.username,
+            avatarPath: row.logs.profiles.avatar_path,
+            text: row.logs.review,
+            rating: row.logs.rating === null ? null : Number(row.logs.rating),
+            loggedAt: row.logs.logged_at,
+          }
+        : null,
+    };
+  });
   return { entries, total: count ?? entries.length };
 }
 

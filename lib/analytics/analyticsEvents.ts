@@ -34,11 +34,22 @@ export type AnalyticsEvents = {
   favourites_reordered: NoProperties;
 
   // Lists
-  list_created: { item_count: number; ranked: boolean; grouped?: boolean };
-  list_edited: { item_count: number; ranked: boolean; grouped?: boolean };
+  list_created: {
+    item_count: number;
+    ranked: boolean;
+    grouped?: boolean;
+    of_reviews?: boolean;
+  };
+  list_edited: {
+    item_count: number;
+    ranked: boolean;
+    grouped?: boolean;
+    of_reviews?: boolean;
+  };
   list_deleted: NoProperties;
   list_item_added: NoProperties;
   list_item_removed: NoProperties;
+  list_review_added: NoProperties;
   list_reordered: NoProperties;
   list_note_saved: { length: number; from: "editor" | "add_to_list" };
   list_note_removed: NoProperties;

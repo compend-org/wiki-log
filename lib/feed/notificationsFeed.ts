@@ -21,7 +21,8 @@ export type NotificationRow = {
     | "moderation"
     | "comment_like"
     | "list_comment_like"
-    | "mention";
+    | "mention"
+    | "list_review";
   read: boolean;
   created_at: string;
   log_id: string | null;

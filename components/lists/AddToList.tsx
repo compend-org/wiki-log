@@ -168,7 +168,12 @@ export default function AddToList({
   // what is shown, later ones are added below it
   async function loadListPage(query: string, offset: number) {
     const request = ++listRequest.current;
-    const page = await fetchPickerLists(createClient(), itemId, query, offset);
+    const page = await fetchPickerLists(
+      createClient(),
+      { itemId },
+      query,
+      offset,
+    );
     if (request !== listRequest.current) return;
     setLoadingMore(false);
     if (offset === 0) setShownSearch(query);

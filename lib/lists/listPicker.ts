@@ -1,5 +1,5 @@
 // ABOUTME: Loads the signed-in person's lists a page at a time for the "Add to list" picker.
-// ABOUTME: Says for each whether it already holds the item, without sending any list ids.
+// ABOUTME: Says for each whether it already holds the item or review, without sending any list ids.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 
@@ -11,9 +11,12 @@ export type PickerList = {
   title: string;
   ranked: boolean;
   count: number;
-  // Whether the list already holds the item
+  // Whether the list already holds the item or review
   has: boolean;
 };
+
+// What is being added: an item goes in item lists, a review in review lists
+export type PickerTarget = { itemId: string } | { logId: string };
 
 type Row = {
   id: string;
@@ -24,21 +27,31 @@ type Row = {
   total: number | string;
 };
 
-// The viewer's lists from `offset` on, newest first, whose titles contain
-// `search` (any case), and how many lists match in all. `total` is null when
-// the page came back empty past the start, where the total can't be read.
+// The viewer's lists that can take `target`, from `offset` on, most recently
+// added to first, whose titles contain `search` (any case), and how many lists
+// match in all. `total` is null when the page came back empty past the start,
+// where the total can't be read.
 export async function fetchPickerLists(
   supabase: SupabaseClient,
-  itemId: string,
+  target: PickerTarget,
   search: string,
   offset: number,
 ): Promise<{ lists: PickerList[]; total: number | null; error?: string }> {
-  const { data, error } = await supabase.rpc("my_lists_for_item", {
-    p_item_id: itemId,
+  const paging = {
     p_search: search.trim(),
     p_offset: offset,
     p_limit: PICKER_PAGE_SIZE,
-  });
+  };
+  const { data, error } =
+    "logId" in target
+      ? await supabase.rpc("my_lists_for_review", {
+          p_log_id: target.logId,
+          ...paging,
+        })
+      : await supabase.rpc("my_lists_for_item", {
+          p_item_id: target.itemId,
+          ...paging,
+        });
   if (error) return { lists: [], total: null, error: loadMessage(error) };
   const rows = (data ?? []) as Row[];
   return {

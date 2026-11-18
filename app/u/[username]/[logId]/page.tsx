@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import AlsoLiked from "@/components/items/AlsoLiked";
 import ItemImage from "@/components/items/ItemImage";
+import AddReviewToList from "@/components/lists/AddReviewToList";
 import OwnerControls from "@/components/logs/OwnerControls";
 import RemovedNotice from "@/components/logs/RemovedNotice";
 import ReviewText from "@/components/logs/ReviewText";
@@ -24,6 +25,7 @@ import {
   threadsHref,
   toCommentItems,
 } from "@/lib/comments";
+import { FEATURES } from "@/lib/features";
 import { getAlsoLiked } from "@/lib/feed/alsoLiked";
 import { entryPicture, starText, timeAgo } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
@@ -137,6 +139,15 @@ export default async function ReviewPage({
   const reviewHref = `/u/${encodeURIComponent(profile.username)}/${log.id}`;
 
   const alsoLiked = await getAlsoLiked(supabase, [log]);
+  // How many lists the review is in, of those the viewer can see
+  const listCount = FEATURES.reviewLists
+    ? ((
+        await supabase
+          .from("list_items")
+          .select("list_id", { count: "exact", head: true })
+          .eq("log_id", log.id)
+      ).count ?? 0)
+    : 0;
   const title = log.items?.title ?? "Unknown item";
   const isOwner = viewerId === log.user_id;
 
@@ -194,6 +205,37 @@ export default async function ReviewPage({
     </>
   );
 
+  const actions = (
+    <>
+      <LikeButton
+        viewerId={viewerId ?? null}
+        authorId={log.user_id}
+        logId={log.id}
+        initialCount={log.likes?.[0]?.count ?? 0}
+        initiallyLiked={viewer.likedLogs.has(log.id)}
+      />
+      <ShareButton
+        viewerId={viewerId ?? null}
+        ownerId={log.user_id}
+        kind="log"
+        targetId={log.id}
+        shareCount={log.shares?.[0]?.count ?? 0}
+        shared={viewer.sharedLogs.has(log.id)}
+      />
+      <ShareImageButton
+        imageHref={`/u/${encodeURIComponent(profile.username)}/${log.id}/image`}
+        fileName={`${profile.username}-review.png`}
+        className="sm:hidden"
+      />
+      <ReportButton
+        viewerId={viewerId ?? null}
+        ownerId={log.user_id}
+        kind="log"
+        targetId={log.id}
+      />
+    </>
+  );
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       {log.removed_at && <RemovedNotice noun="review" />}
@@ -229,34 +271,27 @@ export default async function ReviewPage({
         )}
       </article>
 
-      <div className="flex items-center gap-4">
-        <LikeButton
-          viewerId={viewerId ?? null}
-          authorId={log.user_id}
+      {FEATURES.reviewLists ? (
+        <AddReviewToList
           logId={log.id}
-          initialCount={log.likes?.[0]?.count ?? 0}
-          initiallyLiked={viewer.likedLogs.has(log.id)}
+          author={profile.username}
+          canAdd={
+            viewerId !== undefined &&
+            !log.removed_at &&
+            log.review.trim() !== ""
+          }
+          actions={actions}
+          aside={
+            listCount > 0 && (
+              <Link href={`${reviewHref}/lists`} className="text-sm underline">
+                In {listCount} {listCount === 1 ? "list" : "lists"}
+              </Link>
+            )
+          }
         />
-        <ShareButton
-          viewerId={viewerId ?? null}
-          ownerId={log.user_id}
-          kind="log"
-          targetId={log.id}
-          shareCount={log.shares?.[0]?.count ?? 0}
-          shared={viewer.sharedLogs.has(log.id)}
-        />
-        <ShareImageButton
-          imageHref={`/u/${encodeURIComponent(profile.username)}/${log.id}/image`}
-          fileName={`${profile.username}-review.png`}
-          className="sm:hidden"
-        />
-        <ReportButton
-          viewerId={viewerId ?? null}
-          ownerId={log.user_id}
-          kind="log"
-          targetId={log.id}
-        />
-      </div>
+      ) : (
+        <div className="flex items-center gap-4">{actions}</div>
+      )}
 
       <AlsoLiked
         username={profile.username}
