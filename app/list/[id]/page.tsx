@@ -9,7 +9,6 @@ import ListNotesHint from "@/components/lists/ListNotesHint";
 import ListPager from "@/components/lists/ListPager";
 import RemovedNotice from "@/components/logs/RemovedNotice";
 import ReviewText from "@/components/logs/ReviewText";
-import Stars from "@/components/logs/Stars";
 import AdminBadge from "@/components/moderation/AdminBadge";
 import ReportButton from "@/components/moderation/ReportButton";
 import Avatar from "@/components/people/Avatar";
@@ -26,10 +25,8 @@ import {
   toCommentItems,
 } from "@/lib/comments";
 import { FEATURES } from "@/lib/features";
-import { timeAgo } from "@/lib/format";
 import { isCompoundId, isUuid } from "@/lib/ids";
 import { groupRuns } from "@/lib/lists/listGroups";
-import { fetchOwnerLatestLogs } from "@/lib/lists/listOwnerLogs";
 import {
   fetchGroups,
   fetchListPage,
@@ -196,15 +193,14 @@ export default async function ListPage({
     suggestNotes = !settings?.list_notes_hint_dismissed;
   }
 
-  // The list owner's latest log of each item on this page, and how many
-  // times they have logged it. Alongside, the newest threads of comments,
-  // whole; older ones load on request.
-  const itemIds = entries.map((e) => e.itemId);
+  // The newest threads of comments, whole; older ones load on request
   const threads = parseThreads(query.comments);
-  const [ownerLatest, commentPage] = await Promise.all([
-    fetchOwnerLatestLogs(supabase, list.user_id, itemIds),
-    fetchCommentThreads(supabase, "list_comments", id, threads),
-  ]);
+  const commentPage = await fetchCommentThreads(
+    supabase,
+    "list_comments",
+    id,
+    threads,
+  );
 
   // Whether the viewer has liked and shared this list, which of its comments
   // they have liked, and who they have blocked
@@ -225,8 +221,6 @@ export default async function ListPage({
   const comments = withoutBlockedComments(allComments, viewer.blocked);
   const commentTotal =
     commentPage.total - (allComments.length - comments.length);
-
-  const owner = list.profiles?.username;
 
   // A grouped list is shown in its groups (a plain one when the feature is off)
   const grouped = list.grouped && FEATURES.groupedLists;
@@ -334,8 +328,6 @@ export default async function ListPage({
               <ul className="grid grid-cols-[repeat(var(--n),minmax(0,1fr))] gap-3">
                 {run.entries.map((entry, index) => {
                   const title = entry.title;
-                  const info = ownerLatest.get(entry.itemId);
-                  const hasCard = info !== undefined || entry.note !== null;
 
                   return (
                     <li key={entry.itemId} className="group relative">
@@ -349,7 +341,7 @@ export default async function ListPage({
                             nsfw={entry.nsfw}
                             alt={title}
                             className={`aspect-square w-full rounded-lg ${
-                              hasCard
+                              entry.note
                                 ? "group-hover:ring-2 group-hover:ring-accent group-focus-within:ring-2 group-focus-within:ring-accent"
                                 : ""
                             }`}
@@ -376,7 +368,7 @@ export default async function ListPage({
                         </div>
                       </Link>
 
-                      {hasCard && (
+                      {entry.note && (
                         <div
                           role="tooltip"
                           className={`card pointer-events-none absolute bottom-full z-30 mb-2 hidden w-64 max-w-[calc(100vw-2rem)] flex-col gap-1 p-3 text-left group-hover:flex group-focus-within:flex ${tooltipPosition(
@@ -384,52 +376,9 @@ export default async function ListPage({
                           )}`}
                         >
                           <span className="font-semibold">{title}</span>
-                          {entry.note && (
-                            <>
-                              <span className="text-xs text-muted">
-                                List note
-                              </span>
-                              <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
-                                {entry.note}
-                              </p>
-                            </>
-                          )}
-                          {info && (
-                            <div
-                              className={`flex flex-col gap-1 ${
-                                entry.note
-                                  ? "mt-1 border-t border-line pt-2"
-                                  : ""
-                              }`}
-                            >
-                              <span className="text-xs text-muted">
-                                {owner ? `${owner}'s latest` : "Latest"} ·{" "}
-                                {timeAgo(info.latest.logged_at, renderedAt)}
-                              </span>
-                              <Stars rating={info.latest.rating} />
-                              {info.latest.review && (
-                                <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
-                                  {
-                                    <ReviewText
-                                      text={info.latest.review}
-                                      plain
-                                    />
-                                  }
-                                </p>
-                              )}
-                              {info.latest.rating === null &&
-                                !info.latest.review && (
-                                  <p className="text-sm text-muted">
-                                    Logged, with no rating or review.
-                                  </p>
-                                )}
-                              {info.count > 1 && (
-                                <span className="text-xs text-muted">
-                                  {info.count} entries
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
+                            {entry.note}
+                          </p>
                         </div>
                       )}
                     </li>
