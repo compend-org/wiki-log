@@ -25,7 +25,7 @@ import {
   toCommentItems,
 } from "@/lib/comments";
 import { getAlsoLiked } from "@/lib/feed/alsoLiked";
-import { entryPicture, starText, timeAgo } from "@/lib/format";
+import { entryPicture, plainReview, starText, timeAgo } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { likeKey } from "@/lib/likes";
 import { itemPreviewImage, pageMetadata } from "@/lib/metadata";
@@ -52,7 +52,12 @@ export async function generateMetadata({
   const itemTitle = log.items?.title ?? "Unknown item";
   return pageMetadata({
     title: `${profile.username} on ${itemTitle}`,
-    description: starText(log.rating) || undefined,
+    // A removed review's text stays out of previews and search results
+    description:
+      [starText(log.rating), !log.removed_at && plainReview(log.review)]
+        .filter(Boolean)
+        .join(" ") || undefined,
+    path: `/u/${encodeURIComponent(profile.username)}/${log.id}`,
     // A picture the author chose has its own route; other reviews share their
     // item's
     ...(log.image_url

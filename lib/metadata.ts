@@ -1,31 +1,50 @@
-// ABOUTME: Builds the metadata a page shows in link previews: title, description and image.
+// ABOUTME: Builds the metadata a page shows in link previews and search results: title, description, image and address.
 // ABOUTME: Keeps the Open Graph and Twitter card fields in step with each other.
 import type { Metadata } from "next";
 import { absolute } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
+import { ratingHistogram } from "@/lib/ratingHistogram";
 import { SITE_NAME, SITE_PREVIEW_IMAGE } from "@/lib/site";
+
+// Search results show about this many characters of a description
+const DESCRIPTION_LENGTH = 160;
+
+// The text on one line, cut at a word to fit a search result
+export function shortDescription(text: string): string {
+  const line = text.replace(/\s+/g, " ").trim();
+  if (line.length <= DESCRIPTION_LENGTH) return line;
+  const cut = line.slice(0, DESCRIPTION_LENGTH - 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).replace(/[\s.,;:!?-]+$/, "")}…`;
+}
 
 // A square image, like an avatar, is shown as a small thumbnail beside the
 // text; any other image is shown large above it. A page without an image
-// shows the site logo as a thumbnail
+// shows the site logo as a thumbnail. `path` is the page's own address,
+// without the query, so search engines treat its variants as one page
 export function pageMetadata({
   title,
-  description,
+  description: fullDescription,
   image,
   squareImage = false,
+  path,
 }: {
   title: string;
   description?: string;
   image?: string | null;
   squareImage?: boolean;
+  path?: string;
 }): Metadata {
   const images = [image ? absolute(image) : SITE_PREVIEW_IMAGE];
+  const description = fullDescription && shortDescription(fullDescription);
   return {
     title,
     description,
+    ...(path && { alternates: { canonical: path } }),
     openGraph: {
       title,
       description,
+      url: path,
       images,
       siteName: SITE_NAME,
       type: "website",
@@ -51,4 +70,23 @@ export function itemPreviewImage(
     image: `/item/${itemId}/image${version ? `?${version}` : ""}`,
     squareImage: isCompoundId(itemId),
   };
+}
+
+// What a search result says about an item: what it is, then how people rated it
+export function itemDescription({
+  title,
+  about,
+  ratings,
+}: {
+  title: string;
+  about: string | null;
+  ratings: number[];
+}): string {
+  const summary = about && `${about.charAt(0).toUpperCase()}${about.slice(1)}.`;
+  const { average, people } = ratingHistogram(ratings);
+  const rated =
+    people === 0
+      ? `Rate and review ${title} on ${SITE_NAME}.`
+      : `Rated ${average.toFixed(1)} out of 5 by ${people} ${people === 1 ? "person" : "people"} on ${SITE_NAME}. See their reviews and the lists it's on.`;
+  return summary ? `${summary} ${rated}` : rated;
 }

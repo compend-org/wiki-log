@@ -12,9 +12,9 @@ import ScrollToTop from "@/components/layout/ScrollToTop";
 import { iphoneViewportScript } from "@/lib/iphoneViewport";
 import { sfwInitScript } from "@/lib/sfw";
 import {
+  SITE_DESCRIPTION,
   SITE_NAME,
   SITE_PREVIEW_IMAGE,
-  SITE_TAGLINE,
   SITE_URL,
 } from "@/lib/site";
 import { themeInitScript } from "@/lib/theme";
@@ -32,13 +32,18 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
-  description: SITE_TAGLINE || undefined,
+  description: SITE_DESCRIPTION,
   openGraph: {
     siteName: SITE_NAME,
+    description: SITE_DESCRIPTION,
     type: "website",
     images: [SITE_PREVIEW_IMAGE],
   },
-  twitter: { card: "summary", images: [SITE_PREVIEW_IMAGE] },
+  twitter: {
+    card: "summary",
+    description: SITE_DESCRIPTION,
+    images: [SITE_PREVIEW_IMAGE],
+  },
   icons: {
     icon: [
       { url: "/logo-light.png", media: "(prefers-color-scheme: light)" },
