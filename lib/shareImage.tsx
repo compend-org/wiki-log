@@ -1,7 +1,7 @@
 // ABOUTME: Colours, fonts, stars and picture loading shared by the images people share from the site.
 // ABOUTME: Each image route draws its own layout with these.
 import sharp, { type Sharp } from "sharp";
-import { SITE_NAME } from "@/lib/site";
+import { SITE_URL } from "@/lib/site";
 
 // The site's light theme colours, from globals.css
 export const COLORS = {
@@ -200,8 +200,9 @@ export function Stars({ rating, size }: { rating: number; size: number }) {
   );
 }
 
-// The site's logo and name, which sign the bottom right of every shared
-// image. Pushed to the far right of the row it sits in.
+// The site's logo and address, which sign the bottom right of every shared
+// image so anyone who sees it can find the site. Pushed to the far right of
+// the row it sits in.
 export function SiteSignature({ logo }: { logo: string | null }) {
   return (
     <div
@@ -219,7 +220,7 @@ export function SiteSignature({ logo }: { logo: string | null }) {
         // biome-ignore lint/performance/noImgElement: drawn into a PNG, not shown on a page
         <img src={logo} alt="" width={68} height={68} />
       )}
-      {SITE_NAME}
+      {new URL(SITE_URL).host}
     </div>
   );
 }

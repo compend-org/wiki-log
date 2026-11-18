@@ -1,4 +1,4 @@
-// ABOUTME: Fetches a picture of a page, like a review drawn for Instagram, and opens the phone's share sheet with it.
+// ABOUTME: Fetches a picture of a page, like a review drawn for Instagram, and opens the phone's share sheet with it and a link back.
 // ABOUTME: Downloads the picture instead on browsers that can't share files.
 "use client";
 
@@ -60,9 +60,13 @@ export default function ShareImageButton({
     }
     if (!file) return;
 
-    if (navigator.canShare?.({ files: [file] })) {
+    // The link back is tagged so visits from shares can be counted
+    const pageLink = new URL(location.pathname, location.origin);
+    pageLink.searchParams.set("utm_source", "share");
+    const shared = { files: [file], url: pageLink.href };
+    if (navigator.canShare?.(shared)) {
       try {
-        await navigator.share({ files: [file] });
+        await navigator.share(shared);
         track("share_image_created", { method: "share_sheet" });
       } catch {
         // Cancelled, or the browser only opens the share sheet straight
