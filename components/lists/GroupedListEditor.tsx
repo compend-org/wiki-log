@@ -19,11 +19,16 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { createGroupedList, stageItem } from "@/app/actions";
+import {
+  createGroupedList,
+  setListItemPicture,
+  stageItem,
+} from "@/app/actions";
 import ItemImage from "@/components/items/ItemImage";
 import ItemPicker from "@/components/items/ItemPicker";
-import ReviewTextarea from "@/components/logs/ReviewTextArea";
+import PicturePicker from "@/components/logs/PicturePicker";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import PictureIcon from "@/components/ui/PictureIcon";
 import { track } from "@/lib/analytics/analytics";
 import {
   SAVE_FAILED,
@@ -31,6 +36,7 @@ import {
 } from "@/lib/errors/userFacingErrorMessage";
 import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { useDragSensors } from "@/lib/hooks/useDragSensors";
+import { isCompoundId } from "@/lib/ids";
 import {
   addEntry,
   type DraftGroup,
@@ -49,15 +55,19 @@ import {
   renameGroup,
   reorderWithin,
 } from "@/lib/lists/listGroups";
+import type { PictureChoice } from "@/lib/pictureChoices";
 import { createClient } from "@/lib/supabase/client";
 
 // One item in a group's grid, dragged by its picture or title
 function SortableTile({
   entry,
   onRemove,
+  onPicture,
 }: {
   entry: GroupEntry;
   onRemove: () => void;
+  // Opens the picture picker
+  onPicture: () => void;
 }) {
   const {
     attributes,
@@ -85,6 +95,19 @@ function SortableTile({
           alt={entry.title}
           className="aspect-square w-full rounded-lg"
         />
+        {!isCompoundId(entry.itemId) && (
+          // Compounds have no article to pick a picture from
+          <button
+            type="button"
+            onClick={onPicture}
+            onKeyDown={(e) => e.stopPropagation()}
+            aria-label={`Change the picture for ${entry.title}`}
+            title="Change the picture"
+            className="absolute bottom-1 left-1 rounded bg-background/80 px-1.5 py-1"
+          >
+            <PictureIcon className="h-3 w-3" />
+          </button>
+        )}
         <button
           type="button"
           onClick={onRemove}
@@ -147,6 +170,11 @@ export default function GroupedListEditor({
   );
   // The group whose item picker is open
   const [adding, setAdding] = useState<string | null>(null);
+  // Pictures picked from the items' articles, by item: the picture to store,
+  // or null to go back to the item's own. They are saved with the list.
+  const [pictures, setPictures] = useState<Record<string, string | null>>({});
+  // The item whose picture picker is open
+  const [picturing, setPicturing] = useState<GroupEntry | null>(null);
   const [busy, setBusy] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
   const [error, setError] = useState<string>("");
@@ -211,6 +239,23 @@ export default function GroupedListEditor({
       ),
     });
   };
+
+  // Shows the picked picture at once and keeps it for when the list is saved
+  function handlePicture(itemId: string, choice: PictureChoice | null) {
+    setError("");
+    // Null is the item's own picture
+    const stored = choice && !choice.isDefault ? choice.url : null;
+    const shown = choice?.url ?? null;
+    setPictures((prev) => ({ ...prev, [itemId]: stored }));
+    setGroups((prev) =>
+      prev.map((g) => ({
+        ...g,
+        items: g.items.map((i) =>
+          i.itemId === itemId ? { ...i, imageUrl: shown } : i,
+        ),
+      })),
+    );
+  }
 
   function handleDragStart(event: DragStartEvent) {
     setActiveId(String(event.active.id));
@@ -286,6 +331,11 @@ export default function GroupedListEditor({
         description,
         labeled,
         groups: payload,
+        pictures: Object.fromEntries(
+          Object.entries(pictures).filter(
+            (entry): entry is [string, string] => entry[1] !== null,
+          ),
+        ),
       });
       if (result.error || !result.id) {
         setBusy(false);
@@ -320,6 +370,19 @@ export default function GroupedListEditor({
       setBusy(false);
       setMessage(userFacingErrorMessage(groupsError, SAVE_FAILED));
       return;
+    }
+    // Only the server may set an entry's picture
+    for (const [itemId, url] of Object.entries(pictures)) {
+      const { error: pictureError } = await setListItemPicture(
+        list.id,
+        itemId,
+        url,
+      );
+      if (pictureError) {
+        setBusy(false);
+        setMessage(`Saved, but not all the pictures: ${pictureError}`);
+        return;
+      }
     }
     track("list_edited", { item_count: total, ranked: false, grouped: true });
     router.push(`/list/${list.id}`);
@@ -378,18 +441,16 @@ export default function GroupedListEditor({
             className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"
           />
         </label>
-        <div className="flex flex-col gap-1 text-sm">
-          <label htmlFor="list-description">Description (optional)</label>
-          <ReviewTextarea
-            id="list-description"
+        <label className="flex flex-col gap-1 text-sm">
+          Description (optional)
+          <textarea
             value={description}
-            onChange={setDescription}
+            onChange={(e) => setDescription(e.target.value)}
             maxLength={500}
             rows={2}
-            mentions={false}
             className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"
           />
-        </div>
+        </label>
       </div>
 
       <div className="flex flex-col gap-1">
@@ -498,9 +559,11 @@ export default function GroupedListEditor({
                 <SortableTile
                   key={entry.itemId}
                   entry={entry}
-                  onRemove={() =>
-                    setGroups((prev) => removeEntry(prev, entry.itemId))
-                  }
+                  onRemove={() => {
+                    setGroups((prev) => removeEntry(prev, entry.itemId));
+                    setPictures(({ [entry.itemId]: _, ...others }) => others);
+                  }}
+                  onPicture={() => setPicturing(entry)}
                 />
               ))}
               <li>
@@ -613,6 +676,15 @@ export default function GroupedListEditor({
             </ConfirmDialog>
           )}
         </section>
+      )}
+      {picturing && (
+        <PicturePicker
+          itemId={picturing.itemId}
+          label={`Picture for “${picturing.title}” in this list`}
+          picked={picturing.imageUrl}
+          onPick={(choice) => handlePicture(picturing.itemId, choice)}
+          onClose={() => setPicturing(null)}
+        />
       )}
     </form>
   );

@@ -776,6 +776,9 @@ export async function createGroupedList(input: {
   description: string;
   labeled: boolean;
   groups: { name: string | null; items: string[] }[];
+  // Pictures from the items' articles to show instead of the items' own, by
+  // item
+  pictures?: Record<string, string>;
 }): Promise<{ error?: string; id?: string }> {
   if (!FEATURES.groupedLists) return { error: "Grouped lists are turned off." };
   const supabase = await createClient();
@@ -801,8 +804,25 @@ export async function createGroupedList(input: {
   ) {
     return { error: "Invalid groups." };
   }
-  if (input.groups.flatMap((g) => g.items).length < 1) {
-    return { error: "Add at least one item." };
+  const itemIds = input.groups.flatMap((g) => g.items);
+  if (itemIds.length < 1) return { error: "Add at least one item." };
+
+  // Checked before saving, so a picture that isn't allowed saves nothing
+  const chosen = Object.entries(input.pictures ?? {});
+  if (chosen.some(([itemId]) => !itemIds.includes(itemId))) {
+    return { error: "Invalid pictures." };
+  }
+  const pictures: { itemId: string; url: string }[] = [];
+  for (const batch of chunks(chosen, PICTURES_AT_ONCE)) {
+    const checked = await Promise.all(
+      batch.map(([itemId, url]) => storedPicture(itemId, url)),
+    );
+    for (const [index, picture] of checked.entries()) {
+      if ("error" in picture) return picture;
+      if (picture.url) {
+        pictures.push({ itemId: batch[index][0], url: picture.url });
+      }
+    }
   }
 
   const { data: list, error } = await supabase
@@ -840,6 +860,31 @@ export async function createGroupedList(input: {
     return {
       error: userFacingErrorMessage(groupsError, "Couldn't create the list."),
     };
+  }
+  // Only the server may set an entry's picture
+  const admin = createAdminClient();
+  for (const batch of chunks(pictures, PICTURES_AT_ONCE)) {
+    const writes = await Promise.all(
+      batch.map((p) =>
+        admin
+          .from("list_items")
+          .update({ image_url: p.url })
+          .eq("list_id", list.id)
+          .eq("item_id", p.itemId),
+      ),
+    );
+    if (writes.some((w) => w.error)) {
+      // The list goes too, so trying again can't create it twice
+      const { error: undoError } = await supabase
+        .from("lists")
+        .delete()
+        .eq("id", list.id);
+      return {
+        error: undoError
+          ? "Your list was created, but not all its pictures."
+          : "Couldn't create the list. Try again.",
+      };
+    }
   }
   return { id: list.id };
 }
