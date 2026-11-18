@@ -11,7 +11,7 @@ export default function SignUpPrompt({ reason }: { reason: string }) {
 
   return (
     <div className="card flex flex-col gap-3 p-4">
-      <p className="text-sm">{reason}</p>
+      <p className="text-center text-sm">{reason}</p>
       <div className="flex items-center justify-center gap-6">
         <Link
           href={signUpHref(pathname)}
