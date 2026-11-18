@@ -88,6 +88,17 @@ const BOX = [
   "w-[calc((100%_-_1.5rem_-_4px_-_(var(--cols)_-_1)_*_0.75rem)_/_var(--cols)_*_var(--n)_+_(var(--n)_-_1)_*_0.75rem_+_1.5rem_+_4px)]",
 ].join(" ");
 
+// The empty space after a short last row, in the grid's bottom right corner.
+// It reaches out over the box's padding and border (0.75rem and 2px) and has
+// the page's colour, so the box's border doesn't show there; its own top and
+// left borders are the step.
+const NOTCH = [
+  "pointer-events-none bg-background",
+  "[grid-column:var(--s3)/-1] sm:[grid-column:var(--s4)/-1]",
+  "mb-[calc(-0.75rem-2px)] mr-[calc(-0.75rem-2px)]",
+  "border-l-2 border-t-2 border-dashed border-line",
+].join(" ");
+
 // The list and a page of its entries are cached per request, so the page and
 // its metadata share them
 const getList = cache(async (id: string): Promise<ListRow | null> => {
@@ -279,7 +290,15 @@ export default async function ListPage({
               <h2 className="text-lg font-semibold">{run.group.name}</h2>
             )}
             <div
-              style={{ "--count": run.entries.length } as CSSProperties}
+              style={
+                {
+                  "--count": run.entries.length,
+                  // Where the unfilled part of the last row starts, in a
+                  // grid of 3 columns and one of 4
+                  "--s3": (run.entries.length % 3) + 1,
+                  "--s4": (run.entries.length % 4) + 1,
+                } as CSSProperties
+              }
               className={BOX}
             >
               <ul className="grid grid-cols-[repeat(var(--n),minmax(0,1fr))] gap-3">
@@ -342,6 +361,13 @@ export default async function ListPage({
                     </li>
                   );
                 })}
+                {/* When the last row isn't full, the box steps in round the
+                    empty space: this fills it with the page's colour, over
+                    the box's own border, and draws the step */}
+                <li
+                  aria-hidden="true"
+                  className={`${run.entries.length > 3 && run.entries.length % 3 !== 0 ? "block" : "hidden"} ${run.entries.length > 4 && run.entries.length % 4 !== 0 ? "sm:block" : "sm:hidden"} ${NOTCH}`}
+                />
               </ul>
             </div>
           </section>
