@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import ExternalShareIcon from "@/components/social/ExternalShareIcon";
 import { track } from "@/lib/analytics/analytics";
+import { SITE_URL } from "@/lib/site";
 
 export default function ShareImageButton({
   imageHref,
@@ -52,6 +53,10 @@ export default function ShareImageButton({
   });
 
   async function onClick() {
+    // The link back is to the public site, tagged so visits from shares can
+    // be counted, and read before waiting so it matches the tapped page
+    const pageLink = new URL(location.pathname, SITE_URL);
+    pageLink.searchParams.set("utm_source", "share");
     let file = fetched.current;
     if (!file) {
       setWaiting(true);
@@ -60,9 +65,6 @@ export default function ShareImageButton({
     }
     if (!file) return;
 
-    // The link back is tagged so visits from shares can be counted
-    const pageLink = new URL(location.pathname, location.origin);
-    pageLink.searchParams.set("utm_source", "share");
     const shared = { files: [file], url: pageLink.href };
     if (navigator.canShare?.(shared)) {
       try {
