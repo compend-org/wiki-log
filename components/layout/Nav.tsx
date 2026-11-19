@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import DiaryIcon from "@/components/activity/DiaryIcon";
 import CraftIcon from "@/components/craft/CraftIcon";
@@ -16,6 +17,7 @@ import logoLight from "@/public/logo-light.png";
 // `account` fills the signed-in part of the bar: the bell, profile and sign in/out
 export default function Nav({ account }: { account: ReactNode }) {
   const tone = useNavLinkTone();
+  const t = useTranslations();
 
   return (
     <nav className="flex relative flex-nowrap items-center justify-between gap-x-3 border-b border-line bg-surface px-4 py-2 text-sm sm:flex-wrap sm:justify-start sm:gap-x-5 sm:gap-y-1 sm:px-8">
@@ -46,8 +48,8 @@ export default function Nav({ account }: { account: ReactNode }) {
       <Link
         href="/activity"
         prefetch={false}
-        aria-label="Activity"
-        title="Activity"
+        aria-label={t("nav.activity")}
+        title={t("nav.activity")}
         className={`flex ${tone("/activity")}`}
       >
         <DiaryIcon />
@@ -56,8 +58,8 @@ export default function Nav({ account }: { account: ReactNode }) {
       {FEATURES.compounds && (
         <Link
           href="/craft"
-          aria-label="Craft a compound"
-          title="Craft a compound"
+          aria-label={t("nav.craft")}
+          title={t("nav.craft")}
           className={`flex ${tone("/craft")}`}
         >
           <CraftIcon />

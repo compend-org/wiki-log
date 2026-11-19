@@ -1,6 +1,8 @@
 // ABOUTME: The row of like, share, comment and log actions at the bottom of a feed card.
 // ABOUTME: Keeps room for a one-digit count beside the like icon, so tapping it moves nothing.
+
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import CommentIcon from "@/components/social/CommentIcon";
 import { commentLabel } from "@/lib/format";
@@ -21,6 +23,7 @@ export default function CardActions({
   // Extra details shown before the actions
   children?: ReactNode;
 }) {
+  const t = useTranslations();
   return (
     <div className="flex h-5 items-center whitespace-nowrap text-sm text-muted">
       {children && <span className="mr-3.5">{children}</span>}
@@ -47,7 +50,7 @@ export default function CardActions({
 
       {logHref && (
         <Link href={logHref} className="relative z-10 hover:underline">
-          Log
+          {t("logs.log")}
         </Link>
       )}
     </div>

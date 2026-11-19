@@ -4,6 +4,7 @@
 
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { type CompoundDetails, updateCompound } from "@/app/actions";
 import Dialog from "@/components/ui/Dialog";
@@ -46,6 +47,7 @@ export default function CompoundEditButton({
   // The size of the pencil
   iconClassName?: string;
 }) {
+  const t = useTranslations();
   const [open, setOpen] = useState<boolean>(false);
   const [name, setName] = useState<string>(title);
   const [text, setText] = useState<string>(description);
@@ -104,8 +106,8 @@ export default function CompoundEditButton({
       <button
         type="button"
         onClick={openForm}
-        aria-label="Edit this compound"
-        title="Edit this compound"
+        aria-label={t("craft.editThisCompound")}
+        title={t("craft.editThisCompound")}
         className="flex text-accent hover:opacity-70 hover:text-foreground"
       >
         <EditIcon className={iconClassName} />
@@ -124,9 +126,11 @@ export default function CompoundEditButton({
       )}
       {open && !drawing && (
         <Dialog label="Edit this compound" onClose={() => setOpen(false)}>
-          <h2 className="text-base font-semibold">Edit this compound</h2>
+          <h2 className="text-base font-semibold">
+            {t("craft.editThisCompound")}
+          </h2>
           <label className="flex flex-col gap-1">
-            Name
+            {t("craft.name")}
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -135,7 +139,7 @@ export default function CompoundEditButton({
             />
           </label>
           <label className="flex flex-col gap-1">
-            Description
+            {t("craft.description")}
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -147,7 +151,7 @@ export default function CompoundEditButton({
           <div className="flex items-center gap-3">
             <span
               role="img"
-              aria-label="Its picture"
+              aria-label={t("craft.itsPicture")}
               className="h-[102px] w-[102px] shrink-0 border border-line bg-surface"
               style={{
                 backgroundImage: picture ? `url("${picture}")` : undefined,
@@ -172,7 +176,7 @@ export default function CompoundEditButton({
                   }}
                   className="text-xs text-muted underline"
                 >
-                  Remove
+                  {t("common.remove")}
                 </button>
               )}
             </span>
@@ -184,7 +188,7 @@ export default function CompoundEditButton({
               onClick={() => setOpen(false)}
               className="border border-line px-3 py-1"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="button"
@@ -192,7 +196,7 @@ export default function CompoundEditButton({
               disabled={busy || name.trim().length === 0}
               className="bg-accent px-4 py-1 text-background disabled:opacity-40"
             >
-              {busy ? "Saving…" : "Save"}
+              {busy ? t("common.saving") : "Save"}
             </button>
           </div>
         </Dialog>

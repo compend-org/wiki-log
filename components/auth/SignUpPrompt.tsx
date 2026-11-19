@@ -4,9 +4,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { loginHref, signUpHref } from "@/lib/redirect";
 
 export default function SignUpPrompt({ reason }: { reason: string }) {
+  const t = useTranslations();
   const pathname = usePathname() || "/";
 
   return (
@@ -18,14 +20,14 @@ export default function SignUpPrompt({ reason }: { reason: string }) {
           prefetch={false}
           className="bg-accent px-4 py-2 text-sm text-background hover:no-underline"
         >
-          Create an account
+          {t("home.createAnAccount")}
         </Link>
         <Link
           href={loginHref(pathname)}
           prefetch={false}
           className="text-sm underline"
         >
-          Sign in
+          {t("common.signIn")}
         </Link>
       </div>
     </div>

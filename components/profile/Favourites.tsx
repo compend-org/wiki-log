@@ -20,6 +20,7 @@ import {
 import { CSS, useCombinedRefs } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
 import {
   removeFavourite,
@@ -146,6 +147,7 @@ export default function Favourites({
   slots: (Slot | null)[];
   isOwner: boolean;
 }) {
+  const t = useTranslations();
   const [editing, setEditing] = useState<number | null>(null);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -189,7 +191,7 @@ export default function Favourites({
       result = await removeFavourite(position);
     } catch {
       // The request can fail outright, e.g. when it races a page change
-      result = { error: "Couldn't remove it. Reload the page to try again." };
+      result = { error: t("errors.favouriteRemoveFailed") };
     }
     setBusy(false);
     if (result.error) {
@@ -216,7 +218,7 @@ export default function Favourites({
         choice && !choice.isDefault ? choice.url : null,
       );
     } catch {
-      result = { error: "Couldn't save the picture. Try again." };
+      result = { error: t("errors.pictureSaveFailed") };
     }
     setBusy(false);
     if (result.error) {
@@ -262,7 +264,7 @@ export default function Favourites({
     <section>
       <div className="mb-2 flex items-baseline justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-          Top 5
+          {t("profile.top5")}
         </h2>
         {isOwner && hasFavourites && (
           <button
@@ -273,7 +275,7 @@ export default function Favourites({
             }}
             className="text-sm text-muted hover:text-accent"
           >
-            {showRemove ? "Done" : "Edit"}
+            {showRemove ? t("lists.picker.done") : t("common.edit")}
           </button>
         )}
       </div>
@@ -325,7 +327,9 @@ export default function Favourites({
                           type="button"
                           onClick={() => handleRemove(position)}
                           disabled={saving}
-                          aria-label={`Remove ${slot.title}`}
+                          aria-label={t("lists.editor.removeItem", {
+                            title: slot.title,
+                          })}
                           className="absolute -right-1.5 -top-1.5 flex h-7 w-7 items-center justify-center rounded-full border border-line bg-background text-sm text-foreground shadow disabled:opacity-40"
                         >
                           ×
@@ -336,8 +340,10 @@ export default function Favourites({
                           type="button"
                           onClick={() => setPicturing(position)}
                           disabled={saving}
-                          aria-label={`Change the picture for ${slot.title}`}
-                          title="Change the picture"
+                          aria-label={t("lists.editor.changePictureFor", {
+                            title: slot.title,
+                          })}
+                          title={t("common.changePicture")}
                           className="absolute bottom-6 left-1 rounded bg-background/80 px-1.5 py-1 disabled:opacity-40"
                         >
                           <EditIcon className="h-3 w-3" />
@@ -357,7 +363,9 @@ export default function Favourites({
                         setEditing(position);
                         setError("");
                       }}
-                      aria-label={`Add an item to slot ${position}`}
+                      aria-label={t("profile.favourites.addToSlot", {
+                        position,
+                      })}
                       className={`flex aspect-square w-full items-center justify-center rounded-lg border-2 border-dashed text-xl transition-colors hover:border-accent hover:text-accent ${
                         editing === position
                           ? "border-accent text-accent"
@@ -387,7 +395,7 @@ export default function Favourites({
         <div className="mt-3 flex flex-col gap-2">
           <ItemPicker
             onPick={handlePick}
-            placeholder={`Search for slot ${editing}…`}
+            placeholder={t("profile.favourites.searchSlot", { slot: editing })}
             autoFocus
           />
           <button
@@ -398,7 +406,7 @@ export default function Favourites({
             }}
             className="self-start rounded-lg border border-line px-3 py-1.5 text-sm"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
       )}
@@ -406,7 +414,9 @@ export default function Favourites({
       {picturing !== null && picturingSlot && (
         <PicturePicker
           itemId={picturingSlot.itemId}
-          label={`Picture for “${picturingSlot.title}” in your top 5`}
+          label={t("profile.favourites.pictureFor", {
+            title: picturingSlot.title,
+          })}
           picked={picturingSlot.imageUrl}
           onPick={(choice) =>
             handlePicture(picturing, picturingSlot.itemId, choice)

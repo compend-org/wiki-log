@@ -1,6 +1,7 @@
 // ABOUTME: Loads the reviews and lists a person has liked a page at a time, most recently liked first.
 // ABOUTME: Kept apart from the activity page so the server action for later pages can use it too.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getLocale, getTranslations } from "next-intl/server";
 import DiaryListCard from "@/components/activity/DiaryListCard";
 import DiaryLogCard from "@/components/activity/DiaryLogCard";
 import type { Card, CardsPage } from "@/components/paging/CardPages";
@@ -140,6 +141,8 @@ export async function loadLikesPage(
   );
 
   const now = Date.now();
+  const t = await getTranslations();
+  const locale = await getLocale();
   const logs: Entry[] = likedLogs.map((like) => {
     const l = like.logs;
     return {
@@ -152,12 +155,12 @@ export async function loadLikesPage(
           <DiaryLogCard
             logId={l.id}
             itemId={l.item_id}
-            title={l.items?.title ?? "Unknown item"}
+            title={l.items?.title ?? t("common.unknownItem")}
             imageUrl={entryPicture(l)}
             nsfw={l.items?.nsfw ?? false}
             rating={l.rating === null ? null : Number(l.rating)}
             review={l.review}
-            ago={timeAgo(like.created_at, now)}
+            ago={timeAgo(like.created_at, now, t, locale)}
             entryHref={
               l.profiles
                 ? `/u/${encodeURIComponent(l.profiles.username)}/${l.id}`
@@ -194,11 +197,11 @@ export async function loadLikesPage(
             groupPreviews={groupPreviews.get(l.id) ?? null}
             count={l.list_items?.[0]?.count ?? 0}
             previews={l.preview.map((p) => ({
-              title: p.items?.title ?? "Unknown item",
+              title: p.items?.title ?? t("common.unknownItem"),
               imageUrl: entryPicture(p),
               nsfw: p.items?.nsfw ?? false,
             }))}
-            ago={timeAgo(like.created_at, now)}
+            ago={timeAgo(like.created_at, now, t, locale)}
             author={l.profiles?.username ?? "someone"}
             owner={view?.ownerName}
           />

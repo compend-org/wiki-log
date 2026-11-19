@@ -1,6 +1,8 @@
 // ABOUTME: One long review in the Digest tab, shown in full.
 // ABOUTME: The whole card opens the review; the links and buttons on it work on their own.
+
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import ItemImage from "@/components/items/ItemImage";
 import CardActions from "@/components/logs/CardActions";
 import ReviewText from "@/components/logs/ReviewText";
@@ -24,6 +26,8 @@ export default function DigestCard({
   shared: boolean;
   now: number;
 }) {
+  const t = useTranslations();
+  const locale = useLocale();
   const title = row.items?.title ?? "Unknown item";
   const author = row.profiles?.username;
   const reviewHref = author
@@ -35,7 +39,10 @@ export default function DigestCard({
       {reviewHref && (
         <Link
           href={reviewHref}
-          aria-label={`Open ${author}'s review of ${title}`}
+          aria-label={t("feed.openReview", {
+            author: author ?? "",
+            title: title ?? "",
+          })}
           className="card-link absolute inset-0 rounded-[inherit]"
         />
       )}
@@ -65,7 +72,7 @@ export default function DigestCard({
               avatarPath={row.profiles?.avatar_path ?? null}
             />
             <span className="whitespace-nowrap">
-              · {timeAgo(row.logged_at, now)}
+              · {timeAgo(row.logged_at, now, t, locale)}
             </span>
           </span>
         </div>

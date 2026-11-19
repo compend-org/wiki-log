@@ -29,7 +29,7 @@ import {
   type PostKind,
   type ReportedAccount,
 } from "@/lib/admin/adminReports";
-import { timeAgo } from "@/lib/format";
+import { adminTimeAgo } from "@/lib/admin/ago";
 import { isUuid } from "@/lib/ids";
 
 export const metadata: Metadata = {
@@ -118,7 +118,7 @@ function ActionEntry({
         )}
       </p>
       <p className="text-muted">
-        {action.admin ?? "A former admin"} · {timeAgo(action.at, now)}
+        {action.admin ?? "A former admin"} · {adminTimeAgo(action.at, now)}
       </p>
       {action.note && (
         <p className="whitespace-pre-wrap break-words italic text-muted">
@@ -157,7 +157,7 @@ function FlaggedPost({
               >
                 {report.reporter}
               </Link>
-              {` · ${timeAgo(report.at, now)}`}
+              {` · ${adminTimeAgo(report.at, now)}`}
               {report.status !== "open" && ` · ${report.status}`}
             </span>
             {report.details && (
@@ -231,7 +231,7 @@ export default async function ReportedAccountPage({
           {account.is_admin && <AdminBadge />}
         </div>
         <p className="text-sm text-muted">
-          Joined {timeAgo(account.joined_at, now)}
+          Joined {adminTimeAgo(account.joined_at, now)}
           {" · "}
           <Link
             href={`/u/${encodeURIComponent(account.username)}`}
@@ -247,7 +247,7 @@ export default async function ReportedAccountPage({
         <RevealAvatar path={account.avatar_path} />
         {moderation.banned_at && (
           <p className="font-medium text-danger">
-            Banned {timeAgo(moderation.banned_at, now)}
+            Banned {adminTimeAgo(moderation.banned_at, now)}
           </p>
         )}
         {moderation.suspended_until && (

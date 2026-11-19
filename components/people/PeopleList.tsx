@@ -1,8 +1,10 @@
 // ABOUTME: A person's followers and the people they follow, as two tabs.
 // ABOUTME: Both lists are newest first and load together with the page.
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import AdminBadge from "@/components/moderation/AdminBadge";
 import Avatar from "@/components/people/Avatar";
 import FollowButton from "@/components/people/FollowButton";
@@ -28,6 +30,7 @@ export default async function PeopleList({
   rawName: string;
   initial: "followers" | "following";
 }) {
+  const t = await getTranslations();
   await connection();
 
   let name = rawName;
@@ -128,7 +131,7 @@ export default async function PeopleList({
         </ul>
         {total > people.length && (
           <p className="mt-2 text-center text-sm text-muted">
-            Showing the most recent {people.length} of {total}.
+            {t("people.list.showingRecent", { shown: people.length, total })}
           </p>
         )}
       </>
@@ -140,7 +143,9 @@ export default async function PeopleList({
         <Link href={profileHref} className="text-sm text-muted hover:underline">
           ← {profile.username}
         </Link>
-        <h1 className="text-3xl font-bold">Followers and following</h1>
+        <h1 className="text-3xl font-bold">
+          {t("people.list.followersAndFollowing")}
+        </h1>
       </header>
 
       <PeopleTabs
@@ -152,16 +157,16 @@ export default async function PeopleList({
             content: renderPeople(
               followers,
               followersTotal,
-              "No followers yet.",
+              t("people.list.noFollowers"),
             ),
           },
           {
             id: "following",
-            label: `${followingTotal} following`,
+            label: t("profile.followingCount", { count: followingTotal }),
             content: renderPeople(
               following,
               followingTotal,
-              "Not following anyone yet.",
+              t("people.list.noFollowing"),
             ),
           },
         ]}

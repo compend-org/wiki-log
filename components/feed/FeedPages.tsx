@@ -3,6 +3,7 @@
 // ABOUTME: Shows a feed's pages one after another and loads the next as the bottom nears.
 // ABOUTME: Narrow screens get one merged column; wide screens get reviews and lists side by side.
 
+import { useTranslations } from "next-intl";
 import { Fragment, startTransition, useState } from "react";
 import { loadMoreFeed } from "@/app/feedActions";
 import type {
@@ -36,6 +37,7 @@ export default function FeedPages({
   asOf: string;
   first: FeedPage;
 }) {
+  const t = useTranslations();
   const [reviews, setReviews] = useState<FeedCard[]>(first.reviews);
   const [lists, setLists] = useState<FeedCard[]>(first.lists);
   // The snapshot and the cursor into it stay together. A refresh of the page
@@ -65,7 +67,7 @@ export default function FeedPages({
         setPageCount((n) => n + 1);
       });
     } catch {
-      setError("Couldn't load more. Reload the page to try again.");
+      setError(t("errors.loadMore"));
       setPageCount((n) => n + 1);
     }
   }
@@ -91,10 +93,10 @@ export default function FeedPages({
         left={
           <>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-              Reviews
+              {t("common.reviews")}
             </h2>
             {reviews.length === 0 ? (
-              <p className="text-sm text-muted">No reviews yet.</p>
+              <p className="text-sm text-muted">{t("feed.noReviewsYet")}</p>
             ) : (
               renderCards(reviews)
             )}
@@ -103,10 +105,10 @@ export default function FeedPages({
         right={
           <>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-              Lists
+              {t("common.lists")}
             </h2>
             {lists.length === 0 ? (
-              <p className="text-sm text-muted">No lists yet.</p>
+              <p className="text-sm text-muted">{t("common.noListsYet")}</p>
             ) : (
               renderCards(lists)
             )}

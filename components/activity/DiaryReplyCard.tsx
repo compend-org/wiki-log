@@ -1,6 +1,7 @@
 // ABOUTME: One of your replies in your diary: who you replied to, where, and what you said.
 // ABOUTME: The whole card opens the review or list it was written on; the cross deletes the reply.
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import DeleteButton from "@/components/logs/DeleteButton";
 import ReviewText from "@/components/logs/ReviewText";
 
@@ -33,29 +34,36 @@ export default function DiaryReplyCard({
   body: string;
   owner?: string;
 }) {
-  const who = owner ?? "You";
+  const t = useTranslations();
+  const action = {
+    kind: isReply ? "replied" : "commented",
+    who: owner ? "other" : "you",
+    name: owner ?? "",
+  };
   return (
     <div className="card relative flex flex-col gap-1 p-3 hover-or-tap:border-accent/60">
       {/* The whole card opens it, except the links above it */}
       <Link
         href={href}
-        aria-label={`Open ${where}`}
+        aria-label={t("activity.openWhere", { where })}
         className="card-link absolute inset-0 rounded-[inherit]"
       />
       <div className="flex items-center justify-between gap-3 text-xs text-muted">
         <p>
-          {ago} · {who} {isReply ? "replied" : "commented"}
-          {replyingTo && (
-            <>
-              {" to "}
-              <Link
-                href={`/u/${encodeURIComponent(replyingTo)}`}
-                className="relative z-10 hover:underline"
-              >
-                {replyingTo}
-              </Link>
-            </>
-          )}
+          {ago} ·{" "}
+          {replyingTo
+            ? t.rich("activity.replyTo", {
+                ...action,
+                user: (name) => (
+                  <Link
+                    href={`/u/${encodeURIComponent(replyingTo)}`}
+                    className="relative z-10 hover:underline"
+                  >
+                    {name}
+                  </Link>
+                ),
+              })
+            : t("activity.reply", action)}
         </p>
         {!owner && (
           <DeleteButton kind={kind} targetId={replyId} cardKey={cardKey} />

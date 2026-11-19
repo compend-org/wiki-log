@@ -3,6 +3,7 @@
 import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { signIn } from "@/app/actions";
 import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/auth/Turnstile";
@@ -21,6 +22,7 @@ export default function LoginForm({
   // The form it opens on
   initialMode?: "signin" | "signup";
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [identifier, setIdentifier] = useState<string>("");
@@ -67,9 +69,7 @@ export default function LoginForm({
     } catch (error) {
       setBusy(false);
       resetCaptcha();
-      setMessage(
-        "We couldn't confirm the sign-in result. Please try signing in again.",
-      );
+      setMessage(t("errors.signInUnconfirmed"));
       Sentry.captureException(error, {
         tags: { action: "signIn", error_source: "login-form" },
         contexts: {
@@ -94,13 +94,9 @@ export default function LoginForm({
         if (identifier.includes("@")) {
           setPendingEmail(identifier.trim());
           setMessage("");
-          setNotice(
-            "Your email address hasn't been confirmed yet. Check your inbox for the link, or send it again.",
-          );
+          setNotice(t("auth.unconfirmedSignIn"));
         } else {
-          setMessage(
-            "Your email address hasn't been confirmed yet. Check your inbox, or sign in with your email address to have it sent again.",
-          );
+          setMessage(t("auth.unconfirmedInbox"));
         }
         return;
       }
@@ -129,11 +125,11 @@ export default function LoginForm({
     e.preventDefault();
     const name = cleanName(username);
     if (!isValidName(name)) {
-      setMessage(`Usernames are ${NAME_RULES}.`);
+      setMessage(t("auth.usernameRules", { rules: NAME_RULES }));
       return;
     }
     if (email.trim().toLowerCase() !== confirmEmail.trim().toLowerCase()) {
-      setMessage("The two email addresses don't match.");
+      setMessage(t("auth.emailsDontMatch"));
       return;
     }
 
@@ -149,7 +145,7 @@ export default function LoginForm({
     if (taken) {
       track("signup_failed", { reason: "username_taken" });
       setBusy(false);
-      setMessage("That username is taken.");
+      setMessage(t("auth.usernameTaken"));
       return;
     }
 
@@ -173,10 +169,7 @@ export default function LoginForm({
       setMessage(
         /rate limit|too many/i.test(error.message)
           ? "A lot of people are signing up right now. Please try again in a few minutes."
-          : authMessage(
-              error,
-              "Couldn't create your account. Please try again.",
-            ),
+          : authMessage(error, t("auth.createFailed")),
       );
       return;
     }
@@ -191,9 +184,7 @@ export default function LoginForm({
       window.location.href = next;
     } else {
       setPendingEmail(email.trim());
-      setNotice(
-        "Check your email for a confirmation link. It can take a minute, and it may land in spam.",
-      );
+      setNotice(t("auth.checkEmailSpam"));
     }
   }
 
@@ -213,13 +204,13 @@ export default function LoginForm({
     if (error) {
       setMessage(
         /rate|seconds|too many/i.test(error.message)
-          ? "Please wait a minute before asking again."
-          : authMessage(error, "Couldn't send the link. Please try again."),
+          ? t("errors.pleaseWait")
+          : authMessage(error, t("errors.sendLinkFailed")),
       );
       return;
     }
     track("verification_email_resent");
-    setNotice(`We sent another link to ${pendingEmail}.`);
+    setNotice(t("auth.sentAnother", { email: pendingEmail }));
   }
 
   const inputClass = "border border-line bg-surface px-4 py-2 text-foreground";
@@ -227,10 +218,12 @@ export default function LoginForm({
   if (pendingEmail) {
     return (
       <main className="mx-auto flex max-w-sm flex-1 flex-col justify-center gap-4 p-4 sm:p-8">
-        <h1 className="text-3xl font-bold">Check your email</h1>
+        <h1 className="text-3xl font-bold">{t("auth.checkEmail")}</h1>
         <p>
-          We sent a confirmation link to{" "}
-          <span className="font-semibold">{pendingEmail}</span>.
+          {t.rich("auth.sentLinkTo", {
+            email: pendingEmail,
+            b: (c) => <span className="font-semibold">{c}</span>,
+          })}
         </p>
         {notice && <p className="text-sm text-muted">{notice}</p>}
         <Turnstile key={captchaKey} onToken={setCaptcha} />
@@ -240,7 +233,7 @@ export default function LoginForm({
           disabled={cannotSend}
           className="self-start border border-line px-4 py-2 disabled:opacity-40"
         >
-          {busy ? "Sending…" : "Send it again"}
+          {busy ? t("auth.sending") : t("auth.sendAgain")}
         </button>
         <button
           type="button"
@@ -251,7 +244,7 @@ export default function LoginForm({
           }}
           className="self-start text-sm underline"
         >
-          Back
+          {t("common.back")}
         </button>
         {message && <p className="text-danger">{message}</p>}
       </main>
@@ -261,7 +254,7 @@ export default function LoginForm({
   return (
     <main className="mx-auto flex max-w-sm flex-1 flex-col justify-center gap-4 p-4 sm:p-8">
       <h1 className="text-3xl font-bold">
-        {mode === "signin" ? "Sign in" : "Create account"}
+        {mode === "signin" ? t("common.signIn") : t("common.createAccount")}
       </h1>
 
       {mode === "signin" ? (
@@ -274,7 +267,7 @@ export default function LoginForm({
             type="text"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
-            placeholder="Email or username"
+            placeholder={t("auth.emailOrUsername")}
             autoComplete="username"
             spellCheck={false}
             autoCapitalize="none"
@@ -286,7 +279,7 @@ export default function LoginForm({
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
+            placeholder={t("auth.password")}
             autoComplete="current-password"
             required
             className={inputClass}
@@ -298,10 +291,10 @@ export default function LoginForm({
             disabled={cannotSend}
             className="bg-accent px-4 py-2 text-background disabled:opacity-40"
           >
-            {busy ? "Signing in…" : "Sign in"}
+            {busy ? t("auth.signingIn") : t("common.signIn")}
           </button>
           <Link href="/forgot-password" className="text-sm underline">
-            Forgot your password?
+            {t("auth.forgotPassword")}
           </Link>
         </form>
       ) : (
@@ -314,7 +307,7 @@ export default function LoginForm({
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username"
+            placeholder={t("auth.username")}
             autoComplete="username"
             spellCheck={false}
             autoCapitalize="none"
@@ -326,7 +319,7 @@ export default function LoginForm({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
+            placeholder={t("auth.email")}
             autoComplete="email"
             spellCheck={false}
             required
@@ -337,7 +330,7 @@ export default function LoginForm({
             value={confirmEmail}
             onChange={(e) => setConfirmEmail(e.target.value)}
             onPaste={(e) => e.preventDefault()}
-            placeholder="Type your email again"
+            placeholder={t("auth.emailAgain")}
             autoComplete="off"
             spellCheck={false}
             required
@@ -347,7 +340,7 @@ export default function LoginForm({
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password (8+ characters)"
+            placeholder={t("auth.passwordNew")}
             autoComplete="new-password"
             required
             minLength={8}
@@ -360,15 +353,16 @@ export default function LoginForm({
             disabled={cannotSend}
             className="bg-accent px-4 py-2 text-background disabled:opacity-40"
           >
-            {busy ? "Creating…" : "Create account"}
+            {busy ? t("auth.creating") : t("common.createAccount")}
           </button>
           <p className="text-xs text-muted">
-            By creating an account you agree that your username, logs and
-            reviews are public. See the{" "}
-            <Link href="/privacy" className="underline">
-              privacy page
-            </Link>
-            .
+            {t.rich("auth.terms", {
+              privacy: (c) => (
+                <Link href="/privacy" className="underline">
+                  {c}
+                </Link>
+              ),
+            })}
           </p>
         </form>
       )}
@@ -383,9 +377,7 @@ export default function LoginForm({
         }}
         className="text-sm underline"
       >
-        {mode === "signin"
-          ? "New here? Create an account"
-          : "Already have an account? Sign in"}
+        {mode === "signin" ? t("auth.newHere") : t("auth.haveAccount")}
       </button>
 
       {notice && <p className="text-sm text-muted">{notice}</p>}

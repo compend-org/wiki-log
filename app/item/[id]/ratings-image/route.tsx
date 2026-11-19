@@ -4,6 +4,7 @@
 import { redirect } from "next/navigation";
 import { ImageResponse } from "next/og";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import { FEATURES } from "@/lib/features";
 import { absolute, shortLabel, thumbUrl } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
@@ -40,6 +41,7 @@ export async function GET(
   request: Request,
   { params }: RouteContext<"/item/[id]/ratings-image">,
 ) {
+  const t = await getTranslations();
   await connection();
   const { id } = await params;
   if (isCompoundId(id) && !FEATURES.compounds) {
@@ -179,7 +181,7 @@ export async function GET(
               textTransform: "uppercase",
             }}
           >
-            Ratings
+            {t("item.ratingImageTitle")}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: px(4) }}>
             <Star size={px(13)} />

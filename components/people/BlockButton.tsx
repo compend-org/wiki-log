@@ -3,6 +3,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import Dialog from "@/components/ui/Dialog";
 import { track } from "@/lib/analytics/analytics";
@@ -24,6 +25,7 @@ export default function BlockButton({
   targetName: string;
   blocked: boolean;
 }) {
+  const t = useTranslations();
   const [shownBlocked, setShownBlocked] = useLocalCopy(blocked);
   const [open, setOpen] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
@@ -69,18 +71,16 @@ export default function BlockButton({
         disabled={busy}
         className="rounded-lg border border-line px-4 py-2 text-muted enabled:hover:border-accent enabled:hover:text-foreground disabled:opacity-40"
       >
-        {shownBlocked ? "Unblock" : "Block"}
+        {shownBlocked ? t("settings.blocked.unblock") : t("people.block.label")}
       </button>
       {error && !open && <p className="text-sm text-danger">{error}</p>}
 
       {open && (
-        <Dialog label="Block" onClose={() => setOpen(false)}>
-          <h2 className="text-base font-semibold">Block {targetName}?</h2>
-          <p>
-            You won&apos;t see their posts or comments, and neither of you will
-            be able to follow, like, share or comment on the other&apos;s posts.
-            They won&apos;t be told.
-          </p>
+        <Dialog label={t("people.block.label")} onClose={() => setOpen(false)}>
+          <h2 className="text-base font-semibold">
+            {t("people.block.title", { name: targetName })}
+          </h2>
+          <p>{t("people.block.explanation")}</p>
 
           {error && <p className="text-danger">{error}</p>}
 
@@ -91,14 +91,14 @@ export default function BlockButton({
               disabled={busy}
               className="rounded-lg bg-danger px-3 py-1.5 text-background disabled:opacity-40"
             >
-              {busy ? "Blocking…" : "Block"}
+              {busy ? t("people.block.blocking") : t("people.block.label")}
             </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
               className="rounded-lg border border-line px-3 py-1.5"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         </Dialog>

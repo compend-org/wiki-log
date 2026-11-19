@@ -1,6 +1,8 @@
 // ABOUTME: The row of other reviews of the same item that a reviewer liked.
 // ABOUTME: Shows as many as fit, with a heading that opens the page listing all of them.
+
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import Stars from "@/components/logs/Stars";
 import Avatar from "@/components/people/Avatar";
 import TextLinesIcon from "@/components/ui/TextLinesIcon";
@@ -20,6 +22,7 @@ export default function AlsoLiked({
   // The page that lists every one of them
   allHref: string;
 }) {
+  const t = useTranslations();
   if (likes.length === 0) return null;
 
   return (
@@ -28,7 +31,7 @@ export default function AlsoLiked({
         href={allHref}
         className="flex items-center justify-between text-sm font-semibold uppercase tracking-wide text-muted no-underline hover:text-foreground"
       >
-        Liked by {username}
+        {t("profile.likedByUser", { name: username })}
         <span aria-hidden="true" className="text-xl leading-none">
           ›
         </span>
@@ -42,7 +45,7 @@ export default function AlsoLiked({
             aria-label={`${p.username}'s review, ${p.rating} out of 5 stars${
               p.hasText ? ", with text" : ""
             }`}
-            title={`${p.username}'s review`}
+            title={t("profile.reviewOf", { name: p.username })}
             className={`${
               i >= BASE ? "hidden sm:flex" : "flex"
             } flex-col items-center gap-1 text-foreground no-underline hover:opacity-80`}

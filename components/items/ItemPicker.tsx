@@ -2,6 +2,7 @@
 // ABOUTME: Saved results show their saved picture; in SFW mode, pictures are checked and adult ones blurred.
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import type { SavedResult } from "@/app/api/search-results/route";
 import ItemPicture from "@/components/items/ItemPicture";
@@ -159,7 +160,7 @@ function parseWikipediaUrl(
 
 export default function ItemPicker({
   onPick,
-  placeholder = "Banana, Vanessa Redgrave, Mesopotamia...",
+  placeholder,
   autoFocus = false,
 }: {
   onPick: (
@@ -169,6 +170,7 @@ export default function ItemPicker({
   placeholder?: string;
   autoFocus?: boolean;
 }) {
+  const t = useTranslations();
   const [query, setQuery] = useState<string>("");
   const [lang, setLang] = useState<LangCode>(DEFAULT_LANG);
   const [hits, setHits] = useState<Hit[]>([]);
@@ -199,7 +201,7 @@ export default function ItemPicker({
           {
             key: pasted.key,
             title: pasted.title,
-            description: `From ${pasted.lang}.wikipedia.org. Press Enter to fetch it.`,
+            description: t("item.picker.fromLanguage", { lang: pasted.lang }),
             imageUrl: null,
             lang: pasted.lang as LangCode,
           },
@@ -284,7 +286,7 @@ export default function ItemPicker({
       setQuery("");
       setOpen(false);
     } catch {
-      setError("Couldn't reach the server.");
+      setError(t("errors.serverUnreachable"));
     }
     setBusy(false);
   }
@@ -340,7 +342,7 @@ export default function ItemPicker({
             }}
             onFocus={() => setOpen(true)}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+            placeholder={placeholder ?? t("item.picker.placeholder")}
             className="min-w-0 flex-1 border border-line bg-surface px-4 py-2 text-foreground"
           />
           <LanguagePicker value={lang} onChange={changeLang} />
@@ -369,26 +371,27 @@ export default function ItemPicker({
                 className="flex items-center gap-2 px-4 py-3 text-sm text-muted"
               >
                 <Avatar path={null} size={20} className="animate-spin" />
-                Fetching from Wikipedia…
+                {t("item.picker.fetching")}
               </li>
             )}
             {unsupported && (
               <li className="px-4 py-3 text-sm text-muted">
-                That Wikipedia&apos;s language isn&apos;t supported yet.
+                {t("item.picker.unsupportedLanguage")}
               </li>
             )}
             {!unsupported && !ready && !failed && (
-              <li className="px-4 py-3 text-sm text-muted">Searching…</li>
+              <li className="px-4 py-3 text-sm text-muted">
+                {t("common.searching")}
+              </li>
             )}
             {!unsupported && failed && (
               <li className="px-4 py-3 text-sm text-muted">
-                Wikipedia is busy right now. Try again in a minute, or paste a
-                Wikipedia link.
+                {t("item.picker.busy")}
               </li>
             )}
             {!unsupported && ready && shownHits.length === 0 && (
               <li className="px-4 py-3 text-sm text-muted">
-                No results. You can also paste a Wikipedia link.
+                {t("item.picker.noResults")}
               </li>
             )}
             {!unsupported &&

@@ -2,6 +2,7 @@
 // ABOUTME: Shows what will happen, any error, and a red confirm button beside Cancel.
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import Dialog from "@/components/ui/Dialog";
 
@@ -24,6 +25,7 @@ export default function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations();
   return (
     <Dialog label={title} onClose={onCancel}>
       <h2 className="text-base font-semibold">{title}</h2>
@@ -45,7 +47,7 @@ export default function ConfirmDialog({
           onClick={onCancel}
           className="flex-1 rounded-lg border border-line px-3 py-1.5"
         >
-          Cancel
+          {t("common.cancel")}
         </button>
       </div>
     </Dialog>

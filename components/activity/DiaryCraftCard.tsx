@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import CompoundDeleteButton from "@/components/craft/CompoundDeleteButton";
 import CompoundEditButton from "@/components/craft/CompoundEditButton";
@@ -30,6 +31,7 @@ export default function DiaryCraftCard({
   ago: string;
   owner?: string;
 }) {
+  const t = useTranslations();
   const [deleted, setDeleted] = useState<boolean>(false);
   // A saved edit shows straight away, until the server sends a different one
   const [shownTitle, setShownTitle] = useLocalCopy(title);
@@ -55,7 +57,11 @@ export default function DiaryCraftCard({
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center justify-between gap-3 text-xs text-muted">
           <span>
-            {ago} · {owner ?? "You"} crafted a compound
+            {ago} ·{" "}
+            {t("activity.craftedCompound", {
+              who: owner ? "other" : "you",
+              name: owner ?? "",
+            })}
           </span>
           {!owner && (
             <span className="flex items-center gap-3">

@@ -1,7 +1,9 @@
 // ABOUTME: Draws the day's most and least popular items as a 1080×1350 PNG, sized for an Instagram post.
 // ABOUTME: Looks like the two squares on the home page, side by side, with the date and the site's logo.
+
 import { ImageResponse } from "next/og";
 import { connection } from "next/server";
+import { useTranslations } from "next-intl";
 import { FEATURES } from "@/lib/features";
 import { getDailyPicks, type Pick } from "@/lib/feed/dailyPicks";
 import { absolute, shortLabel, thumbUrl } from "@/lib/format";
@@ -35,6 +37,7 @@ function Square({
   pick: Pick | null;
   image: string | null;
 }) {
+  const t = useTranslations();
   const label = (
     <div
       style={{
@@ -66,7 +69,7 @@ function Square({
       {label}
       {!pick ? (
         <div style={{ fontSize: px(12), color: COLORS.muted }}>
-          Nothing rated in the last 24 hours
+          {t("item.noRatingsYet")}
         </div>
       ) : (
         <div

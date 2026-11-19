@@ -4,6 +4,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { track } from "@/lib/analytics/analytics";
 import {
@@ -21,6 +22,7 @@ export default function BlockedPeople({
   viewerId: string;
   people: BlockedPerson[];
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [busy, setBusy] = useState<boolean>(false);
   const [refreshing, startRefresh] = useTransition();
@@ -47,13 +49,10 @@ export default function BlockedPeople({
   return (
     <section className="flex flex-col gap-2">
       <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
-        Blocked people
+        {t("settings.blocked.title")}
       </h2>
       {people.length === 0 && (
-        <p className="text-sm text-muted">
-          You haven&apos;t blocked anyone. You can block someone from their
-          profile.
-        </p>
+        <p className="text-sm text-muted">{t("settings.blocked.none")}</p>
       )}
       {people.map((p) => (
         <div key={p.id} className="flex items-center justify-between gap-3">
@@ -69,7 +68,7 @@ export default function BlockedPeople({
             disabled={busy || refreshing}
             className="rounded-lg border border-line px-3 py-1.5 text-sm disabled:opacity-40"
           >
-            Unblock
+            {t("settings.blocked.unblock")}
           </button>
         </div>
       ))}

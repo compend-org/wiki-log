@@ -4,6 +4,7 @@
 // ABOUTME: The list is kept as first shown, so someone just followed stays put as "Following".
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Fragment, useEffect, useState } from "react";
 import { LINK_COLOR } from "@/components/logs/ReviewText";
 import Avatar from "@/components/people/Avatar";
@@ -26,6 +27,7 @@ export default function SuggestedPeople({
   people: SuggestedPerson[];
   heading: string;
 }) {
+  const t = useTranslations();
   // Following someone refreshes the page, which would drop them from a fresh
   // list. Keeping the first list leaves their button showing "Following".
   const [shown] = useState(people);
@@ -62,8 +64,8 @@ export default function SuggestedPeople({
         <button
           type="button"
           onClick={dismiss}
-          aria-label="Dismiss suggestions"
-          title="Hide this for a while"
+          aria-label={t("people.dismissSuggestions")}
+          title={t("people.hideThisForAWhile")}
           className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded text-danger hover:opacity-70"
         >
           <span aria-hidden className="text-2xl leading-none">
@@ -119,7 +121,7 @@ export default function SuggestedPeople({
                 onClick={() => track("suggested_people_signup_clicked")}
                 className="rounded-lg bg-accent px-3 py-1.5 text-sm text-background hover:opacity-80"
               >
-                Follow
+                {t("people.follow.follow")}
               </Link>
             )}
           </li>

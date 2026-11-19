@@ -2,6 +2,7 @@
 // ABOUTME: Opens inside the grid under the item's row on wider screens, and as a sheet above the keyboard on phones.
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { CSSProperties } from "react";
 import ItemImage from "@/components/items/ItemImage";
 import NoteField from "@/components/lists/NoteField";
@@ -46,8 +47,12 @@ export default function NoteBox({
   // A tap outside the sheet on phones
   onDismiss: () => void;
 }) {
+  const t = useTranslations();
   const keyboard = useKeyboardInset();
-  const heading = `Note for ${rank === null ? "" : `#${rank.toLocaleString("en-US")} `}${title}`;
+  const heading = t("lists.notes.noteFor", {
+    rank: rank === null ? "" : `#${rank.toLocaleString("en-US")} `,
+    title,
+  });
   const cannotSave =
     busy || cleanListNote(draft) === null || noteProblem(draft) !== null;
 
@@ -56,7 +61,7 @@ export default function NoteBox({
     <li className="contents sm:col-span-4 sm:block">
       <button
         type="button"
-        aria-label="Close"
+        aria-label={t("common.close")}
         onClick={() => {
           if (!busy) onDismiss();
         }}
@@ -114,7 +119,7 @@ export default function NoteBox({
             disabled={cannotSave}
             className="min-h-11 rounded-lg bg-accent px-4 text-background disabled:opacity-40 sm:min-h-0 sm:px-3 sm:py-1"
           >
-            {busy ? "Saving…" : "Save note"}
+            {busy ? t("common.saving") : t("lists.picker.saveNote")}
           </button>
           <button
             type="button"
@@ -122,10 +127,10 @@ export default function NoteBox({
             disabled={busy}
             className="min-h-11 rounded-lg border border-line px-4 disabled:opacity-40 sm:min-h-0 sm:px-3 sm:py-1"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <span className="hidden text-xs text-muted sm:inline">
-            Ctrl/⌘ Enter saves · Esc cancels
+            {t("lists.notes.shortcuts")}
           </span>
           {hasNote && (
             <button
@@ -134,7 +139,7 @@ export default function NoteBox({
               disabled={busy}
               className="order-first mr-auto min-h-11 text-danger underline disabled:opacity-40 sm:order-last sm:ml-auto sm:mr-0 sm:min-h-0"
             >
-              Remove note
+              {t("lists.notes.remove")}
             </button>
           )}
         </div>

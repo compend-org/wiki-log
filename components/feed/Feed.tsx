@@ -1,7 +1,9 @@
 // ABOUTME: The home page feeds (Following, Everyone and Trending), a page at a time.
 // ABOUTME: Renders the first page on the server; FeedPages adds later pages below.
+
 import Link from "next/link";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import FeedPages from "@/components/feed/FeedPages";
 import { type FeedMode, loadFeedPage } from "@/components/feed/loadFeedPage";
 import SuggestedPeople from "@/components/people/SuggestedPeople";
@@ -19,6 +21,7 @@ import { TRENDING_HOURS } from "@/lib/site";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function Feed({ mode }: { mode: FeedMode }) {
+  const t = await getTranslations();
   await connection();
   // When this feed was first loaded. Later pages leave out anything newer.
   const asOf = new Date().toISOString();
@@ -54,19 +57,21 @@ export default async function Feed({ mode }: { mode: FeedMode }) {
     <section className="flex flex-col gap-4">
       {page.needsSignIn && (
         <p className="text-center text-muted">
-          <Link href="/login" className="underline">
-            Sign in
-          </Link>{" "}
-          to follow people and see what they log here.
+          {t.rich("feed.signInPrompt", {
+            signin: (c) => (
+              <Link href="/login" className="underline">
+                {c}
+              </Link>
+            ),
+          })}
         </p>
       )}
 
       {page.noFollows && (
         <p className="text-center text-muted">
-          You&apos;re not following anyone yet.{" "}
           {suggestions.length > 0
-            ? "Follow a few people below to fill this feed, use the search icon at the top to find others, or switch to Everyone."
-            : "Use the search icon at the top to find people and follow them to fill this feed, or switch to Everyone."}
+            ? t("feed.notFollowingWithSuggestions")
+            : t("feed.notFollowing")}
         </p>
       )}
 
@@ -88,10 +93,10 @@ export default async function Feed({ mode }: { mode: FeedMode }) {
       {!page.needsSignIn && !page.noFollows && !page.error && empty && (
         <p className="text-center text-muted">
           {mode === "following"
-            ? "Nothing here yet. Log something, or follow people to see what they log."
+            ? t("feed.emptyFollowing")
             : mode === "trending"
-              ? `Nothing has been liked in the last ${TRENDING_HOURS} hours.`
-              : "Nothing here yet."}
+              ? t("feed.emptyTrending", { hours: TRENDING_HOURS })
+              : t("common.nothingHereYet")}
         </p>
       )}
 

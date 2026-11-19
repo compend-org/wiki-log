@@ -1,7 +1,9 @@
 // ABOUTME: One leaderboard on the Leaderboards page: a ranked list of items.
 // ABOUTME: Picks the board named in the address and shows it with links to the others.
+
 import Link from "next/link";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import ItemImage from "@/components/items/ItemImage";
 import { getLeaderboard } from "@/lib/feed/leaderboardData";
 import { LEADERBOARDS } from "@/lib/feed/leaderboards";
@@ -11,11 +13,14 @@ export default async function Leaderboard({
 }: {
   searchParams: Promise<{ board?: string }>;
 }) {
+  const t = await getTranslations();
   await connection();
   const { board: requested } = await searchParams;
 
   if (LEADERBOARDS.length === 0) {
-    return <p className="py-12 text-center text-muted">No leaderboards yet.</p>;
+    return (
+      <p className="py-12 text-center text-muted">{t("feed.noLeaderboards")}</p>
+    );
   }
 
   // An unknown name shows the first leaderboard
@@ -27,7 +32,10 @@ export default async function Leaderboard({
   return (
     <>
       {LEADERBOARDS.length > 1 && (
-        <nav className="flex flex-wrap gap-2" aria-label="Leaderboards">
+        <nav
+          className="flex flex-wrap gap-2"
+          aria-label={t("footer.leaderboards")}
+        >
           {LEADERBOARDS.map((b) => (
             <Link
               key={b.slug}
@@ -57,8 +65,7 @@ export default async function Leaderboard({
 
         {!result?.error && entries.length === 0 && (
           <p className="py-8 text-center text-muted">
-            Nothing here yet. Items need at least {board.minRatings ?? 3}{" "}
-            ratings to appear.
+            {t("feed.leaderboardEmpty", { min: board.minRatings ?? 3 })}
           </p>
         )}
 
@@ -88,7 +95,7 @@ export default async function Leaderboard({
                     {entry.average.toFixed(2)}
                   </span>
                   <span className="block text-xs text-muted">
-                    {entry.count} {entry.count === 1 ? "rating" : "ratings"}
+                    {t("counts.ratings", { count: entry.count })}
                   </span>
                 </span>
               </Link>

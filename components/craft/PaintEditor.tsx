@@ -2,6 +2,7 @@
 // ABOUTME: Left button draws in the foreground colour, right button in the background colour.
 "use client";
 
+import { useTranslations } from "next-intl";
 import "./PaintEditor.css";
 import {
   type ReactNode,
@@ -341,6 +342,7 @@ export default function PaintEditor({
   onSave: (png: string) => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations();
   const root = useRef<HTMLDivElement>(null);
   const workspace = useRef<HTMLDivElement>(null);
   const menubar = useRef<HTMLDivElement>(null);
@@ -1137,49 +1139,59 @@ export default function PaintEditor({
       name: "File",
       items: [
         {
-          label: "New",
+          label: t("craft.new"),
           keys: "Ctrl+N",
           run: () => change((b) => fillAll(b, WHITE)),
         },
         {
-          label: "Open Image...",
+          label: t("craft.openImage"),
           run: () => uploadInput.current?.click(),
         },
         "rule",
-        { label: "Use This Picture", keys: "Ctrl+S", run: save },
+        { label: t("craft.useThisPicture"), keys: "Ctrl+S", run: save },
         "rule",
-        { label: "Exit", run: onCancel },
+        { label: t("craft.exit"), run: onCancel },
       ],
     },
     {
       name: "Edit",
       items: [
-        { label: "Undo", keys: "Ctrl+Z", run: undo, disabled: !canUndo },
-        { label: "Repeat", keys: "Ctrl+Y", run: redo, disabled: !canRedo },
+        {
+          label: t("craft.undo"),
+          keys: "Ctrl+Z",
+          run: undo,
+          disabled: !canUndo,
+        },
+        {
+          label: t("craft.repeat"),
+          keys: "Ctrl+Y",
+          run: redo,
+          disabled: !canRedo,
+        },
         "rule",
         {
-          label: "Cut",
+          label: t("craft.cut"),
           keys: "Ctrl+X",
           run: cutSelection,
           disabled: !selectionBox,
         },
         {
-          label: "Copy",
+          label: t("craft.copy"),
           keys: "Ctrl+C",
           run: copySelection,
           disabled: !selectionBox,
         },
-        { label: "Paste", keys: "Ctrl+V", run: pasteFromMenu },
+        { label: t("craft.paste"), keys: "Ctrl+V", run: pasteFromMenu },
         {
-          label: "Clear Selection",
+          label: t("craft.clearSelection"),
           keys: "Del",
           run: deleteSelection,
           disabled: !selectionBox,
         },
-        { label: "Select All", keys: "Ctrl+A", run: selectAll },
+        { label: t("craft.selectAll"), keys: "Ctrl+A", run: selectAll },
         "rule",
         {
-          label: "Clear Image",
+          label: t("craft.clearImage"),
           keys: "Ctrl+Shift+N",
           run: () => change((b) => fillAll(b, background)),
         },
@@ -1205,16 +1217,22 @@ export default function PaintEditor({
     {
       name: "Image",
       items: [
-        { label: "Flip Horizontal", run: () => transformImage("flipH") },
-        { label: "Flip Vertical", run: () => transformImage("flipV") },
         {
-          label: "Rotate Right",
+          label: t("craft.flipHorizontal"),
+          run: () => transformImage("flipH"),
+        },
+        { label: t("craft.flipVertical"), run: () => transformImage("flipV") },
+        {
+          label: t("craft.rotateRight"),
           run: () => transformImage("rotateRight"),
         },
-        { label: "Rotate Left", run: () => transformImage("rotateLeft") },
+        {
+          label: t("craft.rotateLeft"),
+          run: () => transformImage("rotateLeft"),
+        },
         "rule",
         {
-          label: "Invert Colors",
+          label: t("craft.invertColors"),
           keys: "Ctrl+I",
           run: () => transformImage("invert"),
         },
@@ -1224,14 +1242,14 @@ export default function PaintEditor({
       name: "Colors",
       items: [
         {
-          label: "Edit Colors...",
+          label: t("craft.editColors"),
           run: () => colorInput.current?.click(),
         },
       ],
     },
     {
       name: "Help",
-      items: [{ label: "About Paint", run: () => setAbout(true) }],
+      items: [{ label: t("craft.aboutPaint"), run: () => setAbout(true) }],
     },
   ];
 
@@ -1404,7 +1422,7 @@ export default function PaintEditor({
         ref={root}
         role="dialog"
         aria-modal="true"
-        aria-label="Paint"
+        aria-label={t("craft.paint")}
         tabIndex={-1}
         onKeyDown={handleKeyDown}
         onContextMenu={(e) => e.preventDefault()}
@@ -1413,10 +1431,10 @@ export default function PaintEditor({
       >
         <div className="paint-titlebar">
           <PixelIcon name="palette" />
-          <span className="paint-title">Compound image</span>
+          <span className="paint-title">{t("craft.compoundImage")}</span>
           <button
             type="button"
-            aria-label="Close"
+            aria-label={t("common.close")}
             onClick={onCancel}
             className="paint-close paint-raised"
           >
@@ -1520,7 +1538,7 @@ export default function PaintEditor({
                   ref={canvas}
                   width={PAINT_SIZE}
                   height={PAINT_SIZE}
-                  aria-label="Your drawing"
+                  aria-label={t("craft.yourDrawing")}
                   onPointerDown={handlePointerDown}
                   onPointerMove={handlePointerMove}
                   onPointerUp={finishStroke}
@@ -1555,8 +1573,8 @@ export default function PaintEditor({
               setForeground(background);
               setBackground(foreground);
             }}
-            aria-label="Swap the front and back colours"
-            title="Swap the front and back colours"
+            aria-label={t("craft.swapTheFrontAndBack")}
+            title={t("craft.swapTheFrontAndBack")}
             className="paint-colorbox paint-sunken"
           >
             <span
@@ -1635,7 +1653,7 @@ export default function PaintEditor({
             disabled={!canUndo}
             className="paint-push paint-undo"
           >
-            Undo
+            {t("craft.undo")}
           </button>
           <button
             type="button"
@@ -1643,10 +1661,10 @@ export default function PaintEditor({
             data-default="true"
             className="paint-push"
           >
-            Use This Picture
+            {t("craft.useThisPicture")}
           </button>
           <button type="button" onClick={onCancel} className="paint-push">
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
 
@@ -1654,13 +1672,13 @@ export default function PaintEditor({
           <div
             className="paint-dialog"
             role="alertdialog"
-            aria-label="About Paint"
+            aria-label={t("craft.aboutPaint")}
           >
             <div className="paint-titlebar">
-              <span className="paint-title">About Paint</span>
+              <span className="paint-title">{t("craft.aboutPaint")}</span>
               <button
                 type="button"
-                aria-label="Close"
+                aria-label={t("common.close")}
                 onClick={() => setAbout(false)}
                 className="paint-close paint-raised"
               >
@@ -1668,7 +1686,7 @@ export default function PaintEditor({
               </button>
             </div>
             <div className="paint-dialog-body">
-              <strong>Paint</strong>
+              <strong>{t("craft.paint")}</strong>
               <br />
               Left button draws in the front colour, right button in the back
               colour.
@@ -1680,7 +1698,7 @@ export default function PaintEditor({
               onClick={() => setAbout(false)}
               className="paint-push"
             >
-              OK
+              {t("craft.ok")}
             </button>
           </div>
         )}

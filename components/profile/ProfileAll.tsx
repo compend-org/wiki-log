@@ -1,8 +1,11 @@
 // ABOUTME: Every list, review or pin a person has made, as cards that load as you scroll.
 // ABOUTME: Reached by clicking the Lists, Reviews or Pinned heading on their profile.
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import { loadMorePinned, loadMoreProfileAll } from "@/app/profileActions";
 import CardPages, { type CardsPage } from "@/components/paging/CardPages";
 import {
@@ -20,10 +23,15 @@ export default async function ProfileAll({
   kind: ProfileKind | "pinned";
 }) {
   await connection();
+  const t = await getTranslations();
   const profile = await getProfileByName(username);
   if (!profile) notFound();
 
-  const title = { lists: "Lists", reviews: "Reviews", pinned: "Pinned" }[kind];
+  const title = {
+    lists: t("profile.lists"),
+    reviews: t("profile.reviews"),
+    pinned: t("profile.pinned"),
+  }[kind];
   const cards =
     kind === "pinned" ? (
       <PinnedCards profileId={profile.id} />
@@ -37,10 +45,10 @@ export default async function ProfileAll({
         href={`/u/${encodeURIComponent(profile.username)}`}
         className="text-sm text-muted"
       >
-        ‹ Back to {profile.username}
+        {t("profile.backTo", { name: profile.username })}
       </Link>
       <h1 className="text-xl font-bold">
-        {title} by {profile.username}
+        {t("profile.titleBy", { title, name: profile.username })}
       </h1>
       {cards}
     </main>
@@ -48,8 +56,9 @@ export default async function ProfileAll({
 }
 
 function NothingYet({ page }: { page: CardsPage<unknown> }) {
+  const t = useTranslations();
   return page.cards.length === 0 && !page.next && !page.error ? (
-    <p className="text-muted">Nothing here yet.</p>
+    <p className="text-muted">{t("common.nothingHereYet")}</p>
   ) : null;
 }
 

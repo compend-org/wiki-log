@@ -11,6 +11,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Fragment, useEffect, useState } from "react";
 import {
   addToList,
@@ -77,6 +78,7 @@ function NoteButton({
   editing: boolean;
   onNote: (entry: ListEntry) => void;
 }) {
+  const t = useTranslations();
   const common = {
     type: "button" as const,
     "data-note-button": entry.itemId,
@@ -87,10 +89,10 @@ function NoteButton({
     return (
       <button
         {...common}
-        aria-label={`Close the note for ${entry.title}`}
+        aria-label={t("lists.editor.closeNote", { title: entry.title })}
         className="min-h-11 text-left text-xs italic text-muted"
       >
-        Editing…
+        {t("lists.editor.editingNote")}
       </button>
     );
   }
@@ -98,7 +100,7 @@ function NoteButton({
     return (
       <button
         {...common}
-        aria-label={`Edit the note for ${entry.title}`}
+        aria-label={t("lists.editor.editNote", { title: entry.title })}
         className="min-h-11 text-left text-xs text-accent"
       >
         <span className="line-clamp-2 break-words">{entry.note}</span>
@@ -108,10 +110,10 @@ function NoteButton({
   return (
     <button
       {...common}
-      aria-label={`Add a note for ${entry.title}`}
+      aria-label={t("lists.editor.addNoteFor", { title: entry.title })}
       className="min-h-11 rounded-lg border border-dashed border-line px-2 text-left text-xs text-accent"
     >
-      + Add note
+      {t("lists.editor.addNote")}
     </button>
   );
 }
@@ -142,6 +144,7 @@ function SortableTile({
   onPicture: (entry: ListEntry) => void;
   onNote: (entry: ListEntry) => void;
 }) {
+  const t = useTranslations();
   const {
     attributes,
     listeners,
@@ -180,8 +183,8 @@ function SortableTile({
         <button
           type="button"
           onClick={() => onMove(entry.itemId)}
-          aria-label={`Move ${entry.title} to another position`}
-          title="Move to a position"
+          aria-label={t("lists.editor.moveTo", { title: entry.title })}
+          title={t("lists.editor.moveToTitle")}
           className="absolute bottom-1 right-1 rounded bg-background/80 px-1.5 text-sm"
         >
           ⇅
@@ -190,8 +193,10 @@ function SortableTile({
           <button
             type="button"
             onClick={() => onPicture(entry)}
-            aria-label={`Change the picture for ${entry.title}`}
-            title="Change the picture"
+            aria-label={t("lists.editor.changePictureFor", {
+              title: entry.title,
+            })}
+            title={t("common.changePicture")}
             className="absolute bottom-1 left-1 rounded bg-background/80 px-1.5 py-1"
           >
             <PictureIcon className="h-3 w-3" />
@@ -200,7 +205,7 @@ function SortableTile({
         <button
           type="button"
           onClick={() => onRemove(entry)}
-          aria-label={`Remove ${entry.title}`}
+          aria-label={t("lists.editor.removeItem", { title: entry.title })}
           className="absolute right-1 top-1 rounded bg-background/80 px-1.5 text-sm"
         >
           ×
@@ -210,7 +215,7 @@ function SortableTile({
         <span className="truncate">{entry.title}</span>
         {saved && (
           <span role="status" className="shrink-0 text-muted">
-            ✓ Saved
+            {t("lists.editor.saved")}
           </span>
         )}
       </span>
@@ -240,6 +245,7 @@ export default function ListEditor({
   initialPage?: number;
   initialTotal?: number;
 }) {
+  const t = useTranslations();
   // A new list's items, all kept here until it is created
   const [draftItems, setDraftItems] = useState<ListEntry[]>(initialItems);
   // A new list's pictures picked from the items' articles, by item
@@ -561,7 +567,9 @@ export default function ListEditor({
 
     if (!editing) {
       if (!Number.isInteger(rank) || rank < 1 || rank > total) {
-        setError(`Pick a position from 1 to ${total.toLocaleString("en-US")}.`);
+        setError(
+          t("errors.positionRange", { max: total.toLocaleString("en-US") }),
+        );
         return;
       }
       setDraftItems(arrayMove(draftItems, movingRank - 1, rank - 1));
@@ -581,7 +589,7 @@ export default function ListEditor({
     if (!editing) {
       const result = await stageItem(itemId);
       if (result.error || !result.item) {
-        setError(result.error ?? "Something went wrong.");
+        setError(result.error ?? t("common.somethingWentWrong"));
         return;
       }
       const added = { ...result.item, note: null };
@@ -635,20 +643,20 @@ export default function ListEditor({
   }
 
   async function saveList() {
-    const t = title.trim();
-    if (t.length < 1 || t.length > 80) {
-      setDetailsMessage("Titles are 1–80 characters.");
+    const trimmed = title.trim();
+    if (trimmed.length < 1 || trimmed.length > 80) {
+      setDetailsMessage(t("errors.titleLength"));
       return;
     }
     if (list.id === null) {
       if (items.length === 0) {
-        setDetailsMessage("Add at least one item first.");
+        setDetailsMessage(t("errors.addAtLeastOneFirst"));
         return;
       }
       setBusy(true);
       setDetailsMessage("");
       const result = await createList({
-        title: t,
+        title: trimmed,
         description,
         ranked,
         itemIds: items.map((i) => i.itemId),
@@ -659,7 +667,7 @@ export default function ListEditor({
       });
       if (result.error || !result.id) {
         setBusy(false);
-        setDetailsMessage(result.error ?? "Couldn't create the list.");
+        setDetailsMessage(result.error ?? t("errors.listCreateFailed"));
         return;
       }
       track("list_created", { item_count: items.length, ranked });
@@ -671,7 +679,11 @@ export default function ListEditor({
     setDetailsMessage("");
     const { error } = await createClient()
       .from("lists")
-      .update({ title: t, description: description.trim() || null, ranked })
+      .update({
+        title: trimmed,
+        description: description.trim() || null,
+        ranked,
+      })
       .eq("id", list.id);
 
     if (error) {
@@ -694,12 +706,7 @@ export default function ListEditor({
       .eq("id", list.id);
     if (error) {
       setBusy(false);
-      setError(
-        userFacingErrorMessage(
-          error,
-          "Couldn't delete the list. Please try again.",
-        ),
-      );
+      setError(userFacingErrorMessage(error, t("errors.listDeleteFailed")));
       return;
     }
     track("list_deleted");
@@ -711,7 +718,7 @@ export default function ListEditor({
     <div className="flex flex-col gap-6">
       <header className="flex items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">
-          {list.id === null ? "New list" : "Edit list"}
+          {list.id === null ? t("lists.newList") : t("lists.editList")}
         </h1>
         {list.id !== null && (
           <section className="border-t border-line pt-4">
@@ -723,19 +730,19 @@ export default function ListEditor({
               }}
               className="text-sm text-danger underline"
             >
-              Delete this list
+              {t("lists.editor.deleteList")}
             </button>
             {confirmingDelete && (
               <ConfirmDialog
-                title="Delete this list?"
-                confirmLabel="Delete"
-                busyLabel="Deleting…"
+                title={t("lists.editor.deleteTitle")}
+                confirmLabel={t("common.delete")}
+                busyLabel={t("common.deleting")}
                 busy={busy}
                 error={error}
                 onConfirm={handleDeleteList}
                 onCancel={() => setConfirmingDelete(false)}
               >
-                <p>This can&apos;t be undone.</p>
+                <p>{t("lists.editor.cantUndo")}</p>
               </ConfirmDialog>
             )}
           </section>
@@ -750,7 +757,7 @@ export default function ListEditor({
         className="flex flex-col gap-3"
       >
         <label className="flex flex-col gap-1 text-sm">
-          Title
+          {t("lists.editor.titleLabel")}
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -759,7 +766,9 @@ export default function ListEditor({
           />
         </label>
         <div className="flex flex-col gap-1 text-sm">
-          <label htmlFor="list-description">Description (optional)</label>
+          <label htmlFor="list-description">
+            {t("lists.editor.descriptionLabel")}
+          </label>
           <ReviewTextarea
             id="list-description"
             value={description}
@@ -777,7 +786,7 @@ export default function ListEditor({
               checked={ranked}
               onChange={(e) => setRanked(e.target.checked)}
             />
-            Ranked list (items are numbered)
+            {t("lists.editor.rankedLabel")}
           </label>
         )}
       </form>
@@ -785,15 +794,16 @@ export default function ListEditor({
       <section className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-            Items
+            {t("lists.editor.items")}
             {total > 0 &&
-              ` · ${total.toLocaleString("en-US")} · drag or ⇅ to reorder`}
+              t("lists.editor.itemsMeta", {
+                total: total.toLocaleString("en-US"),
+              })}
           </h2>
           {total > 0 && (
             <p className="text-sm text-muted">
-              {list.id !== null &&
-                "Items, order and pictures save immediately. "}
-              Select a note to edit it, or + Add note to write one.
+              {list.id !== null && `${t("lists.editor.autosaves")} `}
+              {t("lists.editor.notesHelp")}
             </p>
           )}
         </div>
@@ -865,7 +875,7 @@ export default function ListEditor({
                     setAdding(!adding);
                     setError("");
                   }}
-                  aria-label="Add an item"
+                  aria-label={t("lists.editor.addItem")}
                   className={`flex aspect-square w-full items-center justify-center rounded-lg border-2 border-dashed text-5xl transition-colors hover:border-accent hover:text-accent ${
                     adding
                       ? "border-accent text-accent"
@@ -897,8 +907,10 @@ export default function ListEditor({
           >
             <label className="flex flex-wrap items-center gap-2">
               <span>
-                Move “{movingEntry.title}” (now #
-                {movingRank.toLocaleString("en-US")}) to position
+                {t("lists.editor.moveSentence", {
+                  title: movingEntry.title,
+                  rank: movingRank.toLocaleString("en-US"),
+                })}
               </span>
               <input
                 type="number"
@@ -919,14 +931,14 @@ export default function ListEditor({
               disabled={loading || moveTarget === ""}
               className="rounded-lg bg-accent px-3 py-1 text-background disabled:opacity-40"
             >
-              Move
+              {t("lists.editor.move")}
             </button>
             <button
               type="button"
               onClick={() => setMoving(null)}
               className="rounded-lg border border-line px-3 py-1"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </form>
         )}
@@ -934,7 +946,7 @@ export default function ListEditor({
         {picturing && (
           <PicturePicker
             itemId={picturing.itemId}
-            label={`Picture for “${picturing.title}” in this list`}
+            label={t("lists.editor.pictureFor", { title: picturing.title })}
             picked={picturing.imageUrl}
             onPick={(choice) => handlePicture(picturing.itemId, choice)}
             onClose={() => setPicturing(null)}
@@ -950,8 +962,8 @@ export default function ListEditor({
               pending.kind !== "save"
                 ? ""
                 : list.id === null
-                  ? "Continuing creates the list."
-                  : "Continuing saves the list's details and opens the list."
+                  ? t("lists.editor.continueCreates")
+                  : t("lists.editor.continueSaves")
             }
             saveProblem={noteSaveProblem}
             busy={noteBusy}
@@ -963,16 +975,18 @@ export default function ListEditor({
 
         {confirmingRemove && (
           <ConfirmDialog
-            title={`Remove ${confirmingRemove.title}?`}
-            confirmLabel="Remove"
-            busyLabel="Removing…"
+            title={t("lists.editor.removeConfirm", {
+              title: confirmingRemove.title,
+            })}
+            confirmLabel={t("common.remove")}
+            busyLabel={t("common.removing")}
             onConfirm={() => {
               handleRemove(confirmingRemove.itemId);
               setConfirmingRemove(null);
             }}
             onCancel={() => setConfirmingRemove(null)}
           >
-            <p>Its note is deleted too.</p>
+            <p>{t("lists.editor.removeNoteToo")}</p>
           </ConfirmDialog>
         )}
 
@@ -984,7 +998,7 @@ export default function ListEditor({
               onClick={() => goToPage(notice.page)}
               className="underline"
             >
-              Go to page {notice.page}
+              {t("lists.pager.goToPage", { page: notice.page })}
             </button>
           </p>
         )}
@@ -997,7 +1011,7 @@ export default function ListEditor({
               onClick={() => setAdding(false)}
               className="self-start rounded-lg border border-line px-3 py-1.5 text-sm"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         )}
@@ -1013,19 +1027,19 @@ export default function ListEditor({
         >
           {list.id === null
             ? busy
-              ? "Creating…"
-              : "Create list"
+              ? t("auth.creating")
+              : t("lists.editor.create")
             : busy
-              ? "Saving…"
-              : "Save details"}
+              ? t("common.saving")
+              : t("lists.editor.saveDetails")}
         </button>
         {detailsMessage && (
           <p className="text-sm text-danger">{detailsMessage}</p>
         )}
         <p className="text-xs text-muted">
           {list.id === null
-            ? "Nobody sees this list until you create it."
-            : "Saves the title, description and ranking, then opens the list."}
+            ? t("lists.editor.nobodySees")
+            : t("lists.editor.savesDetails")}
         </p>
       </section>
       {list.id !== null && (
@@ -1035,7 +1049,7 @@ export default function ListEditor({
             onClick={handleDeleteList}
             className="text-sm text-danger underline"
           >
-            Delete this list
+            {t("lists.editor.deleteList")}
           </button>
         </section>
       )}

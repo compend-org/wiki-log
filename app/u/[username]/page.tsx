@@ -1,9 +1,11 @@
 // ABOUTME: A person's public profile: their details, favourites, lists and reviews.
 // ABOUTME: Also holds the follow, block, report and ban controls for whoever is viewing it.
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { getFormatter, getTranslations } from "next-intl/server";
 import { loadMoreProfile } from "@/app/profileActions";
 import DiaryIcon from "@/components/activity/DiaryIcon";
 import SignOutButton from "@/components/auth/SignOutButton";
@@ -95,6 +97,8 @@ export default async function ProfilePage({
 }: {
   params: Promise<{ username: string }>;
 }) {
+  const t = await getTranslations();
+  const format = await getFormatter();
   await connection();
   const { username: rawName } = await params;
 
@@ -243,12 +247,12 @@ export default async function ProfilePage({
           role="status"
           className="rounded-lg border border-danger px-4 py-3 text-sm text-danger"
         >
-          Your account is suspended until{" "}
-          {new Date(suspension.suspended_until).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
+          {t("profile.suspendedUntil", {
+            date: format.dateTime(new Date(suspension.suspended_until), {
+              month: "short",
+              day: "numeric",
+            }),
           })}
-          .
         </p>
       )}
       <header className="flex flex-col gap-1">
@@ -265,7 +269,7 @@ export default async function ProfilePage({
             {profileIsAdmin && <AdminBadge />}
             {followsViewer && (
               <span className="ml-2 self-center rounded border border-line bg-surface px-2 py-0.5 text-xs text-muted">
-                Follows you
+                {t("people.follow.follows")}
               </span>
             )}
           </div>
@@ -275,17 +279,16 @@ export default async function ProfilePage({
             href={`${profileHref}/connections?tab=followers`}
             className="hover:underline"
           >
-            {followers} {followers === 1 ? "follower" : "followers"}
+            {t("profile.followers", { count: followers })}
           </Link>{" "}
           ·{" "}
           <Link
             href={`${profileHref}/connections?tab=following`}
             className="hover:underline"
           >
-            {following} following
+            {t("profile.followingCount", { count: following })}
           </Link>{" "}
-          · {logCount} {logCount === 1 ? "log" : "logs"} · {listCount}{" "}
-          {listCount === 1 ? "list" : "lists"}
+          · {t("profile.stats", { logs: logCount, lists: listCount })}
         </p>
         {profile.bio && (
           <p className="mt-2 max-w-prose whitespace-pre-wrap break-words">
@@ -304,7 +307,7 @@ export default async function ProfilePage({
                 >
                   <SettingsIcon size={16} />
                   <span className="group-hover:underline">
-                    Profile settings
+                    {t("profile.settings")}
                   </span>
                 </Link>
                 <SignOutButton
@@ -358,7 +361,7 @@ export default async function ProfilePage({
             <RatingHistogram
               ratings={ratings}
               highlight={null}
-              unit={{ one: "rating", other: "ratings" }}
+              unit="ratings"
               compact
               hrefBase={`${profileHref}/ratings`}
             />
@@ -386,7 +389,7 @@ export default async function ProfilePage({
         <RatingHistogram
           ratings={ratings}
           highlight={null}
-          unit={{ one: "rating", other: "ratings" }}
+          unit="ratings"
           hrefBase={`${profileHref}/ratings`}
         />
       </div> */}
@@ -402,7 +405,7 @@ export default async function ProfilePage({
                 href={`${profileHref}/lists`}
                 className="hover:text-foreground hover:underline"
               >
-                Lists <span aria-hidden="true">›</span>
+                {t("profile.lists")} <span aria-hidden="true">›</span>
               </Link>
             </h2>
             {/* {isOwner && (
@@ -411,7 +414,9 @@ export default async function ProfilePage({
               </Link>
             )} */}
           </div>
-          {listCount === 0 && <p className="text-muted">No lists yet.</p>}
+          {listCount === 0 && (
+            <p className="text-muted">{t("common.noListsYet")}</p>
+          )}
           <CardPages
             key={`lists:${pinsKey}:${listCount}`}
             first={firstLists}
@@ -426,12 +431,14 @@ export default async function ProfilePage({
             href={`${profileHref}/reviews`}
             className="hover:text-foreground hover:underline"
           >
-            Reviews <span aria-hidden="true">›</span>
+            {t("profile.reviews")} <span aria-hidden="true">›</span>
           </Link>
         </h2>
       )}
 
-      {logCount === 0 && <p className="text-muted">Nothing logged yet.</p>}
+      {logCount === 0 && (
+        <p className="text-muted">{t("profile.nothingLogged")}</p>
+      )}
 
       <CardPages
         key={`reviews:${pinsKey}:${logCount}`}
@@ -443,7 +450,7 @@ export default async function ProfilePage({
       {compounds.length > 0 && (
         <section className="flex max-w-full flex-col gap-3 self-start ">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted ">
-            Compounds
+            {t("profile.compounds")}
           </h2>
           <ul className="flex flex-wrap gap-3 rounded-lg border-2 border-dashed border-line p-3">
             {compounds.map((c) => (

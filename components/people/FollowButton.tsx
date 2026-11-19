@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { track } from "@/lib/analytics/analytics";
 import {
@@ -28,6 +29,7 @@ export default function FollowButton({
   // Where the button is shown, when it matters to how often it is used
   source?: "suggestions";
 }) {
+  const t = useTranslations();
   const [shownFollowing, setShownFollowing] = useLocalCopy(following);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -74,10 +76,10 @@ export default function FollowButton({
         }`}
       >
         {shownFollowing
-          ? "Following "
+          ? `${t("people.follow.following")} `
           : followsViewer
-            ? "Follow back"
-            : "Follow"}
+            ? t("people.follow.followBack")
+            : t("people.follow.follow")}
       </button>
       {error && <p className="text-sm text-danger">{error}</p>}
     </div>

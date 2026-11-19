@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import Stars from "@/components/logs/Stars";
 
@@ -18,6 +19,7 @@ export default function RatingInput({
   value: number;
   onChange: (value: number) => void;
 }) {
+  const t = useTranslations();
   const [hover, setHover] = useState<number | null>(null);
   // The rating before a press began, so a press the browser takes over
   // (a vertical scroll) can be put back
@@ -42,11 +44,13 @@ export default function RatingInput({
       <div
         role="slider"
         tabIndex={0}
-        aria-label="Rating (optional)"
+        aria-label={t("logs.ratingOptional")}
         aria-valuemin={0.5}
         aria-valuemax={5}
         aria-valuenow={value > 0 ? value : undefined}
-        aria-valuetext={value > 0 ? `${value} out of 5 stars` : "No rating"}
+        aria-valuetext={
+          value > 0 ? `${value} out of 5 stars` : t("logs.noRating")
+        }
         // On a phone the stars fill the row and sideways drags stay with us,
         // while up and down still scroll the page
         className="inline-flex cursor-pointer touch-pan-y select-none text-3xl max-sm:w-full max-sm:[container-type:inline-size]"
@@ -76,7 +80,7 @@ export default function RatingInput({
         <Stars rating={shown} track className="max-sm:w-full" />
       </div>
       <span className="min-w-8 text-sm text-muted">
-        {shown > 0 ? shown : "(optional)"}
+        {shown > 0 ? shown : t("common.optional")}
       </span>
       {value > 0 && (
         <button
@@ -84,7 +88,7 @@ export default function RatingInput({
           onClick={() => onChange(0)}
           className="text-xs text-accent underline"
         >
-          clear
+          {t("logs.clear")}
         </button>
       )}
     </div>

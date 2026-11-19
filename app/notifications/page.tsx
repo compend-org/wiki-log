@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import AdminBadge from "@/components/moderation/AdminBadge";
 import FollowButton from "@/components/people/FollowButton";
@@ -67,6 +68,8 @@ function PersonLink({
 }
 
 export default function NotificationsPage() {
+  const t = useTranslations();
+  const locale = useLocale();
   const loginHref = useLoginHref();
   const sfwMode = useSfwMode();
   // Opens with the feed last fetched in this tab, if any, while a fresh one
@@ -293,23 +296,20 @@ export default function NotificationsPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 p-4 sm:p-8">
-      <h1 className="text-3xl font-bold">Notifications</h1>
+      <h1 className="text-3xl font-bold">{t("nav.notifications")}</h1>
 
-      {!loaded && <p className="text-muted">Loading…</p>}
+      {!loaded && <p className="text-muted">{t("common.loading")}</p>}
 
       {loaded && !signedIn && (
         <Link href={loginHref} className="underline">
-          Sign in to see your notifications
+          {t("pages.notifications.signIn")}
         </Link>
       )}
 
       {error && <p className="text-danger">{error}</p>}
 
       {loaded && signedIn && !error && rows.length === 0 && (
-        <p className="text-muted">
-          Nothing yet. You&apos;ll see likes, shares, comments, replies,
-          mentions and new followers here.
-        </p>
+        <p className="text-muted">{t("pages.notifications.empty")}</p>
       )}
 
       {rows.map((n) => {
@@ -326,8 +326,10 @@ export default function NotificationsPage() {
               href={href}
               aria-label={
                 n.type === "moderation"
-                  ? `From the moderators: ${rest}`
-                  : `${actor ?? "Someone"}${rest}${reviewOwner?.username ?? ""}`
+                  ? t("pages.notifications.fromModeratorsWithNote", {
+                      note: rest,
+                    })
+                  : `${actor ?? t("common.someone")}${rest}${reviewOwner?.username ?? ""}`
               }
               onClick={() => track("notification_clicked", { type: n.type })}
               className="absolute inset-0"
@@ -335,14 +337,16 @@ export default function NotificationsPage() {
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="text-sm [overflow-wrap:anywhere]">
                 {n.type === "moderation" ? (
-                  <span className="font-semibold">From the moderators: </span>
+                  <span className="font-semibold">
+                    {t("pages.notifications.fromModerators")}{" "}
+                  </span>
                 ) : actor && n.actor_id ? (
                   <PersonLink
                     username={actor}
                     isAdmin={adminIds.has(n.actor_id)}
                   />
                 ) : (
-                  "Someone"
+                  t("common.someone")
                 )}
                 {rest}
                 {reviewOwner && (
@@ -353,7 +357,7 @@ export default function NotificationsPage() {
                 )}
               </span>
               <span className="text-xs text-muted">
-                {timeAgo(n.created_at, loadedAt)}
+                {timeAgo(n.created_at, loadedAt, t, locale)}
               </span>
             </div>
             {n.type === "follow" && n.actor_id && n.profiles && (

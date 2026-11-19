@@ -1,7 +1,9 @@
 // ABOUTME: A card summarising one review: its author, item, rating, text and social actions.
 // ABOUTME: Shown wherever reviews appear among other content, such as feeds and profiles.
+
 import Link from "next/link";
 import { connection } from "next/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import ItemImage from "@/components/items/ItemImage";
 import CardActions from "@/components/logs/CardActions";
@@ -40,6 +42,8 @@ export default async function LogCard({
   controls?: ReactNode;
   topControls?: ReactNode;
 }) {
+  const t = await getTranslations();
+  const locale = await getLocale();
   await connection();
   const renderedAt = Date.now();
   const title = row.items?.title ?? "Unknown item";
@@ -58,7 +62,10 @@ export default async function LogCard({
       {reviewHref && (
         <Link
           href={reviewHref}
-          aria-label={`Open ${author}'s review of ${title}`}
+          aria-label={t("feed.openReview", {
+            author: author ?? "",
+            title: title ?? "",
+          })}
           className="card-link absolute inset-0 rounded-[inherit]"
         />
       )}
@@ -100,12 +107,12 @@ export default async function LogCard({
                 username={author}
                 avatarPath={avatarPath}
               />
-              <span>logged</span>
+              <span>{t("logs.logged")}</span>
             </>
           )}
           <span className="whitespace-nowrap">
             {showAuthor && "· "}
-            {timeAgo(row.logged_at, renderedAt)}
+            {timeAgo(row.logged_at, renderedAt, t, locale)}
           </span>
         </span>
 

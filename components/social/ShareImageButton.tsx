@@ -2,6 +2,7 @@
 // ABOUTME: Downloads the picture instead on browsers that can't share files.
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import ExternalShareIcon from "@/components/social/ExternalShareIcon";
 import { track } from "@/lib/analytics/analytics";
@@ -15,6 +16,7 @@ export default function ShareImageButton({
   fileName: string;
   className?: string;
 }) {
+  const t = useTranslations();
   const button = useRef<HTMLButtonElement>(null);
   // The picture while it's being fetched, and once it's here
   const fetching = useRef<Promise<File | null> | null>(null);
@@ -88,8 +90,8 @@ export default function ShareImageButton({
       onClick={onClick}
       disabled={waiting}
       aria-busy={waiting}
-      aria-label="Share as image"
-      title="Share as image"
+      aria-label={t("social.shareAsImage")}
+      title={t("social.shareAsImage")}
       className={`inline-flex h-5 items-center text-muted hover:text-foreground ${className}`}
     >
       {waiting ? (

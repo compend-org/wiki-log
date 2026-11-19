@@ -1,5 +1,6 @@
 import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 import {
   ANALYTICS_ASSETS_HOST,
   ANALYTICS_INGEST_HOST,
@@ -42,7 +43,9 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+
+export default withSentryConfig(withNextIntl(nextConfig), {
   org: "ivory-ti",
   project: "compend",
   // Source maps are uploaded when SENTRY_AUTH_TOKEN is set, so Sentry shows

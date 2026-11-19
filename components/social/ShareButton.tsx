@@ -3,6 +3,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import ShareIcon from "@/components/social/ShareIcon";
 import { track } from "@/lib/analytics/analytics";
@@ -32,6 +33,7 @@ export default function ShareButton({
   shareCount: number;
   shared: boolean;
 }) {
+  const t = useTranslations();
   const loginHref = useLoginHref();
   const [shownShared, setShownShared] = useLocalCopy(shared);
   // The server's count already includes the viewer's share when it says shared
@@ -74,7 +76,7 @@ export default function ShareButton({
         markLogUnavailable(logId);
         router.refresh();
       } else {
-        setErrorMessage("Couldn't update your share. Please try again.");
+        setErrorMessage(t("errors.shareFailed"));
       }
     } else {
       track(next ? "shared_to_followers" : "unshared", { target: kind });
@@ -94,8 +96,8 @@ export default function ShareButton({
         onClick={toggle}
         disabled={busy}
         aria-pressed={shownShared}
-        aria-label={shownShared ? "Undo share" : "Share to your followers"}
-        title={shownShared ? "Undo share" : "Share to your followers"}
+        aria-label={shownShared ? t("social.undoShare") : t("social.share")}
+        title={shownShared ? t("social.undoShare") : t("social.share")}
         className={`inline-flex h-5 items-center gap-1 text-sm disabled:cursor-default ${
           shownShared
             ? "text-[#00ba7c]"

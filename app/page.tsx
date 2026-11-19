@@ -1,8 +1,10 @@
 // ABOUTME: The home page: today's popular and unpopular picks, item search and the feed.
 // ABOUTME: Also tells search engines the site's name and its one address.
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import Digest from "@/components/feed/Digest";
 import Feed from "@/components/feed/Feed";
 import FeedTabs, { type FeedTab } from "@/components/feed/FeedTabs";
@@ -32,6 +34,7 @@ export default async function Home({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
+  const t = await getTranslations();
   await connection();
   const { tab } = await searchParams;
 
@@ -74,7 +77,7 @@ export default async function Home({
         {picks && (
           <div className="order-1 w-full justify-self-start">
             <PickSquare
-              heading="Popular Today "
+              heading={t("home.popularToday")}
               kind="popular"
               pick={picks.popular}
             />
@@ -91,7 +94,7 @@ export default async function Home({
                   href="/login?mode=signup"
                   className="text-accent underline hover:no-underline"
                 >
-                  Create an account
+                  {t("home.createAnAccount")}
                 </Link>
               </p>
               {sharePicks && (
@@ -111,7 +114,7 @@ export default async function Home({
         {picks && (
           <div className="order-2 flex w-full justify-end xl:order-3">
             <PickSquare
-              heading="Unpopular Today"
+              heading={t("home.unpopularToday")}
               kind="unpopular"
               pick={picks.unpopular}
             />

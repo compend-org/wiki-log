@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 
 type Tab = "followers" | "following";
@@ -11,6 +12,7 @@ export default function PeopleTabs({
   initial: Tab;
   tabs: { id: Tab; label: string; content: ReactNode }[];
 }) {
+  const t = useTranslations();
   const [active, setActive] = useState<Tab>(initial);
 
   function choose(tab: Tab) {
@@ -23,7 +25,7 @@ export default function PeopleTabs({
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="tablist" aria-label="People" className="flex gap-2">
+      <div role="tablist" aria-label={t("people.tabs")} className="flex gap-2">
         {tabs.map((t) => (
           <button
             key={t.id}

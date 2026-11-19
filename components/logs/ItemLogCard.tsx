@@ -1,6 +1,8 @@
 // ABOUTME: One log of an item as a card: author, stars, time, review text and actions.
 // ABOUTME: The card links to the review's own page, with like, share and comment actions.
+
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import CardActions from "@/components/logs/CardActions";
 import ReviewText from "@/components/logs/ReviewText";
 import Stars from "@/components/logs/Stars";
@@ -24,6 +26,8 @@ export default function ItemLogCard({
   viewerId: string | undefined;
   viewer: ViewerState;
 }) {
+  const t = useTranslations();
+  const locale = useLocale();
   const author = row.profiles?.username;
   const reviewHref = author
     ? `/u/${encodeURIComponent(author)}/${row.id}`
@@ -34,7 +38,7 @@ export default function ItemLogCard({
       {reviewHref && (
         <Link
           href={reviewHref}
-          aria-label={`Open ${author}'s review`}
+          aria-label={t("logs.openReview", { author: author ?? "" })}
           className="card-link absolute inset-0 rounded-[inherit]"
         />
       )}
@@ -47,12 +51,12 @@ export default function ItemLogCard({
             {author}
           </Link>
         ) : (
-          <span>Someone</span>
+          <span>{t("common.someone")}</span>
         )}
         {isAdmin && <AdminBadge />}
         <Stars rating={row.rating} />
         <span className="ml-auto text-sm text-muted">
-          {timeAgo(row.logged_at, renderedAt)}
+          {timeAgo(row.logged_at, renderedAt, t, locale)}
         </span>
       </div>
       {row.review && (

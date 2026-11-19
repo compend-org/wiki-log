@@ -1,8 +1,11 @@
 // ABOUTME: The signed-in person's settings: picture, bio, username, email, theme, SFW mode and blocks.
 // ABOUTME: Loads everything on the server first, so the page arrives complete.
+
 import Link from "next/link";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import EmailVerification from "@/components/auth/EmailVerification";
+import LocalePicker from "@/components/layout/LocalePicker";
 import AvatarUpload from "@/components/settings/AvatarUpload";
 import BioEditor from "@/components/settings/BioEditor";
 import BlockedPeople, {
@@ -30,6 +33,7 @@ type SettingsProfile = {
 };
 
 export default async function SettingsPage() {
+  const t = await getTranslations();
   await connection();
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
@@ -59,14 +63,15 @@ export default async function SettingsPage() {
         { data: null, error: null },
       ];
   const error = profileRes.error ?? verificationRes.error;
-  if (error) throw new Error(`Couldn't load settings: ${error.message}`);
+  if (error)
+    throw new Error(t("errors.settingsLoadFailed", { message: error.message }));
   const profile = profileRes.data as unknown as SettingsProfile | null;
 
   if (!userId || !profile) {
     return (
       <main className="p-8">
         <Link href={loginHref("/settings")} className="underline">
-          Sign in to edit your profile
+          {t("settings.signIn")}
         </Link>
       </main>
     );
@@ -83,11 +88,8 @@ export default async function SettingsPage() {
       key={userId}
       className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-4 p-4 sm:p-8"
     >
-      <h1 className="text-3xl font-bold">Profile settings</h1>
-      <p className="text-sm text-muted">
-        Your username, bio, picture and logs are public. You can also sign in
-        with your username.
-      </p>
+      <h1 className="text-3xl font-bold">{t("profile.settings")}</h1>
+      <p className="text-sm text-muted">{t("settings.intro")}</p>
 
       <AvatarUpload
         userId={userId}
@@ -101,7 +103,7 @@ export default async function SettingsPage() {
         href={`/u/${encodeURIComponent(profile.username)}`}
         className="underline"
       >
-        View your public profile
+        {t("settings.viewProfile")}
       </Link>
 
       {email && (
@@ -112,6 +114,13 @@ export default async function SettingsPage() {
       )}
 
       <ThemeSetting />
+
+      <section className="flex flex-col gap-3">
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
+          {t("settings.language.title")}
+        </h2>
+        <LocalePicker />
+      </section>
 
       <SfwSetting
         userId={userId}

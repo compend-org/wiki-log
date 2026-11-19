@@ -13,6 +13,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { track } from "@/lib/analytics/analytics";
 import {
@@ -37,6 +38,7 @@ function SortableCard({
   // Whether the card fades in as it appears
   fadeIn: boolean;
 }) {
+  const t = useTranslations();
   const {
     attributes,
     listeners,
@@ -67,7 +69,7 @@ function SortableCard({
           ref={setActivatorNodeRef}
           {...attributes}
           {...listeners}
-          aria-label="Drag to reorder"
+          aria-label={t("profile.dragToReorder")}
           aria-hidden={!editing}
           tabIndex={editing ? 0 : -1}
           className={`flex shrink-0 cursor-grab touch-none items-center overflow-hidden text-muted transition-[width,opacity] duration-300 active:cursor-grabbing ${
@@ -96,6 +98,7 @@ export default function PinnedSection({
   // Whether the person looking owns the pins and can reorder them
   editable: boolean;
 }) {
+  const t = useTranslations();
   // Moves show at once and stay after editing, until the server sends the
   // saved order
   const [order, setOrder] = useLocalCopy(pins);
@@ -152,7 +155,7 @@ export default function PinnedSection({
             href={`${profileHref}/pinned`}
             className="hover:text-foreground hover:underline"
           >
-            Pinned <span aria-hidden="true">›</span>
+            {t("profile.pinned")} <span aria-hidden="true">›</span>
           </Link>
         </h2>
         {editable && order.filter((p) => p.card).length > 1 && (
@@ -164,7 +167,7 @@ export default function PinnedSection({
             disabled={busy}
             className="text-sm underline disabled:opacity-60"
           >
-            {editing ? "Done" : "Edit"}
+            {editing ? t("lists.picker.done") : t("common.edit")}
           </button>
         )}
       </div>

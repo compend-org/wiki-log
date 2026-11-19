@@ -18,6 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   createGroupedList,
@@ -69,6 +70,7 @@ function SortableTile({
   // Opens the picture picker
   onPicture: () => void;
 }) {
+  const t = useTranslations();
   const {
     attributes,
     listeners,
@@ -101,8 +103,10 @@ function SortableTile({
             type="button"
             onClick={onPicture}
             onKeyDown={(e) => e.stopPropagation()}
-            aria-label={`Change the picture for ${entry.title}`}
-            title="Change the picture"
+            aria-label={t("lists.editor.changePictureFor", {
+              title: entry.title,
+            })}
+            title={t("common.changePicture")}
             className="absolute bottom-1 left-1 rounded bg-background/80 px-1.5 py-1"
           >
             <PictureIcon className="h-3 w-3" />
@@ -112,7 +116,7 @@ function SortableTile({
           type="button"
           onClick={onRemove}
           onKeyDown={(e) => e.stopPropagation()}
-          aria-label={`Remove ${entry.title}`}
+          aria-label={t("lists.editor.removeItem", { title: entry.title })}
           className="absolute right-1 top-1 rounded bg-background/80 px-1.5 text-sm"
         >
           ×
@@ -161,6 +165,7 @@ export default function GroupedListEditor({
   ownerName: string;
   initialGroups: DraftGroup[];
 }) {
+  const t = useTranslations();
   const [title, setTitle] = useState<string>(list.title);
   const [description, setDescription] = useState<string>(
     list.description ?? "",
@@ -203,7 +208,7 @@ export default function GroupedListEditor({
   function groupLabel(group: DraftGroup, index: number): string {
     return labeled && group.name.trim()
       ? group.name.trim()
-      : `Group ${index + 1}`;
+      : t("lists.grouped.group", { number: index + 1 });
   }
 
   // Called by the picker once it knows the item
@@ -211,7 +216,7 @@ export default function GroupedListEditor({
     setError("");
     const result = await stageItem(itemId);
     if (result.error || !result.item) {
-      setError(result.error ?? "Something went wrong.");
+      setError(result.error ?? t("common.somethingWentWrong"));
       return;
     }
     const entry: GroupEntry = result.item;
@@ -303,7 +308,7 @@ export default function GroupedListEditor({
   function handleAddGroup() {
     setError("");
     if (groups.length >= MAX_GROUPS) {
-      setError(`A grouped list has at most ${MAX_GROUPS} groups.`);
+      setError(t("lists.grouped.tooMany", { max: MAX_GROUPS }));
       return;
     }
     const group = emptyGroup();
@@ -311,9 +316,9 @@ export default function GroupedListEditor({
   }
 
   async function save() {
-    const t = title.trim();
-    if (t.length < 1 || t.length > 80) {
-      setMessage("Titles are 1–80 characters.");
+    const trimmed = title.trim();
+    if (trimmed.length < 1 || trimmed.length > 80) {
+      setMessage(t("errors.titleLength"));
       return;
     }
     const problem = groupsProblem(groups, labeled);
@@ -327,7 +332,7 @@ export default function GroupedListEditor({
 
     if (list.id === null) {
       const result = await createGroupedList({
-        title: t,
+        title: trimmed,
         description,
         labeled,
         groups: payload,
@@ -339,7 +344,7 @@ export default function GroupedListEditor({
       });
       if (result.error || !result.id) {
         setBusy(false);
-        setMessage(result.error ?? "Couldn't create the list.");
+        setMessage(result.error ?? t("errors.listCreateFailed"));
         return;
       }
       track("list_created", {
@@ -355,7 +360,7 @@ export default function GroupedListEditor({
     const supabase = createClient();
     const { error: updateError } = await supabase
       .from("lists")
-      .update({ title: t, description: description.trim() || null })
+      .update({ title: trimmed, description: description.trim() || null })
       .eq("id", list.id);
     if (updateError) {
       setBusy(false);
@@ -380,7 +385,9 @@ export default function GroupedListEditor({
       );
       if (pictureError) {
         setBusy(false);
-        setMessage(`Saved, but not all the pictures: ${pictureError}`);
+        setMessage(
+          t("errors.listSavedPicturesFailed", { error: pictureError }),
+        );
         return;
       }
     }
@@ -400,10 +407,7 @@ export default function GroupedListEditor({
     if (deleteError) {
       setBusy(false);
       setError(
-        userFacingErrorMessage(
-          deleteError,
-          "Couldn't delete the list. Please try again.",
-        ),
+        userFacingErrorMessage(deleteError, t("errors.listDeleteFailed")),
       );
       return;
     }
@@ -423,17 +427,14 @@ export default function GroupedListEditor({
     >
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold">
-          {list.id === null ? "New grouped list" : "Edit list"}
+          {list.id === null ? t("lists.grouped.newTitle") : t("lists.editList")}
         </h1>
-        <p className="text-sm text-muted">
-          Items sit in groups, and aren&apos;t ranked. Drag items to put them in
-          order or move them between groups.
-        </p>
+        <p className="text-sm text-muted">{t("lists.grouped.intro")}</p>
       </header>
 
       <div className="flex flex-col gap-3">
         <label className="flex flex-col gap-1 text-sm">
-          Title
+          {t("lists.editor.titleLabel")}
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -442,7 +443,7 @@ export default function GroupedListEditor({
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Description (optional)
+          {t("lists.editor.descriptionLabel")}
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -461,12 +462,10 @@ export default function GroupedListEditor({
             disabled={list.id !== null}
             onChange={(e) => setLabeled(e.target.checked)}
           />
-          Label the groups (give each group a name)
+          {t("lists.grouped.labelGroups")}
         </label>
         {list.id !== null && (
-          <p className="text-xs text-muted">
-            This is chosen when the list is made, and can&apos;t be changed.
-          </p>
+          <p className="text-xs text-muted">{t("lists.grouped.labelFixed")}</p>
         )}
       </div>
 
@@ -500,13 +499,17 @@ export default function GroupedListEditor({
                       e.preventDefault();
                     }
                   }}
-                  placeholder={`Group ${index + 1} name`}
-                  aria-label={`Name of group ${index + 1}`}
+                  placeholder={t("lists.grouped.groupNamePlaceholder", {
+                    number: index + 1,
+                  })}
+                  aria-label={t("lists.grouped.groupNameLabel", {
+                    number: index + 1,
+                  })}
                   className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-1.5 font-semibold text-foreground"
                 />
               ) : (
                 <h2 className="flex-1 text-sm font-semibold uppercase tracking-wide text-muted">
-                  Group {index + 1}
+                  {t("lists.grouped.group", { number: index + 1 })}
                 </h2>
               )}
               <button
@@ -515,8 +518,10 @@ export default function GroupedListEditor({
                   setGroups((prev) => moveGroup(prev, group.key, -1))
                 }
                 disabled={index === 0}
-                aria-label={`Move ${groupLabel(group, index)} up`}
-                title="Move group up"
+                aria-label={t("lists.grouped.moveUp", {
+                  group: groupLabel(group, index),
+                })}
+                title={t("lists.grouped.moveUpTitle")}
                 className="rounded border border-line px-2 py-1 text-sm disabled:opacity-40"
               >
                 ↑
@@ -527,8 +532,10 @@ export default function GroupedListEditor({
                   setGroups((prev) => moveGroup(prev, group.key, 1))
                 }
                 disabled={index === groups.length - 1}
-                aria-label={`Move ${groupLabel(group, index)} down`}
-                title="Move group down"
+                aria-label={t("lists.grouped.moveDown", {
+                  group: groupLabel(group, index),
+                })}
+                title={t("lists.grouped.moveDownTitle")}
                 className="rounded border border-line px-2 py-1 text-sm disabled:opacity-40"
               >
                 ↓
@@ -539,15 +546,17 @@ export default function GroupedListEditor({
                   setGroups((prev) => deleteGroup(prev, group.key))
                 }
                 disabled={groups.length <= 1}
-                aria-label={`Delete ${groupLabel(group, index)}`}
+                aria-label={t("lists.grouped.deleteGroup", {
+                  group: groupLabel(group, index),
+                })}
                 title={
                   group.items.length > 0
-                    ? "Delete group (its items move to a neighbouring group)"
-                    : "Delete group"
+                    ? t("lists.grouped.deleteGroupTitleWithItems")
+                    : t("lists.grouped.deleteGroupTitle")
                 }
                 className="rounded border border-line px-2 py-1 text-sm text-danger disabled:opacity-40"
               >
-                Delete
+                {t("common.delete")}
               </button>
             </div>
 
@@ -573,7 +582,9 @@ export default function GroupedListEditor({
                     setAdding(adding === group.key ? null : group.key);
                     setError("");
                   }}
-                  aria-label={`Add an item to ${groupLabel(group, index)}`}
+                  aria-label={t("lists.grouped.addItemTo", {
+                    group: groupLabel(group, index),
+                  })}
                   className={`flex aspect-square w-full items-center justify-center rounded-lg border-2 border-dashed text-5xl transition-colors hover:border-accent hover:text-accent ${
                     adding === group.key
                       ? "border-accent text-accent"
@@ -596,7 +607,7 @@ export default function GroupedListEditor({
                   onClick={() => setAdding(null)}
                   className="self-start rounded-lg border border-line px-3 py-1.5 text-sm"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
               </div>
             )}
@@ -622,7 +633,7 @@ export default function GroupedListEditor({
         disabled={groups.length >= MAX_GROUPS}
         className="self-start rounded-lg border border-line px-4 py-2 text-sm disabled:opacity-40"
       >
-        Add a group
+        {t("lists.grouped.addGroup")}
       </button>
 
       {error && <p className="text-sm text-danger">{error}</p>}
@@ -636,17 +647,17 @@ export default function GroupedListEditor({
         >
           {list.id === null
             ? busy
-              ? "Creating…"
-              : "Create list"
+              ? t("auth.creating")
+              : t("lists.editor.create")
             : busy
-              ? "Saving…"
-              : "Save list"}
+              ? t("common.saving")
+              : t("lists.editor.saveList")}
         </button>
         {message && <p className="text-sm text-danger">{message}</p>}
         <p className="text-xs text-muted">
           {list.id === null
-            ? "Nobody sees this list until you create it."
-            : "Nothing changes until you save."}
+            ? t("lists.editor.nobodySees")
+            : t("lists.editor.nothingUntilSave")}
         </p>
       </section>
 
@@ -660,19 +671,19 @@ export default function GroupedListEditor({
             }}
             className="text-sm text-danger underline"
           >
-            Delete this list
+            {t("lists.editor.deleteList")}
           </button>
           {confirmingDelete && (
             <ConfirmDialog
-              title="Delete this list?"
-              confirmLabel="Delete"
-              busyLabel="Deleting…"
+              title={t("lists.editor.deleteTitle")}
+              confirmLabel={t("common.delete")}
+              busyLabel={t("common.deleting")}
               busy={busy}
               error={error}
               onConfirm={handleDeleteList}
               onCancel={() => setConfirmingDelete(false)}
             >
-              <p>This can&apos;t be undone.</p>
+              <p>{t("lists.editor.cantUndo")}</p>
             </ConfirmDialog>
           )}
         </section>
@@ -680,7 +691,7 @@ export default function GroupedListEditor({
       {picturing && (
         <PicturePicker
           itemId={picturing.itemId}
-          label={`Picture for “${picturing.title}” in this list`}
+          label={t("lists.editor.pictureFor", { title: picturing.title })}
           picked={picturing.imageUrl}
           onPick={(choice) => handlePicture(picturing.itemId, choice)}
           onClose={() => setPicturing(null)}

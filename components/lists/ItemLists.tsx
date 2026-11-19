@@ -1,6 +1,7 @@
 // ABOUTME: The "In Lists" section of an item page.
 // ABOUTME: Shows the lists that include the item as cards, most recently added first.
 
+import { useTranslations } from "next-intl";
 import { loadMoreItemLists } from "@/app/itemPagesActions";
 import { renderItemListCards } from "@/components/items/loadItemPages";
 import CardPages from "@/components/paging/CardPages";
@@ -24,6 +25,7 @@ export default function ItemLists({
   viewerId: string | undefined;
   viewer: ViewerState;
 }) {
+  const t = useTranslations();
   if (error) {
     return <p className="text-danger">{error}</p>;
   }
@@ -31,7 +33,7 @@ export default function ItemLists({
   return (
     <section className="flex w-full flex-col gap-3">
       <h2 className="text-xl font-bold">
-        {lists.length === 0 ? "Not in any lists yet" : "In Lists"}
+        {lists.length === 0 ? t("lists.notInLists") : t("lists.inLists")}
       </h2>
       <CardPages
         first={{

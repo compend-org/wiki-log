@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CommentItem } from "@/components/social/Comments";
 import { chunks, fetchRows } from "@/lib/allRows";
 import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
-import { timeAgo } from "@/lib/format";
+import { type AgoTranslator, timeAgo } from "@/lib/format";
 
 // Threads (a top-level comment and its replies) shown at first, and how many
 // more each "Show earlier comments" adds
@@ -159,12 +159,14 @@ export function toCommentItems(
   adminIds: Set<string>,
   liked: Set<string>,
   renderedAt: number,
+  t: AgoTranslator,
+  locale: string,
 ): CommentItem[] {
   return rows.map((c) => ({
     id: c.id,
     parentId: c.parent_id,
     body: c.body,
-    date: timeAgo(c.created_at, renderedAt),
+    date: timeAgo(c.created_at, renderedAt, t, locale),
     authorId: c.user_id,
     authorName: c.profiles?.username ?? "Someone",
     authorAvatarPath: c.profiles?.avatar_path ?? null,

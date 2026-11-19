@@ -2,6 +2,9 @@
 // ABOUTME: Covers each unit, the boundaries between them, and times just ahead of the clock.
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createTranslator } from "next-intl";
+import en from "../messages/en.json";
+import es from "../messages/es.json";
 import {
   entryPicture,
   mentionToken,
@@ -13,6 +16,9 @@ import {
   timeAgo,
 } from "./format";
 
+const t = createTranslator({ locale: "en", messages: en });
+const ago = (time: string, at: number) => timeAgo(time, at, t, "en");
+
 const now = Date.parse("2026-11-05T12:00:00.000Z");
 const before = (ms: number) => new Date(now - ms).toISOString();
 
@@ -22,28 +28,28 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 test("shows just now under a minute", () => {
-  assert.equal(timeAgo(before(0), now), "Now");
-  assert.equal(timeAgo(before(3500), now), "Now");
-  assert.equal(timeAgo(before(MINUTE - 1), now), "Now");
+  assert.equal(ago(before(0), now), "Now");
+  assert.equal(ago(before(3500), now), "Now");
+  assert.equal(ago(before(MINUTE - 1), now), "Now");
 });
 
 test("shows whole minutes under an hour", () => {
-  assert.equal(timeAgo(before(MINUTE), now), "1m ago");
-  assert.equal(timeAgo(before(HOUR - 1), now), "59m ago");
+  assert.equal(ago(before(MINUTE), now), "1m ago");
+  assert.equal(ago(before(HOUR - 1), now), "59m ago");
 });
 
 test("shows whole hours under a day", () => {
-  assert.equal(timeAgo(before(HOUR), now), "1h ago");
-  assert.equal(timeAgo(before(DAY - 1), now), "23h ago");
+  assert.equal(ago(before(HOUR), now), "1h ago");
+  assert.equal(ago(before(DAY - 1), now), "23h ago");
 });
 
 test("shows the date from a day ago onwards", () => {
   const time = before(DAY);
-  assert.equal(timeAgo(time, now), new Date(time).toLocaleDateString());
+  assert.equal(ago(time, now), new Date(time).toLocaleDateString("en"));
 });
 
 test("treats a time just ahead of the clock as now", () => {
-  assert.equal(timeAgo(before(-500), now), "Now");
+  assert.equal(ago(before(-500), now), "Now");
 });
 
 test("shows an item's image unless it is hidden", () => {
@@ -108,4 +114,13 @@ test("a rating is written as stars, with a lone half shown beside a star", () =>
   assert.equal(starText(5), "★★★★★");
   assert.equal(starText(0.5), "½★");
   assert.equal(starText(null), "");
+});
+
+test("writes the times in the language it is given", () => {
+  const spanish = createTranslator({ locale: "es", messages: es });
+  assert.equal(timeAgo(before(0), now, spanish, "es"), es.time.now);
+  assert.equal(
+    timeAgo(before(2 * HOUR), now, spanish, "es"),
+    spanish("time.hoursAgo", { hours: 2 }),
+  );
 });

@@ -2,6 +2,7 @@
 // ABOUTME: Wikimedia renames and deletes files, which breaks the image addresses we store.
 "use client";
 
+import { useTranslations } from "next-intl";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { reportBrokenImage } from "@/app/actions";
 import { thumbUrl } from "@/lib/format";
@@ -33,6 +34,7 @@ export default function ItemPicture({
   loading?: "lazy" | "eager";
   draggable?: boolean;
 }) {
+  const t = useTranslations();
   const [replaced, setReplaced] = useState<{ from: string; to: string }>();
   const current = replaced?.from === src ? replaced.to : src;
   const reported = useRef(new Set<string>());
@@ -92,7 +94,9 @@ export default function ItemPicture({
       {picture}
       <span className="nsfw-label absolute inset-0 flex-col items-center justify-center bg-background/30 text-center text-xs font-bold text-foreground">
         NSFW
-        {tapToShow && <span className="font-normal">Tap to show</span>}
+        {tapToShow && (
+          <span className="font-normal">{t("item.tapToShow")}</span>
+        )}
       </span>
     </span>
   );

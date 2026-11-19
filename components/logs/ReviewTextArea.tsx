@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useLayoutEffect, useRef, useState } from "react";
 import ItemPicker from "@/components/items/ItemPicker";
 import { LINK_COLOR } from "@/components/logs/ReviewText";
@@ -65,6 +66,7 @@ export default function ReviewTextarea({
   // For a label to point at
   id?: string;
 }) {
+  const t = useTranslations();
   const ref = useRef<HTMLTextAreaElement>(null);
   const backdrop = useRef<HTMLDivElement>(null);
   const [picking, setPicking] = useState<Picking | null>(null);
@@ -192,8 +194,8 @@ export default function ReviewTextarea({
     if (stored.length > maxLength) {
       setNotice(
         picking.kind === "item"
-          ? "There isn't room for that link in the review."
-          : "There isn't room for that mention.",
+          ? t("errors.linkNoRoom")
+          : t("errors.mentionNoRoom"),
       );
       setPicking(null);
       return;
@@ -259,19 +261,19 @@ export default function ReviewTextarea({
         >
           <span className="text-xs text-muted">
             {picking.kind === "item"
-              ? "Pick an item to link to (Esc to cancel)"
-              : "Pick a person to mention (Esc to cancel)"}
+              ? t("logs.mention.pickItem")
+              : t("logs.mention.pickPerson")}
           </span>
           {picking.kind === "item" ? (
             <ItemPicker
               autoFocus
-              placeholder="Search for an item to link…"
+              placeholder={t("logs.mention.searchItem")}
               onPick={(id, hit) => insert(linkToken(id, hit.title))}
             />
           ) : (
             <PersonPicker
               autoFocus
-              placeholder="Search for a person to mention…"
+              placeholder={t("logs.mention.searchPerson")}
               onPick={(p) => insert(mentionToken(p.id, p.username))}
             />
           )}

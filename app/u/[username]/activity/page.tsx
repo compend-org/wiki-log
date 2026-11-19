@@ -1,9 +1,11 @@
 // ABOUTME: Someone's activity: their diary, and the reviews and lists they have liked.
 // ABOUTME: Laid out like your own activity page, but its cards have no edit or delete buttons.
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import {
   loadMoreProfileDiary,
   loadMoreProfileLikes,
@@ -36,6 +38,7 @@ export default async function ProfileActivityPage({
   params: Promise<{ username: string }>;
   searchParams: Promise<{ tab?: string }>;
 }) {
+  const t = await getTranslations();
   await connection();
   const { username } = await params;
   const { tab } = await searchParams;
@@ -53,21 +56,25 @@ export default async function ProfileActivityPage({
 
   const profileHref = `/u/${encodeURIComponent(profile.username)}`;
   const tabs = [
-    { id: "diary", label: "Diary", href: `${profileHref}/activity` },
-    { id: "likes", label: "Likes", href: `${profileHref}/activity?tab=likes` },
+    { id: "diary", label: t("profile.diary"), href: `${profileHref}/activity` },
+    {
+      id: "likes",
+      label: t("profile.likes"),
+      href: `${profileHref}/activity?tab=likes`,
+    },
   ] as const;
   const view = { viewerId, ownerName: profile.username };
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
       <Link href={profileHref} className="text-sm text-muted">
-        ‹ Back to {profile.username}
+        {t("profile.backTo", { name: profile.username })}
       </Link>
       <h1 className="text-center text-3xl font-bold">
-        {profile.username}'s activity
+        {t("profile.activityOf", { name: profile.username })}
       </h1>
 
-      <nav aria-label="Activity" className="flex gap-2">
+      <nav aria-label={t("nav.activity")} className="flex gap-2">
         {tabs.map((t) => (
           <Link
             key={t.id}
@@ -86,7 +93,9 @@ export default async function ProfileActivityPage({
 
       <div className="flex flex-col gap-3">
         <p className="hidden py-8 text-center text-muted only:block">
-          {active === "likes" ? "Nothing liked yet." : "Nothing here yet."}
+          {active === "likes"
+            ? t("pages.activity.emptyOthersLikes")
+            : t("common.nothingHereYet")}
         </p>
         {active === "likes" ? (
           <CardPages

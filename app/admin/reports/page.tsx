@@ -17,7 +17,7 @@ import {
   type QueueAccount,
   reportedSoonAfterJoining,
 } from "@/lib/admin/adminReports";
-import { timeAgo } from "@/lib/format";
+import { adminTimeAgo } from "@/lib/admin/ago";
 
 export const metadata: Metadata = {
   title: "Reports",
@@ -83,9 +83,9 @@ function AccountRow({
             {countLabel(account.review_count, "review")} ·{" "}
             {countLabel(account.list_count, "list")} ·{" "}
             {countLabel(account.comment_count, "comment")} · joined{" "}
-            {timeAgo(account.joined_at, now)}
+            {adminTimeAgo(account.joined_at, now)}
             {account.last_active_at &&
-              ` · active ${timeAgo(account.last_active_at, now)}`}
+              ` · active ${adminTimeAgo(account.last_active_at, now)}`}
           </p>
         </div>
 
@@ -205,7 +205,7 @@ export default async function ReportsPage({
                   {account.username}
                 </Link>
                 <span className="text-sm text-muted">
-                  Banned {timeAgo(account.banned_at, now)}
+                  Banned {adminTimeAgo(account.banned_at, now)}
                   {account.reason && ` · ${account.reason}`}
                 </span>
               </li>

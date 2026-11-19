@@ -1,9 +1,11 @@
 // ABOUTME: Every review of the same item that a reviewer liked, as cards that load as you scroll.
 // ABOUTME: Reached from the "Liked by" row under a review.
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import { loadMoreLikedReviews } from "@/app/itemPagesActions";
 import { loadLikedReviewsPage } from "@/components/items/loadItemPages";
 import CardPages from "@/components/paging/CardPages";
@@ -38,6 +40,7 @@ export default async function LikedReviewsPage({
 }: {
   params: Promise<{ username: string; logId: string }>;
 }) {
+  const t = await getTranslations();
   await connection();
   const { username, logId } = await params;
   if (!isUuid(logId)) notFound();
@@ -56,17 +59,25 @@ export default async function LikedReviewsPage({
         href={`/u/${encodeURIComponent(profile.username)}/${log.id}`}
         className="text-sm text-muted"
       >
-        ‹ Back to {profile.username}'s review
+        {t("profile.backTo", {
+          name: t("profile.reviewOf", { name: profile.username }),
+        })}
       </Link>
-      <h1 className="text-xl font-bold">Liked by {profile.username}</h1>
+      <h1 className="text-xl font-bold">
+        {t("profile.likedByUser", { name: profile.username })}
+      </h1>
       <p className="-mt-3 text-sm text-muted">
-        Reviews of{" "}
-        <Link href={`/item/${log.item_id}`} className="underline">
-          {title}
-        </Link>
+        {t.rich("profile.reviewsOf", {
+          title,
+          link: (c) => (
+            <Link href={`/item/${log.item_id}`} className="underline">
+              {c}
+            </Link>
+          ),
+        })}
       </p>
       {first.cards.length === 0 && !first.next && !first.error && (
-        <p className="text-muted">Nothing here yet.</p>
+        <p className="text-muted">{t("common.nothingHereYet")}</p>
       )}
       <CardPages
         first={first}

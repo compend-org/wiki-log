@@ -4,6 +4,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import SignInButton from "@/components/auth/SignInButton";
 import SignOutButton from "@/components/auth/SignOutButton";
@@ -64,6 +65,7 @@ export default function NavAccountLinks({
 }: {
   account: NavAccountDetails | null;
 }) {
+  const t = useTranslations();
   const userId = account?.userId ?? null;
   const [unread, setUnread] = useState<number>(account?.unread ?? 0);
   const pathname = usePathname();
@@ -182,9 +184,9 @@ export default function NavAccountLinks({
     <div ref={snapshotSource} className="contents">
       <Link
         href="/notifications"
-        aria-label="Notifications"
+        aria-label={t("nav.notifications")}
         prefetch={false}
-        title="Notifications"
+        title={t("nav.notifications")}
         className={`inline-flex items-center gap-1 ${tone("/notifications")}`}
       >
         <NotificationIcon />

@@ -3,6 +3,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import HeartIcon from "@/components/social/HeartIcon";
 import { useLike } from "@/lib/hooks/useLike";
 import { useLoginHref } from "@/lib/hooks/useLoginHref";
@@ -24,6 +25,7 @@ export default function LikeButton({
   initialCount: number;
   initiallyLiked: boolean;
 }) {
+  const t = useTranslations();
   const loginHref = useLoginHref();
   const {
     liked,
@@ -63,7 +65,7 @@ export default function LikeButton({
         onClick={toggle}
         disabled={busy}
         aria-pressed={liked}
-        aria-label={liked ? "Unlike this review" : "Like this review"}
+        aria-label={liked ? t("social.unlikeReview") : t("social.likeReview")}
         className={`inline-flex h-5 items-center gap-1 text-sm disabled:cursor-default ${
           liked ? "text-like" : "text-muted enabled:hover:text-like"
         }`}

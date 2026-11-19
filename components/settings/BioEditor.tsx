@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { track } from "@/lib/analytics/analytics";
 import {
@@ -20,6 +21,7 @@ export default function BioEditor({
   userId: string;
   savedBio: string;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [bio, setBio] = useLocalCopy(savedBio);
   const [busy, setBusy] = useState<boolean>(false);
@@ -49,7 +51,7 @@ export default function BioEditor({
     }
     track("profile_updated", { field: "bio" });
     setBio(clean);
-    setMessage("Saved.");
+    setMessage(t("common.saved"));
     // Brings the saved bio back from the server
     startRefresh(() => router.refresh());
   }
@@ -61,7 +63,7 @@ export default function BioEditor({
       className="flex flex-col gap-2"
     >
       <label htmlFor="bio" className="text-sm">
-        Bio
+        {t("settings.bio.label")}
       </label>
       <textarea
         id="bio"
@@ -75,7 +77,7 @@ export default function BioEditor({
         readOnly={busy || refreshing}
         maxLength={MAX}
         rows={4}
-        placeholder="A few words about yourself (optional)"
+        placeholder={t("settings.bio.placeholder")}
         className="border border-line bg-surface px-4 py-2 text-foreground"
       />
       <div className="flex items-center gap-3">
@@ -85,7 +87,7 @@ export default function BioEditor({
           disabled={busy || refreshing || bio === savedBio}
           className="bg-accent px-4 py-2 text-background disabled:opacity-40"
         >
-          {busy ? "Saving…" : "Save bio"}
+          {busy ? t("common.saving") : t("settings.bio.save")}
         </button>
         <span className="text-xs text-muted">
           {bio.length}/{MAX}

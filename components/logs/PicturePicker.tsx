@@ -2,6 +2,7 @@
 // ABOUTME: One tap picks a picture and closes the popup.
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { itemPictureChoices } from "@/app/actions";
 import ItemImage from "@/components/items/ItemImage";
@@ -24,6 +25,7 @@ export default function PicturePicker({
   onPick: (choice: PictureChoice | null) => void;
   onClose: () => void;
 }) {
+  const t = useTranslations();
   const [choices, setChoices] = useState<PictureChoice[] | null>(null);
   const [error, setError] = useState<string>("");
 
@@ -36,12 +38,12 @@ export default function PicturePicker({
         else setChoices(result.choices);
       })
       .catch(() => {
-        if (current) setError("Couldn't load the pictures. Try again.");
+        if (current) setError(t("errors.picturesLoadFailed"));
       });
     return () => {
       current = false;
     };
-  }, [itemId]);
+  }, [itemId, t]);
 
   return (
     <Dialog label={label} onClose={onClose}>
@@ -63,20 +65,20 @@ export default function PicturePicker({
             >
               <ItemImage
                 src={c.url}
-                alt={c.isDefault ? "The item's own picture" : ""}
+                alt={c.isDefault ? t("logs.picture.own") : ""}
                 className="aspect-square w-full rounded"
                 sourceWidth={250}
               />
               {c.isDefault && (
                 <span className="absolute bottom-1 left-1 bg-background/85 px-1 text-xs">
-                  Default
+                  {t("logs.picture.default")}
                 </span>
               )}
             </button>
           ))}
         </div>
       ) : (
-        <p className="text-muted">Loading pictures…</p>
+        <p className="text-muted">{t("logs.picture.loading")}</p>
       )}
       <div className="flex gap-4">
         {/* Without a picture of its item's own to pick, a chosen picture
@@ -90,11 +92,11 @@ export default function PicturePicker({
             }}
             className="underline"
           >
-            Remove picture
+            {t("logs.picture.remove")}
           </button>
         )}
         <button type="button" onClick={onClose} className="underline">
-          Cancel
+          {t("common.cancel")}
         </button>
       </div>
     </Dialog>

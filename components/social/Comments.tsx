@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import ReviewText from "@/components/logs/ReviewText";
 import ReviewTextarea from "@/components/logs/ReviewTextArea";
@@ -62,6 +63,7 @@ export default function Comments({
   // Where to go to load older threads too, when there are any
   earlierHref?: string | null;
 }) {
+  const t = useTranslations();
   const loginHref = useLoginHref();
   const [topText, setTopText] = useState<string>("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export default function Comments({
     if (!viewerId) return false;
     const trimmed = body.trim();
     if (trimmed.length < 1 || trimmed.length > 1000) {
-      setError("Comments are 1–1000 characters.");
+      setError(t("errors.commentLength"));
       return false;
     }
 
@@ -127,7 +129,7 @@ export default function Comments({
     if (!viewerId || !editing) return;
     const trimmed = editText.trim();
     if (trimmed.length < 1 || trimmed.length > 1000) {
-      setError("Comments are 1–1000 characters.");
+      setError(t("errors.commentLength"));
       return;
     }
     if (trimmed === editing.body) {
@@ -184,16 +186,16 @@ export default function Comments({
       <div key={c.id} className="flex gap-2">
         {deleting && (
           <ConfirmDialog
-            title="Delete this comment?"
-            confirmLabel="Delete"
-            busyLabel="Deleting…"
+            title={t("social.comments.deleteTitle")}
+            confirmLabel={t("common.delete")}
+            busyLabel={t("common.deleting")}
             busy={busy}
             error={error}
             onConfirm={confirmDelete}
             onCancel={() => setDeleting(null)}
           >
             {repliesOf(deleting.id).length > 0 && (
-              <p>Its replies are deleted with it.</p>
+              <p>{t("social.comments.repliesDeleted")}</p>
             )}
           </ConfirmDialog>
         )}
@@ -220,7 +222,7 @@ export default function Comments({
             </span>
             {c.removed && (
               <span className="text-xs font-medium text-danger">
-                Removed by the moderators · only you can see it
+                {t("social.comments.removedByModerators")}
               </span>
             )}
           </div>
@@ -245,7 +247,7 @@ export default function Comments({
                   disabled={busy || editText.trim().length === 0}
                   className="rounded-lg bg-accent px-3 py-1.5 text-sm text-background disabled:opacity-40"
                 >
-                  {busy ? "Saving…" : "Save"}
+                  {busy ? t("common.saving") : "Save"}
                 </button>
                 <button
                   type="button"
@@ -255,7 +257,7 @@ export default function Comments({
                   }}
                   className="rounded-lg border border-line px-3 py-1.5 text-sm"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
               </div>
             </form>
@@ -294,7 +296,7 @@ export default function Comments({
                 }}
                 className="hover:underline"
               >
-                Reply
+                {t("social.comments.reply")}
               </button>
             )}
             {viewerId === c.authorId && !c.removed && editing?.id !== c.id && (
@@ -307,7 +309,7 @@ export default function Comments({
                 }}
                 className="hover:underline"
               >
-                Edit
+                {t("common.edit")}
               </button>
             )}
             {canDelete && (
@@ -320,7 +322,7 @@ export default function Comments({
                 disabled={busy}
                 className="hover:underline"
               >
-                Delete
+                {t("common.delete")}
               </button>
             )}
           </div>
@@ -336,8 +338,8 @@ export default function Comments({
     <section id="comments" className="flex flex-col gap-4">
       <h2 className="text-xl font-bold">
         {total === 0
-          ? "No comments yet"
-          : `${total.toLocaleString("en-US")} ${total === 1 ? "comment" : "comments"}`}
+          ? t("social.comments.none")
+          : t("counts.comments", { count: total })}
       </h2>
 
       {/* Older threads come in above the ones shown, below this link, so it
@@ -349,7 +351,7 @@ export default function Comments({
           scroll={false}
           className="self-start text-sm underline"
         >
-          Show earlier comments
+          {t("social.comments.showEarlier")}
         </Link>
       )}
 
@@ -377,7 +379,7 @@ export default function Comments({
                   rows={2}
                   maxLength={1000}
                   autoFocus
-                  placeholder="Write a reply"
+                  placeholder={t("social.comments.writeReply")}
                   className={inputClass}
                 />
                 <div className="flex gap-2">
@@ -387,7 +389,9 @@ export default function Comments({
                     data-submit
                     className="rounded-lg bg-accent px-3 py-1.5 text-sm text-background disabled:opacity-40"
                   >
-                    {busy ? "Posting…" : "Reply"}
+                    {busy
+                      ? t("social.comments.posting")
+                      : t("social.comments.reply")}
                   </button>
                   <button
                     type="button"
@@ -398,7 +402,7 @@ export default function Comments({
                     }}
                     className="rounded-lg border border-line px-3 py-1.5 text-sm"
                   >
-                    Cancel
+                    {t("common.cancel")}
                   </button>
                 </div>
               </form>
@@ -418,7 +422,7 @@ export default function Comments({
             onChange={setTopText}
             rows={3}
             maxLength={1000}
-            placeholder="Add a comment"
+            placeholder={t("social.comments.addComment")}
             className={inputClass}
           />
           <button
@@ -427,15 +431,18 @@ export default function Comments({
             disabled={busy || topText.trim().length === 0}
             className="self-start rounded-lg bg-accent px-4 py-2 text-background disabled:opacity-40"
           >
-            {busy ? "Posting…" : "Comment"}
+            {busy ? t("social.comments.posting") : t("counts.commentZero")}
           </button>
         </form>
       ) : (
         <p className="text-sm text-muted">
-          <Link href={loginHref} className="underline">
-            Sign in
-          </Link>{" "}
-          to comment.
+          {t.rich("social.comments.signInToComment", {
+            signin: (c) => (
+              <Link href={loginHref} className="underline">
+                {c}
+              </Link>
+            ),
+          })}
         </p>
       )}
 

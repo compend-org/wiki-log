@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import ItemImage from "@/components/items/ItemImage";
 import DeleteButton from "@/components/logs/DeleteButton";
@@ -42,6 +43,7 @@ export default function DiaryLogCard({
   author?: string;
   owner?: string;
 }) {
+  const t = useTranslations();
   const who = owner ?? "You";
   const [editing, setEditing] = useState<boolean>(false);
   const [deleted, setDeleted] = useState<boolean>(false);
@@ -66,7 +68,7 @@ export default function DiaryLogCard({
           href={entryHref}
           aria-label={
             author
-              ? `Open ${author}'s entry for ${title}`
+              ? t("logs.openEntryFor", { author, title })
               : `Open ${owner ? `${owner}'s` : "your"} entry for ${title}`
           }
           className="card-link absolute inset-0 rounded-[inherit]"
@@ -81,8 +83,8 @@ export default function DiaryLogCard({
             <button
               type="button"
               onClick={() => setEditing(true)}
-              aria-label="Edit this entry"
-              title="Edit this entry"
+              aria-label={t("logs.editEntry")}
+              title={t("logs.editEntry")}
               className="relative z-10 flex text-accent hover:opacity-70 hover:text-foreground"
             >
               <EditIcon className="h-4 w-4" />

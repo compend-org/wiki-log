@@ -3,10 +3,12 @@
 // ABOUTME: A round button in the bottom right that scrolls back to the top.
 // ABOUTME: It fades in once the page has been scrolled more than a screen down.
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import ArrowUpIcon from "@/components/ui/ArrowUpIcon";
 
 export default function ScrollToTop() {
+  const t = useTranslations();
   const [visible, setVisible] = useState<boolean>(false);
 
   useEffect(() => {
@@ -20,8 +22,8 @@ export default function ScrollToTop() {
     <button
       type="button"
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-      aria-label="Back to top"
-      title="Back to top"
+      aria-label={t("nav.backToTop")}
+      title={t("nav.backToTop")}
       // Hidden, it can't be clicked or reached with the keyboard. It sits
       // just above the footer, which sticks to the bottom of the screen.
       inert={!visible}

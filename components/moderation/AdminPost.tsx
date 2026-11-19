@@ -6,7 +6,8 @@ import {
   postHref,
   type ReportKind,
 } from "@/lib/admin/adminReports";
-import { plainReview, timeAgo } from "@/lib/format";
+import { adminTimeAgo } from "@/lib/admin/ago";
+import { plainReview } from "@/lib/format";
 
 const KIND_LABELS: Record<ReportKind, string> = {
   log: "Review",
@@ -57,10 +58,10 @@ export default function AdminPost({
             <span className="font-medium text-foreground">{post.title}</span>
           ))}
         {post.rating != null && <span>{post.rating}★</span>}
-        {post.at && <span>{timeAgo(post.at, now)}</span>}
+        {post.at && <span>{adminTimeAgo(post.at, now)}</span>}
         {post.removed_at && (
           <span className="font-medium text-danger">
-            Removed {timeAgo(post.removed_at, now)}
+            Removed {adminTimeAgo(post.removed_at, now)}
           </span>
         )}
       </p>

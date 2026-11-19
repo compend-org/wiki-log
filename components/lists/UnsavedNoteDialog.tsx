@@ -2,6 +2,7 @@
 // ABOUTME: Save it and go on, throw the changes away and go on, or go back to the note.
 "use client";
 
+import { useTranslations } from "next-intl";
 import Dialog from "@/components/ui/Dialog";
 
 export default function UnsavedNoteDialog({
@@ -30,9 +31,10 @@ export default function UnsavedNoteDialog({
   onDiscard: () => void;
   onKeepEditing: () => void;
 }) {
+  const t = useTranslations();
   const heading = isNew
-    ? `Save ${title}'s new note?`
-    : `Save your changes to ${title}'s note?`;
+    ? t("lists.notes.unsavedNewTitle", { title })
+    : t("lists.notes.unsavedChangeTitle", { title });
   return (
     <Dialog label={heading} onClose={onKeepEditing}>
       <h2 className="text-base font-semibold">{heading}</h2>
@@ -44,8 +46,8 @@ export default function UnsavedNoteDialog({
       <p className="text-muted">
         {consequence}{" "}
         {isNew
-          ? `Discarding leaves ${title} without a note.`
-          : `Discarding leaves ${title}'s saved note as it was.`}
+          ? t("lists.notes.discardNew", { title })
+          : t("lists.notes.discardChange", { title })}
       </p>
       {saveProblem && <p className="text-danger">{saveProblem}</p>}
       <div className="flex flex-col gap-2">
@@ -55,7 +57,7 @@ export default function UnsavedNoteDialog({
           disabled={busy || saveProblem !== null}
           className="min-h-11 rounded-lg bg-accent px-3 text-background disabled:opacity-40"
         >
-          {busy ? "Saving…" : "Save note and continue"}
+          {busy ? t("common.saving") : t("lists.notes.saveAndContinue")}
         </button>
         <button
           type="button"
@@ -63,14 +65,16 @@ export default function UnsavedNoteDialog({
           disabled={busy}
           className="min-h-11 rounded-lg border border-line px-3 disabled:opacity-40"
         >
-          Discard {isNew ? "note" : "note changes"} and continue
+          {isNew
+            ? t("lists.notes.discardNoteAndContinue")
+            : t("lists.notes.discardChangesAndContinue")}
         </button>
         <button
           type="button"
           onClick={onKeepEditing}
           className="min-h-11 text-accent underline"
         >
-          Keep editing
+          {t("lists.notes.keepEditing")}
         </button>
       </div>
     </Dialog>

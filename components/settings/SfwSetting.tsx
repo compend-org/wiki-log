@@ -3,16 +3,18 @@
 // ABOUTME: The profile setting for SFW mode: off, blur adult images, or hide adult posts.
 // ABOUTME: Saved to the account, and applied to this page as soon as it is chosen.
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { track } from "@/lib/analytics/analytics";
 import { useLocalCopy } from "@/lib/hooks/useLocalCopy";
 import { applySfw, type SfwMode, setStoredSfw } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/client";
 
+// Each label is the key of its message
 const OPTIONS: { value: SfwMode; label: string }[] = [
-  { value: "off", label: "Off" },
-  { value: "blur", label: "Blur adult images" },
-  { value: "hide", label: "Hide adult posts" },
+  { value: "off", label: "settings.sfw.off" },
+  { value: "blur", label: "settings.sfw.blurImages" },
+  { value: "hide", label: "settings.sfw.hidePosts" },
 ];
 
 export default function SfwSetting({
@@ -22,6 +24,7 @@ export default function SfwSetting({
   userId: string;
   savedMode: SfwMode;
 }) {
+  const t = useTranslations();
   const [mode, setMode] = useLocalCopy(savedMode);
   const [error, setError] = useState("");
   // Choices wait while one is saving
@@ -43,7 +46,7 @@ export default function SfwSetting({
       setMode(before);
       setStoredSfw(before);
       applySfw(before);
-      setError("Couldn't save that. Try again.");
+      setError(t("errors.settingSaveFailed"));
       setBusy(false);
       return;
     }
@@ -55,7 +58,7 @@ export default function SfwSetting({
   return (
     <fieldset disabled={busy} className="flex flex-col gap-2">
       <legend className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
-        SFW mode
+        {t("settings.sfw.title")}
       </legend>
       {OPTIONS.map((o) => (
         <label key={o.value} className="flex items-center gap-2 text-sm">
@@ -66,7 +69,7 @@ export default function SfwSetting({
             checked={mode === o.value}
             onChange={() => choose(o.value)}
           />
-          {o.label}
+          {t(o.label)}
         </label>
       ))}
       {error && <p className="text-sm text-danger">{error}</p>}
