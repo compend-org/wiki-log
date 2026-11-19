@@ -27,6 +27,8 @@ import {
 } from "@/app/actions";
 import ItemImage from "@/components/items/ItemImage";
 import ItemPicker from "@/components/items/ItemPicker";
+import NoteBox, { WIDE_COLUMNS } from "@/components/lists/NoteBox";
+import NoteButton from "@/components/lists/NoteButton";
 import PicturePicker from "@/components/logs/PicturePicker";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import PictureIcon from "@/components/ui/PictureIcon";
@@ -52,23 +54,32 @@ import {
   MAX_GROUPS,
   moveEntryTo,
   moveGroup,
+  notesPayload,
   removeEntry,
   renameGroup,
   reorderWithin,
+  setEntryNote,
 } from "@/lib/lists/listGroups";
+import { cleanListNote, noteProblem } from "@/lib/lists/listNotes";
 import type { PictureChoice } from "@/lib/pictureChoices";
 import { createClient } from "@/lib/supabase/client";
 
 // One item in a group's grid, dragged by its picture or title
 function SortableTile({
   entry,
+  noting,
   onRemove,
   onPicture,
+  onNote,
 }: {
   entry: GroupEntry;
+  // Whether the item's note is open
+  noting: boolean;
   onRemove: () => void;
   // Opens the picture picker
   onPicture: () => void;
+  // Opens or closes the item's note
+  onNote: () => void;
 }) {
   const t = useTranslations();
   const {
@@ -123,6 +134,12 @@ function SortableTile({
         </button>
       </div>
       <span className="truncate text-xs">{entry.title}</span>
+      <NoteButton
+        entry={entry}
+        editing={noting}
+        onNote={onNote}
+        onKeyDown={(e) => e.stopPropagation()}
+      />
     </li>
   );
 }
@@ -185,6 +202,10 @@ export default function GroupedListEditor({
   const [error, setError] = useState<string>("");
   const [confirmingDelete, setConfirmingDelete] = useState<boolean>(false);
   const [labeled, setLabeled] = useState<boolean>(list.labeled);
+  // The item whose note is open, and what's typed in it. A note is kept
+  // with the other changes until Save.
+  const [noting, setNoting] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState<string>("");
   // The item being dragged
   const [activeId, setActiveId] = useState<string | null>(null);
   // Set after an item changes group mid-drag, so it doesn't jump back and
@@ -209,6 +230,58 @@ export default function GroupedListEditor({
     return labeled && group.name.trim()
       ? group.name.trim()
       : t("lists.grouped.group", { number: index + 1 });
+  }
+
+  // The groups with the open note's typed text kept in them, or null if it
+  // can't be kept. Empty text keeps the note as it was; Remove note removes it.
+  function withOpenNote(current: DraftGroup[]): DraftGroup[] | null {
+    if (noting === null) return current;
+    if (noteProblem(noteDraft)) return null;
+    const note = cleanListNote(noteDraft);
+    return note === null ? current : setEntryNote(current, noting, note);
+  }
+
+  // Opens an item's note, keeping the one that was open. Clicking the open
+  // item's note closes it.
+  function toggleNote(entry: GroupEntry) {
+    const kept = withOpenNote(groups);
+    if (kept === null) return;
+    setGroups(kept);
+    if (noting === entry.itemId) {
+      setNoting(null);
+      return;
+    }
+    const current = kept
+      .flatMap((g) => g.items)
+      .find((i) => i.itemId === entry.itemId);
+    setNoting(entry.itemId);
+    setNoteDraft(current?.note ?? "");
+    setError("");
+  }
+
+  function closeNote() {
+    setNoting(null);
+    setNoteDraft("");
+  }
+
+  // Tapping outside the sheet on a phone keeps what was typed, if it can be
+  function dismissNote() {
+    const kept = withOpenNote(groups);
+    if (kept !== null) setGroups(kept);
+    closeNote();
+  }
+
+  function saveNote() {
+    const kept = withOpenNote(groups);
+    if (kept === null) return;
+    setGroups(kept);
+    closeNote();
+  }
+
+  function removeNote() {
+    if (noting === null) return;
+    setGroups((prev) => setEntryNote(prev, noting, null));
+    closeNote();
   }
 
   // Called by the picker once it knows the item
@@ -326,9 +399,16 @@ export default function GroupedListEditor({
       setMessage(problem);
       return;
     }
+    // A note being typed is saved with the list
+    const toSave = withOpenNote(groups);
+    if (toSave === null) {
+      setMessage(noteProblem(noteDraft) ?? "");
+      return;
+    }
     setBusy(true);
     setMessage("");
-    const payload = groupsPayload(groups, labeled);
+    const payload = groupsPayload(toSave, labeled);
+    const notes = notesPayload(toSave);
 
     if (list.id === null) {
       const result = await createGroupedList({
@@ -336,6 +416,7 @@ export default function GroupedListEditor({
         description,
         labeled,
         groups: payload,
+        notes,
         pictures: Object.fromEntries(
           Object.entries(pictures).filter(
             (entry): entry is [string, string] => entry[1] !== null,
@@ -370,6 +451,7 @@ export default function GroupedListEditor({
     const { error: groupsError } = await supabase.rpc("set_list_groups", {
       p_list: list.id,
       p_groups: payload,
+      p_notes: notes,
     });
     if (groupsError) {
       setBusy(false);
@@ -564,17 +646,57 @@ export default function GroupedListEditor({
               groupKey={group.key}
               items={group.items.map((i) => i.itemId)}
             >
-              {group.items.map((entry) => (
-                <SortableTile
-                  key={entry.itemId}
-                  entry={entry}
-                  onRemove={() => {
-                    setGroups((prev) => removeEntry(prev, entry.itemId));
-                    setPictures(({ [entry.itemId]: _, ...others }) => others);
-                  }}
-                  onPicture={() => setPicturing(entry)}
-                />
-              ))}
+              {group.items.flatMap((entry, itemIndex) => {
+                // The last tile in the wide grid's row holding the open
+                // note's item, which the note box opens after
+                const notingIndex = group.items.findIndex(
+                  (i) => i.itemId === noting,
+                );
+                const rowEnd =
+                  notingIndex < 0
+                    ? -1
+                    : Math.min(
+                        group.items.length - 1,
+                        Math.floor(notingIndex / WIDE_COLUMNS) * WIDE_COLUMNS +
+                          WIDE_COLUMNS -
+                          1,
+                      );
+                const open = group.items[notingIndex];
+                return [
+                  <SortableTile
+                    key={entry.itemId}
+                    entry={entry}
+                    noting={entry.itemId === noting}
+                    onRemove={() => {
+                      setGroups((prev) => removeEntry(prev, entry.itemId));
+                      setPictures(({ [entry.itemId]: _, ...others }) => others);
+                      if (noting === entry.itemId) closeNote();
+                    }}
+                    onPicture={() => setPicturing(entry)}
+                    onNote={() => toggleNote(entry)}
+                  />,
+                  ...(itemIndex === rowEnd && open
+                    ? [
+                        <NoteBox
+                          key={`note-${open.itemId}`}
+                          title={open.title}
+                          rank={null}
+                          imageUrl={open.imageUrl}
+                          column={notingIndex % WIDE_COLUMNS}
+                          draft={noteDraft}
+                          onDraft={setNoteDraft}
+                          hasNote={Boolean(open.note)}
+                          busy={false}
+                          error=""
+                          onSave={saveNote}
+                          onRemove={removeNote}
+                          onCancel={closeNote}
+                          onDismiss={dismissNote}
+                        />,
+                      ]
+                    : []),
+                ];
+              })}
               <li>
                 <button
                   type="button"

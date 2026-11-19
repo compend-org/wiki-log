@@ -14,9 +14,11 @@ import {
   itemsLabel,
   moveEntryTo,
   moveGroup,
+  notesPayload,
   removeEntry,
   renameGroup,
   reorderWithin,
+  setEntryNote,
 } from "@/lib/lists/listGroups";
 
 const e = (id: string) => ({ itemId: id, title: id, imageUrl: null });
@@ -211,4 +213,18 @@ test("itemsLabel adds the group count only for grouped lists", () => {
   assert.equal(itemsLabel(12, null), "12 items");
   assert.equal(itemsLabel(12, 3), "12 items · 3 groups");
   assert.equal(itemsLabel(2, 1), "2 items · 1 group");
+});
+
+test("setEntryNote sets and removes one item's note, wherever it is", () => {
+  const groups = [g("a", "A", "x"), g("b", "B", "y")];
+  const noted = setEntryNote(groups, "y", "why y");
+  assert.deepEqual(notesPayload(noted), { y: "why y" });
+  assert.equal(groups[1].items[0].note, undefined);
+  assert.deepEqual(notesPayload(setEntryNote(noted, "y", null)), {});
+});
+
+test("notesPayload leaves out items without a note", () => {
+  const groups = [g("a", "A", "x", "y")];
+  const noted = setEntryNote(setEntryNote(groups, "x", "one"), "y", null);
+  assert.deepEqual(notesPayload(noted), { x: "one" });
 });

@@ -13,6 +13,8 @@ export type GroupEntry = {
   itemId: string;
   title: string;
   imageUrl: string | null;
+  // Why the list's owner put the item on the list, if they said
+  note?: string | null;
 };
 
 // A group being edited. The key is local, so groups can be told apart before
@@ -188,6 +190,29 @@ export function groupsPayload(
     name: labeled ? g.name.trim() : null,
     items: g.items.map((i) => i.itemId),
   }));
+}
+
+// Sets an item's note, or removes it with null
+export function setEntryNote(
+  groups: DraftGroup[],
+  itemId: string,
+  note: string | null,
+): DraftGroup[] {
+  return groups.map((g) => ({
+    ...g,
+    items: g.items.map((i) => (i.itemId === itemId ? { ...i, note } : i)),
+  }));
+}
+
+// The notes to save, by item, for the items that have one
+export function notesPayload(groups: DraftGroup[]): Record<string, string> {
+  const notes: Record<string, string> = {};
+  for (const group of groups) {
+    for (const item of group.items) {
+      if (item.note) notes[item.itemId] = item.note;
+    }
+  }
+  return notes;
 }
 
 // A saved list's groups with their items, for editing. Items without a group

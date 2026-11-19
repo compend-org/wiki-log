@@ -797,6 +797,8 @@ export async function createGroupedList(input: {
   // Pictures from the items' articles to show instead of the items' own, by
   // item
   pictures?: Record<string, string>;
+  // Why each item is on the list, by item, for the items that have a note
+  notes?: Record<string, string>;
 }): Promise<{ error?: string; id?: string }> {
   const t = await getTranslations();
   if (!FEATURES.groupedLists) return { error: t("errors.groupedListsOff") };
@@ -825,6 +827,17 @@ export async function createGroupedList(input: {
   }
   const itemIds = input.groups.flatMap((g) => g.items);
   if (itemIds.length < 1) return { error: t("errors.addAtLeastOne") };
+
+  const notes: Record<string, string> = {};
+  for (const [itemId, text] of Object.entries(input.notes ?? {})) {
+    if (!itemIds.includes(itemId) || typeof text !== "string") {
+      return { error: t("errors.invalidNotes") };
+    }
+    const problem = noteProblem(text);
+    if (problem) return { error: problem };
+    const note = cleanListNote(text);
+    if (note) notes[itemId] = note;
+  }
 
   // Checked before saving, so a picture that isn't allowed saves nothing
   const chosen = Object.entries(input.pictures ?? {});
@@ -872,6 +885,7 @@ export async function createGroupedList(input: {
       supabase.rpc("set_list_groups", {
         p_list: list.id,
         p_groups: input.groups,
+        p_notes: notes,
       }),
   );
   if (groupsError) {

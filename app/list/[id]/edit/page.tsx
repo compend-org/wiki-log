@@ -75,7 +75,7 @@ export default async function EditListPage({
             draftGroups.map((g) => [
               g.key,
               g.name,
-              g.items.map((i) => [i.itemId, i.imageUrl]),
+              g.items.map((i) => [i.itemId, i.imageUrl, i.note]),
             ]),
           ])}
           list={{
