@@ -37,4 +37,7 @@ npm test
 npx tsc --noEmit
 npx biome ci --max-diagnostics=none .
 npm run deadcode
+npm run test:e2e
 ```
+
+The end-to-end tests read the local database's seed data and start `next dev` on port 3210.

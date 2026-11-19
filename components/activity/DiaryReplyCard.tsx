@@ -54,6 +54,7 @@ export default function DiaryReplyCard({
           {replyingTo
             ? t.rich("activity.replyTo", {
                 ...action,
+                replyingTo,
                 user: (name) => (
                   <Link
                     href={`/u/${encodeURIComponent(replyingTo)}`}

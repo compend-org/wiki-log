@@ -1,5 +1,5 @@
-# ABOUTME: Runs the typecheck, lint, format and dead code checks on every pull request.
-# ABOUTME: Route types are generated first because the code depends on them.
+# ABOUTME: Runs the typecheck, lint, format, dead code and end-to-end checks on every pull request.
+# ABOUTME: The end-to-end tests run the built site against a local Supabase made from the migrations and seed data.
 name: Checks
 
 on:
@@ -28,3 +28,50 @@ jobs:
         run: npx biome ci --max-diagnostics=none .
       - name: Dead code
         run: npm run deadcode
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      # Supabase starts in the background while the packages and Chromium
+      # install, with the CLI version the lockfile has
+      - name: Start Supabase with the migrations and seed data
+        run: |
+          version=$(node -p "require('./package-lock.json').packages['node_modules/supabase'].version")
+          (npx --yes "supabase@$version" start -x realtime,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+            echo $? > "$RUNNER_TEMP/supabase-start.exit") > "$RUNNER_TEMP/supabase-start.log" 2>&1 &
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Wait for Supabase
+        timeout-minutes: 5
+        run: |
+          while [ ! -f "$RUNNER_TEMP/supabase-start.exit" ]; do sleep 1; done
+          cat "$RUNNER_TEMP/supabase-start.log"
+          exit "$(cat "$RUNNER_TEMP/supabase-start.exit")"
+      - name: Point the site at the local Supabase
+        run: |
+          npx supabase status -o env | tr -d '"' | sed -n \
+            -e 's/^API_URL=/NEXT_PUBLIC_SUPABASE_URL=/p' \
+            -e 's/^PUBLISHABLE_KEY=/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=/p' \
+            -e 's/^SECRET_KEY=/SUPABASE_SECRET_KEY=/p' >> "$GITHUB_ENV"
+      # Each build starts from the last one's compiled output
+      - uses: actions/cache@v6
+        with:
+          path: .next/cache
+          key: nextjs-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: nextjs-${{ hashFiles('package-lock.json') }}-
+      - name: Build the site
+        run: npx next build
+      - name: End-to-end tests
+        run: npm run test:e2e
+      - name: Keep the traces of failed tests
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: test-results/

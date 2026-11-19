@@ -15,6 +15,9 @@
   },
   "linter": {
     "enabled": true,
+    "domains": {
+      "playwright": "none"
+    },
     "rules": {
       "preset": "recommended",
       "correctness": {
@@ -37,6 +40,16 @@
       "tailwindDirectives": true
     }
   },
+  "overrides": [
+    {
+      "includes": ["e2e/**"],
+      "linter": {
+        "domains": {
+          "playwright": "recommended"
+        }
+      }
+    }
+  ],
   "assist": {
     "enabled": true,
     "actions": {

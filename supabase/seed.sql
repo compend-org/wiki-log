@@ -119,6 +119,10 @@ values
 
 -- ============ Reviews ============
 
+-- Some entries have no rating or review, like older ones on the site. New
+-- entries can't be empty, so that check is off while these go in.
+alter table public.logs disable trigger logs_require_content;
+
 insert into public.logs (user_id, item_id, rating, review, logged_at)
 select p.id, i.id, v.rating, v.review, now() - v.age::interval
 from (values
@@ -179,6 +183,8 @@ select
 from public.profiles p
 cross join public.items i
 where abs(hashtext(p.username || ':' || i.id)) % 5 = 0;
+
+alter table public.logs enable trigger logs_require_content;
 
 -- ============ Likes ============
 
