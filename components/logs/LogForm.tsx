@@ -10,6 +10,7 @@ import RatingInput from "@/components/logs/RatingInput";
 import ReviewTextarea from "@/components/logs/ReviewTextArea";
 import { track } from "@/lib/analytics/analytics";
 import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
+import { hasLogContent, NEEDS_CONTENT } from "@/lib/logContent";
 
 export default function LogForm({
   id,
@@ -30,6 +31,11 @@ export default function LogForm({
   const router = useRouter();
 
   async function handleSave() {
+    if (!hasLogContent(rating, review)) {
+      setError(NEEDS_CONTENT);
+      setDone(false);
+      return;
+    }
     setBusy(true);
     setError("");
     setDone(false);
@@ -101,7 +107,7 @@ export default function LogForm({
           setReview(v);
           setDone(false);
         }}
-        placeholder="Add a review (optional)"
+        placeholder="Add a review (or just a rating)"
         rows={3}
         className="border border-line bg-surface px-4 py-2 text-foreground"
       />

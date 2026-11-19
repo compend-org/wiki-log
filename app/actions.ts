@@ -34,6 +34,7 @@ import {
 } from "@/lib/items";
 import { MAX_GROUPED_ITEMS, MAX_GROUPS } from "@/lib/lists/listGroups";
 import { cleanListNote, noteProblem } from "@/lib/lists/listNotes";
+import { hasLogContent, NEEDS_CONTENT } from "@/lib/logContent";
 import {
   type PictureChoice,
   pictureChoices,
@@ -136,6 +137,10 @@ export async function logItem(input: {
       (input.rating * 2) % 1 !== 0)
   ) {
     return { error: "Invalid rating." };
+  }
+
+  if (!hasLogContent(input.rating, input.review)) {
+    return { error: NEEDS_CONTENT };
   }
 
   // The server looks the item up itself instead of trusting the browser

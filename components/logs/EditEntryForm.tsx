@@ -10,6 +10,7 @@ import {
   userFacingErrorMessage,
 } from "@/lib/errors/userFacingErrorMessage";
 import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
+import { hasLogContent, NEEDS_CONTENT } from "@/lib/logContent";
 import { createClient } from "@/lib/supabase/client";
 
 const MAX = 5000;
@@ -40,6 +41,10 @@ export default function EditEntryForm({
     e.preventDefault();
     const cleanReview = review.replace(/\r\n/g, "\n").trim();
     const newRating = rating > 0 ? rating : null;
+    if (!hasLogContent(newRating, cleanReview)) {
+      setError(NEEDS_CONTENT);
+      return;
+    }
 
     setBusy(true);
     setError("");

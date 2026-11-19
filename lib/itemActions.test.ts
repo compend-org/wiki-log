@@ -924,11 +924,20 @@ for (const mode of ["fresh", "stale", "compound"] as const) {
       ],
       lookupFails: true,
     });
-    assert.deepEqual(await logItem({ itemId, rating: null, review: "" }), {});
+    assert.deepEqual(await logItem({ itemId, rating: 4, review: "" }), {});
     assert.equal(fixture.writes[0].body.item_id, itemId);
     assert.equal(fixture.lookups(), mode === "stale" ? 1 : 0);
   });
 }
+
+test("an entry with no rating and no review is refused before anything is saved", async () => {
+  fixture = setup();
+  assert.deepEqual(
+    await logItem({ itemId: requestedId, rating: null, review: "  " }),
+    { error: "Add a rating or a review." },
+  );
+  assert.deepEqual(fixture.writes, []);
+});
 
 test("a successful stale refresh references the newly stored resolved ID", async () => {
   fixture = setup({
@@ -942,7 +951,7 @@ test("a successful stale refresh references the newly stored resolved ID", async
     ],
   });
   assert.deepEqual(
-    await logItem({ itemId: requestedId, rating: null, review: "" }),
+    await logItem({ itemId: requestedId, rating: 4, review: "" }),
     {},
   );
   assert.equal(
@@ -1045,7 +1054,7 @@ test("only stored Wikimedia images are checked", async () => {
 test("a failed item upsert prevents the dependent write and says saving failed", async () => {
   fixture = setup({ upsertFails: true });
   assert.deepEqual(
-    await logItem({ itemId: requestedId, rating: null, review: "" }),
+    await logItem({ itemId: requestedId, rating: 4, review: "" }),
     { error: "Couldn't save that. Please try again." },
   );
   assert.deepEqual(
@@ -1057,7 +1066,7 @@ test("a failed item upsert prevents the dependent write and says saving failed",
 test("dependent write failures still reach the caller, without the database's wording", async () => {
   fixture = setup({ writeFails: true });
   assert.deepEqual(
-    await logItem({ itemId: requestedId, rating: null, review: "" }),
+    await logItem({ itemId: requestedId, rating: 4, review: "" }),
     { error: "Couldn't save that. Please try again." },
   );
 });
