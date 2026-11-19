@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Stars from "@/components/logs/Stars";
 
 // Which half-star is under the pointer: 0.5, 1, 1.5 ... 5
@@ -19,6 +19,9 @@ export default function RatingInput({
   onChange: (value: number) => void;
 }) {
   const [hover, setHover] = useState<number | null>(null);
+  // The rating before a press began, so a press the browser takes over
+  // (a vertical scroll) can be put back
+  const before = useRef<number | null>(null);
   const shown = hover ?? value;
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -35,7 +38,7 @@ export default function RatingInput({
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 max-sm:justify-center">
       <div
         role="slider"
         tabIndex={0}
@@ -44,20 +47,36 @@ export default function RatingInput({
         aria-valuemax={5}
         aria-valuenow={value > 0 ? value : undefined}
         aria-valuetext={value > 0 ? `${value} out of 5 stars` : "No rating"}
-        className="inline-flex cursor-pointer select-none text-3xl"
+        // On a phone the stars fill the row and sideways drags stay with us,
+        // while up and down still scroll the page
+        className="inline-flex cursor-pointer touch-pan-y select-none text-3xl max-sm:w-full max-sm:[container-type:inline-size]"
+        onPointerDown={(e) => {
+          before.current = value;
+          e.currentTarget.setPointerCapture(e.pointerId);
+          setHover(null);
+          onChange(valueAt(e.currentTarget, e.clientX));
+        }}
         onPointerMove={(e) => {
-          if (e.pointerType === "mouse") {
+          if (before.current !== null) {
+            onChange(valueAt(e.currentTarget, e.clientX));
+          } else if (e.pointerType === "mouse") {
             setHover(valueAt(e.currentTarget, e.clientX));
           }
         }}
+        onPointerUp={() => {
+          before.current = null;
+        }}
+        onPointerCancel={() => {
+          if (before.current !== null) onChange(before.current);
+          before.current = null;
+        }}
         onPointerLeave={() => setHover(null)}
-        onClick={(e) => onChange(valueAt(e.currentTarget, e.clientX))}
         onKeyDown={handleKeyDown}
       >
-        <Stars rating={shown} track />
+        <Stars rating={shown} track className="max-sm:w-full" />
       </div>
       <span className="min-w-8 text-sm text-muted">
-        {shown > 0 ? shown : "optional"}
+        {shown > 0 ? shown : "(optional)"}
       </span>
       {value > 0 && (
         <button

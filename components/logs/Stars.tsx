@@ -1,3 +1,28 @@
+// Five equal cells with a star centred in each, so a fraction of the width is
+// the same fraction of the stars at any size. Wide (phone) rows scale the stars
+// with the row.
+function StarCells({
+  className,
+  style,
+}: {
+  className: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex whitespace-nowrap max-sm:text-[min(14cqw,3.5rem)] ${className}`}
+      style={style}
+    >
+      {[0, 1, 2, 3, 4].map((n) => (
+        <span key={n} className="w-[1.15em] text-center max-sm:flex-1">
+          ★
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export default function Stars({
   rating,
   className = "",
@@ -19,20 +44,15 @@ export default function Stars({
       <span
         role="img"
         aria-label={label}
-        className={`relative inline-block w-fit leading-none tracking-[0.05em] ${className}`}
+        className={`relative inline-block w-fit leading-none ${className}`}
       >
-        <span className="text-muted/60" aria-hidden="true">
-          ★★★★★
-        </span>
-        <span
-          aria-hidden="true"
-          className="absolute inset-0 whitespace-nowrap text-star"
+        <StarCells className="text-muted/60" />
+        <StarCells
+          className="absolute inset-0 text-star"
           style={{
             clipPath: `inset(-0.5em ${(1 - fraction) * 100}% -0.5em -0.5em)`,
           }}
-        >
-          ★★★★★
-        </span>
+        />
       </span>
     );
   }
