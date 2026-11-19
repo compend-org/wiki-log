@@ -3,6 +3,7 @@
 import { useState } from "react";
 import GroupedListEditor from "@/components/lists/GroupedListEditor";
 import ListEditor from "@/components/lists/ListEditor";
+import { emptyGroup, type GroupEntry } from "@/lib/lists/listGroups";
 
 type Kind = "plain" | "grouped";
 
@@ -17,8 +18,17 @@ const KINDS: { kind: Kind; label: string; hint: string }[] = [
 
 // The new-list page when grouped lists are on: pick the kind of list, then
 // fill it in
-export default function ListCreator() {
+export default function ListCreator({
+  firstItem,
+}: {
+  // The item the list starts with, when it is made from an item's page
+  firstItem: GroupEntry | null;
+}) {
   const [kind, setKind] = useState<Kind>("plain");
+  // Made once, so the group keeps its key while the page is open
+  const [firstGroups] = useState(() => [
+    { ...emptyGroup(), items: firstItem ? [firstItem] : [] },
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -59,7 +69,7 @@ export default function ListCreator() {
         <ListEditor
           list={{ id: null, title: "", description: null, ranked: false }}
           ownerName=""
-          initialItems={[]}
+          initialItems={firstItem ? [{ ...firstItem, note: null }] : []}
         />
       ) : (
         <GroupedListEditor
@@ -71,7 +81,7 @@ export default function ListCreator() {
             labeled: true,
           }}
           ownerName=""
-          initialGroups={[]}
+          initialGroups={firstItem ? firstGroups : []}
         />
       )}
     </div>

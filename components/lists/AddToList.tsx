@@ -576,7 +576,10 @@ export default function AddToList({
                     : `Show more lists (${moreLists.toLocaleString("en-US")} more)`}
                 </button>
               )}
-              <Link href="/list/new" className="self-start text-sm underline">
+              <Link
+                href={`/list/new?add=${encodeURIComponent(itemId)}`}
+                className="self-start text-sm underline"
+              >
                 New list
               </Link>
             </>
