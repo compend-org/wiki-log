@@ -132,6 +132,18 @@ body {
   .card:has(.card-text:active) > a.absolute {
     pointer-events: none;
   }
+
+  /* On touch screens a tap on a card's text opens the card, since the text
+     covers most of it. Links inside the text still open their own pages. */
+  @media (pointer: coarse) {
+    .card-text {
+      pointer-events: none;
+    }
+
+    .card-text a {
+      pointer-events: auto;
+    }
+  }
 }
 
 /* Phone keyboards shrink only the visible part of the page, so anything pinned
