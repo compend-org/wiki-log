@@ -38,6 +38,7 @@ import {
 import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { useDragSensors } from "@/lib/hooks/useDragSensors";
 import { isCompoundId } from "@/lib/ids";
+import type { CreatorDraft } from "@/lib/lists/creatorDraft";
 import { type EditorSnapshot, SavedListEditing } from "@/lib/lists/listEditing";
 import { cleanListNote, noteProblem } from "@/lib/lists/listNotes";
 import {
@@ -181,6 +182,8 @@ export default function ListEditor({
   initialItems,
   initialPage = 1,
   initialTotal,
+  initialPictures,
+  onDraft,
 }: {
   list: {
     id: string | null;
@@ -195,13 +198,18 @@ export default function ListEditor({
   initialItems: ListEntry[];
   initialPage?: number;
   initialTotal?: number;
+  // A new list's pictures, when it is carried over from another kind of list
+  initialPictures?: Record<string, string>;
+  // Told what a new list holds whenever it changes, so it can be carried to
+  // another kind of list
+  onDraft?: (draft: CreatorDraft) => void;
 }) {
   const t = useTranslations();
   // A new list's items, all kept here until it is created
   const [draftItems, setDraftItems] = useState<ListEntry[]>(initialItems);
   // A new list's pictures picked from the items' articles, by item
   const [draftPictures, setDraftPictures] = useState<Record<string, string>>(
-    {},
+    initialPictures ?? {},
   );
   // The item whose picture picker is open
   const [picturing, setPicturing] = useState<ListEntry | null>(null);
@@ -324,6 +332,16 @@ export default function ListEditor({
     (cleanListNote(noteDraft) === null
       ? "The note is empty. Keep editing to remove it with Remove note."
       : null);
+
+  // A new list's contents are passed on as they change
+  useEffect(() => {
+    onDraft?.({
+      title,
+      description,
+      items: draftItems,
+      pictures: draftPictures,
+    });
+  }, [onDraft, title, description, draftItems, draftPictures]);
 
   // A note with unsaved changes isn't lost by leaving the page
   useEffect(() => {

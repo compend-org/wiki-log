@@ -1,10 +1,15 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import GroupedListEditor from "@/components/lists/GroupedListEditor";
 import ListEditor from "@/components/lists/ListEditor";
-import { emptyGroup, type GroupEntry } from "@/lib/lists/listGroups";
+import {
+  type CreatorDraft,
+  EMPTY_DRAFT,
+  groupsFromDraft,
+} from "@/lib/lists/creatorDraft";
+import type { GroupEntry } from "@/lib/lists/listGroups";
 
 type Kind = "plain" | "grouped";
 
@@ -22,10 +27,26 @@ export default function ListCreator({
   const labelOf = (k: Kind) => t(`lists.creator.${k}Label`);
   const hintOf = (k: Kind) => t(`lists.creator.${k}Hint`);
   const [kind, setKind] = useState<Kind>("plain");
-  // Made once, so the group keeps its key while the page is open
-  const [firstGroups] = useState(() => [
-    { ...emptyGroup(), items: firstItem ? [firstItem] : [] },
-  ]);
+  // What the list holds when the editor for the current kind was opened: the
+  // item it starts with, or what the other kind of list held
+  const [seed, setSeed] = useState<CreatorDraft>(() => ({
+    ...EMPTY_DRAFT,
+    items: firstItem ? [{ ...firstItem, note: firstItem.note ?? null }] : [],
+  }));
+  // What the open editor holds now. Kept in a ref: nothing here shows it.
+  const latest = useRef<CreatorDraft | null>(null);
+  const onDraft = useCallback((draft: CreatorDraft) => {
+    latest.current = draft;
+  }, []);
+  // Made once per seed, so a group keeps its key while the editor is open
+  const seedGroups = useMemo(() => groupsFromDraft(seed), [seed]);
+
+  // The title, description, items and their notes and pictures go with the
+  // list to the other kind
+  function chooseKind(next: Kind) {
+    if (latest.current) setSeed(latest.current);
+    setKind(next);
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -49,7 +70,7 @@ export default function ListCreator({
                 name="list-kind"
                 value={k}
                 checked={kind === k}
-                onChange={() => setKind(k)}
+                onChange={() => chooseKind(k)}
                 className="sr-only"
               />
               {labelOf(k)}
@@ -63,21 +84,31 @@ export default function ListCreator({
 
       {kind === "plain" ? (
         <ListEditor
-          list={{ id: null, title: "", description: null, ranked: false }}
+          key={kind}
+          list={{
+            id: null,
+            title: seed.title,
+            description: seed.description || null,
+            ranked: false,
+          }}
           ownerName=""
-          initialItems={firstItem ? [{ ...firstItem, note: null }] : []}
+          initialItems={seed.items}
+          initialPictures={seed.pictures}
+          onDraft={onDraft}
         />
       ) : (
         <GroupedListEditor
           key={kind}
           list={{
             id: null,
-            title: "",
-            description: null,
+            title: seed.title,
+            description: seed.description || null,
             labeled: true,
           }}
           ownerName=""
-          initialGroups={firstItem ? firstGroups : []}
+          initialGroups={seedGroups}
+          initialPictures={seed.pictures}
+          onDraft={onDraft}
         />
       )}
     </div>

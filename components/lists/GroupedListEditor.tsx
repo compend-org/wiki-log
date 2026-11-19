@@ -41,6 +41,11 @@ import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { useDragSensors } from "@/lib/hooks/useDragSensors";
 import { isCompoundId } from "@/lib/ids";
 import {
+  type CreatorDraft,
+  flattenGroups,
+  keptPictures,
+} from "@/lib/lists/creatorDraft";
+import {
   addEntry,
   type DraftGroup,
   deleteGroup,
@@ -171,6 +176,8 @@ export default function GroupedListEditor({
   list,
   ownerName,
   initialGroups,
+  initialPictures,
+  onDraft,
 }: {
   list: {
     id: string | null;
@@ -181,6 +188,11 @@ export default function GroupedListEditor({
   };
   ownerName: string;
   initialGroups: DraftGroup[];
+  // The pictures picked, when the list is carried over from another kind
+  initialPictures?: Record<string, string>;
+  // Told what the list holds whenever it changes, so it can be carried to
+  // another kind of list
+  onDraft?: (draft: CreatorDraft) => void;
 }) {
   const t = useTranslations();
   const [title, setTitle] = useState<string>(list.title);
@@ -194,7 +206,9 @@ export default function GroupedListEditor({
   const [adding, setAdding] = useState<string | null>(null);
   // Pictures picked from the items' articles, by item: the picture to store,
   // or null to go back to the item's own. They are saved with the list.
-  const [pictures, setPictures] = useState<Record<string, string | null>>({});
+  const [pictures, setPictures] = useState<Record<string, string | null>>(
+    initialPictures ?? {},
+  );
   // The item whose picture picker is open
   const [picturing, setPicturing] = useState<GroupEntry | null>(null);
   const [busy, setBusy] = useState<boolean>(false);
@@ -213,6 +227,16 @@ export default function GroupedListEditor({
   const recentlyMoved = useRef<boolean>(false);
   const router = useRouter();
   const sensors = useDragSensors();
+
+  // The list's contents are passed on as they change
+  useEffect(() => {
+    onDraft?.({
+      title,
+      description,
+      items: flattenGroups(groups),
+      pictures: keptPictures(pictures),
+    });
+  }, [onDraft, title, description, groups, pictures]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs after every change to the groups
   useEffect(() => {
