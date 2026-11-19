@@ -5,8 +5,8 @@ import { FEATURES } from "@/lib/features";
 
 // A grouped list holds at most this many groups and items (the database
 // enforces the same limits)
-export const MAX_GROUPS = 30;
-export const MAX_GROUPED_ITEMS = 300;
+export const MAX_GROUPS = 10000;
+export const MAX_GROUPED_ITEMS = 10000;
 export const MAX_GROUP_NAME = 60;
 
 export type GroupEntry = {

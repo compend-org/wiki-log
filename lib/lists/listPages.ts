@@ -140,7 +140,7 @@ export async function fetchGroups(
   return (data ?? []) as SavedGroup[];
 }
 
-// All of a grouped list's items in order (it holds at most 300, a few pages),
+// All of a grouped list's items in order (it holds at most 10,000, so up to a hundred pages),
 // for editing
 export async function fetchGroupedEntries(
   supabase: SupabaseClient,

@@ -58,7 +58,7 @@ export default async function EditListPage({
   // Only the owner edits
   if (list.user_id !== viewerId) redirect(`/list/${id}`);
 
-  // A grouped list (at most 300 items) is edited whole, in its groups
+  // A grouped list (at most 10,000 items) is edited whole, in its groups
   if (list.grouped && FEATURES.groupedLists) {
     const [groups, { entries: all, error }] = await Promise.all([
       fetchGroups(supabase, id),

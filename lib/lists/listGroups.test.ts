@@ -126,11 +126,13 @@ test("groupsProblem needs names only when the list is labeled", () => {
 
 test("groupsProblem needs an item, and limits groups, items and names", () => {
   assert.match(groupsProblem([g("a", "A")], true) ?? "", /at least one item/);
-  assert.match(groupsProblem([], false) ?? "", /1 to 30 groups/);
-  const many = Array.from({ length: 31 }, (_, i) => g(`k${i}`, "n", `i${i}`));
-  assert.match(groupsProblem(many, true) ?? "", /1 to 30 groups/);
-  const items = Array.from({ length: 301 }, (_, i) => `i${i}`);
-  assert.match(groupsProblem([g("a", "A", ...items)], true) ?? "", /300/);
+  assert.match(groupsProblem([], false) ?? "", /1 to 10000 groups/);
+  const many = Array.from({ length: 10001 }, (_, i) =>
+    g(`k${i}`, "n", `i${i}`),
+  );
+  assert.match(groupsProblem(many, true) ?? "", /1 to 10000 groups/);
+  const items = Array.from({ length: 10001 }, (_, i) => `i${i}`);
+  assert.match(groupsProblem([g("a", "A", ...items)], true) ?? "", /10000/);
   assert.match(
     groupsProblem([g("a", "x".repeat(61), "1")], true) ?? "",
     /60 characters/,
