@@ -6,6 +6,7 @@ import { type CSSProperties, cache } from "react";
 import SignUpPrompt from "@/components/auth/SignUpPrompt";
 import ItemImage from "@/components/items/ItemImage";
 import ListLikeButton from "@/components/lists/ListLikeButton";
+import ListNoteButton from "@/components/lists/ListNoteButton";
 import ListNotesHint from "@/components/lists/ListNotesHint";
 import ListPager from "@/components/lists/ListPager";
 import RemovedNotice from "@/components/logs/RemovedNotice";
@@ -394,6 +395,18 @@ export default async function ListPage({
                           )}
                         </div>
                       </Link>
+
+                      {entry.note && (
+                        <ListNoteButton
+                          itemId={entry.itemId}
+                          title={title}
+                          note={entry.note}
+                          imageUrl={entry.imageUrl}
+                          nsfw={entry.nsfw}
+                          rank={list.ranked ? entry.rank : null}
+                          owner={list.profiles?.username ?? null}
+                        />
+                      )}
 
                       {entry.note && (
                         <div
