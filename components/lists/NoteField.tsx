@@ -2,6 +2,7 @@
 // ABOUTME: Text past the limit is kept, and the count turns red and says how much to cut.
 "use client";
 
+import { useFormatter } from "next-intl";
 import {
   MAX_NOTE_LENGTH,
   noteLength,
@@ -26,6 +27,7 @@ export default function NoteField({
   // While the note is saving, so what's sent is what's shown
   readOnly?: boolean;
 }) {
+  const format = useFormatter();
   const problem = noteProblem(value);
   return (
     <div className="flex flex-col gap-1">
@@ -49,7 +51,7 @@ export default function NoteField({
       >
         {problem && <span>{problem}</span>}
         <span>
-          {noteLength(value.trim()).toLocaleString("en-US")} / {MAX_NOTE_LENGTH}
+          {format.number(noteLength(value.trim()))} / {MAX_NOTE_LENGTH}
         </span>
       </p>
     </div>

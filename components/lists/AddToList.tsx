@@ -19,7 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { addToList, setListItemNote } from "@/app/actions";
 import ItemImage from "@/components/items/ItemImage";
@@ -132,6 +132,7 @@ export default function AddToList({
   aside?: ReactNode;
 }) {
   const t = useTranslations();
+  const format = useFormatter();
   const [open, setOpen] = useState<boolean>(false);
   const [lists, setLists] = useState<ListOption[] | null>(null);
   // How many of the person's lists match the search, loaded or not
@@ -600,7 +601,7 @@ export default function AddToList({
                   {loadingMore
                     ? t("common.loading")
                     : t("lists.picker.showMore", {
-                        remaining: moreLists.toLocaleString("en-US"),
+                        remaining: format.number(moreLists),
                       })}
                 </button>
               )}

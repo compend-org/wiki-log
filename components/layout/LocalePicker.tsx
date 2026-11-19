@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { setLocale } from "@/app/localeActions";
 import FlagPicker from "@/components/settings/FlagPicker";
-import { LOCALES } from "@/lib/locales";
+import { LOCALES, siteLocaleOf } from "@/lib/locales";
 
 export default function LocalePicker() {
   const t = useTranslations();
@@ -18,7 +18,7 @@ export default function LocalePicker() {
   return (
     <FlagPicker
       options={LOCALES}
-      value={locale}
+      value={siteLocaleOf(locale) ?? "en"}
       showNames
       label={t("settings.language.title")}
       onChange={(code) => {

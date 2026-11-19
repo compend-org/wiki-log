@@ -2,7 +2,7 @@
 // ABOUTME: Opens inside the grid under the item's row on wider screens, and as a sheet above the keyboard on phones.
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import type { CSSProperties } from "react";
 import ItemImage from "@/components/items/ItemImage";
 import NoteField from "@/components/lists/NoteField";
@@ -48,9 +48,10 @@ export default function NoteBox({
   onDismiss: () => void;
 }) {
   const t = useTranslations();
+  const format = useFormatter();
   const keyboard = useKeyboardInset();
   const heading = t("lists.notes.noteFor", {
-    rank: rank === null ? "" : `#${rank.toLocaleString("en-US")} `,
+    rank: rank === null ? "" : `#${format.number(rank)} `,
     title,
   });
   const cannotSave =

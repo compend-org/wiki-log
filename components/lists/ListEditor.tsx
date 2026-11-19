@@ -11,7 +11,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { Fragment, useEffect, useState } from "react";
 import {
   addToList,
@@ -205,6 +205,7 @@ export default function ListEditor({
   onDraft?: (draft: CreatorDraft) => void;
 }) {
   const t = useTranslations();
+  const format = useFormatter();
   // A new list's items, all kept here until it is created
   const [draftItems, setDraftItems] = useState<ListEntry[]>(initialItems);
   // A new list's pictures picked from the items' articles, by item
@@ -536,9 +537,7 @@ export default function ListEditor({
 
     if (!editing) {
       if (!Number.isInteger(rank) || rank < 1 || rank > total) {
-        setError(
-          t("errors.positionRange", { max: total.toLocaleString("en-US") }),
-        );
+        setError(t("errors.positionRange", { max: format.number(total) }));
         return;
       }
       setDraftItems(arrayMove(draftItems, movingRank - 1, rank - 1));
@@ -766,7 +765,7 @@ export default function ListEditor({
             {t("lists.editor.items")}
             {total > 0 &&
               t("lists.editor.itemsMeta", {
-                total: total.toLocaleString("en-US"),
+                total: format.number(total),
               })}
           </h2>
           {total > 0 && (
@@ -878,7 +877,7 @@ export default function ListEditor({
               <span>
                 {t("lists.editor.moveSentence", {
                   title: movingEntry.title,
-                  rank: movingRank.toLocaleString("en-US"),
+                  rank: format.number(movingRank),
                 })}
               </span>
               <input
