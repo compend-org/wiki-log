@@ -3,6 +3,7 @@
 // ABOUTME: Shows a list of cards and loads the next page as the bottom nears, or with a button.
 // ABOUTME: The first page comes from the server; later pages from a server action it is given.
 
+import { useLocale, useTranslations } from "next-intl";
 import {
   createContext,
   Fragment,
@@ -87,10 +88,13 @@ export default function CardPages<Cursor>({
   // Called with each later page's number once it has loaded
   onPageLoaded?: (page: number) => void;
 }) {
+  const t = useTranslations();
   // The first page always shows what the server sent last. The pages loaded
   // after it are kept only while that first page has the same cards, since
   // they continue from where it ended.
-  const firstKeys = first.cards.map((c) => c.key).join();
+  // Pages loaded in another language are dropped, so every card changes language
+  const locale = useLocale();
+  const firstKeys = `${locale}:${first.cards.map((c) => c.key).join()}`;
   const [loaded, setLoaded] = useState<LaterPages<Cursor> | null>(null);
   const later = loaded?.firstKeys === firstKeys ? loaded : null;
   // Cards taken off the list, such as deleted ones, stay off it whichever
@@ -132,7 +136,7 @@ export default function CardPages<Cursor>({
         firstKeys,
         cards: later?.cards ?? [],
         next,
-        error: "Couldn't load more. Reload the page to try again.",
+        error: t("errors.loadMore"),
         pageCount,
       });
       setLoading(false);
@@ -154,7 +158,7 @@ export default function CardPages<Cursor>({
             disabled={loading}
             className="self-center border border-line bg-surface px-4 py-2 text-sm text-foreground hover:border-accent hover:no-underline disabled:opacity-40"
           >
-            {loading ? "Loading…" : buttonLabel}
+            {loading ? t("common.loading") : buttonLabel}
           </button>
         ) : (
           <LoadMore key={pageCount} onLoad={loadNextPage} />

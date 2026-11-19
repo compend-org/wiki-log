@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import AlsoLiked from "@/components/items/AlsoLiked";
 import ItemImage from "@/components/items/ItemImage";
 import OwnerControls from "@/components/logs/OwnerControls";
@@ -77,6 +78,8 @@ export default async function ReviewPage({
   params: Promise<{ username: string; logId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const t = await getTranslations();
+  const locale = await getLocale();
   await connection();
   const renderedAt = Date.now();
   const { username: rawName, logId } = await params;
@@ -133,6 +136,8 @@ export default async function ReviewPage({
     adminIds,
     viewer.likedComments,
     renderedAt,
+    t,
+    locale,
   );
 
   // Comments by people the viewer has blocked are left out
@@ -169,7 +174,7 @@ export default async function ReviewPage({
             date wraps to the start of a line the dot is clipped away */}
       <p className="flex flex-wrap items-center gap-x-3.5 overflow-hidden text-sm text-muted">
         <span className="flex flex-wrap items-center gap-x-1.5">
-          <span>Review by</span>
+          <span>{t("item.reviewBy")}</span>
           <Link
             href={`/u/${encodeURIComponent(profile.username)}`}
             className="inline-flex items-center gap-1.5 hover:underline"
@@ -184,7 +189,7 @@ export default async function ReviewPage({
           {adminIds.has(log.user_id) && <AdminBadge />}
         </span>
         <span className="relative before:absolute before:right-full before:mr-1 before:content-['·']">
-          {timeAgo(log.logged_at, renderedAt)}
+          {timeAgo(log.logged_at, renderedAt, t, locale)}
         </span>
       </p>
       <Stars rating={log.rating} />

@@ -1,17 +1,22 @@
+import { useTranslations } from "next-intl";
 import { CONTACT_EMAIL, SITE_NAME } from "@/lib/site";
 
 export const metadata = { title: "Contact" };
 
 export default function ContactPage() {
+  const t = useTranslations();
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
-      <h1 className="text-3xl font-bold">Contact</h1>
+      <h1 className="text-3xl font-bold">{t("footer.contact")}</h1>
       <p>
-        You can reach me at{" "}
-        <a href={`mailto:${CONTACT_EMAIL}`} className="underline">
-          {CONTACT_EMAIL}
-        </a>
-        .
+        {t.rich("pages.contact.reachMe", {
+          mail: (c) => (
+            <a href={`mailto:${CONTACT_EMAIL}`} className="underline">
+              {c}
+            </a>
+          ),
+          email: CONTACT_EMAIL,
+        })}
       </p>
 
       {/* <section className="flex flex-col gap-1">
@@ -36,8 +41,7 @@ export default function ContactPage() {
             </section> */}
 
       <p className="text-sm text-muted">
-        {SITE_NAME} is not affiliated with Wikipedia or the Wikimedia
-        Foundation.
+        {t("pages.contact.disclaimer", { site: SITE_NAME })}
       </p>
     </main>
   );

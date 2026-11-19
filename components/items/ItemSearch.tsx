@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import ItemPicker from "@/components/items/ItemPicker";
 import { useRandomItem } from "@/lib/hooks/useRandomItem";
@@ -15,6 +16,7 @@ export default function ItemSearch({
   // Shown at the right end of the heading's row
   headingAction?: ReactNode;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const { goRandom, busy, error } = useRandomItem();
 
@@ -25,7 +27,7 @@ export default function ItemSearch({
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">
-          Rate, review anything.
+          {t("home.title")}
           <span className="sfw-tag ml-2 text-xl font-normal text-muted">
             [SFW]
           </span>
@@ -33,26 +35,32 @@ export default function ItemSearch({
         {headingAction}
       </div>
       <p className="text-sm text-muted">
-        Search, paste a Wikipedia article URL, or{" "}
-        <button
-          type="button"
-          onClick={goRandom}
-          disabled={busy}
-          className="text-accent underline hover:no-underline disabled:opacity-60"
-        >
-          {busy ? "finding one…" : "go random"}
-        </button>
+        {t.rich("home.intro", {
+          random: (c) => (
+            <button
+              type="button"
+              onClick={goRandom}
+              disabled={busy}
+              className="text-accent underline hover:no-underline disabled:opacity-60"
+            >
+              {busy ? t("home.findingOne") : c}
+            </button>
+          ),
+        })}
       </p>
       {error && <p className="text-sm text-danger">{error}</p>}
       <ItemPicker onPick={(id) => router.push(`/item/${id}`)} />
       <p className="text-right text-sm text-muted">
-        or{" "}
-        <Link
-          href={newListHref}
-          className="text-accent underline hover:no-underline"
-        >
-          make a list
-        </Link>
+        {t.rich("home.orMakeList", {
+          link: (c) => (
+            <Link
+              href={newListHref}
+              className="text-accent underline hover:no-underline"
+            >
+              {c}
+            </Link>
+          ),
+        })}
       </p>
     </section>
   );

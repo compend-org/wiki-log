@@ -2,6 +2,7 @@
 // ABOUTME: Each review is a card linking to its own page, with like, share and comment actions.
 
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import { Fragment } from "react";
 import { loadMoreItemLogs } from "@/app/itemPagesActions";
 import { renderItemLogCards } from "@/components/items/loadItemPages";
@@ -33,6 +34,7 @@ export default async function ItemLogs({
   viewerId: string | undefined;
   viewer: ViewerState;
 }) {
+  const t = await getTranslations();
   await connection();
   const renderedAt = Date.now();
   const adminIds = await getAdminIds();
@@ -60,14 +62,14 @@ export default async function ItemLogs({
   return (
     <section className="flex w-full flex-col gap-3">
       <h2 className="text-xl font-bold">
-        {popular.length + recent.length === 0 ? "No logs yet" : "Logs"}
+        {popular.length + recent.length === 0 ? t("logs.noLogsYet") : "Logs"}
       </h2>
 
       <ItemLogSummary people={people} average={average} logCount={logCount} />
 
       {popularCards.length > 0 && (
         <>
-          <h3 className={label}>Most liked</h3>
+          <h3 className={label}>{t("logs.mostLiked")}</h3>
           {popularCards.map((c) => (
             <Fragment key={c.key}>{c.card}</Fragment>
           ))}
@@ -75,7 +77,7 @@ export default async function ItemLogs({
       )}
 
       {(recentCards.length > 0 || next) && popularCards.length > 0 && (
-        <h3 className={label}>Recent</h3>
+        <h3 className={label}>{t("logs.recent")}</h3>
       )}
       <CardPages
         first={{ cards: recentCards, next, error }}

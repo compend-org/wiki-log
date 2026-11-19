@@ -1,7 +1,9 @@
 // ABOUTME: A card summarising one list: its author, title, item thumbnails and social counts.
 // ABOUTME: Shown wherever lists appear among other content, such as feeds and item pages.
+
 import Link from "next/link";
 import { connection } from "next/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import ListLikeButton from "@/components/lists/ListLikeButton";
 import ListPreview from "@/components/lists/ListPreview";
@@ -44,6 +46,8 @@ export default async function ListCard({
   controls?: ReactNode;
   topControls?: ReactNode;
 }) {
+  const t = await getTranslations();
+  const locale = await getLocale();
   await connection();
   const renderedAt = Date.now();
   const author = l.profiles?.username;
@@ -64,7 +68,7 @@ export default async function ListCard({
     <div className="card relative flex flex-col gap-2 p-3 hover-or-tap:border-accent/60">
       <Link
         href={`/list/${l.id}`}
-        aria-label={`Open the list ${l.title}`}
+        aria-label={t("lists.openList", { title: l.title })}
         className="card-link absolute inset-0 rounded-[inherit]"
       />
       {sharers.length > 0 && (
@@ -84,17 +88,20 @@ export default async function ListCard({
               />
               {showActivity && (
                 <span>
-                  {bumped ? "added to their" : "made a"} {kind}list
+                  {t("lists.card.activity", {
+                    action: bumped ? "bumped" : "made",
+                    kind: kind.trim() || "plain",
+                  })}
                 </span>
               )}
             </>
           )}
           {!showAuthor && kind && (
-            <span>{kind === "grouped " ? "Grouped" : "Ranked"} list ·</span>
+            <span>{t("lists.card.kindLabel", { kind: kind.trim() })} ·</span>
           )}
           <span className="whitespace-nowrap">
             {showAuthor && "· "}
-            {timeAgo(time, renderedAt)}
+            {timeAgo(time, renderedAt, t, locale)}
           </span>
         </span>
         {topControls}

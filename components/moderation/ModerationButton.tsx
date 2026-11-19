@@ -3,6 +3,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import Dialog from "@/components/ui/Dialog";
 import {
@@ -37,6 +38,7 @@ export default function ModerationButton({
   className?: string;
   run: (input: ModerationInput) => Promise<{ error?: string }>;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const reasonId = useId();
   const daysId = useId();
@@ -113,7 +115,7 @@ export default function ModerationButton({
                   </option>
                   {REPORT_REASONS.map((r) => (
                     <option key={r.value} value={r.value}>
-                      {r.label}
+                      {t(r.label)}
                     </option>
                   ))}
                 </select>

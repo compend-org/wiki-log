@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import ListPreview from "@/components/lists/ListPreview";
 import DeleteButton from "@/components/logs/DeleteButton";
@@ -44,6 +45,7 @@ export default function DiaryListCard({
   author?: string;
   owner?: string;
 }) {
+  const t = useTranslations();
   const who = owner ?? "You";
   const kind = groups !== null ? "grouped " : ranked ? "ranked " : "";
   const [deleted, setDeleted] = useState<boolean>(false);
@@ -69,8 +71,8 @@ export default function DiaryListCard({
           <span className="flex items-center gap-3">
             <Link
               href={`/list/${listId}/edit`}
-              aria-label="Edit this list"
-              title="Edit this list"
+              aria-label={t("lists.editThisList")}
+              title={t("lists.editThisList")}
               className="relative z-10 flex text-accent hover:text-foreground hover:opacity-70 hover:no-underline"
             >
               <EditIcon className="h-4 w-4" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import DeleteButton from "@/components/logs/DeleteButton";
 import EditEntryForm from "@/components/logs/EditEntryForm";
@@ -38,6 +39,7 @@ export default function OwnerControls({
     nsfw: boolean;
   };
 }) {
+  const t = useTranslations();
   const [editing, setEditing] = useState<boolean>(false);
   // The picture picked since Edit was pressed, if any. Null is the item's own.
   const [picked, setPicked] = useState<PictureChoice | null>();
@@ -55,8 +57,8 @@ export default function OwnerControls({
           <button
             type="button"
             onClick={() => setEditing(true)}
-            aria-label="Edit this entry"
-            title="Edit this entry"
+            aria-label={t("logs.editEntry")}
+            title={t("logs.editEntry")}
             className="flex text-accent hover:opacity-70 hover:text-foreground"
           >
             <EditIcon className="h-4 w-4" />

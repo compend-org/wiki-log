@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import Dialog from "@/components/ui/Dialog";
 import { REPORT_REASONS } from "@/lib/admin/moderation";
@@ -23,6 +24,7 @@ export default function ReportButton({
   targetId: string;
   className?: string;
 }) {
+  const t = useTranslations();
   const loginHref = useLoginHref();
   const router = useRouter();
   const reasonId = useId();
@@ -82,13 +84,13 @@ export default function ReportButton({
         <Dialog label="Report" onClose={() => setOpen(false)}>
           {done ? (
             <>
-              <p>Thanks. We&apos;ll take a look.</p>
+              <p>{t("moderation.thanksWeLlTakeA")}</p>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 className="self-start rounded-lg border border-line px-3 py-1.5"
               >
-                Close
+                {t("common.close")}
               </button>
             </>
           ) : (
@@ -102,7 +104,7 @@ export default function ReportButton({
               </h2>
 
               <label htmlFor={reasonId} className="flex flex-col gap-1">
-                Why are you reporting it?
+                {t("moderation.whyReporting")}
                 <select
                   id={reasonId}
                   value={reason}
@@ -111,14 +113,14 @@ export default function ReportButton({
                 >
                   {REPORT_REASONS.map((r) => (
                     <option key={r.value} value={r.value}>
-                      {r.label}
+                      {t(r.label)}
                     </option>
                   ))}
                 </select>
               </label>
 
               <label htmlFor={detailsId} className="flex flex-col gap-1">
-                Anything else we should know? (optional)
+                {t("moderation.anythingElse")}
                 <textarea
                   id={detailsId}
                   value={details}
@@ -138,14 +140,14 @@ export default function ReportButton({
                   disabled={busy}
                   className="rounded-lg bg-accent px-3 py-1.5 text-background disabled:opacity-40"
                 >
-                  {busy ? "Sending…" : "Send report"}
+                  {busy ? t("auth.sending") : "Send report"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
                   className="rounded-lg border border-line px-3 py-1.5"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
               </div>
             </form>

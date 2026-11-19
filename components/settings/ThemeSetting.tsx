@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore } from "react";
 import { track } from "@/lib/analytics/analytics";
 import {
@@ -10,8 +11,8 @@ import {
 } from "@/lib/theme";
 
 const OPTIONS: { value: ThemePref; label: string }[] = [
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
+  { value: "light", label: "settings.appearance.light" },
+  { value: "dark", label: "settings.appearance.dark" },
 ];
 
 // The stored choice only changes through this setting, so there is nothing to
@@ -21,6 +22,7 @@ function subscribeToNothing(): () => void {
 }
 
 export default function ThemeSetting() {
+  const t = useTranslations();
   // The stored choice is read while rendering in the browser, so it shows
   // from the first paint. The server can't see it, so there neither option is
   // picked.
@@ -42,7 +44,7 @@ export default function ThemeSetting() {
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
-        Appearance
+        {t("settings.appearance.title")}
       </legend>
       {OPTIONS.map((o) => (
         <label key={o.value} className="flex items-center gap-2 text-sm">
@@ -53,10 +55,12 @@ export default function ThemeSetting() {
             checked={pref === o.value}
             onChange={() => choose(o.value)}
           />
-          {o.label}
+          {t(o.label)}
         </label>
       ))}
-      <p className="text-xs text-muted">Saved on this device.</p>
+      <p className="text-xs text-muted">
+        {t("settings.appearance.savedOnDevice")}
+      </p>
     </fieldset>
   );
 }

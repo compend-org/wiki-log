@@ -3,6 +3,7 @@
 // ABOUTME: The home page's feed tabs. The server renders the tab the page opens on;
 // ABOUTME: each other tab's feed is loaded when first opened, then kept and brought up to date.
 
+import { useTranslations } from "next-intl";
 import {
   type ReactNode,
   Suspense,
@@ -18,7 +19,10 @@ import { TRENDING_LABEL } from "@/lib/site";
 
 export type FeedTab = FeedMode | "digest";
 
-const loading = <p className="py-12 text-center text-muted">Loading…</p>;
+function Loading() {
+  const t = useTranslations();
+  return <p className="py-12 text-center text-muted">{t("common.loading")}</p>;
+}
 
 export default function FeedTabs({
   initial,
@@ -28,13 +32,14 @@ export default function FeedTabs({
   // The feed of the `initial` tab
   initialFeed: ReactNode;
 }) {
+  const t = useTranslations();
   const tabs: { id: FeedTab; label: string }[] = [
-    { id: "everyone", label: "Everyone" },
-    { id: "following", label: "Following" },
+    { id: "everyone", label: t("feed.everyone") },
+    { id: "following", label: t("people.follow.following") },
     ...(FEATURES.trending
       ? [{ id: "trending" as FeedTab, label: TRENDING_LABEL }]
       : []),
-    { id: "digest", label: "Digest" },
+    { id: "digest", label: t("feed.digest") },
   ];
 
   const [active, setActive] = useState<FeedTab>(
@@ -67,7 +72,7 @@ export default function FeedTabs({
     // Until the feed arrives, the one already there stays on screen
     setPanels((shown) => ({
       ...shown,
-      [active]: { feed: panel?.feed ?? loading, served: count },
+      [active]: { feed: panel?.feed ?? <Loading />, served: count },
     }));
     loadFeedTab(active).then(
       (feed) =>
@@ -85,16 +90,14 @@ export default function FeedTabs({
           ...shown,
           [active]: {
             feed: (
-              <p className="text-center text-danger">
-                Couldn&apos;t load this feed. Reload the page to try again.
-              </p>
+              <p className="text-center text-danger">{t("errors.loadFeed")}</p>
             ),
             served: count,
           },
         }));
       },
     );
-  }, [active, panels, served.count]);
+  }, [active, panels, served.count, t]);
 
   function choose(tab: FeedTab) {
     if (tab !== active) track("feed_tab_opened", { tab });
@@ -109,7 +112,7 @@ export default function FeedTabs({
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 lg:max-w-none">
       <div
         role="tablist"
-        aria-label="Feed"
+        aria-label={t("feed.label")}
         className="grid grid-cols-2 gap-2 sm:flex lg:mx-auto lg:w-[calc(50%-0.75rem)]"
       >
         {tabs.map((t) => (
@@ -148,7 +151,7 @@ export default function FeedTabs({
               active === t.id ? "min-h-lvh" : "invisible h-0 overflow-hidden"
             }
           >
-            <Suspense fallback={loading}>{panels[t.id]?.feed}</Suspense>
+            <Suspense fallback={<Loading />}>{panels[t.id]?.feed}</Suspense>
           </div>
         ))}
       </div>

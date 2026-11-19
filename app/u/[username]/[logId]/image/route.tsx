@@ -1,7 +1,9 @@
 // ABOUTME: Draws one review as a 1080×1350 PNG, sized for an Instagram post.
 // ABOUTME: Looks like the review card on the site, with the like and share counts and the site's logo.
+
 import { ImageResponse } from "next/og";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import HeartIcon from "@/components/social/HeartIcon";
 import ShareIcon from "@/components/social/ShareIcon";
 import { avatarUrl } from "@/lib/avatar";
@@ -40,6 +42,7 @@ export async function GET(
   request: Request,
   { params }: RouteContext<"/u/[username]/[logId]/image">,
 ) {
+  const t = await getTranslations();
   await connection();
   const { username, logId } = await params;
   if (!isUuid(logId)) return new Response("Not found", { status: 404 });
@@ -157,7 +160,7 @@ export async function GET(
                 color: COLORS.muted,
               }}
             >
-              <span>Review by</span>
+              <span>{t("item.reviewBy")}</span>
               {avatar && (
                 // biome-ignore lint/performance/noImgElement: drawn into a PNG, not shown on a page
                 <img

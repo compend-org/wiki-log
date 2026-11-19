@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import HeartIcon from "@/components/social/HeartIcon";
 import { track } from "@/lib/analytics/analytics";
@@ -30,6 +31,7 @@ export default function CommentLikeButton({
   likeCount: number;
   liked: boolean;
 }) {
+  const t = useTranslations();
   const loginHref = useLoginHref();
   const [shownLiked, setShownLiked] = useLocalCopy(liked);
   // The server's count already includes the viewer's like when it says liked
@@ -80,7 +82,9 @@ export default function CommentLikeButton({
       onClick={toggle}
       disabled={own}
       aria-pressed={shownLiked}
-      aria-label={shownLiked ? "Unlike this comment" : "Like this comment"}
+      aria-label={
+        shownLiked ? t("social.unlikeComment") : t("social.likeComment")
+      }
       className={`inline-flex items-center gap-1 disabled:cursor-default ${
         shownLiked ? "text-like" : "text-muted enabled:hover:text-like"
       }`}

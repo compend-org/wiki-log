@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import ItemImage from "@/components/items/ItemImage";
 import { track } from "@/lib/analytics/analytics";
 import type { Pick } from "@/lib/feed/dailyPicks";
@@ -14,6 +15,7 @@ export default function PickSquare({
   kind: "popular" | "unpopular";
   pick: Pick | null;
 }) {
+  const t = useTranslations();
   const box =
     "card flex w-full max-w-[11rem] flex-col items-center gap-2 p-2 text-center";
   const label =
@@ -23,9 +25,7 @@ export default function PickSquare({
     return (
       <div className={`${box} justify-center py-6`}>
         <span className={label}>{heading}</span>
-        <span className="text-xs text-muted">
-          Nothing rated in the last 24 hours
-        </span>
+        <span className="text-xs text-muted">{t("item.noRatingsYet")}</span>
       </div>
     );
   }
@@ -64,7 +64,7 @@ export default function PickSquare({
       </span>
       <span className="text-xs text-muted">
         <span className="text-star">★</span> {pick.average.toFixed(1)} ·{" "}
-        {pick.count} {pick.count === 1 ? "rating" : "ratings"}
+        {t("counts.ratings", { count: pick.count })}
       </span>
     </Link>
   );

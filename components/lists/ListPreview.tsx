@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   type CSSProperties,
   Fragment,
@@ -131,6 +132,7 @@ export default function ListPreview({
   // Where a click on a thumbnail goes: the list it belongs to
   href: string;
 }) {
+  const msg = useTranslations();
   const [tip, setTip] = useState<Tip | null>(null);
   const tipBox = useRef<HTMLDivElement>(null);
 
@@ -200,8 +202,7 @@ export default function ListPreview({
   // "+N" when some items don't fit. Which tiles are shown follows the row's
   // width, so it is right from the first paint.
   const shown = thumbs.slice(0, MOST_THUMBS);
-  const more = (count: number) =>
-    `${count} more ${count === 1 ? "item" : "items"}`;
+  const more = (count: number) => msg("counts.moreItems", { count });
 
   // Each tile sits above the card's overlay link (relative z-10), so it can
   // show its own tooltip, and it leads to the same list when clicked
@@ -261,7 +262,7 @@ export default function ListPreview({
     const picture = left[0]?.thumbs[0];
     const text =
       left.length > 1
-        ? `${more(count)} in ${left.length} more groups`
+        ? msg("counts.moreItemsInGroups", { items: count, groups: left.length })
         : more(count);
     return (
       <Link

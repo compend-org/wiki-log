@@ -2,6 +2,7 @@
 // ABOUTME: Checks what the browser sent and who is signed in, then renders the page's cards.
 "use server";
 
+import { getTranslations } from "next-intl/server";
 import {
   type LikesCursor,
   loadLikesPage,
@@ -13,11 +14,12 @@ import { createClient } from "@/lib/supabase/server";
 export async function loadMoreLikes(
   cursor: unknown,
 ): Promise<CardsPage<LikesCursor>> {
+  const t = await getTranslations();
   const after = parseLikesCursor(cursor);
-  if (!after) throw new Error("That isn't a page of likes.");
+  if (!after) throw new Error(t("errors.notAPageOfLikes"));
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
-  if (!userId) throw new Error("Sign in to see what you liked.");
+  if (!userId) throw new Error(t("errors.signInForLikes"));
   return loadLikesPage(supabase, userId, after);
 }

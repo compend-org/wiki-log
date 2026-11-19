@@ -2,13 +2,16 @@
 // ABOUTME: Reported accounts' pictures can be graphic, so opening a report never shows one by surprise.
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import Avatar from "@/components/people/Avatar";
 
 export default function RevealAvatar({ path }: { path: string | null }) {
+  const t = useTranslations();
   const [shown, setShown] = useState<boolean>(false);
 
-  if (!path) return <p className="text-sm text-muted">No profile picture</p>;
+  if (!path)
+    return <p className="text-sm text-muted">{t("people.avatar.none")}</p>;
   if (shown) return <Avatar path={path} size={96} />;
 
   return (
@@ -17,7 +20,7 @@ export default function RevealAvatar({ path }: { path: string | null }) {
       onClick={() => setShown(true)}
       className="self-start rounded-lg border border-line px-2.5 py-1 text-sm"
     >
-      Show profile picture
+      {t("people.avatar.show")}
     </button>
   );
 }

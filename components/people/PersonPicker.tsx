@@ -2,6 +2,7 @@
 // ABOUTME: Never offers the viewer themselves, nor anyone blocked either way.
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import Avatar from "@/components/people/Avatar";
 import { useDropdownRoom } from "@/lib/hooks/useDropdownRoom";
@@ -14,13 +15,14 @@ const LIST_HEIGHT = 384;
 
 export default function PersonPicker({
   onPick,
-  placeholder = "Search for a person…",
+  placeholder,
   autoFocus = false,
 }: {
   onPick: (person: { id: string; username: string }) => void;
   placeholder?: string;
   autoFocus?: boolean;
 }) {
+  const t = useTranslations();
   const [query, setQuery] = useState<string>("");
   const [people, setPeople] = useState<Person[]>([]);
   const [peopleFor, setPeopleFor] = useState<string>("");
@@ -82,7 +84,7 @@ export default function PersonPicker({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("people.search.pickerPlaceholder")}
         className="w-full border border-line bg-surface px-4 py-2 text-foreground"
       />
 
@@ -99,10 +101,14 @@ export default function PersonPicker({
           }`}
         >
           {!ready && (
-            <li className="px-4 py-3 text-sm text-muted">Searching…</li>
+            <li className="px-4 py-3 text-sm text-muted">
+              {t("common.searching")}
+            </li>
           )}
           {ready && people.length === 0 && (
-            <li className="px-4 py-3 text-sm text-muted">No one found.</li>
+            <li className="px-4 py-3 text-sm text-muted">
+              {t("people.search.noOne")}
+            </li>
           )}
           {ready &&
             people.map((p, i) => (

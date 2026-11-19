@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { type CSSProperties, cache } from "react";
 import SignUpPrompt from "@/components/auth/SignUpPrompt";
 import ItemImage from "@/components/items/ItemImage";
@@ -173,6 +174,8 @@ export default async function ListPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const t = await getTranslations();
+  const locale = await getLocale();
   await connection();
   const renderedAt = Date.now();
   const { id } = await params;
@@ -237,6 +240,8 @@ export default async function ListPage({
     adminIds,
     viewer.likedListComments,
     renderedAt,
+    t,
+    locale,
   );
 
   // Comments by people the viewer has blocked are left out
@@ -260,7 +265,9 @@ export default async function ListPage({
         </h1>
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
           <span>
-            A {list.ranked ? "ranked " : grouped ? "grouped " : ""}list by
+            {t("lists.byLine", {
+              kind: list.ranked ? "ranked" : grouped ? "grouped" : "plain",
+            })}
           </span>
           {list.profiles ? (
             <Link
@@ -275,12 +282,10 @@ export default async function ListPage({
               {list.profiles.username}
             </Link>
           ) : (
-            <span>someone</span>
+            <span>{t("lists.someone")}</span>
           )}
           {adminIds.has(list.user_id) && <AdminBadge />}
-          <span>
-            · {total.toLocaleString("en-US")} {total === 1 ? "item" : "items"}
-          </span>
+          <span>· {t("counts.items", { count: total })}</span>
         </p>
         {list.description && (
           <p className="mt-2 whitespace-pre-wrap">
@@ -311,7 +316,7 @@ export default async function ListPage({
           />
           {isOwner && (
             <Link href={`/list/${id}/edit`} className="text-sm underline">
-              Edit list
+              {t("lists.editList")}
             </Link>
           )}
         </div>
@@ -324,7 +329,7 @@ export default async function ListPage({
         <SignUpPrompt reason="Create a free account to like and share this list, and make lists of your own." />
       )}
 
-      {total === 0 && <p className="text-muted">This list is empty.</p>}
+      {total === 0 && <p className="text-muted">{t("lists.emptyList")}</p>}
 
       <ListPager page={page} last={lastPage} href={(p) => pageHref(id, p)} />
 
@@ -386,11 +391,13 @@ export default async function ListPage({
                           </span>
                           {entry.note && (
                             <span
-                              title="Has a note"
+                              title={t("lists.hasNote")}
                               className="shrink-0 self-center"
                             >
                               <TextLinesIcon />
-                              <span className="sr-only">Has a note</span>
+                              <span className="sr-only">
+                                {t("lists.hasNote")}
+                              </span>
                             </span>
                           )}
                         </div>

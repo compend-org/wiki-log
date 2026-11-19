@@ -1,6 +1,7 @@
 // ABOUTME: Loads a person's diary a page at a time: their logs, lists, replies and compounds together, newest first.
 // ABOUTME: Kept apart from the diary page so the server action for later pages can use it too.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getLocale, getTranslations } from "next-intl/server";
 import DiaryCraftCard from "@/components/activity/DiaryCraftCard";
 import DiaryListCard from "@/components/activity/DiaryListCard";
 import DiaryLogCard from "@/components/activity/DiaryLogCard";
@@ -172,6 +173,7 @@ async function craftsOf(
   after: Keyset | undefined,
 ): Promise<{ rows: CraftRow[]; error: { message: string } | null }> {
   if (!FEATURES.compounds) return { rows: [], error: null };
+  const t = await getTranslations();
 
   let query = supabase
     .from("compounds")
@@ -219,7 +221,7 @@ async function craftsOf(
     rows: compounds.map((c) => ({
       id: c.item_id,
       at: c.created_at,
-      title: items.get(c.item_id)?.title ?? "Unknown compound",
+      title: items.get(c.item_id)?.title ?? t("common.unknownCompound"),
       description: items.get(c.item_id)?.description ?? "",
       imageUrl: items.get(c.item_id)?.image_url ?? null,
       nsfw: items.get(c.item_id)?.nsfw ?? false,
@@ -342,6 +344,8 @@ export async function loadDiaryPage(
   ]);
 
   const now = Date.now();
+  const t = await getTranslations();
+  const locale = await getLocale();
   const logRows = logsRes.data as unknown as LogRow[];
   const listRows = listsRes.data as unknown as ListRow[];
   // In your own diary you haven't blocked anyone from it. In someone else's,
@@ -371,12 +375,12 @@ export async function loadDiaryPage(
         <DiaryLogCard
           logId={l.id}
           itemId={l.item_id}
-          title={l.items?.title ?? "Unknown item"}
+          title={l.items?.title ?? t("common.unknownItem")}
           imageUrl={entryPicture(l)}
           nsfw={l.items?.nsfw ?? false}
           rating={l.rating === null ? null : Number(l.rating)}
           review={l.review}
-          ago={timeAgo(l.logged_at, now)}
+          ago={timeAgo(l.logged_at, now, t, locale)}
           entryHref={
             l.profiles
               ? `/u/${encodeURIComponent(l.profiles.username)}/${l.id}`
@@ -407,11 +411,11 @@ export async function loadDiaryPage(
           groupPreviews={groupPreviews.get(l.id) ?? null}
           count={l.list_items?.[0]?.count ?? 0}
           previews={l.preview.map((p) => ({
-            title: p.items?.title ?? "Unknown item",
+            title: p.items?.title ?? t("common.unknownItem"),
             imageUrl: entryPicture(p),
             nsfw: p.items?.nsfw ?? false,
           }))}
-          ago={timeAgo(l.created_at, now)}
+          ago={timeAgo(l.created_at, now, t, locale)}
           owner={view?.ownerName}
         />
       ),
@@ -435,7 +439,7 @@ export async function loadDiaryPage(
           replyId={r.id}
           kind="comment"
           cardKey={`reply:${r.id}`}
-          ago={timeAgo(r.created_at, now)}
+          ago={timeAgo(r.created_at, now, t, locale)}
           href={
             r.logs?.profiles
               ? `/u/${encodeURIComponent(r.logs.profiles.username)}/${r.logs.id}`
@@ -445,7 +449,10 @@ export async function loadDiaryPage(
           replyingTo={
             r.parent_id ? (replyAuthors.get(r.parent_id) ?? null) : null
           }
-          where={`${r.logs?.profiles?.username ?? "Someone"}'s review of ${r.logs?.items?.title ?? "an item"}`}
+          where={t("activity.replyWhereReview", {
+            name: r.logs?.profiles?.username ?? t("common.someone"),
+            title: r.logs?.items?.title ?? t("activity.anItem"),
+          })}
           body={r.body}
           owner={view?.ownerName}
         />
@@ -463,13 +470,16 @@ export async function loadDiaryPage(
           replyId={r.id}
           kind="list_comment"
           cardKey={`list-reply:${r.id}`}
-          ago={timeAgo(r.created_at, now)}
+          ago={timeAgo(r.created_at, now, t, locale)}
           href={r.lists ? `/list/${r.lists.id}` : "/"}
           isReply={r.parent_id !== null}
           replyingTo={
             r.parent_id ? (listReplyAuthors.get(r.parent_id) ?? null) : null
           }
-          where={`${r.lists?.profiles?.username ?? "Someone"}'s list ${r.lists?.title ?? ""}`}
+          where={t("activity.replyWhereList", {
+            name: r.lists?.profiles?.username ?? t("common.someone"),
+            title: r.lists?.title ?? "",
+          })}
           body={r.body}
           owner={view?.ownerName}
         />
@@ -494,7 +504,7 @@ export async function loadDiaryPage(
           imageUrl={c.imageUrl}
           nsfw={c.nsfw}
           parts={c.parts}
-          ago={timeAgo(c.at, now)}
+          ago={timeAgo(c.at, now, t, locale)}
           owner={view?.ownerName}
         />
       ),

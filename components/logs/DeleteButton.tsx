@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useRemoveCard } from "@/components/paging/CardPages";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -22,22 +23,22 @@ const KINDS: Record<
   log: {
     table: "logs",
     noun: "entry",
-    consequence: "Its likes and comments are deleted with it",
+    consequence: "logs.delete.likesAndComments",
   },
   list: {
     table: "lists",
     noun: "list",
-    consequence: "Its likes and comments are deleted with it",
+    consequence: "logs.delete.likesAndComments",
   },
   comment: {
     table: "comments",
     noun: "reply",
-    consequence: "Its likes and the replies to it are deleted with it",
+    consequence: "logs.delete.likesAndReplies",
   },
   list_comment: {
     table: "list_comments",
     noun: "reply",
-    consequence: "Its likes and the replies to it are deleted with it",
+    consequence: "logs.delete.likesAndReplies",
   },
 };
 
@@ -57,6 +58,7 @@ export default function DeleteButton({
   // the refreshed page.
   onDeleted?: () => void;
 }) {
+  const t = useTranslations();
   const [open, setOpen] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -80,7 +82,7 @@ export default function DeleteButton({
     }
     // Row-level security refuses silently when it isn't yours
     if (!data || data.length === 0) {
-      setError(`Couldn't delete that ${noun}.`);
+      setError(t("errors.deleteItemFailed", { noun }));
       return;
     }
     if (kind === "log") track("log_deleted");
@@ -102,8 +104,8 @@ export default function DeleteButton({
           setError("");
           setOpen(true);
         }}
-        aria-label={`Delete this ${noun}`}
-        title={`Delete this ${noun}`}
+        aria-label={t("logs.delete.button", { noun })}
+        title={t("logs.delete.button", { noun })}
         className="flex text-danger hover:opacity-70"
       >
         <DeleteIcon className="h-4 w-4" />
@@ -111,15 +113,15 @@ export default function DeleteButton({
 
       {open && (
         <ConfirmDialog
-          title={`Delete this ${noun}?`}
-          confirmLabel="Delete"
-          busyLabel="Deleting…"
+          title={t("logs.delete.title", { noun })}
+          confirmLabel={t("common.delete")}
+          busyLabel={t("common.deleting")}
           busy={busy}
           error={error}
           onConfirm={handleDelete}
           onCancel={() => setOpen(false)}
         >
-          <p>{consequence}, and this can&apos;t be undone.</p>
+          <p>{t("logs.delete.cantUndo", { consequence: t(consequence) })}</p>
         </ConfirmDialog>
       )}
     </span>

@@ -13,17 +13,27 @@ export function commentLabel(n: number): string {
 }
 
 // "Now" under a minute, "5m ago" or "2h ago" within the last day, and the
-// date after that. A time slightly ahead of `now` counts as just now.
-export function timeAgo(time: string, now: number): string {
+// date after that, all in the language of `locale`. A time slightly ahead of `now` counts as just now.
+export type AgoTranslator = (
+  key: "time.now" | "time.minutesAgo" | "time.hoursAgo",
+  values?: { minutes?: number; hours?: number },
+) => string;
+
+export function timeAgo(
+  time: string,
+  now: number,
+  t: AgoTranslator,
+  locale: string,
+): string {
   const date = new Date(time);
   const elapsed = Math.max(0, now - date.getTime());
   const minutes = Math.floor(elapsed / 60_000);
   const hours = Math.floor(minutes / 60);
 
-  if (hours >= 24) return date.toLocaleDateString();
-  if (hours > 0) return `${hours}h ago`;
-  if (minutes > 0) return `${minutes}m ago`;
-  return "Now";
+  if (hours >= 24) return date.toLocaleDateString(locale);
+  if (hours > 0) return t("time.hoursAgo", { hours });
+  if (minutes > 0) return t("time.minutesAgo", { minutes });
+  return t("time.now");
 }
 
 // "54 (number)" becomes "54". If removing the brackets would leave nothing,

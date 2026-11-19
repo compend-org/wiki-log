@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import Turnstile, { TURNSTILE_SITE_KEY } from "@/components/auth/Turnstile";
 import { track } from "@/lib/analytics/analytics";
@@ -7,6 +8,7 @@ import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ForgotPasswordForm() {
+  const t = useTranslations();
   const [email, setEmail] = useState<string>("");
   const [sent, setSent] = useState<boolean>(false);
   const [busy, setBusy] = useState<boolean>(false);
@@ -29,7 +31,7 @@ export default function ForgotPasswordForm() {
     setCaptcha("");
     setCaptchaKey((k) => k + 1);
     if (error && /rate|seconds|too many/i.test(error.message)) {
-      setError("Please wait a minute before asking again.");
+      setError(t("errors.pleaseWait"));
       return;
     }
     // The same answer whether or not an account exists, so this form can't be
@@ -39,12 +41,7 @@ export default function ForgotPasswordForm() {
   }
 
   if (sent) {
-    return (
-      <p>
-        If there&apos;s an account for that address, we&apos;ve sent it a link
-        to choose a new password. It can take a minute, and it may land in spam.
-      </p>
-    );
+    return <p>{t("auth.forgot.sent")}</p>;
   }
 
   return (
@@ -53,14 +50,12 @@ export default function ForgotPasswordForm() {
       onKeyDown={submitOnModEnter}
       className="flex flex-col gap-3"
     >
-      <p className="text-sm text-muted">
-        Enter the email address you signed up with.
-      </p>
+      <p className="text-sm text-muted">{t("auth.forgot.instructions")}</p>
       <input
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="Email"
+        placeholder={t("auth.email")}
         spellCheck={false}
         required
         className="border border-line bg-surface px-4 py-2 text-foreground"
@@ -72,7 +67,7 @@ export default function ForgotPasswordForm() {
         disabled={cannotSend}
         className="bg-accent px-4 py-2 text-background disabled:opacity-40"
       >
-        {busy ? "Sending…" : "Send reset link"}
+        {busy ? t("auth.sending") : t("auth.forgot.send")}
       </button>
       {error && <p className="text-danger">{error}</p>}
     </form>

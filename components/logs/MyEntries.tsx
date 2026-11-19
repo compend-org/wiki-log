@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import DeleteButton from "@/components/logs/DeleteButton";
 import RatingInput from "@/components/logs/RatingInput";
@@ -20,6 +21,7 @@ export type MyEntry = {
 };
 
 export default function MyEntries({ entries }: { entries: MyEntry[] }) {
+  const t = useTranslations();
   const [editing, setEditing] = useState<string | null>(null);
   const [rating, setRating] = useState<number>(0);
   const [review, setReview] = useState<string>("");
@@ -56,7 +58,7 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-        Your entries
+        {t("logs.yourEntries")}
       </h2>
 
       {entries.map((e) => (
@@ -72,14 +74,14 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
                   disabled={busy}
                   className="bg-accent px-3 py-1.5 text-sm text-background disabled:opacity-40"
                 >
-                  {busy ? "Saving…" : "Save"}
+                  {busy ? t("common.saving") : "Save"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditing(null)}
                   className="border border-line px-3 py-1.5 text-sm"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </button>
               </div>
             </>
@@ -98,8 +100,8 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
                 <button
                   type="button"
                   onClick={() => startEdit(e)}
-                  aria-label="Edit this entry"
-                  title="Edit this entry"
+                  aria-label={t("logs.editEntry")}
+                  title={t("logs.editEntry")}
                   className="flex text-accent hover:opacity-70 hover:text-foreground"
                 >
                   <EditIcon className="h-4 w-4" />

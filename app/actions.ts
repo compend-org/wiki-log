@@ -4,6 +4,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { updateTag } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import {
   cleanNote,
   isReportReason,
@@ -61,6 +62,7 @@ type StoredItem =
 // Looks the item up on Wikipedia and Wikidata and caches it
 // (users can't write to `items` themselves)
 async function ensureItem(itemId: string): Promise<StoredItem> {
+  const t = await getTranslations();
   // Compounds only exist in our own database
   if (isCompoundId(itemId)) {
     const { data } = await createAdminClient()
@@ -70,7 +72,7 @@ async function ensureItem(itemId: string): Promise<StoredItem> {
       .maybeSingle();
     return data
       ? { id: itemId, title: data.title, imageUrl: data.image_url }
-      : { error: "That compound doesn't exist." };
+      : { error: t("errors.thatCompoundDoesnTExist") };
   }
   const { data: existing } = await createAdminClient()
     .from("items")
@@ -123,12 +125,13 @@ export async function logItem(input: {
   // A picture from the item's article to show instead of the item's own
   imageUrl?: string | null;
 }): Promise<{ error?: string }> {
+  const t = await getTranslations();
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to sign in to log items." };
+  if (!userId) return { error: t("errors.signInToLog") };
 
-  if (!ITEM_ID.test(input.itemId)) return { error: "Invalid item." };
+  if (!ITEM_ID.test(input.itemId)) return { error: t("errors.invalidItem") };
   if (
     input.rating !== null &&
     (!Number.isFinite(input.rating) ||
@@ -136,7 +139,7 @@ export async function logItem(input: {
       input.rating > 5 ||
       (input.rating * 2) % 1 !== 0)
   ) {
-    return { error: "Invalid rating." };
+    return { error: t("errors.invalidRating") };
   }
 
   if (!hasLogContent(input.rating, input.review)) {
@@ -183,8 +186,8 @@ export async function logItem(input: {
         .eq("id", logId);
       return {
         error: undoError
-          ? "Your entry was saved, but not its picture."
-          : "Couldn't save your entry. Try again.",
+          ? t("errors.entrySavedNoPicture")
+          : t("errors.entrySaveFailed"),
       };
     }
   }
@@ -219,13 +222,12 @@ async function accountIsRestricted(
 export async function itemPictureChoices(
   itemId: string,
 ): Promise<{ choices: PictureChoice[] } | { error: string }> {
+  const t = await getTranslations();
   if (typeof itemId !== "string" || !ITEM_ID.test(itemId)) {
-    return { error: "Invalid item." };
+    return { error: t("errors.invalidItem") };
   }
   const choices = await pictureChoices(itemId);
-  return choices
-    ? { choices }
-    : { error: "Couldn't reach Wikipedia. Try again in a minute." };
+  return choices ? { choices } : { error: t("errors.wikipediaUnreachable") };
 }
 
 // Sets the picture one of your reviews shows. Null goes back to the item's own.
@@ -233,14 +235,15 @@ export async function setReviewPicture(
   logId: string,
   imageUrl: string | null,
 ): Promise<{ error?: string }> {
-  if (!isUuid(logId)) return { error: "Invalid review." };
+  const t = await getTranslations();
+  if (!isUuid(logId)) return { error: t("errors.invalidReview") };
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to sign in." };
+  if (!userId) return { error: t("errors.signInRequired") };
   if (await accountIsRestricted(supabase, userId)) {
-    return { error: "Your account is suspended" };
+    return { error: t("errors.accountSuspended") };
   }
 
   const { data: log } = await supabase
@@ -249,7 +252,7 @@ export async function setReviewPicture(
     .eq("id", logId)
     .eq("user_id", userId)
     .maybeSingle();
-  if (!log) return { error: "Couldn't save that change." };
+  if (!log) return { error: t("errors.saveChange") };
 
   const picture = await storedPicture(log.item_id, imageUrl);
   if ("error" in picture) return picture;
@@ -269,17 +272,18 @@ export async function setListItemPicture(
   itemId: string,
   imageUrl: string | null,
 ): Promise<{ error?: string }> {
-  if (!isUuid(listId)) return { error: "Invalid list." };
+  const t = await getTranslations();
+  if (!isUuid(listId)) return { error: t("errors.invalidList") };
   if (typeof itemId !== "string" || !ITEM_ID.test(itemId)) {
-    return { error: "Invalid item." };
+    return { error: t("errors.invalidItem") };
   }
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to sign in." };
+  if (!userId) return { error: t("errors.signInRequired") };
   if (await accountIsRestricted(supabase, userId)) {
-    return { error: "Your account is suspended" };
+    return { error: t("errors.accountSuspended") };
   }
 
   const { data: entry } = await supabase
@@ -289,7 +293,7 @@ export async function setListItemPicture(
     .eq("item_id", itemId)
     .eq("lists.user_id", userId)
     .maybeSingle();
-  if (!entry) return { error: "Couldn't save that change." };
+  if (!entry) return { error: t("errors.saveChange") };
 
   const picture = await storedPicture(itemId, imageUrl);
   if ("error" in picture) return picture;
@@ -309,19 +313,20 @@ export async function setListItemNote(
   itemId: string,
   note: string | null,
 ): Promise<{ error?: string }> {
-  if (!isUuid(listId)) return { error: "Invalid list." };
+  const t = await getTranslations();
+  if (!isUuid(listId)) return { error: t("errors.invalidList") };
   if (typeof itemId !== "string" || !ITEM_ID.test(itemId)) {
-    return { error: "Invalid item." };
+    return { error: t("errors.invalidItem") };
   }
   if (note !== null && typeof note !== "string") {
-    return { error: "Invalid note." };
+    return { error: t("errors.invalidNote") };
   }
   const problem = note === null ? null : noteProblem(note);
   if (problem) return { error: problem };
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
-  if (!data?.claims?.sub) return { error: "You need to sign in." };
+  if (!data?.claims?.sub) return { error: t("errors.signInRequired") };
 
   // The database lets only the list's owner change its items, and not while
   // their account is suspended
@@ -332,12 +337,13 @@ export async function setListItemNote(
     .eq("item_id", itemId)
     .select("item_id");
   if (error) return { error: userFacingErrorMessage(error, SAVE_FAILED) };
-  if (!updated?.length) return { error: "Couldn't save that change." };
+  if (!updated?.length) return { error: t("errors.saveChange") };
   return {};
 }
 
 // Deletes someone's avatar files and their auth user
 async function removeAccount(userId: string): Promise<{ error?: string }> {
+  const t = await getTranslations();
   // Deleting the auth user also deletes their profile, logs, favourites and
   // follows (the foreign keys use "on delete cascade")
   const admin = createAdminClient();
@@ -349,7 +355,7 @@ async function removeAccount(userId: string): Promise<{ error?: string }> {
   }
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) {
-    return { error: authMessage(error, "Couldn't delete your account.") };
+    return { error: authMessage(error, t("errors.deleteAccountFailed")) };
   }
 
   // Their posts are gone from the database, but the feeds, digest and
@@ -359,10 +365,11 @@ async function removeAccount(userId: string): Promise<{ error?: string }> {
 }
 
 export async function deleteAccount(): Promise<{ error?: string }> {
+  const t = await getTranslations();
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to be signed in." };
+  if (!userId) return { error: t("errors.signedInRequired") };
 
   const result = await removeAccount(userId);
   if (result.error) return result;
@@ -407,8 +414,9 @@ export async function banUser(
   userId: string,
   input: ModerationInput,
 ): Promise<{ error?: string }> {
-  if (!isUuid(userId)) return { error: "Invalid user." };
-  if (!isReportReason(input.reason)) return { error: "Choose a reason." };
+  const t = await getTranslations();
+  if (!isUuid(userId)) return { error: t("errors.invalidUser") };
+  if (!isReportReason(input.reason)) return { error: t("errors.chooseReason") };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("admin_ban", {
@@ -444,7 +452,8 @@ export async function unbanUser(
   userId: string,
   input: ModerationInput,
 ): Promise<{ error?: string }> {
-  if (!isUuid(userId)) return { error: "Invalid user." };
+  const t = await getTranslations();
+  if (!isUuid(userId)) return { error: t("errors.invalidUser") };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("admin_unban", {
@@ -480,7 +489,8 @@ export async function signIn(input: {
   password: string;
   captchaToken?: string;
 }): Promise<{ error?: string; userId?: string; sfwMode?: SfwMode }> {
-  const generic = "Invalid sign-in credentials";
+  const t = await getTranslations();
+  const generic = t("errors.signInInvalid");
   let email = input.identifier.trim();
 
   // No "@" means it's a name: look up the email on the server only
@@ -511,7 +521,7 @@ export async function signIn(input: {
       error:
         error.code === "invalid_credentials"
           ? generic
-          : authMessage(error, "Couldn't sign you in. Please try again."),
+          : authMessage(error, t("errors.signInFailed")),
     };
   }
   // The account's SFW mode, so the browser applies it from the first page on
@@ -527,19 +537,20 @@ export async function setFavourite(input: {
   position: number;
   itemId: string;
 }): Promise<{ error?: string }> {
+  const t = await getTranslations();
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to sign in." };
+  if (!userId) return { error: t("errors.signInRequired") };
 
   if (
     !Number.isInteger(input.position) ||
     input.position < 1 ||
     input.position > 5
   ) {
-    return { error: "Invalid slot." };
+    return { error: t("errors.invalidSlot") };
   }
-  if (!ITEM_ID.test(input.itemId)) return { error: "Invalid item." };
+  if (!ITEM_ID.test(input.itemId)) return { error: t("errors.invalidItem") };
   const stored = await ensureItem(input.itemId);
   if ("error" in stored) return { error: stored.error };
 
@@ -562,7 +573,7 @@ export async function setFavourite(input: {
     return {
       error:
         error.code === "23505"
-          ? "That item is already in your top 5."
+          ? t("errors.topFiveDuplicate")
           : userFacingErrorMessage(error, SAVE_FAILED),
     };
   }
@@ -577,19 +588,20 @@ export async function setFavouritePicture(
   itemId: string,
   imageUrl: string | null,
 ): Promise<{ error?: string }> {
+  const t = await getTranslations();
   if (!Number.isInteger(position) || position < 1 || position > 5) {
-    return { error: "Invalid slot." };
+    return { error: t("errors.invalidSlot") };
   }
   if (typeof itemId !== "string" || !ITEM_ID.test(itemId)) {
-    return { error: "Invalid item." };
+    return { error: t("errors.invalidItem") };
   }
 
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to sign in." };
+  if (!userId) return { error: t("errors.signInRequired") };
   if (await accountIsRestricted(supabase, userId)) {
-    return { error: "Your account is suspended" };
+    return { error: t("errors.accountSuspended") };
   }
 
   const picture = await storedPicture(itemId, imageUrl);
@@ -603,18 +615,17 @@ export async function setFavouritePicture(
     .eq("item_id", itemId)
     .select("position");
   if (error) return { error: userFacingErrorMessage(error, SAVE_FAILED) };
-  return updated?.length
-    ? {}
-    : { error: "That slot has changed. Reload the page to see it." };
+  return updated?.length ? {} : { error: t("errors.slotChanged") };
 }
 
 export async function removeFavourite(
   position: number,
 ): Promise<{ error?: string }> {
+  const t = await getTranslations();
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to sign in." };
+  if (!userId) return { error: t("errors.signInRequired") };
 
   const { error } = await supabase
     .from("favourites")
@@ -630,10 +641,11 @@ export async function stageItem(itemId: string): Promise<{
   error?: string;
   item?: { itemId: string; title: string; imageUrl: string | null };
 }> {
+  const t = await getTranslations();
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
-  if (!data?.claims?.sub) return { error: "You need to sign in." };
-  if (!ITEM_ID.test(itemId)) return { error: "Invalid item." };
+  if (!data?.claims?.sub) return { error: t("errors.signInRequired") };
+  if (!ITEM_ID.test(itemId)) return { error: t("errors.invalidItem") };
 
   const stored = await ensureItem(itemId);
   if ("error" in stored) return { error: stored.error };
@@ -655,32 +667,33 @@ export async function createList(input: {
   // Why each item is on the list, by item, for the items that have a note
   notes?: Record<string, string>;
 }): Promise<{ error?: string; id?: string }> {
+  const t = await getTranslations();
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to sign in." };
+  if (!userId) return { error: t("errors.signInRequired") };
 
   const title = input.title.trim();
   if (title.length < 1 || title.length > 80) {
-    return { error: "Titles are 1–80 characters." };
+    return { error: t("errors.titleLength") };
   }
   const description = input.description.trim();
   if (description.length > 500) {
-    return { error: "Descriptions are at most 500 characters." };
+    return { error: t("errors.descriptionLength") };
   }
   const itemIds = [...new Set(input.itemIds)];
-  if (itemIds.length === 0) return { error: "Add at least one item." };
+  if (itemIds.length === 0) return { error: t("errors.addAtLeastOne") };
   if (
     itemIds.length > MAX_LIST_ITEMS ||
     !itemIds.every((id) => ITEM_ID.test(id))
   ) {
-    return { error: "Invalid items." };
+    return { error: t("errors.invalidItems") };
   }
 
   const notes = new Map<string, string>();
   for (const [itemId, text] of Object.entries(input.notes ?? {})) {
     if (!itemIds.includes(itemId) || typeof text !== "string") {
-      return { error: "Invalid notes." };
+      return { error: t("errors.invalidNotes") };
     }
     const problem = noteProblem(text);
     if (problem) return { error: problem };
@@ -691,7 +704,7 @@ export async function createList(input: {
   // Checked before saving, so a picture that isn't allowed saves nothing
   const chosen = Object.entries(input.pictures ?? {});
   if (chosen.some(([itemId]) => !itemIds.includes(itemId))) {
-    return { error: "Invalid pictures." };
+    return { error: t("errors.invalidPictures") };
   }
   const pictures: { itemId: string; url: string }[] = [];
   for (const batch of chunks(chosen, PICTURES_AT_ONCE)) {
@@ -719,8 +732,8 @@ export async function createList(input: {
   if (error || !list) {
     return {
       error: error
-        ? userFacingErrorMessage(error, "Couldn't create the list.")
-        : "Couldn't create the list.",
+        ? userFacingErrorMessage(error, t("errors.listCreateFailed"))
+        : t("errors.listCreateFailed"),
     };
   }
 
@@ -741,7 +754,7 @@ export async function createList(input: {
   if (itemsError) {
     await supabase.from("lists").delete().eq("id", list.id);
     return {
-      error: userFacingErrorMessage(itemsError, "Couldn't create the list."),
+      error: userFacingErrorMessage(itemsError, t("errors.listCreateFailed")),
     };
   }
 
@@ -765,8 +778,8 @@ export async function createList(input: {
         .eq("id", list.id);
       return {
         error: undoError
-          ? "Your list was created, but not all its pictures."
-          : "Couldn't create the list. Try again.",
+          ? t("errors.listCreatedPicturesFailed")
+          : t("errors.listCreateRetry"),
       };
     }
   }
@@ -785,19 +798,20 @@ export async function createGroupedList(input: {
   // item
   pictures?: Record<string, string>;
 }): Promise<{ error?: string; id?: string }> {
-  if (!FEATURES.groupedLists) return { error: "Grouped lists are turned off." };
+  const t = await getTranslations();
+  if (!FEATURES.groupedLists) return { error: t("errors.groupedListsOff") };
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to sign in." };
+  if (!userId) return { error: t("errors.signInRequired") };
 
   const title = input.title.trim();
   if (title.length < 1 || title.length > 80) {
-    return { error: "Titles are 1–80 characters." };
+    return { error: t("errors.titleLength") };
   }
   const description = input.description.trim();
   if (description.length > 500) {
-    return { error: "Descriptions are at most 500 characters." };
+    return { error: t("errors.descriptionLength") };
   }
   if (
     !Array.isArray(input.groups) ||
@@ -807,15 +821,15 @@ export async function createGroupedList(input: {
       (g) => Array.isArray(g.items) && g.items.every((id) => ITEM_ID.test(id)),
     )
   ) {
-    return { error: "Invalid groups." };
+    return { error: t("errors.invalidGroups") };
   }
   const itemIds = input.groups.flatMap((g) => g.items);
-  if (itemIds.length < 1) return { error: "Add at least one item." };
+  if (itemIds.length < 1) return { error: t("errors.addAtLeastOne") };
 
   // Checked before saving, so a picture that isn't allowed saves nothing
   const chosen = Object.entries(input.pictures ?? {});
   if (chosen.some(([itemId]) => !itemIds.includes(itemId))) {
-    return { error: "Invalid pictures." };
+    return { error: t("errors.invalidPictures") };
   }
   const pictures: { itemId: string; url: string }[] = [];
   for (const batch of chunks(chosen, PICTURES_AT_ONCE)) {
@@ -845,8 +859,8 @@ export async function createGroupedList(input: {
   if (error || !list) {
     return {
       error: error
-        ? userFacingErrorMessage(error, "Couldn't create the list.")
-        : "Couldn't create the list.",
+        ? userFacingErrorMessage(error, t("errors.listCreateFailed"))
+        : t("errors.listCreateFailed"),
     };
   }
 
@@ -863,7 +877,7 @@ export async function createGroupedList(input: {
   if (groupsError) {
     await supabase.from("lists").delete().eq("id", list.id);
     return {
-      error: userFacingErrorMessage(groupsError, "Couldn't create the list."),
+      error: userFacingErrorMessage(groupsError, t("errors.listCreateFailed")),
     };
   }
   // Only the server may set an entry's picture
@@ -886,8 +900,8 @@ export async function createGroupedList(input: {
         .eq("id", list.id);
       return {
         error: undoError
-          ? "Your list was created, but not all its pictures."
-          : "Couldn't create the list. Try again.",
+          ? t("errors.listCreatedPicturesFailed")
+          : t("errors.listCreateRetry"),
       };
     }
   }
@@ -903,20 +917,21 @@ export async function addToList(input: {
   error?: string;
   item?: { itemId: string; title: string; imageUrl: string | null };
 }> {
+  const t = await getTranslations();
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to sign in." };
+  if (!userId) return { error: t("errors.signInRequired") };
 
-  if (!isUuid(input.listId)) return { error: "Invalid list." };
-  if (!ITEM_ID.test(input.itemId)) return { error: "Invalid item." };
+  if (!isUuid(input.listId)) return { error: t("errors.invalidList") };
+  if (!ITEM_ID.test(input.itemId)) return { error: t("errors.invalidItem") };
   if (
     input.position !== undefined &&
     (!Number.isInteger(input.position) ||
       input.position < 1 ||
       input.position > MAX_LIST_ITEMS)
   ) {
-    return { error: "Invalid position." };
+    return { error: t("errors.invalidPosition") };
   }
 
   const { data: list, error: listError } = await supabase
@@ -925,9 +940,8 @@ export async function addToList(input: {
     .eq("id", input.listId)
     .eq("user_id", userId)
     .maybeSingle();
-  if (listError)
-    return { error: "Couldn't add to that list. Please try again." };
-  if (!list) return { error: "That list isn't yours." };
+  if (listError) return { error: t("errors.addToListFailed") };
+  if (!list) return { error: t("errors.notYourList") };
 
   // A grouped list's new items go in its last group, and it holds fewer items
   // than a plain one
@@ -986,7 +1000,7 @@ export async function addToList(input: {
     return {
       error:
         error.code === "23505"
-          ? "That item is already in this list."
+          ? t("errors.alreadyInList")
           : userFacingErrorMessage(error, SAVE_FAILED),
     };
   }
@@ -1021,23 +1035,24 @@ export async function createCompound(input: {
   existing?: { id: string; title: string };
   error?: string;
 }> {
-  if (!FEATURES.compounds) return { error: "Crafting is turned off." };
+  const t = await getTranslations();
+  if (!FEATURES.compounds) return { error: t("errors.craftingIsTurnedOff") };
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to sign in to craft." };
+  if (!userId) return { error: t("errors.youNeedToSignIn") };
 
   const title = input.title.trim().replace(/\s+/g, " ");
   const description = input.description.trim();
   if (title.length < 1 || title.length > 80) {
-    return { error: "Names are 1–80 characters." };
+    return { error: t("errors.namesAre180Characters") };
   }
   // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting control characters is the purpose of this check
   if (/[\u0000-\u001f]/.test(title)) {
-    return { error: "That name has invalid characters." };
+    return { error: t("errors.thatNameHasInvalidCharacters") };
   }
   if (description.length > 500) {
-    return { error: "Descriptions are at most 500 characters." };
+    return { error: t("errors.descriptionLength") };
   }
 
   let image: Buffer | null = null;
@@ -1049,13 +1064,13 @@ export async function createCompound(input: {
 
   const parts = input.parts;
   if (!Array.isArray(parts) || parts.length < 2 || parts.length > 8) {
-    return { error: "A compound needs 2 to 8 ingredients." };
+    return { error: t("errors.aCompoundNeeds2To") };
   }
   if (!parts.every((p) => typeof p === "string" && ITEM_ID.test(p))) {
-    return { error: "Invalid ingredient." };
+    return { error: t("errors.invalidIngredient") };
   }
   if (new Set(parts).size !== parts.length) {
-    return { error: "Each ingredient can only be used once." };
+    return { error: t("errors.eachIngredientCanOnlyBe") };
   }
 
   // Make sure every ingredient is stored in the database
@@ -1066,7 +1081,7 @@ export async function createCompound(input: {
     resolvedParts.push(part.id);
   }
   if (new Set(resolvedParts).size !== resolvedParts.length) {
-    return { error: "Each ingredient can only be used once." };
+    return { error: t("errors.eachIngredientCanOnlyBe") };
   }
 
   const { data: result, error } = await createAdminClient().rpc(
@@ -1111,21 +1126,22 @@ export type CompoundDetails = {
 async function ownCompound(
   compoundId: string,
 ): Promise<{ error: string } | { userId: string }> {
-  if (!FEATURES.compounds) return { error: "Crafting is turned off." };
+  const t = await getTranslations();
+  if (!FEATURES.compounds) return { error: t("errors.craftingIsTurnedOff") };
   if (typeof compoundId !== "string" || !isCompoundId(compoundId)) {
-    return { error: "That isn't a compound." };
+    return { error: t("errors.thatIsnTACompound") };
   }
   const { data } = await (await createClient()).auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return { error: "You need to sign in." };
+  if (!userId) return { error: t("errors.signInRequired") };
   const { data: row } = await createAdminClient()
     .from("compounds")
     .select("creator_id")
     .eq("item_id", compoundId)
     .maybeSingle();
-  if (!row) return { error: "That compound doesn't exist." };
+  if (!row) return { error: t("errors.thatCompoundDoesnTExist") };
   if (row.creator_id !== userId) {
-    return { error: "Only the person who crafted it can do that." };
+    return { error: t("errors.onlyThePersonWhoCrafted") };
   }
   return { userId };
 }
@@ -1138,6 +1154,7 @@ export async function updateCompound(input: {
   description: string;
   image?: string | null;
 }): Promise<{ error: string } | { details: CompoundDetails }> {
+  const t = await getTranslations();
   const owner = await ownCompound(input.id);
   if ("error" in owner) return owner;
 
@@ -1146,14 +1163,14 @@ export async function updateCompound(input: {
     .replace(/\s+/g, " ");
   const description = String(input.description ?? "").trim();
   if (title.length < 1 || title.length > 80) {
-    return { error: "Names are 1–80 characters." };
+    return { error: t("errors.namesAre180Characters") };
   }
   // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting control characters is the purpose of this check
   if (/[\u0000-\u001f]/.test(title)) {
-    return { error: "That name has invalid characters." };
+    return { error: t("errors.thatNameHasInvalidCharacters") };
   }
   if (description.length > 500) {
-    return { error: "Descriptions are at most 500 characters." };
+    return { error: t("errors.descriptionLength") };
   }
   let png: Buffer | null = null;
   if (typeof input.image === "string") {
@@ -1173,7 +1190,7 @@ export async function updateCompound(input: {
   if (png) {
     imageUrl = await replaceCompoundImage(input.id, png);
     if (imageUrl === null) {
-      return { error: "Saved the text, but the picture couldn't be saved." };
+      return { error: t("errors.savedTheTextButThe") };
     }
   } else if (input.image === null) {
     const { error: unlinkError } = await admin
@@ -1181,7 +1198,7 @@ export async function updateCompound(input: {
       .update({ image_url: null })
       .eq("id", input.id);
     if (unlinkError) {
-      return { error: "Saved the text, but the picture couldn't be removed." };
+      return { error: t("errors.savedTheTextButThe2") };
     }
     await removeCompoundImage(input.id);
     imageUrl = null;

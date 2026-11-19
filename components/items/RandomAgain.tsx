@@ -3,9 +3,11 @@
 // ABOUTME: Rolls another random article, shown on an article reached by a roll.
 // ABOUTME: Lets people keep rolling without going back to the home page.
 
+import { useTranslations } from "next-intl";
 import { useRandomItem } from "@/lib/hooks/useRandomItem";
 
 export default function RandomAgain() {
+  const t = useTranslations();
   const { goRandom, busy, error } = useRandomItem();
 
   return (
@@ -16,7 +18,7 @@ export default function RandomAgain() {
         disabled={busy}
         className="text-accent underline hover:no-underline disabled:opacity-60"
       >
-        {busy ? "finding one…" : "another random article"}
+        {busy ? t("home.findingOne") : "another random article"}
       </button>
       {error && <p className="text-danger">{error}</p>}
     </div>

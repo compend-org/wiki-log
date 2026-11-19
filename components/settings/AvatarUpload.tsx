@@ -3,6 +3,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useRef, useState, useTransition } from "react";
 import Avatar from "@/components/people/Avatar";
 import { track } from "@/lib/analytics/analytics";
@@ -49,6 +50,7 @@ export default function AvatarUpload({
   username: string;
   path: string | null;
 }) {
+  const t = useTranslations();
   const [busy, setBusy] = useState<boolean>(false);
   const [refreshing, startRefresh] = useTransition();
   const [error, setError] = useState<string>("");
@@ -61,11 +63,11 @@ export default function AvatarUpload({
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      setError("Please choose an image.");
+      setError(t("settings.avatar.choose"));
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      setError("That image is over 10 MB.");
+      setError(t("settings.avatar.tooBig"));
       return;
     }
 
@@ -81,7 +83,7 @@ export default function AvatarUpload({
       bitmap.close();
     } catch {
       setBusy(false);
-      setError("Couldn't read that image. Try a JPEG or PNG.");
+      setError(t("settings.avatar.unreadable"));
       return;
     }
 
@@ -103,7 +105,7 @@ export default function AvatarUpload({
     if (uploadError) {
       await supabase.storage.from("avatars").remove(newPaths);
       setBusy(false);
-      setError("Couldn't upload your picture. Please try again.");
+      setError(t("settings.avatar.uploadFailed"));
       return;
     }
 
@@ -174,10 +176,10 @@ export default function AvatarUpload({
             className="rounded-lg border border-line px-3 py-1.5 text-sm hover:border-accent disabled:opacity-40"
           >
             {busy || refreshing
-              ? "Working…"
+              ? t("settings.avatar.working")
               : path
-                ? "Change picture"
-                : "Upload picture"}
+                ? t("settings.avatar.change")
+                : t("settings.avatar.upload")}
           </button>
           {path && (
             <button
@@ -186,7 +188,7 @@ export default function AvatarUpload({
               disabled={busy || refreshing}
               className="text-sm text-muted underline disabled:opacity-40"
             >
-              Remove
+              {t("common.remove")}
             </button>
           )}
         </div>

@@ -2,6 +2,7 @@
 // ABOUTME: Check what the browser sent, then render the page's cards for the viewer.
 "use server";
 
+import { getTranslations } from "next-intl/server";
 import {
   loadItemListsPage,
   loadItemLogsPage,
@@ -22,6 +23,7 @@ export async function loadMoreItemLogs(
   exclude: unknown,
   cursor: unknown,
 ): Promise<CardsPage> {
+  const t = await getTranslations();
   const after = parseKeyset(cursor);
   if (
     !isItemId(itemId) ||
@@ -30,7 +32,7 @@ export async function loadMoreItemLogs(
     !exclude.every((id) => typeof id === "string" && isUuid(id)) ||
     !after
   ) {
-    throw new Error("That isn't a page of an item's reviews.");
+    throw new Error(t("errors.notAPageOfItemReviews"));
   }
   return loadItemLogsPage(itemId, exclude, after);
 }
@@ -39,9 +41,10 @@ export async function loadMoreItemLists(
   itemId: unknown,
   cursor: unknown,
 ): Promise<CardsPage> {
+  const t = await getTranslations();
   const after = parseKeyset(cursor);
   if (!isItemId(itemId) || !after) {
-    throw new Error("That isn't a page of an item's lists.");
+    throw new Error(t("errors.notAPageOfItemLists"));
   }
   return loadItemListsPage(itemId, after);
 }
@@ -51,6 +54,7 @@ export async function loadMoreLikedReviews(
   userId: unknown,
   cursor: unknown,
 ): Promise<CardsPage> {
+  const t = await getTranslations();
   const after = parseKeyset(cursor);
   if (
     !isItemId(itemId) ||
@@ -58,7 +62,7 @@ export async function loadMoreLikedReviews(
     !isUuid(userId) ||
     !after
   ) {
-    throw new Error("That isn't a page of liked reviews.");
+    throw new Error(t("errors.notAPageOfLikedReviews"));
   }
   return loadLikedReviewsPage(itemId, userId, after);
 }
@@ -68,10 +72,11 @@ export async function loadMoreRatedReviews(
   rating: unknown,
   cursor: unknown,
 ): Promise<CardsPage> {
+  const t = await getTranslations();
   const after = parseKeyset(cursor);
   const step = parseRatingStep(rating);
   if (!isItemId(itemId) || step === null || !after) {
-    throw new Error("That isn't a page of rated reviews.");
+    throw new Error(t("errors.notAPageOfRatedReviews"));
   }
   return loadRatedReviewsPage(itemId, step, after);
 }

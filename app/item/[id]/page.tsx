@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { cache } from "react";
 import CompoundDeleteButton from "@/components/craft/CompoundDeleteButton";
 import CompoundEditButton from "@/components/craft/CompoundEditButton";
@@ -86,6 +87,8 @@ export default async function ItemPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ [RANDOM_PARAM]?: string }>;
 }) {
+  const t = await getTranslations();
+  const locale = await getLocale();
   await connection();
   const renderedAt = Date.now();
   const { id } = await params;
@@ -98,11 +101,8 @@ export default async function ItemPage({
     // The item may well exist: Wikipedia just didn't answer in time
     return (
       <main className="mx-auto flex max-w-md flex-1 flex-col justify-center gap-3 p-4 sm:p-8">
-        <h1 className="text-3xl font-bold">Wikipedia is busy</h1>
-        <p>
-          We couldn&apos;t load this item from Wikipedia just now. Try again in
-          a minute.
-        </p>
+        <h1 className="text-3xl font-bold">{t("pages.itemBusy.title")}</h1>
+        <p>{t("pages.itemBusy.body")}</p>
       </main>
     );
   }
@@ -119,7 +119,7 @@ export default async function ItemPage({
     id: r.id,
     rating: Number(r.rating ?? 0),
     review: r.review,
-    loggedAgo: timeAgo(r.logged_at, renderedAt),
+    loggedAgo: timeAgo(r.logged_at, renderedAt, t, locale),
   }));
   // The viewer's own latest rating (entries are newest first; 0 means none)
   const myRating = myEntries.find((e) => e.rating > 0)?.rating ?? null;
@@ -220,7 +220,7 @@ export default async function ItemPage({
   });
 
   const removalLink = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
-    `Image removal request: ${item.title} (${item.id})`,
+    t("item.removalRequestSubject", { title: item.title, id: item.id }),
   )}`;
 
   return (
@@ -245,33 +245,37 @@ export default async function ItemPage({
                 credit={
                   compound ? (
                     creator ? (
-                      <>
-                        Created by{" "}
-                        <Link
-                          href={`/u/${encodeURIComponent(creator)}`}
-                          className="underline"
-                        >
-                          {creator}
-                        </Link>
-                      </>
+                      t.rich("item.createdByUser", {
+                        user: (c) => (
+                          <Link
+                            href={`/u/${encodeURIComponent(creator)}`}
+                            className="underline"
+                          >
+                            {c}
+                          </Link>
+                        ),
+                        name: creator,
+                      })
                     ) : (
-                      "Drawn on this site"
+                      t("item.drawnOnSite")
                     )
                   ) : item.imageNonFree ? (
                     <a href={removalLink} className="underline">
-                      Request removal
+                      {t("item.requestRemoval")}
                     </a>
-                  ) : (
-                    <>
-                      Image:{" "}
-                      {item.imageFilePage ? (
-                        <a href={item.imageFilePage} className="underline">
-                          Wikimedia Commons
+                  ) : item.imageFilePage ? (
+                    t.rich("item.imageFrom", {
+                      link: (c) => (
+                        <a
+                          href={item.imageFilePage ?? undefined}
+                          className="underline"
+                        >
+                          {c}
                         </a>
-                      ) : (
-                        "Wikimedia Commons"
-                      )}
-                    </>
+                      ),
+                    })
+                  ) : (
+                    t("item.imageFromPlain")
                   )
                 }
               />
@@ -306,33 +310,35 @@ export default async function ItemPage({
 
             {compound ? (
               <p className="text-xs text-muted">
-                A compound
-                {creator && (
-                  <>
-                    {" "}
-                    crafted by{" "}
+                {t.rich("item.compoundLine", {
+                  hasCreator: creator ? "yes" : "no",
+                  hasDate: createdAt ? "yes" : "no",
+                  creator: creator ?? "",
+                  date: createdAt ? createdAt.slice(0, 10) : "",
+                  user: (c) => (
                     <Link
-                      href={`/u/${encodeURIComponent(creator)}`}
+                      href={`/u/${encodeURIComponent(creator ?? "")}`}
                       className="underline"
                     >
-                      {creator}
+                      {c}
                     </Link>
-                  </>
-                )}
-                {createdAt && <> on {createdAt.slice(0, 10)}</>}.
+                  ),
+                })}
               </p>
             ) : (
               <p className="text-xs text-muted">
-                From{" "}
-                <a
-                  href={item.pageUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  Wikipedia
-                </a>
-                , licensed CC BY-SA 4.0.
+                {t.rich("item.fromWikipedia", {
+                  link: (c) => (
+                    <a
+                      href={item.pageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      {c}
+                    </a>
+                  ),
+                })}
               </p>
             )}
           </div>
@@ -340,7 +346,7 @@ export default async function ItemPage({
           {compound && madeFrom.length > 0 && (
             <section className="flex flex-col gap-2">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-                Made from
+                {t("item.madeFrom")}
               </h2>
               <ul className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                 {madeFrom.map((p) => (
@@ -366,7 +372,7 @@ export default async function ItemPage({
           {usedIn.length > 0 && (
             <section className="flex flex-col gap-1">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-                Used in
+                {t("item.usedIn")}
               </h2>
               <p className="text-sm">
                 {usedIn.map((c, i) => (

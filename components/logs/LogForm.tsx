@@ -2,6 +2,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { logItem } from "@/app/actions";
 import SignUpPrompt from "@/components/auth/SignUpPrompt";
@@ -21,6 +22,7 @@ export default function LogForm({
   signedIn: boolean;
   alreadyLogged?: boolean;
 }) {
+  const t = useTranslations();
   const [rating, setRating] = useState<number>(0);
   const [review, setReview] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
@@ -50,9 +52,7 @@ export default function LogForm({
     } catch (error) {
       // The server may have saved the entry before its response was lost.
       // Keep the draft and let the person check before submitting it again.
-      setError(
-        "We couldn't confirm whether your entry was saved. Check your diary before trying again.",
-      );
+      setError(t("errors.entryUnconfirmed"));
       Sentry.captureException(error, {
         tags: { action: "logItem", error_source: "log-form" },
         contexts: {
@@ -107,7 +107,7 @@ export default function LogForm({
           setReview(v);
           setDone(false);
         }}
-        placeholder="Add a review (or just a rating)"
+        placeholder={t("logs.addAReviewOrJust")}
         rows={3}
         className="border border-line bg-surface px-4 py-2 text-foreground"
       />
@@ -118,9 +118,13 @@ export default function LogForm({
         disabled={busy}
         className="self-start bg-accent px-4 py-2 text-background disabled:opacity-40"
       >
-        {busy ? "Saving…" : alreadyLogged ? "Log it again" : "Log it"}
+        {busy
+          ? t("common.saving")
+          : alreadyLogged
+            ? t("logs.logItAgain")
+            : t("logs.logIt")}
       </button>
-      {done && <p className="text-sm text-accent">Entry added.</p>}
+      {done && <p className="text-sm text-accent">{t("logs.entryAdded")}</p>}
       {error && <p className="text-danger">{error}</p>}
     </div>
   );

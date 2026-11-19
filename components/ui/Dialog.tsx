@@ -2,6 +2,7 @@
 // ABOUTME: Escape or a click outside it closes it.
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 
@@ -14,6 +15,7 @@ export default function Dialog({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const t = useTranslations();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -26,7 +28,7 @@ export default function Dialog({
     <>
       <button
         type="button"
-        aria-label="Close"
+        aria-label={t("common.close")}
         onClick={onClose}
         className="fixed inset-0 z-40 cursor-default bg-black/40"
       />

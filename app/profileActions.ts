@@ -2,6 +2,7 @@
 // ABOUTME: Checks what the browser sent, then renders the page's cards for the viewer.
 "use server";
 
+import { getTranslations } from "next-intl/server";
 import type { CardsPage } from "@/components/paging/CardPages";
 import {
   loadPinnedPage,
@@ -18,6 +19,7 @@ export async function loadMoreProfile(
   kind: ProfileKind,
   cursor: unknown,
 ): Promise<CardsPage> {
+  const t = await getTranslations();
   const after = parseKeyset(cursor);
   if (
     typeof profileId !== "string" ||
@@ -25,7 +27,7 @@ export async function loadMoreProfile(
     (kind !== "lists" && kind !== "reviews") ||
     !after
   ) {
-    throw new Error("That isn't a page of a profile.");
+    throw new Error(t("errors.notAPageOfProfile"));
   }
   return loadProfilePage(profileId, kind, after);
 }
@@ -35,6 +37,7 @@ export async function loadMoreProfileRated(
   rating: unknown,
   cursor: unknown,
 ): Promise<CardsPage> {
+  const t = await getTranslations();
   const after = parseKeyset(cursor);
   const step = parseRatingStep(rating);
   if (
@@ -43,7 +46,7 @@ export async function loadMoreProfileRated(
     step === null ||
     !after
   ) {
-    throw new Error("That isn't a page of a profile's rated reviews.");
+    throw new Error(t("errors.notAPageOfProfileRated"));
   }
   return loadProfilePage(profileId, "reviews", after, step);
 }
@@ -55,6 +58,7 @@ export async function loadMoreProfileAll(
   kind: ProfileKind,
   cursor: unknown,
 ): Promise<CardsPage> {
+  const t = await getTranslations();
   const after = parseKeyset(cursor);
   if (
     typeof profileId !== "string" ||
@@ -62,7 +66,7 @@ export async function loadMoreProfileAll(
     (kind !== "lists" && kind !== "reviews") ||
     !after
   ) {
-    throw new Error("That isn't a page of a profile.");
+    throw new Error(t("errors.notAPageOfProfile"));
   }
   return loadProfilePage(profileId, kind, after, undefined, true);
 }
@@ -72,6 +76,7 @@ export async function loadMorePinned(
   profileId: string,
   cursor: unknown,
 ): Promise<CardsPage<PinCursor>> {
+  const t = await getTranslations();
   const { position, id } = (cursor ?? {}) as Record<string, unknown>;
   if (
     typeof profileId !== "string" ||
@@ -81,7 +86,7 @@ export async function loadMorePinned(
     typeof id !== "string" ||
     !isUuid(id)
   ) {
-    throw new Error("That isn't a page of a profile's pins.");
+    throw new Error(t("errors.notAPageOfProfilePins"));
   }
   return loadPinnedPage(profileId, { position, id });
 }

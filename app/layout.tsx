@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "flag-icons/css/flag-icons.min.css";
+import { NextIntlClientProvider } from "next-intl";
 import { Suspense } from "react";
 import BrowserSettingsSync from "@/components/layout/BrowserSettingsSync";
 import Footer from "@/components/layout/Footer";
+import HtmlLang from "@/components/layout/HtmlLang";
 import Nav from "@/components/layout/Nav";
 import NavAccount from "@/components/layout/NavAccount";
 import { NavAccountPlaceholder } from "@/components/layout/NavAccountLinks";
@@ -64,16 +66,22 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col">
         <BrowserSettingsSync />
-        <Nav
-          account={
-            <Suspense fallback={<NavAccountPlaceholder />}>
-              <NavAccount />
-            </Suspense>
-          }
-        />
-        {children}
-        <Footer />
-        <ScrollToTop />
+        {/* The language is read from the request, so everything that shows copy sits in here */}
+        <Suspense fallback={null}>
+          <NextIntlClientProvider>
+            <HtmlLang />
+            <Nav
+              account={
+                <Suspense fallback={<NavAccountPlaceholder />}>
+                  <NavAccount />
+                </Suspense>
+              }
+            />
+            {children}
+            <Footer />
+            <ScrollToTop />
+          </NextIntlClientProvider>
+        </Suspense>
       </body>
     </html>
   );

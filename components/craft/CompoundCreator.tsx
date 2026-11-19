@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { createCompound } from "@/app/actions";
 import PaintEditor from "@/components/craft/PaintEditor";
@@ -15,6 +16,7 @@ type Part = { id: string; title: string; imageUrl: string | null };
 const MAX_PARTS = 8;
 
 export default function CompoundCreator() {
+  const t = useTranslations();
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [parts, setParts] = useState<Part[]>([]);
@@ -42,7 +44,7 @@ export default function CompoundCreator() {
       return;
     }
     if (parts.length >= MAX_PARTS) {
-      setError(`A compound can have at most ${MAX_PARTS} ingredients.`);
+      setError(t("craft.tooManyParts", { max: MAX_PARTS }));
       return;
     }
     setParts([...parts, { id, title: hit.title, imageUrl: hit.imageUrl }]);
@@ -104,7 +106,7 @@ export default function CompoundCreator() {
     <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-          Ingredients ({parts.length}/{MAX_PARTS})
+          {t("craft.ingredients", { count: parts.length, max: MAX_PARTS })}
         </h2>
 
         {parts.length > 0 && (
@@ -119,7 +121,7 @@ export default function CompoundCreator() {
                 <button
                   type="button"
                   onClick={() => removePart(p.id)}
-                  aria-label={`Remove ${p.title}`}
+                  aria-label={t("lists.editor.removeItem", { title: p.title })}
                   className="absolute right-1 top-1 bg-background/80 px-1.5 text-sm"
                 >
                   ×
@@ -141,7 +143,7 @@ export default function CompoundCreator() {
           />
         )}
         {parts.length === 1 && (
-          <p className="text-xs text-muted">Add at least one more.</p>
+          <p className="text-xs text-muted">{t("craft.addAtLeastOneMore")}</p>
         )}
       </section>
 
@@ -155,7 +157,7 @@ export default function CompoundCreator() {
           </p>
         )}
         <label className="flex flex-col gap-1 text-sm">
-          Name
+          {t("craft.name")}
           <input
             value={title}
             onChange={(e) => {
@@ -163,12 +165,12 @@ export default function CompoundCreator() {
               setExisting(null);
             }}
             maxLength={80}
-            placeholder="e.g. Peach Lipton Ice Tea"
+            placeholder={t("craft.eGPeachLiptonIce")}
             className="border border-line bg-surface px-4 py-2 text-foreground"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Description (optional)
+          {t("lists.editor.descriptionLabel")}
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -181,20 +183,20 @@ export default function CompoundCreator() {
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-          Picture
+          {t("craft.picture")}
         </h2>
         <div className="flex items-center gap-4">
           {image ? (
             // biome-ignore lint/performance/noImgElement: a plain img is intended
             <img
               src={image}
-              alt="Your drawing"
+              alt={t("craft.yourDrawing")}
               className="h-[102px] w-[102px] shrink-0 object-contain [image-rendering:pixelated]"
             />
           ) : (
             <ItemImage
               src={null}
-              alt="No picture yet"
+              alt={t("craft.noPictureYet")}
               placeholder={title.trim() || "?"}
               className="h-[102px] w-[102px] shrink-0"
             />
@@ -215,7 +217,7 @@ export default function CompoundCreator() {
               onClick={() => uploadInput.current?.click()}
               className="border border-line bg-surface px-4 py-2"
             >
-              Upload an image
+              {t("craft.uploadAnImage")}
             </button>
             <input
               ref={uploadInput}
@@ -236,12 +238,11 @@ export default function CompoundCreator() {
                 onClick={() => setImage(null)}
                 className="text-muted underline"
               >
-                Remove
+                {t("common.remove")}
               </button>
             )}
             <p className="text-xs text-muted">
-              Optional. Draw your compound on a canvas up to {PAINT_SIZE} ×{" "}
-              {PAINT_SIZE}, or upload an image to be shrunk to fit.
+              {t("craft.pictureHint", { size: PAINT_SIZE })}
             </p>
           </div>
         </div>
@@ -273,14 +274,17 @@ export default function CompoundCreator() {
       </button>
       {existing && (
         <p className="border border-line bg-surface p-3 text-sm">
-          That combination already exists:{" "}
-          <Link
-            href={`/item/${existing.id}`}
-            className="font-semibold underline"
-          >
-            {existing.title}
-          </Link>
-          .
+          {t.rich("craft.alreadyExists", {
+            title: existing.title,
+            link: (c) => (
+              <Link
+                href={`/item/${existing.id}`}
+                className="font-semibold underline"
+              >
+                {c}
+              </Link>
+            ),
+          })}
         </p>
       )}
       {error && <p className="text-sm text-danger">{error}</p>}

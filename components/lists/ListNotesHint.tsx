@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -13,6 +14,7 @@ export default function ListNotesHint({
   userId: string;
   editHref: string;
 }) {
+  const t = useTranslations();
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
 
@@ -26,13 +28,13 @@ export default function ListNotesHint({
 
   return (
     <p className="mt-1 text-sm text-muted">
-      Tell readers why each item is on this list.{" "}
+      {t("lists.notes.hint")}{" "}
       <Link href={editHref} className="text-accent underline">
-        Add notes
+        {t("lists.notes.addNotes")}
       </Link>{" "}
       ·{" "}
       <button type="button" onClick={dismiss} className="underline">
-        Dismiss
+        {t("lists.notes.dismiss")}
       </button>
     </p>
   );

@@ -1,7 +1,9 @@
 // ABOUTME: The signed-in person's activity: their diary, and the reviews and lists they have liked.
 // ABOUTME: Loads the first page of the open tab on the server; later pages load as you scroll.
+
 import Link from "next/link";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import { loadMoreDiary } from "@/app/diaryActions";
 import { loadMoreLikes } from "@/app/likesActions";
 import { loadDiaryPage } from "@/components/activity/loadDiaryPage";
@@ -22,6 +24,7 @@ export default async function ActivityPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
+  const t = await getTranslations();
   await connection();
   const { tab } = await searchParams;
   const active = tab === "likes" ? "likes" : "diary";
@@ -33,7 +36,7 @@ export default async function ActivityPage({
     return (
       <main className="p-8 text-center">
         <Link href={loginHref("/activity")} className="underline">
-          Sign in to see your activity
+          {t("pages.activity.signIn")}
         </Link>
       </main>
     );
@@ -45,9 +48,11 @@ export default async function ActivityPage({
       key={userId}
       className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8"
     >
-      <h1 className="text-3xl font-bold text-center">Your activity</h1>
+      <h1 className="text-3xl font-bold text-center">
+        {t("pages.activity.title")}
+      </h1>
 
-      <nav aria-label="Activity" className="flex gap-27">
+      <nav aria-label={t("nav.activity")} className="flex gap-27">
         {TABS.map((t) => (
           <Link
             key={t.id}
@@ -69,8 +74,7 @@ export default async function ActivityPage({
           <>
             {/* Shows while nothing else is here */}
             <p className="hidden py-8 text-center text-muted only:block">
-              Nothing liked yet. Like a review or a list and it will show up
-              here.
+              {t("pages.activity.emptyLikes")}
             </p>
             <CardPages
               key="likes"
@@ -83,7 +87,7 @@ export default async function ActivityPage({
             {/* Shows while nothing else is here, including once the last
                 entry is deleted */}
             <p className="hidden py-8 text-center text-muted only:block">
-              Nothing here yet. Log something, or make a list.
+              {t("pages.activity.empty")}
             </p>
             <CardPages
               key="diary"

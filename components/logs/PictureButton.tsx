@@ -2,6 +2,7 @@
 // ABOUTME: Stands in for the picture while its author edits the review.
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import ItemImage from "@/components/items/ItemImage";
 import PicturePicker from "@/components/logs/PicturePicker";
@@ -25,6 +26,7 @@ export default function PictureButton({
   onPick: (choice: PictureChoice | null) => void;
   className: string;
 }) {
+  const t = useTranslations();
   const [open, setOpen] = useState<boolean>(false);
 
   return (
@@ -32,7 +34,7 @@ export default function PictureButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Change the picture for your review"
+        aria-label={t("logs.picture.changeForReview")}
         className={`relative shrink-0 overflow-hidden rounded ${className}`}
       >
         <ItemImage
@@ -43,13 +45,13 @@ export default function PictureButton({
         />
         <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-background/85 py-0.5 text-xs text-foreground">
           <EditIcon className="h-3 w-3" />
-          Change
+          {t("common.change")}
         </span>
       </button>
       {open && (
         <PicturePicker
           itemId={itemId}
-          label="Picture for your review"
+          label={t("item.heroPicture.forReview")}
           picked={url}
           onPick={onPick}
           onClose={() => setOpen(false)}

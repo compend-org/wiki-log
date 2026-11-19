@@ -19,6 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { addToList, setListItemNote } from "@/app/actions";
 import ItemImage from "@/components/items/ItemImage";
@@ -130,6 +131,7 @@ export default function AddToList({
   signedIn: boolean;
   aside?: ReactNode;
 }) {
+  const t = useTranslations();
   const [open, setOpen] = useState<boolean>(false);
   const [lists, setLists] = useState<ListOption[] | null>(null);
   // How many of the person's lists match the search, loaded or not
@@ -223,7 +225,7 @@ export default function AddToList({
     );
     // Confirmed here rather than by re-rendering the whole page, which takes
     // several database requests. "In Lists" catches up on the next page load.
-    setMessage(`Added to “${list.title}”.`);
+    setMessage(t("lists.picker.added", { title: list.title }));
     // The list holds the stored item, whose ID can differ from this page's
     setNoting({ listId: list.id, itemId: result.item?.itemId ?? itemId });
     setNoteDraft("");
@@ -333,7 +335,9 @@ export default function AddToList({
         items: { title: string } | null;
       }[];
       const titleAt = (i: number) =>
-        i < rows.length ? (rows[i].items?.title ?? "Unknown item") : null;
+        i < rows.length
+          ? (rows[i].items?.title ?? t("common.unknownItem"))
+          : null;
       setNeighbours(
         newPosition === 1
           ? { before: null, after: titleAt(0) }
@@ -344,7 +348,7 @@ export default function AddToList({
       current = false;
       clearTimeout(timer);
     };
-  }, [rankList, newPosition]);
+  }, [rankList, newPosition, t]);
 
   async function confirmPlacement() {
     if (!placing || newPosition === null) return;
@@ -371,7 +375,7 @@ export default function AddToList({
           aria-expanded={open}
           className="rounded-lg border border-line px-4 py-2 text-sm hover:border-accent"
         >
-          Add to list
+          {t("lists.addToList")}
         </button>
         {aside}
       </div>
@@ -382,9 +386,14 @@ export default function AddToList({
             <>
               <label className="flex flex-wrap items-center gap-2 text-sm">
                 <span>
-                  Rank for{" "}
-                  <span className="font-semibold text-accent">{title}</span> in{" "}
-                  <span className="font-semibold">“{placing.list.title}”</span>
+                  {t.rich("lists.picker.rankFor", {
+                    item: (c) => (
+                      <span className="font-semibold text-accent">{c}</span>
+                    ),
+                    list: (c) => <span className="font-semibold">{c}</span>,
+                    title,
+                    listTitle: placing.list.title,
+                  })}
                 </span>
                 <input
                   type="number"
@@ -398,18 +407,25 @@ export default function AddToList({
                   }
                   className="w-24 rounded-lg border border-line bg-surface px-3 py-1 text-foreground"
                 />
-                <span className="text-muted">of {placing.list.count + 1}</span>
+                <span className="text-muted">
+                  {t("lists.picker.rankOf", { total: placing.list.count + 1 })}
+                </span>
               </label>
               <p className="min-h-5 text-sm text-muted">
                 {newPosition === null
-                  ? `Pick a number from 1 to ${placing.list.count + 1}.`
+                  ? t("errors.numberRange", { max: placing.list.count + 1 })
                   : neighbours &&
                     (neighbours.before && neighbours.after
-                      ? `Between “${neighbours.before}” and “${neighbours.after}”.`
+                      ? t("lists.picker.between", {
+                          before: neighbours.before,
+                          after: neighbours.after,
+                        })
                       : neighbours.after
-                        ? `Before “${neighbours.after}”.`
+                        ? t("lists.picker.before", { after: neighbours.after })
                         : neighbours.before
-                          ? `After “${neighbours.before}”, at the end.`
+                          ? t("lists.picker.afterAtEnd", {
+                              before: neighbours.before,
+                            })
                           : null)}
               </p>
               <div className="flex gap-2">
@@ -420,26 +436,31 @@ export default function AddToList({
                   className="rounded-lg bg-accent px-4 py-2 text-sm text-background disabled:opacity-40"
                 >
                   {busy
-                    ? "Adding…"
+                    ? t("lists.picker.adding")
                     : newPosition === null
-                      ? "Add"
-                      : `Add as #${newPosition}`}
+                      ? t("common.add")
+                      : t("lists.picker.addAsRank", { rank: newPosition ?? 0 })}
                 </button>
                 <button
                   type="button"
                   onClick={() => setPlacing(null)}
                   className="rounded-lg border border-line px-4 py-2 text-sm"
                 >
-                  Back
+                  {t("common.back")}
                 </button>
               </div>
             </>
           ) : placing ? (
             <>
               <p className="text-sm">
-                Drag <span className="font-semibold text-accent">{title}</span>{" "}
-                to its place in{" "}
-                <span className="font-semibold">“{placing.list.title}”</span>.
+                {t.rich("lists.picker.drag", {
+                  item: (c) => (
+                    <span className="font-semibold text-accent">{c}</span>
+                  ),
+                  list: (c) => <span className="font-semibold">{c}</span>,
+                  title,
+                  listTitle: placing.list.title,
+                })}
               </p>
               <DndContext
                 id={`place-${placing.list.id}`}
@@ -470,14 +491,16 @@ export default function AddToList({
                   disabled={busy}
                   className="rounded-lg bg-accent px-4 py-2 text-sm text-background disabled:opacity-40"
                 >
-                  {busy ? "Adding…" : `Add as #${newPosition}`}
+                  {busy
+                    ? t("lists.picker.adding")
+                    : t("lists.picker.addAsRank", { rank: newPosition ?? 0 })}
                 </button>
                 <button
                   type="button"
                   onClick={() => setPlacing(null)}
                   className="rounded-lg border border-line px-4 py-2 text-sm"
                 >
-                  Back
+                  {t("common.back")}
                 </button>
               </div>
             </>
@@ -492,11 +515,11 @@ export default function AddToList({
             >
               <p className="text-accent">{message}</p>
               <span>
-                <span className="font-semibold">Note</span>{" "}
-                <span className="text-muted">(optional)</span>
+                <span className="font-semibold">{t("lists.picker.note")}</span>{" "}
+                <span className="text-muted">{t("common.optional")}</span>
               </span>
               <NoteField
-                label="Note (optional)"
+                label={t("lists.picker.noteOptional")}
                 value={noteDraft}
                 onChange={setNoteDraft}
                 readOnly={busy}
@@ -512,7 +535,7 @@ export default function AddToList({
                   }
                   className="rounded-lg bg-accent px-4 py-2 text-background disabled:opacity-40"
                 >
-                  {busy ? "Saving…" : "Save note"}
+                  {busy ? t("common.saving") : t("lists.picker.saveNote")}
                 </button>
                 <button
                   type="button"
@@ -520,7 +543,7 @@ export default function AddToList({
                   disabled={busy}
                   className="rounded-lg border border-line px-4 py-2 disabled:opacity-40"
                 >
-                  Done
+                  {t("lists.picker.done")}
                 </button>
               </div>
             </form>
@@ -531,19 +554,21 @@ export default function AddToList({
                   type="search"
                   value={search}
                   onChange={(e) => changeSearch(e.target.value)}
-                  placeholder="Find a list"
-                  aria-label="Find a list"
+                  placeholder={t("lists.picker.findPlaceholder")}
+                  aria-label={t("lists.picker.findPlaceholder")}
                   className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-foreground"
                 />
               )}
               {lists === null && (
-                <p className="text-sm text-muted">Loading your lists…</p>
+                <p className="text-sm text-muted">
+                  {t("lists.picker.loadingLists")}
+                </p>
               )}
               {lists !== null && lists.length === 0 && (
                 <p className="text-sm text-muted">
                   {search.trim()
-                    ? `None of your lists have “${search.trim()}” in their title.`
-                    : "You have no lists yet."}
+                    ? t("lists.picker.noMatch", { search: search.trim() })
+                    : t("lists.picker.noLists")}
                 </p>
               )}
               {lists?.map((l) => (
@@ -557,10 +582,11 @@ export default function AddToList({
                   <span className="font-semibold">{l.title}</span>
                   <span className="shrink-0 text-xs text-muted">
                     {l.has
-                      ? " In this list"
-                      : `${l.ranked ? "Ranked · " : ""}${l.count} ${
-                          l.count === 1 ? "item" : "items"
-                        }`}
+                      ? ` ${t("lists.picker.inThisList")}`
+                      : t("lists.picker.countLine", {
+                          ranked: l.ranked ? "yes" : "no",
+                          count: l.count,
+                        })}
                   </span>
                 </button>
               ))}
@@ -572,15 +598,17 @@ export default function AddToList({
                   className="self-start text-sm underline disabled:opacity-60"
                 >
                   {loadingMore
-                    ? "Loading…"
-                    : `Show more lists (${moreLists.toLocaleString("en-US")} more)`}
+                    ? t("common.loading")
+                    : t("lists.picker.showMore", {
+                        remaining: moreLists.toLocaleString("en-US"),
+                      })}
                 </button>
               )}
               <Link
                 href={`/list/new?add=${encodeURIComponent(itemId)}`}
                 className="self-start text-sm underline"
               >
-                New list
+                {t("lists.newList")}
               </Link>
             </>
           )}

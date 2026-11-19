@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import ItemImage from "@/components/items/ItemImage";
 import Dialog from "@/components/ui/Dialog";
@@ -25,6 +26,7 @@ export default function ListNoteButton({
   rank: number | null;
   owner: string | null;
 }) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
 
   return (
@@ -72,14 +74,14 @@ export default function ListNoteButton({
               href={`/item/${itemId}`}
               className="flex-1 truncate rounded-lg bg-accent px-3 py-1.5 text-center text-background"
             >
-              Open {title}
+              {t("lists.notes.openItem", { title })}
             </Link>
             <button
               type="button"
               onClick={() => setOpen(false)}
               className="flex-1 rounded-lg border border-line px-3 py-1.5"
             >
-              Close
+              {t("common.close")}
             </button>
           </div>
         </Dialog>

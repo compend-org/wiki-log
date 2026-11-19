@@ -1,12 +1,13 @@
 // ABOUTME: The reasons people report posts and moderators act for, and what a moderator's form sends.
 // ABOUTME: Shared by the report form, the moderation buttons and the server actions that check their input.
 
+// Each label is the key of its message
 export const REPORT_REASONS = [
-  { value: "spam", label: "Spam or advertising" },
-  { value: "harassment", label: "Harassment or abuse" },
-  { value: "hate", label: "Hateful content" },
-  { value: "sexual", label: "Sexual or graphic content" },
-  { value: "other", label: "Something else" },
+  { value: "spam", label: "moderation.reason.spam" },
+  { value: "harassment", label: "moderation.reason.harassment" },
+  { value: "hate", label: "moderation.reason.hate" },
+  { value: "sexual", label: "moderation.reason.sexual" },
+  { value: "other", label: "moderation.reason.other" },
 ] as const;
 
 export type ReportReason = (typeof REPORT_REASONS)[number]["value"];

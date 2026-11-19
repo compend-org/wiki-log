@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { track } from "@/lib/analytics/analytics";
 import { authMessage } from "@/lib/errors/userFacingErrorMessage";
@@ -7,6 +8,7 @@ import { submitOnModEnter } from "@/lib/hooks/submitShortcut";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ResetPasswordForm() {
+  const t = useTranslations();
   const [password, setPassword] = useState<string>("");
   const [confirm, setConfirm] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
@@ -16,11 +18,11 @@ export default function ResetPasswordForm() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (password.length < 8) {
-      setError("Use at least 8 characters.");
+      setError(t("auth.reset.tooShort"));
       return;
     }
     if (password !== confirm) {
-      setError("The two passwords don't match.");
+      setError(t("auth.reset.dontMatch"));
       return;
     }
 
@@ -29,9 +31,7 @@ export default function ResetPasswordForm() {
     const { error } = await createClient().auth.updateUser({ password });
     setBusy(false);
     if (error) {
-      setError(
-        authMessage(error, "Couldn't change your password. Please try again."),
-      );
+      setError(authMessage(error, t("auth.reset.failed")));
       return;
     }
     track("password_reset_completed");
@@ -41,7 +41,7 @@ export default function ResetPasswordForm() {
     }, 1500);
   }
 
-  if (done) return <p>Password updated. Taking you home…</p>;
+  if (done) return <p>{t("auth.reset.done")}</p>;
 
   const inputClass = "border border-line bg-surface px-4 py-2 text-foreground";
 
@@ -55,7 +55,7 @@ export default function ResetPasswordForm() {
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        placeholder="New password (8+ characters)"
+        placeholder={t("auth.newPassword")}
         autoComplete="new-password"
         required
         minLength={8}
@@ -65,7 +65,7 @@ export default function ResetPasswordForm() {
         type="password"
         value={confirm}
         onChange={(e) => setConfirm(e.target.value)}
-        placeholder="Repeat the new password"
+        placeholder={t("auth.repeatNewPassword")}
         autoComplete="new-password"
         required
         className={inputClass}
@@ -76,7 +76,7 @@ export default function ResetPasswordForm() {
         disabled={busy}
         className="bg-accent px-4 py-2 text-background disabled:opacity-40"
       >
-        {busy ? "Saving…" : "Save password"}
+        {busy ? t("common.saving") : t("auth.reset.save")}
       </button>
       {error && <p className="text-danger">{error}</p>}
     </form>

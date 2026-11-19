@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import Avatar from "@/components/people/Avatar";
 import SearchIcon from "@/components/ui/SearchIcon";
@@ -11,6 +12,7 @@ import { escapeLike } from "@/lib/username";
 type Person = { username: string; avatar_path: string | null };
 
 export default function PeopleSearch() {
+  const t = useTranslations();
   const [open, setOpen] = useState<boolean>(false);
   const [query, setQuery] = useState<string>("");
   const [results, setResults] = useState<Person[]>([]);
@@ -75,10 +77,10 @@ export default function PeopleSearch() {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        aria-label="Find people"
+        aria-label={t("people.search.label")}
         aria-expanded={open}
         aria-controls={panelId}
-        title="Find people"
+        title={t("people.search.label")}
         className={`flex ${open ? "text-foreground" : "text-accent hover:text-foreground"}`}
       >
         <SearchIcon />
@@ -103,7 +105,7 @@ export default function PeopleSearch() {
                 close();
               }
             }}
-            placeholder="Find people by username"
+            placeholder={t("people.search.placeholder")}
             autoComplete="off"
             // biome-ignore lint/a11y/noAutofocus: this input takes focus on purpose
             autoFocus
@@ -112,10 +114,14 @@ export default function PeopleSearch() {
 
           <ul className="mt-1 flex flex-col">
             {term.length >= 2 && !ready && (
-              <li className="px-2 py-2 text-sm text-muted">Searching…</li>
+              <li className="px-2 py-2 text-sm text-muted">
+                {t("common.searching")}
+              </li>
             )}
             {ready && results.length === 0 && (
-              <li className="px-2 py-2 text-sm text-muted">No one found.</li>
+              <li className="px-2 py-2 text-sm text-muted">
+                {t("people.search.noOne")}
+              </li>
             )}
             {ready &&
               results.map((p) => (

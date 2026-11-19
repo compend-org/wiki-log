@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import SignOutIcon from "@/components/auth/SignOutIcon";
 import { track } from "@/lib/analytics/analytics";
 import { createClient } from "@/lib/supabase/client";
@@ -10,12 +11,14 @@ import { createClient } from "@/lib/supabase/client";
 export default function SignOutButton({
   className = "",
   labelClassName = "",
-  label = "Sign out",
+  label: labelProp,
 }: {
   className?: string;
   labelClassName?: string;
   label?: string;
 }) {
+  const t = useTranslations();
+  const label = labelProp ?? t("common.signOut");
   const router = useRouter();
 
   async function handleSignOut() {

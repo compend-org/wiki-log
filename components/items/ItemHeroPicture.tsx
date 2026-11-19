@@ -2,6 +2,7 @@
 // ABOUTME: Signed-in visitors can pick another picture from the article for the review they're writing.
 "use client";
 
+import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import ItemPicture from "@/components/items/ItemPicture";
 import { useReviewPicture } from "@/components/items/ReviewPictureContext";
@@ -28,6 +29,7 @@ export default function ItemHeroPicture({
   // Whether the visitor can pick a picture for their review
   canPick: boolean;
 }) {
+  const t = useTranslations();
   const { picked, pick } = useReviewPicture();
   const [open, setOpen] = useState<boolean>(false);
   // The picture picked for the review, when it isn't the item's own
@@ -48,33 +50,37 @@ export default function ItemHeroPicture({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            aria-label="Choose the picture for your review"
-            title="Choose the picture for your review"
+            aria-label={t("item.heroPicture.choose")}
+            title={t("item.heroPicture.choose")}
             className="absolute bottom-2 right-2 flex items-center gap-1 border border-line bg-background/90 px-2 py-1 text-xs text-foreground"
           >
             <EditIcon className="h-3 w-3" />
-            Change
+            {t("common.change")}
           </button>
         )}
       </div>
       <figcaption className="text-center text-xs text-muted">
         {chosen ? (
           <>
-            Picture for your review · Image:{" "}
-            {chosen.filePage ? (
-              <a href={chosen.filePage} className="underline">
-                Wikimedia Commons
-              </a>
-            ) : (
-              "Wikimedia Commons"
-            )}{" "}
+            {chosen.filePage
+              ? t.rich("item.heroPicture.imageCredit", {
+                  link: (c) => (
+                    <a
+                      href={chosen.filePage ?? undefined}
+                      className="underline"
+                    >
+                      {c}
+                    </a>
+                  ),
+                })
+              : t("item.heroPicture.imageCreditPlain")}{" "}
             ·{" "}
             <button
               type="button"
               onClick={() => pick(null)}
               className="underline"
             >
-              Use the default
+              {t("item.heroPicture.useDefault")}
             </button>
           </>
         ) : (
@@ -84,7 +90,7 @@ export default function ItemHeroPicture({
       {open && (
         <PicturePicker
           itemId={itemId}
-          label="Picture for your review"
+          label={t("item.heroPicture.forReview")}
           picked={shown}
           onPick={pick}
           onClose={() => setOpen(false)}

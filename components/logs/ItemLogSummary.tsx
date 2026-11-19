@@ -1,5 +1,7 @@
 // ABOUTME: Shows an item's entry count and average rating below ten ratings.
 // ABOUTME: Keeps stable element boundaries around text browser translation may replace.
+import { useTranslations } from "next-intl";
+
 export default function ItemLogSummary({
   people,
   average,
@@ -9,6 +11,7 @@ export default function ItemLogSummary({
   average: number;
   logCount: number;
 }) {
+  const t = useTranslations();
   if (people >= 10) return null;
 
   return (
@@ -18,10 +21,10 @@ export default function ItemLogSummary({
       {people > 0 && (
         <span>
           <span className="text-star">★</span>
-          <span>{` ${average.toFixed(1)} average from ${people} ${people === 1 ? "person" : "people"} · `}</span>
+          <span>{` ${t("item.averageFrom", { average: average.toFixed(1), people })} · `}</span>
         </span>
       )}
-      <span>{`${logCount} ${logCount === 1 ? "entry" : "entries"}`}</span>
+      <span>{t("counts.entries", { count: logCount })}</span>
     </p>
   );
 }

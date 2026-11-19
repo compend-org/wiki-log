@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { setReviewPicture } from "@/app/actions";
 import RatingInput from "@/components/logs/RatingInput";
@@ -32,6 +33,7 @@ export default function EditEntryForm({
   onSaved: (rating: number | null, review: string) => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations();
   const [rating, setRating] = useState<number>(initialRating ?? 0);
   const [review, setReview] = useState<string>(initialReview);
   const [busy, setBusy] = useState<boolean>(false);
@@ -61,13 +63,13 @@ export default function EditEntryForm({
     }
     // Row-level security refuses silently when the entry isn't yours
     if (!data || data.length === 0) {
-      setError("Couldn't save that change.");
+      setError(t("errors.saveChange"));
       return;
     }
     if (pickedPicture !== undefined) {
       setBusy(true);
       const picture = await setReviewPicture(logId, pickedPicture).catch(
-        () => ({ error: "Couldn't save the picture. Try again." }),
+        () => ({ error: t("errors.pictureSaveFailed") }),
       );
       setBusy(false);
       if (picture.error) {
@@ -96,7 +98,7 @@ export default function EditEntryForm({
           disabled={busy}
           className="bg-accent px-4 py-1.5 text-sm text-background disabled:opacity-40"
         >
-          {busy ? "Saving…" : "Save"}
+          {busy ? t("common.saving") : "Save"}
         </button>
         <button
           type="button"
@@ -104,7 +106,7 @@ export default function EditEntryForm({
           disabled={busy}
           className="text-sm underline"
         >
-          Cancel
+          {t("common.cancel")}
         </button>
         <span className="text-xs text-muted">
           {review.length}/{MAX}

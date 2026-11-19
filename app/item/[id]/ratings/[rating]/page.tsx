@@ -1,9 +1,11 @@
 // ABOUTME: Every review of an item that gave it one rating, as cards that load as you scroll.
 // ABOUTME: Reached by clicking a bar of the ratings histogram on an item page.
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
 import { loadMoreRatedReviews } from "@/app/itemPagesActions";
 import { loadRatedReviewsPage } from "@/components/items/loadItemPages";
 import CardPages from "@/components/paging/CardPages";
@@ -44,6 +46,7 @@ export default async function RatedReviewsPage({
 }: {
   params: Promise<{ id: string; rating: string }>;
 }) {
+  const t = await getTranslations();
   await connection();
   const { id, rating: raw } = await params;
   const rating = parseRatingStep(raw);
@@ -56,13 +59,14 @@ export default async function RatedReviewsPage({
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-4 sm:p-8">
       <Link href={`/item/${id}`} className="text-sm text-muted">
-        ‹ Back to {title}
+        {t("item.backToItem", { title })}
       </Link>
       <h1 className="text-xl font-bold [overflow-wrap:anywhere]">
-        <span className="text-star">{starText(rating)}</span> reviews of {title}
+        <span className="text-star">{starText(rating)}</span>{" "}
+        {t("item.ratingsOf", { title })}
       </h1>
       {first.cards.length === 0 && !first.next && !first.error && (
-        <p className="text-muted">Nothing here yet.</p>
+        <p className="text-muted">{t("common.nothingHereYet")}</p>
       )}
       <CardPages
         first={first}

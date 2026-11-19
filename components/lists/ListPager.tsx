@@ -1,6 +1,8 @@
 // ABOUTME: Page links for a long list: previous, next, and numbered pages with gaps.
 // ABOUTME: Renders links on the list page and buttons in the list editor.
+
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { pagerPages } from "@/lib/lists/listPages";
 
@@ -72,15 +74,16 @@ export default function ListPager({
   onPage,
   disabled,
 }: Props) {
+  const t = useTranslations();
   if (last <= 1) return null;
   const common = { href, onPage, disabled };
 
   return (
-    <nav aria-label="Pages of this list" className="flex flex-wrap gap-1.5">
+    <nav aria-label={t("lists.pager.label")} className="flex flex-wrap gap-1.5">
       {page > 1 && (
         <PageControl
           target={page - 1}
-          label="Previous page"
+          label={t("lists.pager.previous")}
           current={false}
           {...common}
         >
@@ -98,7 +101,7 @@ export default function ListPager({
           <PageControl
             key={p}
             target={p}
-            label={`Page ${p}`}
+            label={t("lists.pager.page", { page: p })}
             current={p === page}
             {...common}
           >
@@ -109,7 +112,7 @@ export default function ListPager({
       {page < last && (
         <PageControl
           target={page + 1}
-          label="Next page"
+          label={t("lists.pager.next")}
           current={false}
           {...common}
         >

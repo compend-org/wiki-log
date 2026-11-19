@@ -1,6 +1,8 @@
 // ABOUTME: The Leaderboards page, which ranks items of chosen kinds by their ratings.
 // ABOUTME: Which leaderboards exist is set by hand in lib/leaderboards.ts; the page can be turned off in lib/features.ts.
+
 import { notFound } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import Leaderboard from "@/components/feed/Leaderboard";
 import { FEATURES } from "@/lib/features";
@@ -13,17 +15,20 @@ export default function LeaderboardsPage({
 }: {
   searchParams: Promise<{ board?: string }>;
 }) {
+  const t = useTranslations();
   if (!FEATURES.leaderboards) notFound();
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <header className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold">Leaderboards</h1>
-        <p className="text-sm text-muted">The best-rated items of each kind.</p>
+        <h1 className="text-3xl font-bold">{t("footer.leaderboards")}</h1>
+        <p className="text-sm text-muted">{t("pages.leaderboards.blurb")}</p>
       </header>
 
       <Suspense
-        fallback={<p className="py-12 text-center text-muted">Loading…</p>}
+        fallback={
+          <p className="py-12 text-center text-muted">{t("common.loading")}</p>
+        }
       >
         <Leaderboard searchParams={searchParams} />
       </Suspense>

@@ -1,18 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import SignInIcon from "@/components/auth/SignInIcon";
 import { useLoginHref } from "@/lib/hooks/useLoginHref";
 
 export default function SignInButton({
   className = "",
   labelClassName = "",
-  label = "Sign in",
+  label: labelProp,
 }: {
   className?: string;
   labelClassName?: string;
   label?: string;
 }) {
+  const t = useTranslations();
+  const label = labelProp ?? t("common.signIn");
   const loginHref = useLoginHref();
 
   return (

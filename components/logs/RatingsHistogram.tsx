@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { starText } from "@/lib/format";
 import {
@@ -9,7 +10,7 @@ import {
   ratingStep,
 } from "@/lib/ratingHistogram";
 
-const PEOPLE = { one: "person", other: "people" };
+type Unit = "people" | "ratings";
 
 // How everyone rated one item, or everything one person has rated: a bar for
 // each half-star from 0.5 to 5, with the viewer's own rating of an item picked
@@ -18,7 +19,7 @@ export default function RatingHistogram({
   ratings,
   highlight,
   action,
-  unit = PEOPLE,
+  unit = "people",
   compact = false,
   hrefBase,
 }: {
@@ -29,15 +30,20 @@ export default function RatingHistogram({
   // A button shown beside the average, like sharing the histogram as an image
   action?: ReactNode;
   // What each rating is counted in
-  unit?: { one: string; other: string };
+  unit?: Unit;
   // A small version without the heading, for tight spaces
   compact?: boolean;
   hrefBase?: string;
 }) {
+  const t = useTranslations();
   if (ratings.length < MIN_HISTOGRAM_RATINGS) return null;
 
   const { counts, tallest, average, people } = ratingHistogram(ratings);
-  const noun = people === 1 ? unit.one : unit.other;
+  const counted = (n: number) =>
+    unit === "ratings"
+      ? t("counts.ratings", { count: n })
+      : t("counts.people", { count: n });
+  const noun = counted(people);
 
   const bars = (
     <div
@@ -47,9 +53,7 @@ export default function RatingHistogram({
       {RATING_STEPS.map((step, i) => {
         const picked = highlight !== null && ratingStep(highlight) === step;
         const count = counts[i];
-        const tip = `${starText(step)} · ${count} ${
-          count === 1 ? unit.one : unit.other
-        }`;
+        const tip = `${starText(step)} · ${counted(count)}`;
         // Centred on its bar, except the outer ones, which open inwards so
         // the tooltip stays inside the card
         const place =
@@ -94,15 +98,17 @@ export default function RatingHistogram({
     </div>
   );
 
-  const label = `Ratings: ${average.toFixed(1)} average from ${people} ${noun}`;
+  const label = t("logs.histogram.label", {
+    average: average.toFixed(1),
+    people: noun,
+  });
 
   if (compact) {
     return (
       <section aria-label={label} className="flex w-44 flex-col gap-1">
         {bars}
         <p className="text-xs text-muted">
-          <span className="text-star">★</span> {average.toFixed(1)} · {people}{" "}
-          {noun}
+          <span className="text-star">★</span> {average.toFixed(1)} · {noun}
         </p>
       </section>
     );
@@ -112,12 +118,15 @@ export default function RatingHistogram({
     <section aria-label={label} className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-          Ratings
+          {t("item.ratingImageTitle")}
         </h2>
         <div className="flex items-center gap-3">
           <p className="text-sm text-muted">
-            <span className="text-star">★</span> {average.toFixed(1)} average ·{" "}
-            {people} {noun}
+            <span className="text-star">★</span>{" "}
+            {t("logs.histogram.average", {
+              average: average.toFixed(1),
+              people: noun,
+            })}
           </p>
           {action}
         </div>

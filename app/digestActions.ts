@@ -2,6 +2,7 @@
 // ABOUTME: Checks what the browser sent, then renders the page's cards for the viewer.
 "use server";
 
+import { getTranslations } from "next-intl/server";
 import {
   type DigestPage,
   loadDigestPage,
@@ -9,7 +10,8 @@ import {
 import { parseDigestCursor } from "@/lib/feed/digest";
 
 export async function loadMoreDigest(cursor: unknown): Promise<DigestPage> {
+  const t = await getTranslations();
   const parsed = parseDigestCursor(cursor);
-  if (parsed === undefined) throw new Error("That isn't a page of the digest.");
+  if (parsed === undefined) throw new Error(t("errors.notAPageOfDigest"));
   return loadDigestPage(parsed);
 }

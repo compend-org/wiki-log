@@ -3,6 +3,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { track } from "@/lib/analytics/analytics";
 import {
@@ -21,6 +22,7 @@ export default function UsernameEditor({
   userId: string;
   savedUsername: string;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [username, setUsername] = useLocalCopy(savedUsername);
   const [message, setMessage] = useState<string>("");
@@ -32,7 +34,7 @@ export default function UsernameEditor({
 
     const name = cleanName(username);
     if (!isValidName(name)) {
-      setMessage(`Usernames are ${NAME_RULES}.`);
+      setMessage(t("auth.usernameRules", { rules: NAME_RULES }));
       return;
     }
 
@@ -47,14 +49,14 @@ export default function UsernameEditor({
     if (error) {
       setMessage(
         error.code === "23505"
-          ? "That username is taken."
+          ? t("auth.usernameTaken")
           : userFacingErrorMessage(error, SAVE_FAILED),
       );
       return;
     }
     track("profile_updated", { field: "username" });
     setUsername(name);
-    setMessage("Saved.");
+    setMessage(t("common.saved"));
     // Redraws the top bar, the profile link and account deletion with the new
     // username
     startRefresh(() => router.refresh());
@@ -68,7 +70,7 @@ export default function UsernameEditor({
         className="flex flex-col gap-3"
       >
         <label className="flex flex-col gap-1 text-sm">
-          Username
+          {t("settings.username.label")}
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -84,7 +86,7 @@ export default function UsernameEditor({
           disabled={busy || refreshing}
           className="bg-accent px-4 py-2 text-background disabled:opacity-40"
         >
-          {busy ? "Saving…" : "Save username"}
+          {busy ? t("common.saving") : t("settings.username.save")}
         </button>
       </form>
       {message && <p className="text-sm">{message}</p>}
