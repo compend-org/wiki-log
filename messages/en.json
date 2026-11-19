@@ -771,7 +771,7 @@
   "activity": {
     "craftedCompound": "{who, select, you {You crafted a compound} other {{name} crafted a compound}}",
     "reply": "{kind, select, replied {{who, select, you {You replied} other {{name} replied}}} other {{who, select, you {You commented} other {{name} commented}}}}",
-    "replyTo": "{kind, select, replied {{who, select, you {You replied} other {{name} replied}} to <user>{user}</user>} other {{who, select, you {You commented} other {{name} commented}} to <user>{user}</user>}}",
+    "replyTo": "{kind, select, replied {{who, select, you {You replied} other {{name} replied}} to <user>{replyingTo}</user>} other {{who, select, you {You commented} other {{name} commented}} to <user>{replyingTo}</user>}}",
     "replyWhereReview": "{name}'s review of {title}",
     "replyWhereList": "{name}'s list {title}",
     "anItem": "an item",
