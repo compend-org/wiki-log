@@ -25,7 +25,7 @@ export default function ItemSearch({
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">
-          Log anything.
+          Rate, review anything.
           <span className="sfw-tag ml-2 text-xl font-normal text-muted">
             [SFW]
           </span>
