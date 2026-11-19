@@ -91,6 +91,13 @@ const BOX = [
   "w-[calc((100%_-_1.5rem_-_4px_-_(var(--cols)_-_1)_*_0.75rem)_/_var(--cols)_*_var(--n)_+_(var(--n)_-_1)_*_0.75rem_+_1.5rem_+_4px)]",
 ].join(" ");
 
+// A plain list's items have no box, but are the same size and as wide as
+// they need: the same sums without the box's padding and border
+const PLAIN_BOX = [
+  "[--cols:3] sm:[--cols:4] [--n:min(var(--count),var(--cols))] max-w-full",
+  "w-[calc((100%_-_(var(--cols)_-_1)_*_0.75rem)_/_var(--cols)_*_var(--n)_+_(var(--n)_-_1)_*_0.75rem)]",
+].join(" ");
+
 // The empty space after a short last row, in the grid's bottom right corner.
 // It reaches out over the box's padding and border (0.75rem and 2px) and has
 // the page's colour, so the box's border doesn't show there; its own top and
@@ -324,7 +331,7 @@ export default async function ListPage({
         .filter((run) => run.entries.length > 0)
         .map((run, runIndex) => (
           // A grouped list has a dashed box round each group, with the group's
-          // name above it; a plain list's items are in one run
+          // name above it; a plain list's items are in one run, with no box
           <section
             key={run.group?.id ?? `run-${runIndex}`}
             className="flex flex-col gap-1.5"
@@ -332,7 +339,7 @@ export default async function ListPage({
             {grouped && list.group_labels && run.group?.name && (
               <h2 className="text-lg font-semibold">{run.group.name}</h2>
             )}
-            {/* The box is only as wide as its items need */}
+            {/* The box (or the plain run) is only as wide as its items need */}
             <div
               style={
                 {
@@ -343,7 +350,7 @@ export default async function ListPage({
                   "--s4": (run.entries.length % 4) + 1,
                 } as CSSProperties
               }
-              className={BOX}
+              className={grouped ? BOX : PLAIN_BOX}
             >
               <ul className="grid grid-cols-[repeat(var(--n),minmax(0,1fr))] gap-3">
                 {run.entries.map((entry, index) => {
@@ -407,10 +414,12 @@ export default async function ListPage({
                 {/* When the last row isn't full, the box steps in round the
                       empty space: this fills it with the page's colour, over
                       the box's own border, and draws the step */}
-                <li
-                  aria-hidden="true"
-                  className={`${run.entries.length > 3 && run.entries.length % 3 !== 0 ? "block" : "hidden"} ${run.entries.length > 4 && run.entries.length % 4 !== 0 ? "sm:block" : "sm:hidden"} ${NOTCH}`}
-                />
+                {grouped && (
+                  <li
+                    aria-hidden="true"
+                    className={`${run.entries.length > 3 && run.entries.length % 3 !== 0 ? "block" : "hidden"} ${run.entries.length > 4 && run.entries.length % 4 !== 0 ? "sm:block" : "sm:hidden"} ${NOTCH}`}
+                  />
+                )}
               </ul>
             </div>
           </section>
