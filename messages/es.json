@@ -156,7 +156,8 @@
     "thatIsnTACompound": "Eso no es un compuesto.",
     "onlyThePersonWhoCrafted": "Solo puede hacerlo quien lo creó.",
     "savedTheTextButThe": "Se guardó el texto, pero no se pudo guardar la imagen.",
-    "savedTheTextButThe2": "Se guardó el texto, pero no se pudo quitar la imagen."
+    "savedTheTextButThe2": "Se guardó el texto, pero no se pudo quitar la imagen.",
+    "invalidDraft": "Borrador no válido."
   },
   "nav": {
     "activity": "Actividad",
@@ -779,5 +780,30 @@
     "replyWhereList": "Lista de {name}: {title}",
     "anItem": "un elemento",
     "openWhere": "Abrir {where}"
+  },
+  "drafts": {
+    "title": "Borradores",
+    "profileLink": "Borradores · {count}",
+    "none": "Todavía no hay borradores.",
+    "reviewsHeading": "Reseñas · {count}",
+    "listsHeading": "Listas · {count}",
+    "yourDraft": "Tu borrador",
+    "draft": "Borrador",
+    "saveDraft": "Guardar borrador",
+    "deleteDraft": "Eliminar borrador",
+    "deleteThis": "Eliminar este borrador",
+    "deleteTitle": "¿Eliminar este borrador?",
+    "cantUndo": "Esto no se puede deshacer.",
+    "autosavedAt": "Guardado automáticamente a las {time}",
+    "autosavedOn": "Guardado automáticamente el {date}, {time}",
+    "autosaveFailed": "No se pudo guardar automáticamente",
+    "changedElsewhere": "Este borrador se cambió en otro lugar. Recarga para verlo.",
+    "savedAgo": "Guardado {ago}",
+    "listMeta": "{kind, select, grouped {Lista agrupada} ranked {Lista ordenada} other {Lista}} · guardada {ago}",
+    "noRatingYet": "Sin valoración todavía",
+    "untitledList": "Lista sin título",
+    "noItemsYet": "Todavía no hay elementos",
+    "openLog": "Seguir con tu borrador de {title}",
+    "openList": "Seguir con tu borrador {title}"
   }
 }

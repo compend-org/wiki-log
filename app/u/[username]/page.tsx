@@ -33,6 +33,7 @@ import {
 import PinnedSection, {
   type PinnedCard,
 } from "@/components/profile/PinnedSection";
+import EditIcon from "@/components/ui/EditIcon";
 import SettingsIcon from "@/components/ui/SettingsIcon";
 import { isAdmin } from "@/lib/admin/admin";
 import { avatarUrl } from "@/lib/avatar";
@@ -70,6 +71,8 @@ type ProfileContent = {
   viewer_follow?: { follower_id: string }[];
   follows_viewer?: { following_id: string }[];
   viewer_block?: { blocker_id: string }[];
+  log_draft_count?: { count: number }[];
+  list_draft_count?: { count: number }[];
 };
 
 export async function generateMetadata({
@@ -119,6 +122,11 @@ export default async function ProfilePage({
   const viewerEmbeds = viewerId
     ? ", viewer_follow:follows!follows_following_id_fkey(follower_id), follows_viewer:follows!follows_follower_id_fkey(following_id), viewer_block:blocks!blocks_blocked_id_fkey(blocker_id)"
     : "";
+  // Only the owner can read their drafts
+  const ownerEmbeds =
+    viewerId === profile.id
+      ? ", log_draft_count:log_drafts(count), list_draft_count:list_drafts(count)"
+      : "";
   let contentQuery = supabase
     .from("profiles")
     .select(
@@ -128,7 +136,8 @@ export default async function ProfilePage({
         "list_count:lists!lists_user_id_profiles_fkey(count), " +
         "favourites(position, item_id, image_url, items(title, image_url, nsfw)), " +
         "pin_rows:pins(id, position, log_id, list_id)" +
-        viewerEmbeds,
+        viewerEmbeds +
+        ownerEmbeds,
     )
     .eq("id", profile.id)
     .order("position", { referencedTable: "pin_rows" })
@@ -146,6 +155,9 @@ export default async function ProfilePage({
   const following = content?.following[0]?.count ?? 0;
   const logCount = content?.log_count[0]?.count ?? 0;
   const listCount = content?.list_count[0]?.count ?? 0;
+  const draftCount =
+    (content?.log_draft_count?.[0]?.count ?? 0) +
+    (content?.list_draft_count?.[0]?.count ?? 0);
   const isFollowing = Boolean(content?.viewer_follow?.length);
   const followsViewer = Boolean(content?.follows_viewer?.length);
   const isBlocked = Boolean(content?.viewer_block?.length);
@@ -310,6 +322,17 @@ export default async function ProfilePage({
                     {t("profile.settings")}
                   </span>
                 </Link>
+                {draftCount > 0 && (
+                  <Link
+                    href="/drafts"
+                    className="group inline-flex items-center gap-1.5"
+                  >
+                    <EditIcon className="h-4 w-4" />
+                    <span className="group-hover:underline">
+                      {t("drafts.profileLink", { count: draftCount })}
+                    </span>
+                  </Link>
+                )}
                 <SignOutButton
                   className="group inline-flex text-foreground! sm:hidden"
                   labelClassName="group-hover:underline"

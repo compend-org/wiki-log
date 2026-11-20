@@ -9,7 +9,7 @@ import CompoundEditButton from "@/components/craft/CompoundEditButton";
 import ItemHeroPicture from "@/components/items/ItemHeroPicture";
 import ItemImage from "@/components/items/ItemImage";
 import RandomAgain from "@/components/items/RandomAgain";
-import { ReviewPictureProvider } from "@/components/items/ReviewPictureContext";
+import { ReviewDraftProvider } from "@/components/items/ReviewDraftContext";
 import AddToList from "@/components/lists/AddToList";
 import ItemLists from "@/components/lists/ItemLists";
 import ItemLogs from "@/components/logs/ItemLogs";
@@ -139,7 +139,7 @@ export default async function ItemPage({
 
   // Everyone's latest rating of this item, one per person, for the histogram,
   // and the viewer's own earlier entries for it
-  const { ratings, viewerEntries } = await getItemRatings(id);
+  const { ratings, viewerEntries, viewerDraft } = await getItemRatings(id);
   const myEntries: MyEntry[] = viewerEntries.map((r) => ({
     id: r.id,
     rating: Number(r.rating ?? 0),
@@ -251,8 +251,8 @@ export default async function ItemPage({
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-        {/* A picture picked for one item never carries over to another */}
-        <ReviewPictureProvider key={item.id}>
+        {/* A review being written for one item never carries over to another */}
+        <ReviewDraftProvider key={item.id} draft={viewerDraft}>
           <div className="flex flex-col gap-3">
             {/* Reached by rolling a random article, so offer another roll */}
             {random && <RandomAgain />}
@@ -458,7 +458,7 @@ export default async function ItemPage({
               hrefBase={`/item/${item.id}/ratings`}
             />
           </div>
-        </ReviewPictureProvider>
+        </ReviewDraftProvider>
       </div>
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="min-w-0">

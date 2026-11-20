@@ -156,7 +156,8 @@
     "thatIsnTACompound": "That isn't a compound.",
     "onlyThePersonWhoCrafted": "Only the person who crafted it can do that.",
     "savedTheTextButThe": "Saved the text, but the picture couldn't be saved.",
-    "savedTheTextButThe2": "Saved the text, but the picture couldn't be removed."
+    "savedTheTextButThe2": "Saved the text, but the picture couldn't be removed.",
+    "invalidDraft": "Invalid draft."
   },
   "nav": {
     "activity": "Activity",
@@ -779,5 +780,30 @@
     "replyWhereList": "{name}'s list {title}",
     "anItem": "an item",
     "openWhere": "Open {where}"
+  },
+  "drafts": {
+    "title": "Drafts",
+    "profileLink": "Drafts · {count}",
+    "none": "No drafts yet.",
+    "reviewsHeading": "Reviews · {count}",
+    "listsHeading": "Lists · {count}",
+    "yourDraft": "Your draft",
+    "draft": "Draft",
+    "saveDraft": "Save draft",
+    "deleteDraft": "Delete draft",
+    "deleteThis": "Delete this draft",
+    "deleteTitle": "Delete this draft?",
+    "cantUndo": "This can't be undone.",
+    "autosavedAt": "Autosaved at {time}",
+    "autosavedOn": "Autosaved {date}, {time}",
+    "autosaveFailed": "Couldn't autosave",
+    "changedElsewhere": "This draft was changed somewhere else. Reload to see it.",
+    "savedAgo": "Saved {ago}",
+    "listMeta": "{kind, select, grouped {Grouped list} ranked {Ranked list} other {List}} · saved {ago}",
+    "noRatingYet": "No rating yet",
+    "untitledList": "Untitled list",
+    "noItemsYet": "No items yet",
+    "openLog": "Carry on with your draft for {title}",
+    "openList": "Carry on with your draft {title}"
   }
 }

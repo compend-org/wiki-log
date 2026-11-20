@@ -5,7 +5,7 @@
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import ItemPicture from "@/components/items/ItemPicture";
-import { useReviewPicture } from "@/components/items/ReviewPictureContext";
+import { useReviewDraft } from "@/components/items/ReviewDraftContext";
 import PicturePicker from "@/components/logs/PicturePicker";
 import EditIcon from "@/components/ui/EditIcon";
 
@@ -30,7 +30,7 @@ export default function ItemHeroPicture({
   canPick: boolean;
 }) {
   const t = useTranslations();
-  const { picked, pick } = useReviewPicture();
+  const { picked, pick } = useReviewDraft();
   const [open, setOpen] = useState<boolean>(false);
   // The picture picked for the review, when it isn't the item's own
   const chosen = picked && !picked.isDefault ? picked : null;

@@ -42,6 +42,7 @@ import {
   pictureChoices,
   storedPicture,
 } from "@/lib/pictureChoices";
+import { isValidRating } from "@/lib/ratings";
 import { parseSfwMode, type SfwMode } from "@/lib/sfw";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -119,12 +120,30 @@ export async function reportBrokenImage(url: string): Promise<string | null> {
   return replaceBrokenImage(url);
 }
 
+// Deletes the draft a log entry or list was published from, unless it has
+// been saved again elsewhere since: that newer version stays a draft
+async function deletePublishedDraft(
+  supabase: SupabaseClient,
+  table: "log_drafts" | "list_drafts",
+  match: Record<string, string>,
+  savedAt: unknown,
+) {
+  if (typeof savedAt !== "string") return;
+  let query = supabase.from(table).delete().eq("saved_at", savedAt);
+  for (const [column, value] of Object.entries(match)) {
+    query = query.eq(column, value);
+  }
+  await query;
+}
+
 export async function logItem(input: {
   itemId: string;
   rating: number | null;
   review: string;
   // A picture from the item's article to show instead of the item's own
   imageUrl?: string | null;
+  // When the draft this entry was written in was last saved, if it was
+  draftSavedAt?: string | null;
 }): Promise<{ error?: string }> {
   const t = await getTranslations();
   const supabase = await createClient();
@@ -133,13 +152,7 @@ export async function logItem(input: {
   if (!userId) return { error: t("errors.signInToLog") };
 
   if (!ITEM_ID.test(input.itemId)) return { error: t("errors.invalidItem") };
-  if (
-    input.rating !== null &&
-    (!Number.isFinite(input.rating) ||
-      input.rating < 0.5 ||
-      input.rating > 5 ||
-      (input.rating * 2) % 1 !== 0)
-  ) {
+  if (!isValidRating(input.rating)) {
     return { error: t("errors.invalidRating") };
   }
 
@@ -193,6 +206,12 @@ export async function logItem(input: {
     }
   }
 
+  await deletePublishedDraft(
+    supabase,
+    "log_drafts",
+    { user_id: userId, item_id: stored.id },
+    input.draftSavedAt,
+  );
   return {};
 }
 
@@ -693,6 +712,8 @@ export async function createList(input: {
   pictures?: Record<string, string>;
   // Why each item is on the list, by item, for the items that have a note
   notes?: Record<string, string>;
+  // The draft the list was made in, as last saved
+  draft?: { id: string; savedAt: string } | null;
 }): Promise<{ error?: string; id?: string }> {
   const t = await getTranslations();
   const supabase = await createClient();
@@ -810,6 +831,14 @@ export async function createList(input: {
       };
     }
   }
+  if (input.draft && typeof input.draft.id === "string") {
+    await deletePublishedDraft(
+      supabase,
+      "list_drafts",
+      { id: input.draft.id, user_id: userId },
+      input.draft.savedAt,
+    );
+  }
   return { id: list.id };
 }
 
@@ -826,6 +855,8 @@ export async function createGroupedList(input: {
   pictures?: Record<string, string>;
   // Why each item is on the list, by item, for the items that have a note
   notes?: Record<string, string>;
+  // The draft the list was made in, as last saved
+  draft?: { id: string; savedAt: string } | null;
 }): Promise<{ error?: string; id?: string }> {
   const t = await getTranslations();
   if (!FEATURES.groupedLists) return { error: t("errors.groupedListsOff") };
@@ -945,6 +976,14 @@ export async function createGroupedList(input: {
           : t("errors.listCreateRetry"),
       };
     }
+  }
+  if (input.draft && typeof input.draft.id === "string") {
+    await deletePublishedDraft(
+      supabase,
+      "list_drafts",
+      { id: input.draft.id, user_id: userId },
+      input.draft.savedAt,
+    );
   }
   return { id: list.id };
 }
