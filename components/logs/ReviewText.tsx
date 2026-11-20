@@ -3,8 +3,10 @@ import Markdown, { type Components, type Options } from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import SiteMark from "@/components/logs/SiteMark";
 import TeX from "@/components/logs/TeX";
 import { REVIEW_LINK } from "@/lib/format";
+import { SITE_URL } from "@/lib/site";
 
 // The colour of item links and mentions, in reviews, comments and drafts
 export const LINK_COLOR = "text-[#1a5fd0] [[data-theme=dark]_&]:text-[#6ea8ff]";
@@ -29,6 +31,23 @@ function withSiteLinks(text: string): string {
 // Links go only to web pages and to this site's own pages
 function safeUrl(url: string): string {
   return /^(https?:\/\/|\/(?!\/))/i.test(url) ? url : "";
+}
+
+// The page a link goes to on this site, or null when it goes elsewhere. A
+// link written with this site's own address counts as one of its pages.
+const SITE_HOST = new URL(SITE_URL).host;
+
+function sitePath(href: string): string | null {
+  if (href.startsWith("/")) return href;
+  try {
+    const url = new URL(href);
+    if (url.host === SITE_HOST || url.host === `www.${SITE_HOST}`) {
+      return `${url.pathname}${url.search}${url.hash}`;
+    }
+  } catch {
+    // Not a web address
+  }
+  return null;
 }
 
 // A web address written out as a link reads without https:// or www., cut
@@ -86,29 +105,31 @@ const BLOCKS: Components = {
   h6: heading,
 };
 
-// Links that open: this site's pages in place, web pages in a new tab, and
-// pictures as links to them
+// Links that open: this site's pages in place (marked with a small logo), web
+// pages in a new tab, and pictures as links to them
 const LINKS: Components = {
   ...BLOCKS,
   a: ({ href, children }) => {
     if (!href) return children;
     const className = `relative z-10 hover:underline ${LINK_COLOR}`;
-    if (href.startsWith("/")) {
-      return (
-        <Link
-          href={href}
-          // A mention's address only redirects, so there's nothing to prefetch
-          prefetch={href.startsWith("/people/") ? false : undefined}
-          className={className}
-        >
-          {children}
-        </Link>
-      );
-    }
     const isAddress =
       typeof children === "string" &&
       children.replace(/^https?:\/\//i, "") ===
         href.replace(/^https?:\/\//i, "");
+    const path = sitePath(href);
+    if (path !== null) {
+      return (
+        <Link
+          href={path}
+          // A mention's address only redirects, so there's nothing to prefetch
+          prefetch={path.startsWith("/people/") ? false : undefined}
+          className={className}
+        >
+          <SiteMark />
+          {isAddress ? shownAddress(children) : children}
+        </Link>
+      );
+    }
     return (
       <a
         href={href}
@@ -136,7 +157,12 @@ const LINKS: Components = {
 // Links coloured but not clickable
 const PLAIN_LINKS: Components = {
   ...BLOCKS,
-  a: ({ children }) => <span className={LINK_COLOR}>{children}</span>,
+  a: ({ href, children }) => (
+    <span className={LINK_COLOR}>
+      {href && sitePath(href) !== null ? <SiteMark /> : null}
+      {children}
+    </span>
+  ),
   img: ({ alt }) => <span className={LINK_COLOR}>{alt}</span>,
 };
 

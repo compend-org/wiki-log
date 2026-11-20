@@ -24,8 +24,40 @@ test("keeps single line breaks and leading spaces as typed", () => {
 test("links items and people to their pages", () => {
   const id = "65617370-d22f-4d75-9bf4-456e8caee319";
   const html = show(`[[Q42|Don't *Panic*]] and ${mentionToken(id, "ann_lee")}`);
-  assert.match(html, /href="\/item\/Q42"[^>]*>Don&#x27;t \*Panic\*<\/a>/);
-  assert.match(html, new RegExp(`href="/people/${id}"[^>]*>@ann_lee</a>`));
+  assert.match(
+    html,
+    /href="\/item\/Q42"[^>]*>(<img[^>]*>)+Don&#x27;t \*Panic\*<\/a>/,
+  );
+  assert.match(
+    html,
+    new RegExp(`href="/people/${id}"[^>]*>(<img[^>]*>)+@ann_lee</a>`),
+  );
+});
+
+test("marks links to this site with the logo, and others without", () => {
+  const logos = (html: string) => html.match(/<img /g)?.length ?? 0;
+  // Both logos are drawn, and the theme shows one of them
+  assert.equal(logos(show("[a list](/list/abc)")), 2);
+  assert.equal(logos(show("[a list](https://compend.org/list/abc)")), 2);
+  assert.equal(logos(show("[a list](https://www.compend.org/list/abc)")), 2);
+  assert.equal(logos(show("[elsewhere](https://example.com/a)")), 0);
+  assert.equal(logos(show("[lookalike](https://compend.org.evil.com/a)")), 0);
+});
+
+test("opens a link written with this site's address in place", () => {
+  const html = show("[a list](https://compend.org/list/abc?x=1#top)");
+  assert.match(html, /href="\/list\/abc\?x=1#top"/);
+  assert.doesNotMatch(html, /target="_blank"/);
+});
+
+test("marks links to this site with the logo where they can't be clicked", () => {
+  const html = renderToStaticMarkup(
+    ReviewText({
+      text: "[a list](/list/abc) and [web](https://example.com)",
+      plain: true,
+    }),
+  );
+  assert.equal(html.match(/<img /g)?.length, 2);
 });
 
 test("opens web links in a new tab, without passing on credit", () => {
