@@ -1,3 +1,5 @@
+import { isCompoundId } from "@/lib/ids";
+
 // A rating out of 5 as plain text, like "★★★½". No rating gives "".
 export function starText(rating: number | null | undefined): string {
   const clamped = Math.max(0, Math.min(5, rating ?? 0));
@@ -143,10 +145,51 @@ export function mentionToken(id: string, username: string): string {
   return `[[@${id}|${username}]]`;
 }
 
-// A review as plain text, with each item link replaced by the item's title
-// and each mention by @username
+// Review text is markdown, so a link to a web page is [words](https://…)
+export const WEB_LINK = /\[([^[\]\n]+)\]\((https?:\/\/[^\s()]+)\)/g;
+
+// The address typed or pasted for a link, made whole: https:// is added when
+// it's missing. Null when it isn't the address of a web page.
+export function webAddress(typed: string): string | null {
+  const text = typed.trim();
+  if (/\s/.test(text) || text === "") return null;
+  const full = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+  if (!URL.canParse(full)) return null;
+  const url = new URL(full);
+  return url.hostname.includes(".") ? full : null;
+}
+
+// What gets stored for a link to a web page. Brackets in the words and
+// parentheses in the address would end the link early, so they're swapped
+// for spaces and escaped.
+export function webLinkToken(words: string, address: string): string {
+  const clean =
+    words
+      .replace(/[[\]\n]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim() || address;
+  const url = address.replace(/\(/g, "%28").replace(/\)/g, "%29");
+  return `[${clean}](${url})`;
+}
+
+// An item's description as plain text. A compound's is written here, in
+// markdown; the rest come from Wikipedia as plain text already.
+export function plainItemDescription(id: string, description: string): string {
+  return isCompoundId(id) ? plainReview(description) : description;
+}
+
+// A review as plain text: item links read as the item's title, mentions as
+// @username, web links as their words, and markdown marks (and the $$ around
+// TeX) are dropped
 export function plainReview(text: string): string {
-  return text.replace(REVIEW_LINK, (_, id: string, title: string) =>
-    id.startsWith("@") ? `@${title}` : title,
-  );
+  return text
+    .replace(REVIEW_LINK, (_, id: string, title: string) =>
+      id.startsWith("@") ? `@${title}` : title,
+    )
+    .replace(WEB_LINK, "$1")
+    .replace(/^ {0,3}(?:#{1,6}|>|[-*+]|\d+[.)])[ \t]+/gm, "")
+    .replace(/(\*\*|__|~~)(?=\S)(.+?)\1/g, "$2")
+    .replace(/(?<![\w*])([*_])([^\s*](?:.*?[^\s*])?)\1(?![\w*])/g, "$2")
+    .replace(/`([^`\n]+)`/g, "$1")
+    .replace(/\$\$\s*([^$]+?)\s*\$\$/g, "$1");
 }

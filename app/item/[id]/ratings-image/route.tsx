@@ -6,7 +6,12 @@ import { ImageResponse } from "next/og";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { FEATURES } from "@/lib/features";
-import { absolute, shortLabel, thumbUrl } from "@/lib/format";
+import {
+  absolute,
+  plainItemDescription,
+  shortLabel,
+  thumbUrl,
+} from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
 import { getPublicItemRatings } from "@/lib/itemRatings";
 import { getItemForPage } from "@/lib/items";
@@ -151,7 +156,7 @@ export async function GET(
               color: COLORS.muted,
             }}
           >
-            {item.description}
+            {plainItemDescription(item.id, item.description)}
           </div>
         )}
       </div>

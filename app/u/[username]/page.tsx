@@ -12,6 +12,7 @@ import SignOutButton from "@/components/auth/SignOutButton";
 import SignUpPrompt from "@/components/auth/SignUpPrompt";
 import ItemImage from "@/components/items/ItemImage";
 import RatingHistogram from "@/components/logs/RatingsHistogram";
+import ReviewText from "@/components/logs/ReviewText";
 import AdminBadge from "@/components/moderation/AdminBadge";
 import BanButton from "@/components/moderation/BanButton";
 import ReportButton from "@/components/moderation/ReportButton";
@@ -37,7 +38,7 @@ import SettingsIcon from "@/components/ui/SettingsIcon";
 import { isAdmin } from "@/lib/admin/admin";
 import { avatarUrl } from "@/lib/avatar";
 import { getProfileCompounds } from "@/lib/craft/profileCompounds";
-import { entryPicture } from "@/lib/format";
+import { entryPicture, plainReview } from "@/lib/format";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { SITE_NAME } from "@/lib/site";
@@ -85,7 +86,9 @@ export async function generateMetadata({
   const summary = `${profile.username}'s ratings, reviews and lists on ${SITE_NAME}.`;
   return pageMetadata({
     title: profile.username,
-    description: profile.bio ? `${profile.bio} ${summary}` : summary,
+    description: profile.bio
+      ? `${plainReview(profile.bio)} ${summary}`
+      : summary,
     path: `/u/${encodeURIComponent(profile.username)}`,
     image: avatarUrl(profile.avatar_path),
     squareImage: true,
@@ -291,9 +294,9 @@ export default async function ProfilePage({
           · {t("profile.stats", { logs: logCount, lists: listCount })}
         </p>
         {profile.bio && (
-          <p className="mt-2 max-w-prose whitespace-pre-wrap break-words">
-            {profile.bio}
-          </p>
+          <div className="mt-2 max-w-prose break-words">
+            <ReviewText text={profile.bio} />
+          </div>
         )}
         {/* Hidden when neither side has anything, as for a signed-out
             visitor on a profile with too few ratings for the histogram */}

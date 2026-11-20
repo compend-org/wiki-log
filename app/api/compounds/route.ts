@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { FEATURES } from "@/lib/features";
+import { plainReview } from "@/lib/format";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/supabase/connection";
 import { reportFailedResponses } from "@/lib/supabase/reportFailedResponses";
 import { escapeLike } from "@/lib/username";
@@ -30,7 +31,7 @@ async function findCompounds(q: string): Promise<Hit[]> {
       key: `compound:${r.id}`,
       itemId: r.id,
       title: r.title,
-      description: `Compound${r.description ? ` · ${r.description}` : ""}`,
+      description: `Compound${r.description ? ` · ${plainReview(r.description)}` : ""}`,
       imageUrl: r.image_url,
     }));
   } catch {

@@ -8,12 +8,15 @@ import es from "../messages/es.json";
 import {
   entryPicture,
   mentionToken,
+  plainItemDescription,
   plainReview,
   REVIEW_LINK,
   shownImage,
   starText,
   thumbUrl,
   timeAgo,
+  webAddress,
+  webLinkToken,
 } from "./format";
 
 const t = createTranslator({ locale: "en", messages: en });
@@ -123,4 +126,60 @@ test("writes the times in the language it is given", () => {
     timeAgo(before(2 * HOUR), now, spanish, "es"),
     spanish("time.hoursAgo", { hours: 2 }),
   );
+});
+
+test("shows markdown as plain text", () => {
+  const text = [
+    "# Verdict",
+    "Took **three hours** to explain why you should *never* go.",
+    "> An offer he can't refuse.",
+    "- the ~~Fredo~~ cannoli",
+    "1. Watch the [4K restoration](https://example.com/godfather), `twice`.",
+    "snake_case_names and 2 * 3 * 4 stay as they are",
+  ].join("\n");
+  assert.equal(
+    plainReview(text),
+    [
+      "Verdict",
+      "Took three hours to explain why you should never go.",
+      "An offer he can't refuse.",
+      "the Fredo cannoli",
+      "Watch the 4K restoration, twice.",
+      "snake_case_names and 2 * 3 * 4 stay as they are",
+    ].join("\n"),
+  );
+});
+
+test("shows TeX as written, without its $$", () => {
+  assert.equal(
+    plainReview("Costs $5, or $$\\frac{1}{2}$$ of it.\n$$\nx^2\n$$"),
+    "Costs $5, or \\frac{1}{2} of it.\nx^2",
+  );
+});
+
+test("makes typed web addresses whole", () => {
+  assert.equal(webAddress(" example.com/a "), "https://example.com/a");
+  assert.equal(webAddress("http://example.com"), "http://example.com");
+  assert.equal(webAddress("javascript:alert(1)"), null);
+  assert.equal(webAddress("not an address"), null);
+  assert.equal(webAddress("hello"), null);
+});
+
+test("stores web links that survive brackets and parentheses", () => {
+  assert.equal(
+    webLinkToken(
+      "The [restored]\n cut",
+      "https://en.wikipedia.org/wiki/X_(film)",
+    ),
+    "[The restored cut](https://en.wikipedia.org/wiki/X_%28film%29)",
+  );
+  assert.equal(
+    webLinkToken("  ", "https://example.com"),
+    "[https://example.com](https://example.com)",
+  );
+});
+
+test("drops the markdown from a compound's description only", () => {
+  assert.equal(plainItemDescription("C12", "Tastes **loud**"), "Tastes loud");
+  assert.equal(plainItemDescription("Q42", "1 * 2 * 3"), "1 * 2 * 3");
 });

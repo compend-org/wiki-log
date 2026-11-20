@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
+import ReviewTextarea from "@/components/logs/ReviewTextArea";
 import { track } from "@/lib/analytics/analytics";
 import {
   SAVE_FAILED,
@@ -65,11 +66,11 @@ export default function BioEditor({
       <label htmlFor="bio" className="text-sm">
         {t("settings.bio.label")}
       </label>
-      <textarea
+      <ReviewTextarea
         id="bio"
         value={bio}
-        onChange={(e) => {
-          setBio(e.target.value);
+        onChange={(next) => {
+          setBio(next);
           setMessage("");
         }}
         // Saving replaces the text with the tidied one, so typing waits until
@@ -78,6 +79,7 @@ export default function BioEditor({
         maxLength={MAX}
         rows={4}
         placeholder={t("settings.bio.placeholder")}
+        mentions={false}
         className="border border-line bg-surface px-4 py-2 text-foreground"
       />
       <div className="flex items-center gap-3">

@@ -546,6 +546,18 @@
       "searchItem": "Search for an item to link…",
       "searchPerson": "Search for a person to mention…"
     },
+    "format": {
+      "preview": "Preview",
+      "bold": "Bold",
+      "italic": "Italic",
+      "link": "Link",
+      "linkTitle": "Link to a web page",
+      "itemHint": "“::link” for an item",
+      "linkWords": "Link “{words}” to a web page (Esc to cancel)",
+      "linkAddress": "Add a link to a web page (Esc to cancel)",
+      "addLink": "Add link",
+      "badAddress": "That doesn't look like a web address."
+    },
     "shared": {
       "andOthers": "and {count, plural, one {# other} other {# others}}",
       "shared": "shared:"

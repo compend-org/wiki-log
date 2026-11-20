@@ -78,9 +78,9 @@ export default function DigestCard({
         </div>
       </div>
 
-      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+      <div className="break-words text-sm leading-relaxed">
         <ReviewText text={row.review} />
-      </p>
+      </div>
 
       <CardActions
         like={

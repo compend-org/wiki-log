@@ -4,6 +4,7 @@
 
 import { useTranslations } from "next-intl";
 import type { KeyboardEventHandler } from "react";
+import { plainReview } from "@/lib/format";
 
 // Under each tile: the note, which opens it for editing, or a box to add one
 export default function NoteButton({
@@ -44,7 +45,9 @@ export default function NoteButton({
         aria-label={t("lists.editor.editNote", { title: entry.title })}
         className="min-h-11 text-left text-xs text-accent"
       >
-        <span className="line-clamp-2 break-words">{entry.note}</span>
+        <span className="line-clamp-2 break-words">
+          {plainReview(entry.note)}
+        </span>
       </button>
     );
   }

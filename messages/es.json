@@ -546,6 +546,18 @@
       "searchItem": "Busca un elemento al que enlazar…",
       "searchPerson": "Busca una persona a la que mencionar…"
     },
+    "format": {
+      "preview": "Vista previa",
+      "bold": "Negrita",
+      "italic": "Cursiva",
+      "link": "Enlace",
+      "linkTitle": "Enlazar a una página web",
+      "itemHint": "“::link” para un elemento",
+      "linkWords": "Enlazar “{words}” a una página web (Esc para cancelar)",
+      "linkAddress": "Añade un enlace a una página web (Esc para cancelar)",
+      "addLink": "Añadir enlace",
+      "badAddress": "Eso no parece una dirección web."
+    },
     "shared": {
       "andOthers": "y {count, plural, one {# más} other {# más}}",
       "shared": "compartió:"

@@ -200,9 +200,9 @@ export default async function ReviewPage({
   const body = (
     <>
       {log.review && (
-        <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">
+        <div className="[overflow-wrap:anywhere]">
           <ReviewText text={log.review} />
-        </p>
+        </div>
       )}
     </>
   );

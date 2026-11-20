@@ -4,13 +4,16 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   findChange,
+  formatMarks,
   insertDraft,
+  listEnter,
   replaceText,
   sliceDraft,
   toDraft,
+  toggleMarker,
   toStored,
 } from "./draftText";
-import { mentionToken } from "./format";
+import { mentionToken, webLinkToken } from "./format";
 
 const ANN = mentionToken("65617370-d22f-4d75-9bf4-456e8caee319", "Ann");
 const STORED = `Ask ${ANN} about [[Q42|Douglas Adams]].`;
@@ -106,4 +109,112 @@ test("pastes links into the middle of text", () => {
   const { draft, caret } = insertDraft(toDraft("Go [[Q1|Earth]]"), 3, 3, piece);
   assert.equal(toStored(draft), `Go see ${ANN} [[Q1|Earth]]`);
   assert.equal(caret, 12);
+});
+
+test("shows a web link by its words and stores it back as markdown", () => {
+  const stored = "Watch [the restoration](https://example.com/a) tonight";
+  const draft = toDraft(stored);
+  assert.equal(draft.text, "Watch the restoration tonight");
+  assert.equal(toStored(draft), stored);
+  // Deleting into the words removes the whole link
+  assert.equal(
+    edit(stored, "Watch the restoratio tonight", 20),
+    "Watch  tonight",
+  );
+});
+
+test("bolds and unbolds the selected text", () => {
+  const draft = toDraft("an offer he can't refuse");
+  const bold = toggleMarker(draft, 3, 8, "**");
+  assert.equal(bold.draft.text, "an **offer** he can't refuse");
+  assert.deepEqual([bold.start, bold.end], [5, 10]);
+  const plain = toggleMarker(bold.draft, bold.start, bold.end, "**");
+  assert.equal(plain.draft.text, "an offer he can't refuse");
+  assert.deepEqual([plain.start, plain.end], [3, 8]);
+});
+
+test("bold leaves spaces at the ends of the selection outside it", () => {
+  const bold = toggleMarker(toDraft("an offer he"), 2, 9, "**");
+  assert.equal(bold.draft.text, "an **offer** he");
+  assert.deepEqual([bold.start, bold.end], [5, 10]);
+});
+
+test("italic and bold stack without undoing each other", () => {
+  const bold = toggleMarker(toDraft("offer"), 0, 5, "**");
+  const both = toggleMarker(bold.draft, bold.start, bold.end, "*");
+  assert.equal(both.draft.text, "***offer***");
+  const justBold = toggleMarker(both.draft, both.start, both.end, "*");
+  assert.equal(justBold.draft.text, "**offer**");
+});
+
+test("marking text that cuts into a link takes the whole link", () => {
+  // Selects "Ask @A", which ends inside "@Ann"
+  const { draft } = toggleMarker(toDraft(STORED), 0, 6, "**");
+  assert.equal(toStored(draft), `**Ask ${ANN}** about [[Q42|Douglas Adams]].`);
+});
+
+test("finds markdown marks and bold text", () => {
+  const text = "> **big** *small* ~~gone~~\n- item";
+  const found = formatMarks(text).map(
+    (m) => `${m.kind}:${text.slice(m.start, m.end)}`,
+  );
+  assert.deepEqual(found.sort(), [
+    "bold:big",
+    "mark:*",
+    "mark:*",
+    "mark:**",
+    "mark:**",
+    "mark:-",
+    "mark:>",
+    "mark:~~",
+    "mark:~~",
+  ]);
+});
+
+// Presses Enter at the | in `text`, returning the text with the caret as a |
+function enter(text: string): string | null {
+  const caret = text.indexOf("|");
+  const next = listEnter(toDraft(text.replace("|", "")), caret);
+  if (!next) return null;
+  const shown = next.draft.text;
+  return `${shown.slice(0, next.caret)}|${shown.slice(next.caret)}`;
+}
+
+test("Enter on a list item starts the next one", () => {
+  assert.equal(enter("Ranked:\n- the cannoli|"), "Ranked:\n- the cannoli\n- |");
+  assert.equal(enter("* one|\nafter"), "* one\n* |\nafter");
+  assert.equal(enter("  + nested|"), "  + nested\n  + |");
+  assert.equal(enter("9. nine|"), "9. nine\n10. |");
+  assert.equal(enter("1) one|"), "1) one\n2) |");
+});
+
+test("Enter in the middle of a list item moves the rest to the next one", () => {
+  assert.equal(enter("- the can|noli"), "- the can\n- |noli");
+});
+
+test("Enter on an empty list item ends the list", () => {
+  assert.equal(enter("- one\n- |"), "- one\n\n|");
+  assert.equal(enter("- one\n2. |"), "- one\n\n|");
+  assert.equal(enter("- |"), "|");
+});
+
+test("Enter outside a list item is left to the box", () => {
+  assert.equal(enter("plain|"), null);
+  assert.equal(enter("-not a bullet|"), null);
+  assert.equal(enter("|- one"), null);
+  assert.equal(enter("-| one"), null);
+  assert.equal(enter("**bold**|"), null);
+});
+
+test("Enter keeps links on the list item", () => {
+  const next = listEnter(toDraft(`- ${ANN}`), toDraft(`- ${ANN}`).text.length);
+  assert.ok(next);
+  assert.equal(toStored(next.draft), `- ${ANN}\n- `);
+});
+
+test("a link keeps every word of a long selection", () => {
+  const words = "word ".repeat(50).trim();
+  const draft = toDraft(webLinkToken(words, "https://example.com"));
+  assert.equal(draft.text, words);
+  assert.equal(draft.links.length, 1);
 });
