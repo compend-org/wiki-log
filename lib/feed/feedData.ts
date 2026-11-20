@@ -63,13 +63,19 @@ export type Thumb = {
   title: string;
   image_url: string | null;
   nsfw: boolean;
+  // Hidden by the viewer, so a blank tile shows in its place
+  hidden?: boolean;
 };
+
+// A list's thumbnail with the item it shows, before it is known whether the
+// viewer has hidden that item
+export type ItemThumb = Thumb & { item_id: string };
 
 export type PublicFeed = {
   logs: LogRow[];
   lists: ListRow[];
   // Keyed by list id, the first few items of each list
-  previews: Record<string, Thumb[]>;
+  previews: Record<string, ItemThumb[]>;
   // Keyed by log or list id, the likes counted for Trending and the place in
   // its ranking (both empty otherwise)
   scores: Record<string, number>;
@@ -108,6 +114,7 @@ export type ReplyRow = {
   logs: {
     id: string;
     user_id: string;
+    item_id: string;
     items: { title: string; nsfw: boolean } | null;
     profiles: ReplyAuthor;
   } | null;
@@ -131,12 +138,13 @@ export type ListReplyRow = {
 };
 
 const REPLY_SELECT =
-  "id, user_id, parent_id, reply_to_id, body, created_at, profiles!comments_user_id_profiles_fkey(username), logs!comments_log_fkey(id, user_id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))";
+  "id, user_id, parent_id, reply_to_id, body, created_at, profiles!comments_user_id_profiles_fkey(username), logs!comments_log_fkey(id, user_id, item_id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))";
 const LIST_REPLY_SELECT =
   "id, user_id, parent_id, reply_to_id, body, created_at, profiles!list_comments_user_id_profiles_fkey(username), lists(id, user_id, title, profiles!lists_user_id_profiles_fkey(username))";
 
 type PreviewRow = {
   list_id: string;
+  item_id: string;
   position: number;
   // The entry's chosen picture; null shows the item's
   image_url: string | null;
@@ -159,14 +167,14 @@ function nonEmpty(lists: ListRow[]): ListRow[] {
 async function loadPreviews(
   supabase: SupabaseClient,
   lists: ListRow[],
-): Promise<Record<string, Thumb[]>> {
-  const previews: Record<string, Thumb[]> = {};
+): Promise<Record<string, ItemThumb[]>> {
+  const previews: Record<string, ItemThumb[]> = {};
   if (lists.length === 0) return previews;
 
   const { data } = await supabase
     .from("list_items")
     .select(
-      "list_id, position, image_url, items(title, image_url, image_hidden, nsfw)",
+      "list_id, item_id, position, image_url, items(title, image_url, image_hidden, nsfw)",
     )
     .in(
       "list_id",
@@ -177,6 +185,7 @@ async function loadPreviews(
   for (const row of (data ?? []) as unknown as PreviewRow[]) {
     const arr = previews[row.list_id] ?? [];
     arr.push({
+      item_id: row.item_id,
       title: row.items?.title ?? "Unknown item",
       image_url: entryPicture(row),
       nsfw: row.items?.nsfw ?? false,

@@ -10,16 +10,34 @@ export default function PickSquare({
   heading,
   kind,
   pick,
+  hidden = false,
 }: {
   heading: string;
   kind: "popular" | "unpopular";
   pick: Pick | null;
+  // The viewer has hidden the pick's item, so it is neither shown nor named
+  hidden?: boolean;
 }) {
   const t = useTranslations();
   const box =
     "card flex w-full max-w-[11rem] flex-col items-center gap-2 p-2 text-center";
   const label =
     "text-[0.65rem] font-semibold uppercase tracking-wide text-muted";
+
+  if (pick && hidden) {
+    return (
+      <div className={box}>
+        <span className={label}>{heading}</span>
+        <ItemImage
+          src={null}
+          hidden
+          alt={t("hiding.tile")}
+          className="h-28 w-full"
+        />
+        <span className="text-xs text-muted">{t("hiding.tile")}</span>
+      </div>
+    );
+  }
 
   if (!pick) {
     return (

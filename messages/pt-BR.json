@@ -791,5 +791,19 @@
     "replyWhereList": "Lista de {name}: {title}",
     "anItem": "um item",
     "openWhere": "Abrir {where}"
+  },
+  "hiding": {
+    "more": "Mais",
+    "hide": "Ocultar <b>{title}</b>",
+    "hideNote": "As avaliações dele vão deixar de aparecer para você.",
+    "hiddenHere": "<b>{title}</b> está oculto.",
+    "undo": "Desfazer",
+    "manage": "Itens ocultos",
+    "tile": "Item oculto",
+    "hideItem": "Ocultar este item",
+    "showItem": "Mostrar de novo",
+    "itemNote": "Você ocultou este item. As avaliações dele não aparecem para você em nenhum outro lugar, e a imagem dele fica coberta nas listas.",
+    "title": "Itens ocultos",
+    "none": "Você não ocultou nenhum item. Você pode ocultar um pela página dele ou pelo ⋯ de uma avaliação."
   }
 }

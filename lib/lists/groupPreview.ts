@@ -144,7 +144,14 @@ export type GroupPreview = {
   // The group's name; null when the list's groups have none
   name: string | null;
   size: number;
-  thumbs: { title: string; image_url: string | null; nsfw: boolean }[];
+  thumbs: {
+    item_id: string;
+    title: string;
+    image_url: string | null;
+    nsfw: boolean;
+    // Hidden by the viewer, so a blank tile shows in its place
+    hidden?: boolean;
+  }[];
 };
 
 type GroupRow = {
@@ -155,6 +162,7 @@ type GroupRow = {
 
 type ItemRow = {
   group_id: string | null;
+  item_id: string;
   image_url: string | null;
   items: {
     title: string;
@@ -186,7 +194,9 @@ export async function fetchGroupPreviews(
   if (positions.length === 0) return null;
   const { data: itemRows, error: itemsError } = await supabase
     .from("list_items")
-    .select("group_id, image_url, items(title, image_url, image_hidden, nsfw)")
+    .select(
+      "group_id, item_id, image_url, items(title, image_url, image_hidden, nsfw)",
+    )
     .eq("list_id", listId)
     .in("position", positions)
     .order("position");
@@ -197,6 +207,7 @@ export async function fetchGroupPreviews(
     if (!row.group_id) continue;
     const list = thumbs.get(row.group_id) ?? [];
     list.push({
+      item_id: row.item_id,
       title: row.items?.title ?? "Unknown item",
       image_url: entryPicture(row),
       nsfw: row.items?.nsfw ?? false,

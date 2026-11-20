@@ -82,6 +82,8 @@ export type AnalyticsEvents = {
   };
   user_blocked: NoProperties;
   user_unblocked: NoProperties;
+  item_hidden: NoProperties;
+  item_unhidden: NoProperties;
 };
 
 export type AnalyticsEventName = keyof AnalyticsEvents;

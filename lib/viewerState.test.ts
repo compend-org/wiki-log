@@ -1,4 +1,4 @@
-// ABOUTME: Tests for reading what the viewer has liked, shared and blocked.
+// ABOUTME: Tests for reading what the viewer has liked, shared, blocked and hidden.
 // ABOUTME: Covers when the database is asked, and what comes back from it.
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -19,6 +19,7 @@ function fakeSupabase() {
           liked_comments: [],
           liked_list_comments: ["list-comment-1"],
           blocked: ["person-1"],
+          hidden_items: ["Q1"],
         },
       };
     },
@@ -35,14 +36,14 @@ test("asks nothing for a signed-out visitor", async () => {
   assert.equal(viewer.likedLogs.size, 0);
 });
 
-test("asks nothing when the page shows nothing to look up", async () => {
+test("asks for a signed-in viewer even when the page shows no posts", async () => {
   const { calls, supabase } = fakeSupabase();
   const viewer = await getViewerState(supabase, "viewer-1", {
     logIds: [],
     listIds: [],
   });
-  assert.equal(calls.length, 0);
-  assert.equal(viewer.blocked.size, 0);
+  assert.equal(calls.length, 1);
+  assert.ok(viewer.hiddenItems.has("Q1"));
 });
 
 test("asks once for reviews and lists together", async () => {
@@ -65,6 +66,7 @@ test("asks once for reviews and lists together", async () => {
   assert.ok(viewer.likedLogs.has("log-1"));
   assert.ok(viewer.likedLists.has("list-1"));
   assert.ok(viewer.blocked.has("person-1"));
+  assert.ok(viewer.hiddenItems.has("Q1"));
 });
 
 test("asks for the list comments a page shows", async () => {

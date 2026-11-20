@@ -11,6 +11,7 @@ import type { ActivityView } from "@/lib/activityView";
 import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import { FEATURES } from "@/lib/features";
 import { entryPicture, timeAgo } from "@/lib/format";
+import { markHiddenInGroups, withoutHiddenItems } from "@/lib/hiddenItems";
 import { isCompoundId } from "@/lib/ids";
 import { fetchManyGroupPreviews } from "@/lib/lists/groupPreview";
 import { shownGroups } from "@/lib/lists/listGroups";
@@ -68,7 +69,7 @@ type ListRow = {
   grouped: boolean;
   list_groups: { count: number }[];
   // Each entry's chosen picture; null shows the item's
-  preview: { image_url: string | null; items: ItemInfo }[];
+  preview: { item_id: string; image_url: string | null; items: ItemInfo }[];
 };
 
 // A reply to a comment on a review
@@ -81,6 +82,7 @@ type ReplyRow = {
   created_at: string;
   logs: {
     id: string;
+    item_id: string;
     items: ItemInfo;
     profiles: { username: string } | null;
     user_id: string;
@@ -274,7 +276,7 @@ export async function loadDiaryPage(
   let listsQuery = supabase
     .from("lists")
     .select(
-      "id, title, ranked, created_at, list_items(count), grouped, list_groups(count), preview:list_items(image_url, items(title, image_url, nsfw))",
+      "id, title, ranked, created_at, list_items(count), grouped, list_groups(count), preview:list_items(item_id, image_url, items(title, image_url, nsfw))",
     )
     .eq("user_id", userId);
   if (after.lists) {
@@ -283,7 +285,7 @@ export async function loadDiaryPage(
   let repliesQuery = supabase
     .from("comments")
     .select(
-      "id, parent_id, reply_to_id, body, created_at, logs!comments_log_fkey(id, user_id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))",
+      "id, parent_id, reply_to_id, body, created_at, logs!comments_log_fkey(id, user_id, item_id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))",
     )
     .eq("user_id", userId)
     .is("removed_at", null);
@@ -352,10 +354,11 @@ export async function loadDiaryPage(
   const locale = await getLocale();
   const logRows = logsRes.data as unknown as LogRow[];
   const listRows = listsRes.data as unknown as ListRow[];
-  // In your own diary you haven't blocked anyone from it. In someone else's,
-  // it is the viewer's blocks. Either way it is the viewer's settings, read on
-  // their own, as a page can hold crafts and nothing else.
-  const [{ blocked }, sfwMode] = await Promise.all([
+  // In your own diary you haven't blocked anyone or hidden anything from it.
+  // In someone else's, it is the viewer's blocks and hidden items. Either way
+  // it is the viewer's settings, read on their own, as a page can hold crafts
+  // and nothing else.
+  const [{ blocked, hiddenItems }, sfwMode] = await Promise.all([
     view
       ? getViewerState(supabase, view.viewerId, {
           logIds: logRows.map((l) => l.id),
@@ -363,12 +366,19 @@ export async function loadDiaryPage(
           commentIds: replyRows.map((r) => r.id),
           listCommentIds: listReplyRows.map((r) => r.id),
         })
-      : { blocked: new Set<string>() },
+      : { blocked: new Set<string>(), hiddenItems: new Set<string>() },
     sfwModeOf(supabase, view ? view.viewerId : userId),
   ]);
-  // Reviews of adult items are left out when the viewer hides them. They still
-  // count towards the page, so a run of them doesn't end the diary early.
-  const shownLogs = new Set(shownEntries(logRows, sfwMode, aboutAdultItem));
+  // Reviews of hidden items, and of adult items when the viewer hides them,
+  // are left out. They still count towards the page, so a run of them doesn't
+  // end the diary early.
+  const shownLogs = new Set(
+    shownEntries(
+      withoutHiddenItems(logRows, hiddenItems, (l) => l.item_id),
+      sfwMode,
+      aboutAdultItem,
+    ),
+  );
   const logs: Entry[] = logRows.map((l) => ({
     at: l.logged_at,
     id: l.id,
@@ -412,12 +422,16 @@ export async function loadDiaryPage(
           title={l.title}
           ranked={l.ranked}
           groups={shownGroups(l)}
-          groupPreviews={groupPreviews.get(l.id) ?? null}
+          groupPreviews={markHiddenInGroups(
+            groupPreviews.get(l.id),
+            hiddenItems,
+          )}
           count={l.list_items?.[0]?.count ?? 0}
           previews={l.preview.map((p) => ({
             title: p.items?.title ?? t("common.unknownItem"),
             imageUrl: entryPicture(p),
             nsfw: p.items?.nsfw ?? false,
+            hidden: hiddenItems.has(p.item_id),
           }))}
           ago={timeAgo(l.created_at, now, t, locale)}
           owner={view?.ownerName}
@@ -435,6 +449,7 @@ export async function loadDiaryPage(
       r.logs !== null &&
       r.logs.profiles !== null &&
       !blocked.has(r.logs.user_id) &&
+      !hiddenItems.has(r.logs.item_id) &&
       !(sfwMode === "hide" && aboutAdultItem(r.logs)),
     card: {
       key: `reply:${r.id}`,
@@ -492,7 +507,11 @@ export async function loadDiaryPage(
   }));
 
   const shownCrafts = new Set(
-    shownEntries(craftsRes.rows, sfwMode, (c) => c.nsfw),
+    shownEntries(
+      withoutHiddenItems(craftsRes.rows, hiddenItems, (c) => c.id),
+      sfwMode,
+      (c) => c.nsfw,
+    ),
   );
   const crafts: Entry[] = craftsRes.rows.map((c) => ({
     at: c.at,

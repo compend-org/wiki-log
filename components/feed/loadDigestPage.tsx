@@ -2,8 +2,10 @@
 // ABOUTME: Kept apart from Digest so the server action can use it without importing DigestPages.
 
 import DigestCard from "@/components/feed/DigestCard";
+import HideableCard from "@/components/items/HideableCard";
 import type { CardsPage } from "@/components/paging/CardPages";
-import { getDigest } from "@/lib/feed/digest";
+import { type DigestLog, getDigest } from "@/lib/feed/digest";
+import { withoutHiddenItems } from "@/lib/hiddenItems";
 import { aboutAdultItem, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
 import { getViewerState } from "@/lib/viewerState";
@@ -28,24 +30,43 @@ export async function loadDigestPage(
   });
 
   // Reviews by people the viewer has blocked are left out, and reviews of
-  // adult items when the viewer hides them
+  // items they have hidden, and of adult items when the viewer hides them
   const shown = shownEntries(
-    logs.filter((l) => !viewer.blocked.has(l.user_id)),
+    withoutHiddenItems(
+      logs.filter((l) => !viewer.blocked.has(l.user_id)),
+      viewer.hiddenItems,
+      (l) => l.item_id,
+    ),
     viewer.sfwMode,
     aboutAdultItem,
   );
 
+  const digestCard = (row: DigestLog) => (
+    <DigestCard
+      row={row}
+      viewerId={viewerId}
+      liked={viewer.likedLogs.has(row.id)}
+      shared={viewer.sharedLogs.has(row.id)}
+      now={now}
+    />
+  );
+
   return {
+    // The tab stays loaded while others are open, so a review goes away here
+    // as soon as its item is hidden anywhere
     cards: shown.map((row) => ({
       key: row.id,
-      card: (
-        <DigestCard
-          row={row}
+      card: viewerId ? (
+        <HideableCard
           viewerId={viewerId}
-          liked={viewer.likedLogs.has(row.id)}
-          shared={viewer.sharedLogs.has(row.id)}
-          now={now}
-        />
+          itemId={row.item_id}
+          title={row.items?.title ?? ""}
+          cardKey={`digest-${row.id}`}
+        >
+          {digestCard(row)}
+        </HideableCard>
+      ) : (
+        digestCard(row)
       ),
     })),
     next,

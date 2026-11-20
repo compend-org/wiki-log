@@ -1,4 +1,4 @@
-// ABOUTME: The signed-in person's settings: picture, bio, username, email, theme, SFW mode and blocks.
+// ABOUTME: The signed-in person's settings: picture, bio, username, email, theme, SFW mode, blocks and hidden items.
 // ABOUTME: Loads everything on the server first, so the page arrives complete.
 
 import Link from "next/link";
@@ -12,6 +12,9 @@ import BlockedPeople, {
   type BlockedPerson,
 } from "@/components/settings/BlockedPeople";
 import DeleteAccount from "@/components/settings/DeleteAccount";
+import HiddenItems, {
+  type HiddenItem,
+} from "@/components/settings/HiddenItems";
 import SfwSetting from "@/components/settings/SfwSetting";
 import ThemeSetting from "@/components/settings/ThemeSetting";
 import UsernameEditor from "@/components/settings/UsernameEditor";
@@ -30,6 +33,10 @@ type SettingsProfile = {
     blocked_id: string;
     profiles: { username: string } | null;
   }[];
+  hidden: {
+    item_id: string;
+    items: { title: string } | null;
+  }[];
 };
 
 export default async function SettingsPage() {
@@ -40,17 +47,18 @@ export default async function SettingsPage() {
   const userId: string | undefined = claimsData?.claims?.sub;
   const email: string | undefined = claimsData?.claims?.email;
 
-  // The profile with the people it blocks, newest block first, and whether
-  // the email address is verified
+  // The profile with the people it blocks and the items it hides, newest
+  // first, and whether the email address is verified
   const [profileRes, verificationRes] = userId
     ? await Promise.all([
         supabase
           .from("profiles")
           .select(
-            "username, avatar_path, bio, user_settings(sfw_mode), blocked:blocks!blocks_blocker_id_fkey(blocked_id, profiles!blocks_blocked_id_fkey(username))",
+            "username, avatar_path, bio, user_settings(sfw_mode), blocked:blocks!blocks_blocker_id_fkey(blocked_id, profiles!blocks_blocked_id_fkey(username)), hidden:hidden_items(item_id, items(title))",
           )
           .eq("id", userId)
           .order("created_at", { referencedTable: "blocked", ascending: false })
+          .order("created_at", { referencedTable: "hidden", ascending: false })
           .maybeSingle(),
         supabase
           .from("email_verifications")
@@ -80,6 +88,10 @@ export default async function SettingsPage() {
   const blockedPeople: BlockedPerson[] = profile.blocked.map((r) => ({
     id: r.blocked_id,
     username: r.profiles?.username ?? "Someone",
+  }));
+  const hiddenItems: HiddenItem[] = profile.hidden.map((r) => ({
+    id: r.item_id,
+    title: r.items?.title ?? t("common.unknownItem"),
   }));
 
   return (
@@ -128,6 +140,8 @@ export default async function SettingsPage() {
       />
 
       <BlockedPeople viewerId={userId} people={blockedPeople} />
+
+      <HiddenItems viewerId={userId} items={hiddenItems} />
 
       <DeleteAccount username={profile.username} />
     </main>

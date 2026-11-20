@@ -5,6 +5,8 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import HideableCard from "@/components/items/HideableCard";
+import HideItemMenu from "@/components/items/HideItemMenu";
 import ItemImage from "@/components/items/ItemImage";
 import CardActions from "@/components/logs/CardActions";
 import CardCorner from "@/components/logs/CardCorner";
@@ -52,10 +54,22 @@ export default async function LogCard({
   const reviewHref = author
     ? `/u/${encodeURIComponent(author)}/${row.id}`
     : null;
+  // Someone else's review can be hidden, by hiding the item it is about
+  const hideMenu =
+    viewerId && viewerId !== row.user_id ? (
+      <HideItemMenu
+        viewerId={viewerId}
+        itemId={row.item_id}
+        title={title}
+        cardKey={`log-${row.id}`}
+      />
+    ) : null;
+  const cornered = Boolean(topControls || controls || hideMenu);
 
-  return (
+  const card = (
     <div
-      className={`card relative grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-3 p-3 hover-or-tap:border-accent/60 ${
+      // An open menu in its corner stays above the cards after it
+      className={`card relative grid grid-cols-[auto_minmax(0,1fr)] items-center has-[[aria-expanded=true]]:z-20 gap-x-4 gap-y-3 p-3 hover-or-tap:border-accent/60 ${
         row.review ? "@xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.2fr)]" : ""
       }`}
     >
@@ -69,10 +83,11 @@ export default async function LogCard({
           className="card-link absolute inset-0 rounded-[inherit]"
         />
       )}
-      {(topControls || controls) && (
+      {cornered && (
         <CardCorner>
           {topControls}
           {controls}
+          {hideMenu}
         </CardCorner>
       )}
       <Link
@@ -90,7 +105,7 @@ export default async function LogCard({
 
       <div
         className={`flex min-w-0 flex-col gap-1 ${
-          topControls || controls ? (row.review ? "pr-7 @xl:pr-0" : "pr-7") : ""
+          cornered ? (row.review ? "pr-7 @xl:pr-0" : "pr-7") : ""
         }`}
       >
         {sharers.length > 0 && (
@@ -154,12 +169,25 @@ export default async function LogCard({
       {row.review && (
         <div
           className={`col-span-2 line-clamp-6 break-words text-sm @xl:col-span-1 @xl:border-l @xl:border-dashed @xl:border-line @xl:pl-4 ${
-            topControls || controls ? "@xl:pr-7" : ""
+            cornered ? "@xl:pr-7" : ""
           }`}
         >
           {<ReviewText text={row.review} />}
         </div>
       )}
     </div>
+  );
+
+  return viewerId && hideMenu ? (
+    <HideableCard
+      viewerId={viewerId}
+      itemId={row.item_id}
+      title={title}
+      cardKey={`log-${row.id}`}
+    >
+      {card}
+    </HideableCard>
+  ) : (
+    card
   );
 }

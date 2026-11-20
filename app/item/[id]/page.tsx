@@ -6,6 +6,7 @@ import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { cache } from "react";
 import CompoundDeleteButton from "@/components/craft/CompoundDeleteButton";
 import CompoundEditButton from "@/components/craft/CompoundEditButton";
+import HideItemButton from "@/components/items/HideItemButton";
 import ItemHeroPicture from "@/components/items/ItemHeroPicture";
 import ItemImage from "@/components/items/ItemImage";
 import RandomAgain from "@/components/items/RandomAgain";
@@ -432,6 +433,15 @@ export default async function ItemPage({
             title={item.title}
             imageUrl={item.imageUrl}
             signedIn={Boolean(viewerId)}
+            beside={
+              viewerId && (
+                <HideItemButton
+                  viewerId={viewerId}
+                  itemId={id}
+                  hidden={viewer.hiddenItems.has(id)}
+                />
+              )
+            }
             aside={
               <div className="hidden shrink-0 sm:ml-auto sm:not-empty:block">
                 <RatingHistogram

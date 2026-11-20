@@ -20,6 +20,7 @@ import {
   type Thumb,
 } from "@/lib/feed/feedData";
 import { timeAgo } from "@/lib/format";
+import { markHidden, withoutHiddenItems } from "@/lib/hiddenItems";
 import {
   type ColumnEnd,
   type FeedCursor,
@@ -101,6 +102,7 @@ export async function loadFeedPage(
   let likedLists = new Set<string>();
   let sharedSet = new Set<string>();
   let sharedLists = new Set<string>();
+  let hiddenItems = new Set<string>();
   // Following only: who shared each log or list id, and when most recently
   const sharedBy = new Map<string, { sharers: Sharer[]; latest: string }>();
   let scores: Record<string, number> = {};
@@ -124,9 +126,6 @@ export async function loadFeedPage(
     next = feed.next;
     ends = feed.ends;
     errorMessage = feed.error;
-    for (const [id, thumbs] of Object.entries(feed.previews)) {
-      previews.set(id, thumbs);
-    }
 
     // Things the people you follow (and you) have shared. Each log or list
     // is still one entry: if its author is followed too, or several people
@@ -153,21 +152,36 @@ export async function loadFeedPage(
     sharedSet = viewer.sharedLogs;
     likedLists = viewer.likedLists;
     sharedLists = viewer.sharedLists;
+    hiddenItems = viewer.hiddenItems;
+    // Lists keep their place, with blank tiles for the items the viewer hid
+    for (const [id, thumbs] of Object.entries(feed.previews)) {
+      previews.set(id, markHidden(thumbs, viewer.hiddenItems));
+    }
 
     // Posts by people the viewer has blocked are left out, including ones
-    // shared by people the viewer follows
-    logs = logs.filter((l) => !viewer.blocked.has(l.user_id));
+    // shared by people the viewer follows, and so are reviews of items the
+    // viewer has hidden
+    logs = withoutHiddenItems(
+      logs.filter((l) => !viewer.blocked.has(l.user_id)),
+      viewer.hiddenItems,
+      (l) => l.item_id,
+    );
     lists = lists.filter((l) => !viewer.blocked.has(l.user_id));
     // Replies are left out when the person who wrote them or the owner of what
     // they were written on is blocked, or the review is of an adult item the
-    // viewer hides. A reply on something that is gone is left out too.
-    replies = feed.replies.filter(
-      (r) =>
-        r.logs !== null &&
-        r.logs.profiles !== null &&
-        !viewer.blocked.has(r.user_id) &&
-        !viewer.blocked.has(r.logs.user_id) &&
-        !(viewer.sfwMode === "hide" && aboutAdultItem(r.logs)),
+    // viewer hides or of an item they have hidden. A reply on something that
+    // is gone is left out too.
+    replies = withoutHiddenItems(
+      feed.replies.filter(
+        (r) =>
+          r.logs !== null &&
+          r.logs.profiles !== null &&
+          !viewer.blocked.has(r.user_id) &&
+          !viewer.blocked.has(r.logs.user_id) &&
+          !(viewer.sfwMode === "hide" && aboutAdultItem(r.logs)),
+      ),
+      viewer.hiddenItems,
+      (r) => r.logs?.item_id,
     );
     listReplies = feed.listReplies.filter(
       (r) =>
@@ -230,6 +244,7 @@ export async function loadFeedPage(
       key={`list-${l.id}`}
       list={l}
       thumbs={previews.get(l.id) ?? []}
+      hiddenItems={hiddenItems}
       viewerId={viewerId}
       liked={likedLists.has(l.id)}
       shared={sharedLists.has(l.id)}

@@ -8,6 +8,7 @@ import type { Card, CardsPage } from "@/components/paging/CardPages";
 import type { ActivityView } from "@/lib/activityView";
 import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import { entryPicture, timeAgo } from "@/lib/format";
+import { markHiddenInGroups, withoutHiddenItems } from "@/lib/hiddenItems";
 import { fetchManyGroupPreviews } from "@/lib/lists/groupPreview";
 import { shownGroups } from "@/lib/lists/listGroups";
 import {
@@ -64,7 +65,7 @@ type LikedList = {
     grouped: boolean;
     list_groups: { count: number }[];
     // Each entry's chosen picture; null shows the item's
-    preview: { image_url: string | null; items: ItemInfo }[];
+    preview: { item_id: string; image_url: string | null; items: ItemInfo }[];
     profiles: { username: string } | null;
   };
 };
@@ -102,7 +103,7 @@ export async function loadLikesPage(
   let listsQuery = supabase
     .from("list_likes")
     .select(
-      "created_at, list_id, lists!inner(id, user_id, title, ranked, list_items(count), grouped, list_groups(count), preview:list_items(image_url, items(title, image_url, nsfw)), profiles!lists_user_id_profiles_fkey(username))",
+      "created_at, list_id, lists!inner(id, user_id, title, ranked, list_items(count), grouped, list_groups(count), preview:list_items(item_id, image_url, items(title, image_url, nsfw)), profiles!lists_user_id_profiles_fkey(username))",
     )
     .eq("user_id", userId);
   if (after.lists) {
@@ -125,10 +126,10 @@ export async function loadLikesPage(
 
   const likedLogs = logsRes.data as unknown as LikedLog[];
   const likedLists = listsRes.data as unknown as LikedList[];
-  // Who the viewer has blocked and how they want adult content shown. Both
-  // are left out of what shows, but still count towards the page, so a run
-  // of them doesn't end the list early.
-  const { blocked, sfwMode } = await getViewerState(
+  // Who the viewer has blocked, what they have hidden and how they want adult
+  // content shown. All are left out of what shows, but still count towards
+  // the page, so a run of them doesn't end the list early.
+  const { blocked, hiddenItems, sfwMode } = await getViewerState(
     supabase,
     view ? view.viewerId : userId,
     {
@@ -137,7 +138,11 @@ export async function loadLikesPage(
     },
   );
   const shownLogs = new Set(
-    shownEntries(likedLogs, sfwMode, (l) => aboutAdultItem(l.logs)),
+    shownEntries(
+      withoutHiddenItems(likedLogs, hiddenItems, (l) => l.logs.item_id),
+      sfwMode,
+      (l) => aboutAdultItem(l.logs),
+    ),
   );
 
   const now = Date.now();
@@ -194,12 +199,16 @@ export async function loadLikesPage(
             title={l.title}
             ranked={l.ranked}
             groups={shownGroups(l)}
-            groupPreviews={groupPreviews.get(l.id) ?? null}
+            groupPreviews={markHiddenInGroups(
+              groupPreviews.get(l.id),
+              hiddenItems,
+            )}
             count={l.list_items?.[0]?.count ?? 0}
             previews={l.preview.map((p) => ({
               title: p.items?.title ?? t("common.unknownItem"),
               imageUrl: entryPicture(p),
               nsfw: p.items?.nsfw ?? false,
+              hidden: hiddenItems.has(p.item_id),
             }))}
             ago={timeAgo(like.created_at, now, t, locale)}
             author={l.profiles?.username ?? "someone"}

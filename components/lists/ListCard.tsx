@@ -14,6 +14,7 @@ import ShareButton from "@/components/social/ShareButton";
 import ShareIcon from "@/components/social/ShareIcon";
 import type { ListRow, Thumb } from "@/lib/feed/feedData";
 import { timeAgo } from "@/lib/format";
+import { markHiddenInGroups } from "@/lib/hiddenItems";
 import { fetchGroupPreviews } from "@/lib/lists/groupPreview";
 import { listCardTime } from "@/lib/lists/listCardTime";
 import { itemsLabel, shownGroups } from "@/lib/lists/listGroups";
@@ -22,6 +23,7 @@ import { createClient } from "@/lib/supabase/server";
 export default async function ListCard({
   list: l,
   thumbs: preview,
+  hiddenItems = new Set(),
   viewerId,
   liked,
   shared,
@@ -33,6 +35,9 @@ export default async function ListCard({
 }: {
   list: ListRow;
   thumbs: Thumb[];
+  // Items the viewer has hidden, which a grouped list's preview shows as
+  // blank tiles
+  hiddenItems?: Set<string>;
   viewerId: string | undefined;
   liked: boolean;
   shared: boolean;
@@ -59,10 +64,11 @@ export default async function ListCard({
   const { bumped, time } = listCardTime(l, showActivity);
   // A grouped list's preview shows several of its groups, so it needs the
   // groups and their first items, not just the list's first ones
-  const groupPreviews =
+  const loadedGroups =
     groups !== null
       ? await fetchGroupPreviews(await createClient(), l.id)
       : null;
+  const groupPreviews = markHiddenInGroups(loadedGroups, hiddenItems);
 
   return (
     <div className="card relative flex flex-col gap-2 p-3 hover-or-tap:border-accent/60">
