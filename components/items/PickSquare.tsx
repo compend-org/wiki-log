@@ -42,13 +42,18 @@ export default function PickSquare({
       <span className={label}>{heading}</span>
 
       {pick.imageUrl ? (
-        // Natural proportions, never taller than 10rem or wider than the box
-        <ItemImage
-          src={pick.imageUrl}
-          nsfw={pick.nsfw}
-          alt={pick.title}
-          className="h-auto max-h-40 w-auto max-w-full"
-        />
+        // Natural proportions, never taller than 10rem or wider than the box.
+        // The slot is 10rem tall before the image loads, so the square
+        // doesn't grow when it arrives.
+        <div className="flex h-40 w-full items-center justify-center">
+          <ItemImage
+            src={pick.imageUrl}
+            nsfw={pick.nsfw}
+            alt={pick.title}
+            loading="eager"
+            className="h-auto max-h-40 w-auto max-w-full"
+          />
+        </div>
       ) : (
         <ItemImage
           src={null}
