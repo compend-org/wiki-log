@@ -68,6 +68,7 @@ export default function ItemImage({
   placeholder = alt,
   sourceWidth,
   nsfw = false,
+  loading = "lazy",
 }: {
   src: string | null | undefined;
   alt: string;
@@ -80,6 +81,8 @@ export default function ItemImage({
   sourceWidth?: number;
   // Adult content, blurred and labelled in SFW mode until tapped
   nsfw?: boolean;
+  // When to fetch the image: "eager" for images in view when the page opens
+  loading?: "lazy" | "eager";
 }) {
   if (!src) {
     const width = 100 * ratio;
@@ -124,7 +127,7 @@ export default function ItemImage({
       sourceWidth={sourceWidth}
       alt={alt}
       nsfw={nsfw}
-      loading="lazy"
+      loading={loading}
       draggable={false}
       className={`item-img object-cover [[data-theme=dark]_&]:bg-foreground ${className}`}
     />
