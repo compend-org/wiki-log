@@ -21,7 +21,13 @@ import {
   tileSize,
 } from "@/lib/lists/groupPreview";
 
-type Thumb = { title: string; image_url: string | null; nsfw: boolean };
+type Thumb = {
+  title: string;
+  image_url: string | null;
+  nsfw: boolean;
+  // Hidden by the viewer: a blank tile, not named
+  hidden?: boolean;
+};
 // A tooltip: what the tile is, and the name of its group if it has one
 type Tip = { text: string; group: string | null; x: number; y: number };
 
@@ -100,6 +106,7 @@ function MoreFace({
           <ItemImage
             src={picture.image_url}
             nsfw={picture.nsfw}
+            hidden={picture.hidden}
             alt=""
             placeholder={firstLetter(picture.title)}
             className="h-full w-full"
@@ -203,6 +210,8 @@ export default function ListPreview({
   // width, so it is right from the first paint.
   const shown = thumbs.slice(0, MOST_THUMBS);
   const more = (count: number) => msg("counts.moreItems", { count });
+  // What a tile's tooltip calls its item; a hidden one isn't named
+  const nameOf = (p: Thumb) => (p.hidden ? msg("hiding.tile") : p.title);
 
   // Each tile sits above the card's overlay link (relative z-10), so it can
   // show its own tooltip, and it leads to the same list when clicked
@@ -310,6 +319,7 @@ export default function ListPreview({
             return (
               <Fragment key={group.id}>
                 {group.thumbs.slice(0, shown.shown).map((p, i) => {
+                  const name = nameOf(p);
                   const first = i === 0;
                   const last = shown.more === 0 && i === shown.shown - 1;
                   return (
@@ -317,19 +327,18 @@ export default function ListPreview({
                       // biome-ignore lint/suspicious/noArrayIndexKey: a fixed-order list whose entries can repeat
                       key={i}
                       href={href}
-                      aria-label={p.title}
+                      aria-label={name}
                       data-group={group.id}
                       className={`${groupTile} ${box(first, last)}`}
-                      onMouseEnter={(e) =>
-                        show(e.currentTarget, p.title, group)
-                      }
+                      onMouseEnter={(e) => show(e.currentTarget, name, group)}
                       onMouseLeave={hide}
-                      onFocus={(e) => show(e.currentTarget, p.title, group)}
+                      onFocus={(e) => show(e.currentTarget, name, group)}
                       onBlur={hide}
                     >
                       <ItemImage
                         src={p.image_url}
                         nsfw={p.nsfw}
+                        hidden={p.hidden}
                         alt=""
                         placeholder={firstLetter(p.title)}
                         className={`h-[var(--tile)] rounded ${pictureWidth(first, last)}`}
@@ -389,18 +398,19 @@ export default function ListPreview({
           >
             <Link
               href={href}
-              aria-label={p.title}
+              aria-label={nameOf(p)}
               // The list's last item can take the last slot; any other needs
               // a slot after it for the rest
               className={`${tile} ${HIDDEN_UNLESS_MORE_THAN[i + 1 === total ? i : i + 1]}`}
-              onMouseEnter={(e) => show(e.currentTarget, p.title)}
+              onMouseEnter={(e) => show(e.currentTarget, nameOf(p))}
               onMouseLeave={hide}
-              onFocus={(e) => show(e.currentTarget, p.title)}
+              onFocus={(e) => show(e.currentTarget, nameOf(p))}
               onBlur={hide}
             >
               <ItemImage
                 src={p.image_url}
                 nsfw={p.nsfw}
+                hidden={p.hidden}
                 alt=""
                 placeholder={firstLetter(p.title)}
                 className="h-14 w-14 rounded"

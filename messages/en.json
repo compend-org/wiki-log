@@ -791,5 +791,19 @@
     "replyWhereList": "{name}'s list {title}",
     "anItem": "an item",
     "openWhere": "Open {where}"
+  },
+  "hiding": {
+    "more": "More",
+    "hide": "Hide <b>{title}</b>",
+    "hideNote": "Reviews of it won't show up for you. Only you know.",
+    "hiddenHere": "<b>{title}</b> is hidden.",
+    "undo": "Undo",
+    "manage": "Hidden items",
+    "tile": "Hidden item",
+    "hideItem": "Hide this item",
+    "showItem": "Show again",
+    "itemNote": "You've hidden this item. Reviews of it don't show up for you anywhere else, and its picture is covered in lists.",
+    "title": "Hidden items",
+    "none": "You haven't hidden any items. You can hide one from its page, or from the ⋯ on a review."
   }
 }

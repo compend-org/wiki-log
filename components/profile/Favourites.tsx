@@ -47,6 +47,8 @@ export type Slot = {
   title: string;
   imageUrl: string | null;
   nsfw: boolean;
+  // Hidden by the viewer, so a blank tile shows in its place
+  hidden?: boolean;
 };
 
 // What a slot is known by while dragging: its item, so after a swap the item
@@ -70,6 +72,7 @@ function SlotImage({ slot }: { slot: Slot }) {
     <ItemImage
       src={slot.imageUrl}
       nsfw={slot.nsfw}
+      hidden={slot.hidden}
       alt={slot.title}
       className="aspect-square w-full rounded"
     />

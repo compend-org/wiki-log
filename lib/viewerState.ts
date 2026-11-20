@@ -1,4 +1,4 @@
-// ABOUTME: Reads, in one request, what the viewer has liked, shared and blocked
+// ABOUTME: Reads, in one request, what the viewer has liked, shared, blocked and hidden
 // ABOUTME: among the reviews, lists and comments a page is showing.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseSfwMode, type SfwMode } from "@/lib/sfw";
@@ -12,6 +12,8 @@ export type ViewerState = {
   likedListComments: Set<string>;
   // Everyone the viewer has blocked, not only the authors on the page
   blocked: Set<string>;
+  // Every item the viewer has hidden, not only the ones on the page
+  hiddenItems: Set<string>;
   // How the viewer wants adult content shown; "off" when signed out
   sfwMode: SfwMode;
 };
@@ -24,12 +26,14 @@ type ViewerStateRow = {
   liked_comments: string[];
   liked_list_comments: string[];
   blocked: string[];
+  hidden_items: string[];
   sfw_mode: string;
 };
 
 // The viewer's state for these review, list and comment ids. Different for
-// each person, so never cached. Signed out, or with no ids to look up, it is
-// empty and nothing is asked: with nothing on the page there's no one to hide.
+// each person, so never cached. Signed out, it is empty and nothing is asked.
+// Signed in, it is asked even with no ids, since what the viewer blocked,
+// hid and chose for adult content applies to everything on the page.
 export async function getViewerState(
   supabase: SupabaseClient,
   viewerId: string | undefined,
@@ -46,9 +50,7 @@ export async function getViewerState(
   const listCommentIds = ids.listCommentIds ?? [];
 
   let row: ViewerStateRow | null = null;
-  const idCount =
-    logIds.length + listIds.length + commentIds.length + listCommentIds.length;
-  if (viewerId && idCount > 0) {
+  if (viewerId) {
     const { data } = await supabase.rpc("viewer_state", {
       p_log_ids: logIds,
       p_list_ids: listIds,
@@ -66,6 +68,7 @@ export async function getViewerState(
     likedComments: new Set(row?.liked_comments),
     likedListComments: new Set(row?.liked_list_comments),
     blocked: new Set(row?.blocked),
+    hiddenItems: new Set(row?.hidden_items),
     sfwMode: parseSfwMode(row?.sfw_mode),
   };
 }

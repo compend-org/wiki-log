@@ -44,6 +44,20 @@ export default async function Home({
   const signedIn = Boolean(viewerId);
 
   const picks = FEATURES.dailyPicks ? await getDailyPicks() : null;
+  // The picks are the same for everyone; which of them the viewer has hidden
+  // is their own
+  const pickIds = [picks?.popular?.itemId, picks?.unpopular?.itemId].flatMap(
+    (id) => id ?? [],
+  );
+  const { data: hiddenPicks } =
+    viewerId && pickIds.length > 0
+      ? await supabase
+          .from("hidden_items")
+          .select("item_id")
+          .eq("user_id", viewerId)
+          .in("item_id", pickIds)
+      : { data: null };
+  const hiddenPickIds = new Set((hiddenPicks ?? []).map((h) => h.item_id));
 
   // On phones, shares both squares as one picture
   const sharePicks = picks && (
@@ -80,6 +94,7 @@ export default async function Home({
               heading={t("home.popularToday")}
               kind="popular"
               pick={picks.popular}
+              hidden={hiddenPickIds.has(picks.popular?.itemId ?? "")}
             />
           </div>
         )}
@@ -129,6 +144,7 @@ export default async function Home({
               heading={t("home.unpopularToday")}
               kind="unpopular"
               pick={picks.unpopular}
+              hidden={hiddenPickIds.has(picks.unpopular?.itemId ?? "")}
             />
           </div>
         )}

@@ -123,12 +123,15 @@ export default function AddToList({
   title,
   imageUrl,
   signedIn,
+  beside,
   aside,
 }: {
   itemId: string;
   title: string;
   imageUrl: string | null;
   signedIn: boolean;
+  // More of the item's buttons, after Add to list
+  beside?: ReactNode;
   aside?: ReactNode;
 }) {
   const t = useTranslations();
@@ -370,14 +373,17 @@ export default function AddToList({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-4">
-        <button
-          type="button"
-          onClick={toggleOpen}
-          aria-expanded={open}
-          className="rounded-lg border border-line px-4 py-2 text-sm hover:border-accent"
-        >
-          {t("lists.addToList")}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleOpen}
+            aria-expanded={open}
+            className="rounded-lg border border-line px-4 py-2 text-sm hover:border-accent"
+          >
+            {t("lists.addToList")}
+          </button>
+          {beside}
+        </div>
         {aside}
       </div>
 

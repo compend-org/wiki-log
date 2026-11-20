@@ -1,4 +1,5 @@
 import ItemPicture from "@/components/items/ItemPicture";
+import HideIcon from "@/components/ui/HideIcon";
 import { shortLabel } from "@/lib/format";
 
 const CHAR_WIDTH = 0.66; // average width of a bold character, in em (a little generous)
@@ -68,6 +69,7 @@ export default function ItemImage({
   placeholder = alt,
   sourceWidth,
   nsfw = false,
+  hidden = false,
   loading = "lazy",
 }: {
   src: string | null | undefined;
@@ -81,9 +83,26 @@ export default function ItemImage({
   sourceWidth?: number;
   // Adult content, blurred and labelled in SFW mode until tapped
   nsfw?: boolean;
+  // An item the viewer has hidden: a blank tile shows in place of its picture
+  // and its name
+  hidden?: boolean;
   // When to fetch the image: "eager" for images in view when the page opens
   loading?: "lazy" | "eager";
 }) {
+  if (hidden) {
+    const tile = `flex items-center justify-center border border-line bg-surface text-muted ${className}`;
+    const icon = <HideIcon className="h-1/3 max-h-6 w-1/3 max-w-6" />;
+    return alt ? (
+      <span role="img" aria-label={alt} className={tile}>
+        {icon}
+      </span>
+    ) : (
+      <span aria-hidden="true" className={tile}>
+        {icon}
+      </span>
+    );
+  }
+
   if (!src) {
     const width = 100 * ratio;
     const height = 100;

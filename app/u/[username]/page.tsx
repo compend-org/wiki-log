@@ -39,6 +39,7 @@ import { isAdmin } from "@/lib/admin/admin";
 import { avatarUrl } from "@/lib/avatar";
 import { getProfileCompounds } from "@/lib/craft/profileCompounds";
 import { entryPicture, plainReview } from "@/lib/format";
+import { withoutHiddenItems } from "@/lib/hiddenItems";
 import { pageMetadata } from "@/lib/metadata";
 import { getProfileByName } from "@/lib/profiles";
 import { SITE_NAME } from "@/lib/site";
@@ -208,9 +209,20 @@ export default async function ProfilePage({
       ...listRows.rows.map((l) => l.id),
     ],
   });
+  // Items the viewer has hidden show as blank tiles among the favourites and
+  // are left out of the compounds, except on the viewer's own profile
+  const hidden = isOwner ? new Set<string>() : viewer.hiddenItems;
+  // A hidden favourite isn't named either
+  const shownSlots = slots.map((slot) =>
+    slot && hidden.has(slot.itemId)
+      ? { ...slot, title: t("hiding.tile"), hidden: true }
+      : slot,
+  );
   // Compounds they crafted; adult ones are left out when the viewer hides them
-  const compounds = allCompounds.filter(
-    (c) => !(viewer.sfwMode === "hide" && c.nsfw),
+  const compounds = withoutHiddenItems(
+    allCompounds.filter((c) => !(viewer.sfwMode === "hide" && c.nsfw)),
+    hidden,
+    (c) => c.id,
   );
   // Each loaded pin with its card, which is null when the viewer hides it
   const pinnedCards = new Map(
@@ -377,7 +389,7 @@ export default async function ProfilePage({
         />
       )}
       {(isOwner || slots.some(Boolean)) && (
-        <Favourites slots={slots} isOwner={isOwner} />
+        <Favourites slots={shownSlots} isOwner={isOwner} />
       )}
       {pins.length > 0 && (
         <PinnedSection

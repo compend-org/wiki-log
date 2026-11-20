@@ -791,5 +791,19 @@
     "replyWhereList": "Lista de {name}: {title}",
     "anItem": "un elemento",
     "openWhere": "Abrir {where}"
+  },
+  "hiding": {
+    "more": "Más",
+    "hide": "Ocultar <b>{title}</b>",
+    "hideNote": "Sus reseñas dejarán de aparecerte. Nadie más lo sabrá.",
+    "hiddenHere": "<b>{title}</b> está oculto.",
+    "undo": "Deshacer",
+    "manage": "Elementos ocultos",
+    "tile": "Elemento oculto",
+    "hideItem": "Ocultar este elemento",
+    "showItem": "Volver a mostrar",
+    "itemNote": "Ocultaste este elemento. Sus reseñas no te aparecen en ningún otro lugar y su imagen se tapa en las listas.",
+    "title": "Elementos ocultos",
+    "none": "No has ocultado ningún elemento. Puedes ocultar uno desde su página o desde el ⋯ de una reseña."
   }
 }

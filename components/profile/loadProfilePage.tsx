@@ -11,6 +11,7 @@ import { chunks } from "@/lib/allRows";
 import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import type { ListRow as ListCardRow, LogRow } from "@/lib/feed/feedData";
 import { entryPicture } from "@/lib/format";
+import { withoutHiddenItems } from "@/lib/hiddenItems";
 import { type Keyset, olderThan } from "@/lib/paging";
 import { aboutAdultItem, shownEntries } from "@/lib/sfw";
 import { createClient } from "@/lib/supabase/server";
@@ -29,7 +30,7 @@ const LOG_FIELDS =
 // The columns a list card needs, with the first items of the list as preview.
 // Ask for `.lte("preview.position", 12)` with it.
 const LIST_FIELDS =
-  "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), last_bumped_at, activity_at, grouped, list_groups(count), preview:list_items(position, image_url, items(title, image_url, nsfw))";
+  "id, user_id, title, ranked, created_at, profiles!lists_user_id_profiles_fkey(username, avatar_path), list_items(count), list_likes(count), list_comments(count), shares(count), last_bumped_at, activity_at, grouped, list_groups(count), preview:list_items(position, item_id, image_url, items(title, image_url, nsfw))";
 
 // How many pins, reviews or lists a profile shows at first, and how many more
 // reviews or lists each "Show more" adds
@@ -38,7 +39,12 @@ const PROFILE_MORE_PAGE = 7;
 
 export type ProfileListRow = ListCardRow & {
   // Each entry's chosen picture; null shows the item's
-  preview: { position: number; image_url: string | null; items: ItemInfo }[];
+  preview: {
+    position: number;
+    item_id: string;
+    image_url: string | null;
+    items: ItemInfo;
+  }[];
 };
 
 export type ProfileKind = "lists" | "reviews";
@@ -138,7 +144,9 @@ function renderProfileList(
         title: p.items?.title ?? "Unknown item",
         image_url: entryPicture(p),
         nsfw: p.items?.nsfw ?? false,
+        hidden: viewer.hiddenItems.has(p.item_id),
       }))}
+      hiddenItems={viewer.hiddenItems}
       viewerId={ctx.viewerId}
       liked={viewer.likedLists.has(l.id)}
       shared={viewer.sharedLists.has(l.id)}
@@ -222,17 +230,34 @@ export async function fetchProfileRows(
   };
 }
 
+// The items whose reviews this profile leaves out: those the viewer has
+// hidden, except on their own profile, where all their reviews stay
+function hiddenOnProfile(ctx: ProfileContext, viewer: ViewerState) {
+  return ctx.viewerId === ctx.profileId
+    ? new Set<string>()
+    : viewer.hiddenItems;
+}
+
 export function renderProfileCards(
   ctx: ProfileContext,
   viewer: ViewerState,
   kind: ProfileKind,
   rows: (ProfileListRow | LogRow)[],
 ): Card[] {
-  // Reviews of adult items are left out when the viewer hides them
+  // Reviews of items the viewer has hidden are left out, and of adult items
+  // when the viewer hides them
   const shown =
     kind === "lists"
       ? rows
-      : shownEntries(rows as LogRow[], viewer.sfwMode, aboutAdultItem);
+      : shownEntries(
+          withoutHiddenItems(
+            rows as LogRow[],
+            hiddenOnProfile(ctx, viewer),
+            (l) => l.item_id,
+          ),
+          viewer.sfwMode,
+          aboutAdultItem,
+        );
   // Pinned ones come up here too, apart from those the profile shows at the
   // top
   return shown.map((row) => ({
@@ -349,9 +374,12 @@ export function renderPinnedCards(
   viewer: ViewerState,
   pinned: Pinned[],
 ): Card[] {
-  // Pinned reviews of adult items are left out when the viewer hides them
+  // Pinned reviews of items the viewer has hidden are left out, and of adult
+  // items when the viewer hides them
   const shown = shownEntries(
-    pinned,
+    withoutHiddenItems(pinned, hiddenOnProfile(ctx, viewer), (p) =>
+      p.kind === "log" ? p.log.item_id : null,
+    ),
     viewer.sfwMode,
     (p) => p.kind === "log" && aboutAdultItem(p.log),
   );

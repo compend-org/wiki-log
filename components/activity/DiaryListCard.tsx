@@ -15,6 +15,8 @@ type PreviewItem = {
   title: string;
   imageUrl: string | null;
   nsfw: boolean;
+  // Hidden by the viewer, so a blank tile shows in its place
+  hidden?: boolean;
 };
 
 export default function DiaryListCard({
@@ -97,6 +99,7 @@ export default function DiaryListCard({
             title: p.title,
             image_url: p.imageUrl,
             nsfw: p.nsfw,
+            hidden: p.hidden,
           }))}
           total={count}
           groups={groupPreviews}
