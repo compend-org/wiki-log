@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { cacheLife, cacheTag } from "next/cache";
 import { POSTS_CACHE_TAG } from "@/lib/cacheTags";
 import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
+import { FEATURES } from "@/lib/features";
 import { entryPicture, shownImage } from "@/lib/format";
 import {
   type ColumnCursor,
@@ -129,9 +130,6 @@ const REPLY_SELECT =
   "id, user_id, parent_id, body, created_at, profiles!comments_user_id_profiles_fkey(username), logs!comments_log_fkey(id, user_id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))";
 const LIST_REPLY_SELECT =
   "id, user_id, parent_id, body, created_at, profiles!list_comments_user_id_profiles_fkey(username), lists(id, user_id, title, profiles!lists_user_id_profiles_fkey(username))";
-
-// Whether the Following feed shows replies. Off for now.
-const SHOW_FOLLOWING_REPLIES: boolean = false;
 
 type PreviewRow = {
   list_id: string;
@@ -273,9 +271,9 @@ async function loadColumn<Row extends { id: string }>(
   // Following's reviews column carries the replies on reviews, and its lists
   // column the replies on lists
   const withReviewReplies =
-    SHOW_FOLLOWING_REPLIES && following && kind === "log";
+    FEATURES.followingReplies && following && kind === "log";
   const withListReplies =
-    SHOW_FOLLOWING_REPLIES && following && kind === "list";
+    FEATURES.followingReplies && following && kind === "list";
 
   let posts = rowsOf(supabase, table, following).select(select).lte(time, asOf);
   if (cursor.posts) posts = posts.or(olderThan(time, cursor.posts));

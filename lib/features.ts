@@ -23,4 +23,9 @@ export const FEATURES = {
   // Grouped lists: lists whose items sit in groups, labeled or not. Off hides
   // the option to make one and shows existing ones as plain lists.
   groupedLists: flag(process.env.NEXT_PUBLIC_FEATURE_GROUPED_LISTS, true),
+  // Cards for the replies by the people you follow, on the Following tab
+  followingReplies: flag(
+    process.env.NEXT_PUBLIC_FEATURE_FOLLOWING_REPLIES,
+    false,
+  ),
 };
