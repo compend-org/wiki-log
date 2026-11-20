@@ -19,7 +19,7 @@ export default function FormatBar({
   onItalic: () => void;
   onLink: () => void;
   previewing: boolean;
-  // Switches between writing and the preview
+  // Switches the preview on or off
   onPreview: () => void;
   canPreview: boolean;
 }) {
@@ -79,9 +79,10 @@ export default function FormatBar({
         type="button"
         onClick={onPreview}
         disabled={!canPreview && !previewing}
-        className={`${BUTTON} text-sm`}
+        aria-pressed={previewing}
+        className={`${BUTTON} text-sm aria-pressed:bg-background aria-pressed:shadow-[inset_0_0_0_1px_var(--color-line)]`}
       >
-        {previewing ? t("common.edit") : t("logs.format.preview")}
+        {t("logs.format.preview")}
       </button>
       <span className="ml-auto hidden pr-2 text-xs text-muted sm:inline">
         {t("logs.format.itemHint")}

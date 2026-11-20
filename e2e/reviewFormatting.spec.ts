@@ -39,12 +39,16 @@ test("bolds text and links it to a web page", async ({ page }) => {
     page.getByRole("textbox", { name: "Link to a web page" }),
   ).toBeHidden();
 
-  // The preview shows the post as it will look, then Edit goes back to it
-  await page.getByRole("button", { name: "Preview" }).click();
+  // The preview shows the post as it will look, and goes away when pressed
+  // again
+  const preview = page.getByRole("button", { name: "Preview" });
+  await preview.click();
+  await expect(preview).toHaveAttribute("aria-pressed", "true");
   await expect(box).toBeHidden();
   await expect(page.locator("#log strong")).toHaveText("hot springs");
   await expect(page.getByRole("button", { name: "Bold" })).toBeDisabled();
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await preview.click();
+  await expect(preview).toHaveAttribute("aria-pressed", "false");
   await expect(box).toBeVisible();
 
   // A link typed out in markdown shrinks to its words too
