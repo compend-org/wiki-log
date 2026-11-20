@@ -28,10 +28,7 @@ test("links items and people to their pages", () => {
     html,
     /href="\/item\/Q42"[^>]*>(<img[^>]*>)+Don&#x27;t \*Panic\*<\/a>/,
   );
-  assert.match(
-    html,
-    new RegExp(`href="/people/${id}"[^>]*>(<img[^>]*>)+@ann_lee</a>`),
-  );
+  assert.match(html, new RegExp(`href="/people/${id}"[^>]*>@ann_lee</a>`));
 });
 
 test("marks links to this site with the logo, and others without", () => {
@@ -40,6 +37,7 @@ test("marks links to this site with the logo, and others without", () => {
   assert.equal(logos(show("[a list](/list/abc)")), 2);
   assert.equal(logos(show("[a list](https://compend.org/list/abc)")), 2);
   assert.equal(logos(show("[a list](https://www.compend.org/list/abc)")), 2);
+  assert.equal(logos(show("[someone](/people/abc) [me](/u/ann)")), 0);
   assert.equal(logos(show("[elsewhere](https://example.com/a)")), 0);
   assert.equal(logos(show("[lookalike](https://compend.org.evil.com/a)")), 0);
 });

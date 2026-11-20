@@ -50,6 +50,13 @@ function sitePath(href: string): string | null {
   return null;
 }
 
+// Whether a link gets the logo: this site's pages do, but not people, whose
+// names are marked as mentions already
+function marked(href: string | undefined): boolean {
+  const path = href ? sitePath(href) : null;
+  return path !== null && !/^\/(people|u)\//.test(path);
+}
+
 // A web address written out as a link reads without https:// or www., cut
 // short when it's long
 function shownAddress(text: string): string {
@@ -105,7 +112,7 @@ const BLOCKS: Components = {
   h6: heading,
 };
 
-// Links that open: this site's pages in place (marked with a small logo), web
+// Links that open: this site's pages in place (marked with a small logo, except people), web
 // pages in a new tab, and pictures as links to them
 const LINKS: Components = {
   ...BLOCKS,
@@ -125,7 +132,7 @@ const LINKS: Components = {
           prefetch={path.startsWith("/people/") ? false : undefined}
           className={className}
         >
-          <SiteMark />
+          {marked(href) ? <SiteMark /> : null}
           {isAddress ? shownAddress(children) : children}
         </Link>
       );
@@ -159,7 +166,7 @@ const PLAIN_LINKS: Components = {
   ...BLOCKS,
   a: ({ href, children }) => (
     <span className={LINK_COLOR}>
-      {href && sitePath(href) !== null ? <SiteMark /> : null}
+      {marked(href) ? <SiteMark /> : null}
       {children}
     </span>
   ),
