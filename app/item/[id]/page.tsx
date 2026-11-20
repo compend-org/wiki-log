@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
 import { cache } from "react";
 import CompoundDeleteButton from "@/components/craft/CompoundDeleteButton";
 import CompoundEditButton from "@/components/craft/CompoundEditButton";
@@ -16,7 +16,9 @@ import ItemLogs from "@/components/logs/ItemLogs";
 import LogForm from "@/components/logs/LogForm";
 import MyEntries, { type MyEntry } from "@/components/logs/MyEntries";
 import RatingHistogram from "@/components/logs/RatingsHistogram";
+import ItemAdminMenu from "@/components/moderation/ItemAdminMenu";
 import ShareImageButton from "@/components/social/ShareImageButton";
+import { isAdmin } from "@/lib/admin/admin";
 import { FEATURES } from "@/lib/features";
 import { timeAgo } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
@@ -111,6 +113,29 @@ export default async function ItemPage({
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const viewerId: string | undefined = claimsData?.claims?.sub;
+  const viewerIsAdmin = await isAdmin(viewerId);
+
+  // For admins: who last marked the item NSFW or safe by hand, and when
+  let nsfwSetBy: string | null = null;
+  let nsfwSetDate: string | null = null;
+  if (viewerIsAdmin) {
+    const { data: flag } = await supabase
+      .from("items")
+      .select("nsfw_set_at, setter:profiles!nsfw_set_by(username)")
+      .eq("id", item.id)
+      .maybeSingle<{
+        nsfw_set_at: string | null;
+        setter: { username: string } | null;
+      }>();
+    if (flag?.nsfw_set_at) {
+      const format = await getFormatter();
+      nsfwSetBy = flag.setter?.username ?? null;
+      nsfwSetDate = format.dateTime(new Date(flag.nsfw_set_at), {
+        month: "short",
+        day: "numeric",
+      });
+    }
+  }
 
   // Everyone's latest rating of this item, one per person, for the histogram,
   // and the viewer's own earlier entries for it
@@ -292,7 +317,7 @@ export default async function ItemPage({
                 {item.title}
               </h1>
               {compound && viewerId && creatorId === viewerId && (
-                <span className="flex items-center gap-4 pt-1.5">
+                <span className="ml-auto flex items-center gap-4 pt-1.5">
                   <CompoundEditButton
                     id={item.id}
                     title={item.title}
@@ -302,6 +327,14 @@ export default async function ItemPage({
                   />
                   <CompoundDeleteButton id={item.id} iconClassName="h-6 w-6" />
                 </span>
+              )}
+              {viewerIsAdmin && (
+                <ItemAdminMenu
+                  itemId={item.id}
+                  nsfw={item.nsfw}
+                  setBy={nsfwSetBy}
+                  setDate={nsfwSetDate}
+                />
               )}
             </div>
             {item.description && (

@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { updateTag } from "next/cache";
 import { getTranslations } from "next-intl/server";
+import { isAdmin } from "@/lib/admin/admin";
 import {
   cleanNote,
   isReportReason,
@@ -481,6 +482,32 @@ export async function unbanUser(
 
   const signIn = await setSignInBanned(userId, false);
   if (signIn.error) return { error: `Unbanned, but ${signIn.error}` };
+  return {};
+}
+
+// Admins only: marks an item NSFW or safe. Refreshes from Wikipedia keep the
+// choice.
+export async function setItemNsfw(
+  itemId: string,
+  nsfw: boolean,
+): Promise<{ error?: string }> {
+  const t = await getTranslations();
+  if (!ITEM_ID_PATTERN.test(itemId)) return { error: t("errors.invalidItem") };
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  if (!(await isAdmin(data?.claims?.sub))) return { error: "Admins only" };
+
+  // An item page can show an article nobody has saved yet, so save it first
+  const stored = await ensureItem(itemId);
+  if ("error" in stored) return stored;
+
+  const { error } = await supabase.rpc("admin_set_item_nsfw", {
+    p_item_id: stored.id,
+    p_nsfw: nsfw,
+  });
+  if (error) return { error: error.message };
+  updateTag(POSTS_CACHE_TAG);
   return {};
 }
 

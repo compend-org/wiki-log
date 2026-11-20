@@ -27,6 +27,7 @@ type ItemRow = {
   page_url: string;
   fetched_at: string;
   nsfw: boolean;
+  nsfw_set_at: string | null;
 };
 
 function toItem(row: ItemRow): ItemData {
@@ -84,7 +85,8 @@ export function itemColumns(item: ItemData) {
       : new Date().toISOString(),
     ...(item.types ? { types: item.types } : {}),
     // A lookup that runs out of time reads as "not adult", so a lookup only
-    // ever sets the adult flag and never clears one
+    // ever sets the adult flag and never clears one. The database keeps a flag
+    // an admin set by hand.
     ...(item.nsfw ? { nsfw: true } : {}),
   };
 }
@@ -97,7 +99,7 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
   const { data } = await supabase
     .from("items")
     .select(
-      "id, title, description, image_url, image_non_free, image_page_url, image_hidden, page_url, fetched_at, nsfw",
+      "id, title, description, image_url, image_non_free, image_page_url, image_hidden, page_url, fetched_at, nsfw, nsfw_set_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -126,9 +128,17 @@ export async function getItemForPage(id: string): Promise<LookupResult> {
 
   // Wikipedia is down or the article was removed: a stale copy beats an error
   if ("error" in fresh) return { item: toItem(cached) };
-  // The saved row keeps its adult flag, so the page shows it too
   const item = keepStoredImage(fresh.item, toItem(cached));
-  return { item: { ...item, nsfw: item.nsfw || cached.nsfw } };
+  return { item: { ...item, nsfw: shownNsfw(item.nsfw, cached) } };
+}
+
+// Whether an item just looked up shows as adult content. The saved row keeps
+// its adult flag, and an admin's choice outranks the lookup.
+export function shownNsfw(
+  lookedUp: boolean,
+  saved: Pick<ItemRow, "nsfw" | "nsfw_set_at">,
+): boolean {
+  return saved.nsfw_set_at ? saved.nsfw : lookedUp || saved.nsfw;
 }
 
 // Looks a cached item up on Wikipedia again and saves it over its row

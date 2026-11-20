@@ -758,6 +758,8 @@
   "moderation": {
     "siteAdmin": "Administrador do site",
     "admin": "admin",
+    "adminTools": "Ferramentas de administração",
+    "nsfwSetBy": "{hasName, select, yes {Marcado por {name}, {date}} other {Marcado em {date}}}",
     "thanksWeLlTakeA": "Obrigado. Vamos dar uma olhada.",
     "whyReporting": "Por que você está denunciando?",
     "anythingElse": "Mais alguma coisa que devamos saber? (opcional)",
