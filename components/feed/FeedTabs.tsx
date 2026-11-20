@@ -53,14 +53,21 @@ export default function FeedTabs({
     Partial<Record<FeedTab, { feed: ReactNode; served: number }>>
   >({ [initial]: { feed: initialFeed, served: 0 } });
 
-  if (served.feed !== initialFeed) {
+  // A newer render of the page brings its tab a newer feed. The page can be
+  // coming back into view as it arrives, such as from the logo link, so the
+  // feed is swapped in afterwards, as a transition: the feed already on screen
+  // stays until the newer one is ready.
+  useEffect(() => {
+    if (served.feed === initialFeed) return;
     const count = served.count + 1;
-    setServed({ feed: initialFeed, count });
-    setPanels((shown) => ({
-      ...shown,
-      [initial]: { feed: initialFeed, served: count },
-    }));
-  }
+    startTransition(() => {
+      setServed({ feed: initialFeed, count });
+      setPanels((shown) => ({
+        ...shown,
+        [initial]: { feed: initialFeed, served: count },
+      }));
+    });
+  }, [initial, initialFeed, served]);
 
   // The open tab gets its feed the first time it is opened, and again if the
   // page has been rendered since. A feed brought up to date keeps the pages it
