@@ -6,6 +6,7 @@ import {
   findChange,
   formatMarks,
   insertDraft,
+  listEnter,
   replaceText,
   sliceDraft,
   toDraft,
@@ -162,4 +163,44 @@ test("finds markdown marks and bold text", () => {
     "mark:~~",
     "mark:~~",
   ]);
+});
+
+// Presses Enter at the | in `text`, returning the text with the caret as a |
+function enter(text: string): string | null {
+  const caret = text.indexOf("|");
+  const next = listEnter(toDraft(text.replace("|", "")), caret);
+  if (!next) return null;
+  const shown = next.draft.text;
+  return `${shown.slice(0, next.caret)}|${shown.slice(next.caret)}`;
+}
+
+test("Enter on a list item starts the next one", () => {
+  assert.equal(enter("Ranked:\n- the cannoli|"), "Ranked:\n- the cannoli\n- |");
+  assert.equal(enter("* one|\nafter"), "* one\n* |\nafter");
+  assert.equal(enter("  + nested|"), "  + nested\n  + |");
+  assert.equal(enter("9. nine|"), "9. nine\n10. |");
+  assert.equal(enter("1) one|"), "1) one\n2) |");
+});
+
+test("Enter in the middle of a list item moves the rest to the next one", () => {
+  assert.equal(enter("- the can|noli"), "- the can\n- |noli");
+});
+
+test("Enter on an empty list item ends the list", () => {
+  assert.equal(enter("- one\n- |"), "- one\n|");
+  assert.equal(enter("- one\n2. |"), "- one\n|");
+});
+
+test("Enter outside a list item is left to the box", () => {
+  assert.equal(enter("plain|"), null);
+  assert.equal(enter("-not a bullet|"), null);
+  assert.equal(enter("|- one"), null);
+  assert.equal(enter("-| one"), null);
+  assert.equal(enter("**bold**|"), null);
+});
+
+test("Enter keeps links on the list item", () => {
+  const next = listEnter(toDraft(`- ${ANN}`), toDraft(`- ${ANN}`).text.length);
+  assert.ok(next);
+  assert.equal(toStored(next.draft), `- ${ANN}\n- `);
 });

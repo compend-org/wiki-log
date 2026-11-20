@@ -205,6 +205,30 @@ export function toggleMarker(
   return { draft: wrapped, start: from + m, end: to + m };
 }
 
+// Pressing Enter at `caret` on a list item: starts the next item, with the
+// next number for a numbered list, carrying over whatever was after the
+// caret. On an empty item it ends the list instead, clearing the bullet.
+// Returns null when the caret isn't after a list item's bullet or number.
+export function listEnter(
+  draft: Draft,
+  caret: number,
+): { draft: Draft; caret: number } | null {
+  const lineStart = draft.text.lastIndexOf("\n", caret - 1) + 1;
+  const item = draft.text
+    .slice(lineStart, caret)
+    .match(/^( {0,3})(?:([-*+])|(\d{1,9})([.)]))([ \t]+)/);
+  if (!item) return null;
+  const itemEnd = lineStart + item[0].length;
+
+  const lineEnd = draft.text.indexOf("\n", caret);
+  const rest = draft.text.slice(itemEnd, lineEnd === -1 ? undefined : lineEnd);
+  if (rest.trim() === "") return replaceText(draft, lineStart, itemEnd, "");
+
+  const [, indent, bullet, number, closer, space] = item;
+  const next = bullet ?? `${Number(number) + 1}${closer}`;
+  return replaceText(draft, caret, caret, `\n${indent}${next}${space}`);
+}
+
 // A part of the draft drawn differently while writing: a markdown mark, drawn
 // faintly, or bold text, drawn heavier
 export type Mark = { start: number; end: number; kind: "mark" | "bold" };

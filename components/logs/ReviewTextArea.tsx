@@ -11,6 +11,7 @@ import {
   findChange,
   formatMarks,
   insertDraft,
+  listEnter,
   replaceText,
   sliceDraft,
   toDraft,
@@ -102,15 +103,27 @@ export default function ReviewTextarea({
     box.setSelectionRange(box.value.length, box.value.length);
   }, [autoFocus]);
 
+  // Where the caret goes once the box shows the latest text
+  const pendingCaret = useRef<{ start: number; end: number } | null>(null);
+  function movePendingCaret() {
+    const box = ref.current;
+    const at = pendingCaret.current;
+    if (!box || !at) return;
+    pendingCaret.current = null;
+    box.focus();
+    box.setSelectionRange(at.start, at.end);
+  }
+  // Right as the new text shows, before the next key press lands
+  useLayoutEffect(movePendingCaret);
+
   const draft = toDraft(value);
 
   // Puts the caret at `caret`, or selects up to `end`, once the box shows the
-  // latest text
+  // latest text. When the text stays the same, nothing redraws, so the caret
+  // moves on the next frame instead.
   function placeCaret(caret: number, end = caret) {
-    requestAnimationFrame(() => {
-      ref.current?.focus();
-      ref.current?.setSelectionRange(caret, end);
-    });
+    pendingCaret.current = { start: caret, end };
+    requestAnimationFrame(movePendingCaret);
   }
 
   // Shows `next` with the caret at `caret`
@@ -211,8 +224,22 @@ export default function ReviewTextarea({
     }
   }
 
-  // Ctrl or Cmd with B or I makes the selected text bold or italic
+  // Enter on a list item starts the next one, or ends the list on an empty
+  // one. Ctrl or Cmd with B or I makes the selected text bold or italic.
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    const box = e.currentTarget;
+    const plainEnter =
+      e.key === "Enter" &&
+      !(e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) &&
+      !e.nativeEvent.isComposing &&
+      box.selectionStart === box.selectionEnd;
+    if (plainEnter) {
+      const next = listEnter(draft, box.selectionStart);
+      if (!next || toStored(next.draft).length > maxLength) return;
+      e.preventDefault();
+      apply(next);
+      return;
+    }
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
     const key = e.key.toLowerCase();
     if (key !== "b" && key !== "i") return;

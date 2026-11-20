@@ -49,6 +49,25 @@ test("bolds text and links it to a web page", async ({ page }) => {
   );
 });
 
+test("Enter carries a list on, and ends it on an empty item", async ({
+  page,
+}) => {
+  await page.goto("/item/Q131538");
+  const box = page.locator("#log textarea");
+  await box.click();
+  await box.pressSequentially("Ranked:");
+  await page.keyboard.press("Enter");
+  await box.pressSequentially("1. the hot spring");
+  await page.keyboard.press("Enter");
+  await box.pressSequentially("the orange");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await box.pressSequentially("That's all.");
+  await expect(box).toHaveValue(
+    "Ranked:\n1. the hot spring\n2. the orange\nThat's all.",
+  );
+});
+
 test.describe("TeX", () => {
   // demo's own review, so the comment notifies no one. It has no other
   // comments, since each comment on a page draws its own copy of the delete
