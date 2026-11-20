@@ -59,3 +59,9 @@ test("shows typed HTML as text", () => {
   const html = show("<b>hi</b> <script>alert(1)</script>");
   assert.doesNotMatch(html, /<script>|<b>/);
 });
+
+test("takes only text between $$ as TeX, leaving dollar signs and code alone", () => {
+  const html = show("From $5 to $10\n\n```math\nx^2\n```");
+  assert.match(html, /From \$5 to \$10/);
+  assert.match(html, /<pre><code class="language-math">x\^2/);
+});

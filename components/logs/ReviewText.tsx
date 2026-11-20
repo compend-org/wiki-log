@@ -1,7 +1,9 @@
 import Link from "next/link";
-import Markdown, { type Components } from "react-markdown";
+import Markdown, { type Components, type Options } from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import TeX from "@/components/logs/TeX";
 import { REVIEW_LINK } from "@/lib/format";
 
 // The colour of item links and mentions, in reviews, comments and drafts
@@ -45,14 +47,37 @@ function noIndentedCode(this: { data(): object }) {
   data.micromarkExtensions.push({ disable: { null: ["codeIndented"] } });
 }
 
-const PLUGINS = [remarkGfm, remarkBreaks, noIndentedCode];
+// TeX math goes between $$, so a single $ stays a dollar sign
+const PLUGINS = [
+  remarkGfm,
+  remarkBreaks,
+  noIndentedCode,
+  [remarkMath, { singleDollarTextMath: false }],
+] satisfies Options["remarkPlugins"];
 
 // Headings read as bold text at the text's own size
 const heading: Components["h1"] = ({ children }) => (
   <p className="font-bold">{children}</p>
 );
 
+// Math between $$ arrives as code marked math-inline, or, on its own lines,
+// as code marked math-display inside a pre
 const BLOCKS: Components = {
+  pre: ({ node, children }) => {
+    const code = node?.children[0];
+    const isMath =
+      code?.type === "element" &&
+      String(code.properties.className).includes("math-display");
+    return isMath ? children : <pre>{children}</pre>;
+  },
+  code: ({ className, children }) => {
+    const math = className?.match(/\bmath-(inline|display)\b/)?.[1];
+    return math ? (
+      <TeX tex={String(children)} block={math === "display"} />
+    ) : (
+      <code className={className}>{children}</code>
+    );
+  },
   h1: heading,
   h2: heading,
   h3: heading,

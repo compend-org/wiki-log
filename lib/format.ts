@@ -172,7 +172,8 @@ export function webLinkToken(words: string, address: string): string {
 }
 
 // A review as plain text: item links read as the item's title, mentions as
-// @username, web links as their words, and markdown marks are dropped
+// @username, web links as their words, and markdown marks (and the $$ around
+// TeX) are dropped
 export function plainReview(text: string): string {
   return text
     .replace(REVIEW_LINK, (_, id: string, title: string) =>
@@ -182,5 +183,6 @@ export function plainReview(text: string): string {
     .replace(/^ {0,3}(?:#{1,6}|>|[-*+]|\d+[.)])[ \t]+/gm, "")
     .replace(/(\*\*|__|~~)(?=\S)(.+?)\1/g, "$2")
     .replace(/(?<![\w*])([*_])([^\s*](?:.*?[^\s*])?)\1(?![\w*])/g, "$2")
-    .replace(/`([^`\n]+)`/g, "$1");
+    .replace(/`([^`\n]+)`/g, "$1")
+    .replace(/\$\$\s*([^$]+?)\s*\$\$/g, "$1");
 }

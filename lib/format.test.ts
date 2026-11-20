@@ -149,6 +149,13 @@ test("shows markdown as plain text", () => {
   );
 });
 
+test("shows TeX as written, without its $$", () => {
+  assert.equal(
+    plainReview("Costs $5, or $$\\frac{1}{2}$$ of it.\n$$\nx^2\n$$"),
+    "Costs $5, or \\frac{1}{2} of it.\nx^2",
+  );
+});
+
 test("makes typed web addresses whole", () => {
   assert.equal(webAddress(" example.com/a "), "https://example.com/a");
   assert.equal(webAddress("http://example.com"), "http://example.com");
