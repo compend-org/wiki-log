@@ -547,6 +547,7 @@
       "searchPerson": "Busca una persona a la que mencionar…"
     },
     "format": {
+      "preview": "Vista previa",
       "bold": "Negrita",
       "italic": "Cursiva",
       "link": "Enlace",

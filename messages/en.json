@@ -547,6 +547,7 @@
       "searchPerson": "Search for a person to mention…"
     },
     "format": {
+      "preview": "Preview",
       "bold": "Bold",
       "italic": "Italic",
       "link": "Link",

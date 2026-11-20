@@ -39,6 +39,14 @@ test("bolds text and links it to a web page", async ({ page }) => {
     page.getByRole("textbox", { name: "Link to a web page" }),
   ).toBeHidden();
 
+  // The preview shows the post as it will look, then Edit goes back to it
+  await page.getByRole("button", { name: "Preview" }).click();
+  await expect(box).toBeHidden();
+  await expect(page.locator("#log strong")).toHaveText("hot springs");
+  await expect(page.getByRole("button", { name: "Bold" })).toBeDisabled();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await expect(box).toBeVisible();
+
   // A link typed out in markdown shrinks to its words too
   await box.evaluate((el: HTMLTextAreaElement) =>
     el.setSelectionRange(el.value.length, el.value.length),

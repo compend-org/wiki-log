@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useLayoutEffect, useRef, useState } from "react";
 import ItemPicker from "@/components/items/ItemPicker";
 import FormatBar from "@/components/logs/FormatBar";
-import { LINK_COLOR } from "@/components/logs/ReviewText";
+import ReviewText, { LINK_COLOR } from "@/components/logs/ReviewText";
 import PersonPicker from "@/components/people/PersonPicker";
 import {
   type Draft,
@@ -92,6 +92,11 @@ export default function ReviewTextarea({
   const [notice, setNotice] = useState<string>("");
   // What's typed in the web address box
   const [address, setAddress] = useState<string>("");
+  // The height of the box when the preview opened, so the preview takes up
+  // the same space; null while writing
+  const [previewHeight, setPreviewHeight] = useState<number | null>(null);
+  // An emptied box, as after posting, goes back to writing
+  if (previewHeight !== null && !value) setPreviewHeight(null);
 
   // Focuses the box when it opens, with the caret after any prefilled text.
   // React fills a new textarea through defaultValue, which leaves the caret
@@ -295,6 +300,18 @@ export default function ReviewTextarea({
     );
   }
 
+  // Switches between writing and the preview of the post as it will look
+  function togglePreview() {
+    if (previewHeight !== null) {
+      setPreviewHeight(null);
+      placeCaret(ref.current?.selectionStart ?? 0, ref.current?.selectionEnd);
+      return;
+    }
+    setPicking(null);
+    setNotice("");
+    setPreviewHeight(ref.current?.offsetHeight ?? 0);
+  }
+
   function close() {
     setPicking(null);
     ref.current?.focus();
@@ -368,7 +385,15 @@ export default function ReviewTextarea({
   return (
     <div className="flex flex-col gap-2">
       <div>
-        <div className="relative">
+        {previewHeight !== null && (
+          <div
+            style={{ minHeight: previewHeight }}
+            className={`${className} break-words`}
+          >
+            <ReviewText text={value} plain />
+          </div>
+        )}
+        <div className={previewHeight === null ? "relative" : "hidden"}>
           <div
             ref={backdrop}
             aria-hidden
@@ -399,6 +424,9 @@ export default function ReviewTextarea({
           onBold={() => mark("**")}
           onItalic={() => mark("*")}
           onLink={openWebLink}
+          previewing={previewHeight !== null}
+          onPreview={togglePreview}
+          canPreview={value.trim() !== ""}
         />
       </div>
       {picking && (

@@ -1,18 +1,27 @@
 import { useTranslations } from "next-intl";
 
 const BUTTON =
-  "inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-md px-2 text-[0.95rem] hover:bg-background";
+  "inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-md px-2 text-[0.95rem] enabled:hover:bg-background disabled:opacity-40";
 
-// The buttons along the bottom of a review box: bold, italic, and a link to a
-// web page. Pressing one leaves the box focused, with its text still selected.
+// The buttons along the bottom of a review box: bold, italic, a link to a web
+// page, and a preview of the post as it will look. Pressing bold, italic or
+// link leaves the box focused, with its text still selected; they're off
+// while previewing.
 export default function FormatBar({
   onBold,
   onItalic,
   onLink,
+  previewing,
+  onPreview,
+  canPreview,
 }: {
   onBold: () => void;
   onItalic: () => void;
   onLink: () => void;
+  previewing: boolean;
+  // Switches between writing and the preview
+  onPreview: () => void;
+  canPreview: boolean;
 }) {
   const t = useTranslations();
   // Keeps the focus (and the selection) in the box
@@ -23,6 +32,7 @@ export default function FormatBar({
       <button
         type="button"
         onMouseDown={keepFocus}
+        disabled={previewing}
         onClick={onBold}
         aria-label={t("logs.format.bold")}
         title={t("logs.format.bold")}
@@ -33,6 +43,7 @@ export default function FormatBar({
       <button
         type="button"
         onMouseDown={keepFocus}
+        disabled={previewing}
         onClick={onItalic}
         aria-label={t("logs.format.italic")}
         title={t("logs.format.italic")}
@@ -43,6 +54,7 @@ export default function FormatBar({
       <button
         type="button"
         onMouseDown={keepFocus}
+        disabled={previewing}
         onClick={onLink}
         title={t("logs.format.linkTitle")}
         className={BUTTON}
@@ -62,6 +74,14 @@ export default function FormatBar({
           <path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
         </svg>
         <span className="text-sm">{t("logs.format.link")}</span>
+      </button>
+      <button
+        type="button"
+        onClick={onPreview}
+        disabled={!canPreview && !previewing}
+        className={`${BUTTON} text-sm`}
+      >
+        {previewing ? t("common.edit") : t("logs.format.preview")}
       </button>
       <span className="ml-auto hidden pr-2 text-xs text-muted sm:inline">
         {t("logs.format.itemHint")}
