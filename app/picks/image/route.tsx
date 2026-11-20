@@ -3,7 +3,7 @@
 
 import { ImageResponse } from "next/og";
 import { connection } from "next/server";
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import { FEATURES } from "@/lib/features";
 import { getDailyPicks, type Pick } from "@/lib/feed/dailyPicks";
 import { absolute, shortLabel, thumbUrl } from "@/lib/format";
@@ -32,12 +32,14 @@ function Square({
   heading,
   pick,
   image,
+  noRatings,
 }: {
   heading: string;
   pick: Pick | null;
   image: string | null;
+  // What the square says when nothing was rated
+  noRatings: string;
 }) {
-  const t = useTranslations();
   const label = (
     <div
       style={{
@@ -68,9 +70,7 @@ function Square({
     >
       {label}
       {!pick ? (
-        <div style={{ fontSize: px(12), color: COLORS.muted }}>
-          {t("item.noRatingsYet")}
-        </div>
+        <div style={{ fontSize: px(12), color: COLORS.muted }}>{noRatings}</div>
       ) : (
         <div
           style={{
@@ -154,6 +154,7 @@ export async function GET(request: Request) {
   await connection();
   if (!FEATURES.dailyPicks) return new Response("Not found", { status: 404 });
 
+  const t = await getTranslations();
   const picks = await getDailyPicks();
   const siteFile = (path: string) => new URL(path, request.url).toString();
   const pickImage = (pick: Pick | null) =>
@@ -188,11 +189,13 @@ export async function GET(request: Request) {
           heading="Popular Today"
           pick={picks.popular}
           image={popularImage}
+          noRatings={t("item.noRatingsYet")}
         />
         <Square
           heading="Unpopular Today"
           pick={picks.unpopular}
           image={unpopularImage}
+          noRatings={t("item.noRatingsYet")}
         />
       </div>
 
