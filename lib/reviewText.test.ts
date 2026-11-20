@@ -26,7 +26,7 @@ test("links items and people to their pages", () => {
   const html = show(`[[Q42|Don't *Panic*]] and ${mentionToken(id, "ann_lee")}`);
   assert.match(
     html,
-    /href="\/item\/Q42"[^>]*>(<img[^>]*>)+Don&#x27;t \*Panic\*<\/a>/,
+    /href="\/item\/Q42"[^>]*><span[^>]*>(<img[^>]*>)+\u2060<\/span>Don&#x27;t \*Panic\*<\/a>/,
   );
   assert.match(html, new RegExp(`href="/people/${id}"[^>]*>@ann_lee</a>`));
 });
