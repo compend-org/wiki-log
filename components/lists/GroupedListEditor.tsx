@@ -523,14 +523,10 @@ export default function GroupedListEditor({
   }
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        save();
-      }}
-      onKeyDown={submitOnModEnter}
-      className="flex flex-col gap-6"
-    >
+    // Not a form: the note box inside is one, and browsers don't let a form's
+    // submit out of an enclosing form, so its Save would reload the page
+    // biome-ignore lint/a11y/noStaticElementInteractions: the handler only catches Cmd/Ctrl+Enter bubbling up from the fields inside
+    <div onKeyDown={submitOnModEnter} className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold">
           {list.id === null ? t("lists.grouped.newTitle") : t("lists.editList")}
@@ -538,7 +534,13 @@ export default function GroupedListEditor({
         <p className="text-sm text-muted">{t("lists.grouped.intro")}</p>
       </header>
 
-      <div className="flex flex-col gap-3">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          save();
+        }}
+        className="flex flex-col gap-3"
+      >
         <label className="flex flex-col gap-1 text-sm">
           {t("lists.editor.titleLabel")}
           <input
@@ -558,7 +560,7 @@ export default function GroupedListEditor({
             className="rounded-lg border border-line bg-surface px-4 py-2 text-foreground"
           />
         </label>
-      </div>
+      </form>
 
       <div className="flex flex-col gap-1">
         <label className="flex items-center gap-2 text-sm">
@@ -599,12 +601,6 @@ export default function GroupedListEditor({
                     )
                   }
                   maxLength={MAX_GROUP_NAME}
-                  onKeyDown={(e) => {
-                    // Enter in a name shouldn't save the list
-                    if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) {
-                      e.preventDefault();
-                    }
-                  }}
                   placeholder={t("lists.grouped.groupNamePlaceholder", {
                     number: index + 1,
                   })}
@@ -786,7 +782,8 @@ export default function GroupedListEditor({
 
       <section className="flex flex-col gap-2">
         <button
-          type="submit"
+          type="button"
+          onClick={save}
           data-submit
           disabled={busy}
           className="self-start rounded-lg bg-accent px-6 py-2 text-background disabled:opacity-40"
@@ -843,6 +840,6 @@ export default function GroupedListEditor({
           onClose={() => setPicturing(null)}
         />
       )}
-    </form>
+    </div>
   );
 }
