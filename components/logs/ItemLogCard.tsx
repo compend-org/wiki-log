@@ -7,6 +7,7 @@ import CardActions from "@/components/logs/CardActions";
 import ReviewText from "@/components/logs/ReviewText";
 import Stars from "@/components/logs/Stars";
 import AdminBadge from "@/components/moderation/AdminBadge";
+import Avatar from "@/components/people/Avatar";
 import LikeButton from "@/components/social/LikeButton";
 import ShareButton from "@/components/social/ShareButton";
 import { timeAgo } from "@/lib/format";
@@ -46,8 +47,9 @@ export default function ItemLogCard({
         {author ? (
           <Link
             href={`/u/${encodeURIComponent(author)}`}
-            className="relative z-10 hover:underline font-semibold"
+            className="relative z-10 inline-flex items-center gap-1.5 hover:underline font-semibold"
           >
+            <Avatar name={author} path={row.profiles?.avatar_path} size={20} />
             {author}
           </Link>
         ) : (

@@ -18,14 +18,14 @@ export type ItemLogRow = {
   rating: number | null;
   review: string;
   logged_at: string;
-  profiles: { username: string } | null;
+  profiles: { username: string; avatar_path: string | null } | null;
   likes: { count: number }[];
   comments: { count: number }[];
   shares: { count: number }[];
 };
 
 const ITEM_LOG_SELECT =
-  "id, user_id, item_id, rating, review, logged_at, profiles!logs_user_id_profiles_fkey(username), likes(count), comments(count), shares(count)";
+  "id, user_id, item_id, rating, review, logged_at, profiles!logs_user_id_profiles_fkey(username, avatar_path), likes(count), comments(count), shares(count)";
 
 // How many of the most-liked logs show at the top of an item's logs
 const MOST_LIKED = 3;
