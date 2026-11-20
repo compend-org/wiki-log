@@ -90,12 +90,24 @@ export default async function Home({
           {!signedIn && (
             <div className="grid grid-cols-[1fr_auto_1fr] items-center">
               <p className="col-start-2 text-center text-sm">
-                <Link
-                  href="/login?mode=signup"
-                  className="text-accent underline hover:no-underline"
-                >
-                  {t("home.createAnAccount")}
-                </Link>
+                {t.rich("home.createAccountOrGuide", {
+                  create: (chunks) => (
+                    <Link
+                      href="/login?mode=signup"
+                      className="text-accent underline hover:no-underline"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                  guide: (chunks) => (
+                    <Link
+                      href="/guide"
+                      className="text-accent underline hover:no-underline"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                })}
               </p>
               {sharePicks && (
                 <div className="col-start-3 justify-self-end">{sharePicks}</div>

@@ -179,6 +179,7 @@
     "findingOne": "buscando…",
     "orMakeList": "o <link>crea una lista</link>",
     "createAccountOrBrowse": "<create>Crea una cuenta</create> o <browse>explora</browse>",
+    "createAccountOrGuide": "<create>Crea una cuenta</create> o echa un vistazo a nuestra <guide>«Guía de estilo»</guide>",
     "createAnAccount": "Crear una cuenta",
     "popularToday": "Popular hoy",
     "unpopularToday": "Impopular hoy"
