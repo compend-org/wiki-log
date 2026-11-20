@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { type CompoundDetails, updateCompound } from "@/app/actions";
+import ReviewTextarea from "@/components/logs/ReviewTextArea";
 import Dialog from "@/components/ui/Dialog";
 import EditIcon from "@/components/ui/EditIcon";
 
@@ -138,16 +139,20 @@ export default function CompoundEditButton({
               className="border border-line bg-surface px-3 py-2 text-foreground"
             />
           </label>
-          <label className="flex flex-col gap-1">
-            {t("craft.description")}
-            <textarea
+          <div className="flex flex-col gap-1">
+            <label htmlFor="compound-description">
+              {t("craft.description")}
+            </label>
+            <ReviewTextarea
+              id="compound-description"
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={setText}
               maxLength={500}
               rows={3}
+              mentions={false}
               className="border border-line bg-surface px-3 py-2 text-foreground"
             />
-          </label>
+          </div>
           <div className="flex items-center gap-3">
             <span
               role="img"

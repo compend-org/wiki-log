@@ -8,6 +8,7 @@ import es from "../messages/es.json";
 import {
   entryPicture,
   mentionToken,
+  plainItemDescription,
   plainReview,
   REVIEW_LINK,
   shownImage,
@@ -176,4 +177,9 @@ test("stores web links that survive brackets and parentheses", () => {
     webLinkToken("  ", "https://example.com"),
     "[https://example.com](https://example.com)",
   );
+});
+
+test("drops the markdown from a compound's description only", () => {
+  assert.equal(plainItemDescription("C12", "Tastes **loud**"), "Tastes loud");
+  assert.equal(plainItemDescription("Q42", "1 * 2 * 3"), "1 * 2 * 3");
 });

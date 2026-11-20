@@ -1,3 +1,5 @@
+import { isCompoundId } from "@/lib/ids";
+
 // A rating out of 5 as plain text, like "★★★½". No rating gives "".
 export function starText(rating: number | null | undefined): string {
   const clamped = Math.max(0, Math.min(5, rating ?? 0));
@@ -169,6 +171,12 @@ export function webLinkToken(words: string, address: string): string {
       .slice(0, 200) || address;
   const url = address.replace(/\(/g, "%28").replace(/\)/g, "%29");
   return `[${clean}](${url})`;
+}
+
+// An item's description as plain text. A compound's is written here, in
+// markdown; the rest come from Wikipedia as plain text already.
+export function plainItemDescription(id: string, description: string): string {
+  return isCompoundId(id) ? plainReview(description) : description;
 }
 
 // A review as plain text: item links read as the item's title, mentions as

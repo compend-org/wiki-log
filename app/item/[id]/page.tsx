@@ -16,11 +16,12 @@ import ItemLogs from "@/components/logs/ItemLogs";
 import LogForm from "@/components/logs/LogForm";
 import MyEntries, { type MyEntry } from "@/components/logs/MyEntries";
 import RatingHistogram from "@/components/logs/RatingsHistogram";
+import ReviewText from "@/components/logs/ReviewText";
 import ItemAdminMenu from "@/components/moderation/ItemAdminMenu";
 import ShareImageButton from "@/components/social/ShareImageButton";
 import { isAdmin } from "@/lib/admin/admin";
 import { FEATURES } from "@/lib/features";
-import { timeAgo } from "@/lib/format";
+import { plainItemDescription, timeAgo } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
 import { getItemLogs, getMostLikedLogs } from "@/lib/itemLogs";
 import { getItemRatings } from "@/lib/itemRatings";
@@ -74,7 +75,8 @@ export async function generateMetadata({
     title: item.title,
     description: itemDescription({
       title: item.title,
-      about: item.description,
+      about:
+        item.description && plainItemDescription(item.id, item.description),
       ratings,
     }),
     path: `/item/${item.id}`,
@@ -337,9 +339,14 @@ export default async function ItemPage({
                 />
               )}
             </div>
-            {item.description && (
-              <p className="text-muted">{item.description}</p>
-            )}
+            {item.description &&
+              (compound ? (
+                <div className="break-words text-muted">
+                  <ReviewText text={item.description} />
+                </div>
+              ) : (
+                <p className="text-muted">{item.description}</p>
+              ))}
 
             {compound ? (
               <p className="text-xs text-muted">

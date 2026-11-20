@@ -6,12 +6,13 @@ const BUTTON =
 // The buttons along the bottom of a review box: bold, italic, a link to a web
 // page, and a preview of the post as it will look. Pressing bold, italic or
 // link leaves the box focused, with its text still selected; they're off
-// while previewing.
+// while previewing or saving.
 export default function FormatBar({
   onBold,
   onItalic,
   onLink,
   previewing,
+  readOnly,
   onPreview,
   canPreview,
 }: {
@@ -19,6 +20,8 @@ export default function FormatBar({
   onItalic: () => void;
   onLink: () => void;
   previewing: boolean;
+  // While the box's text is being saved
+  readOnly: boolean;
   // Switches the preview on or off
   onPreview: () => void;
   canPreview: boolean;
@@ -28,11 +31,11 @@ export default function FormatBar({
   const keepFocus = (e: React.MouseEvent) => e.preventDefault();
 
   return (
-    <div className="flex items-center gap-0.5 border border-t-0 border-line bg-surface px-1 py-0.5">
+    <div className="flex flex-wrap items-center gap-0.5 border border-t-0 border-line bg-surface px-1 py-0.5">
       <button
         type="button"
         onMouseDown={keepFocus}
-        disabled={previewing}
+        disabled={previewing || readOnly}
         onClick={onBold}
         aria-label={t("logs.format.bold")}
         title={t("logs.format.bold")}
@@ -43,7 +46,7 @@ export default function FormatBar({
       <button
         type="button"
         onMouseDown={keepFocus}
-        disabled={previewing}
+        disabled={previewing || readOnly}
         onClick={onItalic}
         aria-label={t("logs.format.italic")}
         title={t("logs.format.italic")}
@@ -54,7 +57,7 @@ export default function FormatBar({
       <button
         type="button"
         onMouseDown={keepFocus}
-        disabled={previewing}
+        disabled={previewing || readOnly}
         onClick={onLink}
         title={t("logs.format.linkTitle")}
         className={BUTTON}
@@ -84,7 +87,7 @@ export default function FormatBar({
       >
         {t("logs.format.preview")}
       </button>
-      <span className="ml-auto hidden pr-2 text-xs text-muted sm:inline">
+      <span className="ml-auto hidden whitespace-nowrap pr-2 text-xs text-muted sm:inline">
         {t("logs.format.itemHint")}
       </span>
     </div>

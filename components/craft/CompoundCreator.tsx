@@ -8,6 +8,7 @@ import { createCompound } from "@/app/actions";
 import PaintEditor from "@/components/craft/PaintEditor";
 import ItemImage from "@/components/items/ItemImage";
 import ItemPicker from "@/components/items/ItemPicker";
+import ReviewTextarea from "@/components/logs/ReviewTextArea";
 import { PAINT_SIZE } from "@/lib/craft/paint";
 import { readPicture } from "@/lib/craft/paintUpload";
 
@@ -169,16 +170,20 @@ export default function CompoundCreator() {
             className="border border-line bg-surface px-4 py-2 text-foreground"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          {t("lists.editor.descriptionLabel")}
-          <textarea
+        <div className="flex flex-col gap-1 text-sm">
+          <label htmlFor="compound-description">
+            {t("lists.editor.descriptionLabel")}
+          </label>
+          <ReviewTextarea
+            id="compound-description"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={setDescription}
             maxLength={500}
             rows={3}
+            mentions={false}
             className="border border-line bg-surface px-4 py-2 text-foreground"
           />
-        </label>
+        </div>
       </section>
 
       <section className="flex flex-col gap-2">

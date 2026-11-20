@@ -423,9 +423,9 @@ export default async function ListPage({
                           )}`}
                         >
                           <span className="font-semibold">{title}</span>
-                          <p className="line-clamp-8 whitespace-pre-wrap break-words text-sm">
-                            {entry.note}
-                          </p>
+                          <div className="line-clamp-8 break-words text-sm">
+                            <ReviewText text={entry.note} plain />
+                          </div>
                         </div>
                       )}
                     </li>

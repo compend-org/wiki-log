@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import ItemImage from "@/components/items/ItemImage";
+import ReviewText from "@/components/logs/ReviewText";
 import Dialog from "@/components/ui/Dialog";
 
 export default function ListNoteButton({
@@ -67,7 +68,9 @@ export default function ListNoteButton({
             </div>
           </div>
 
-          <p className="whitespace-pre-wrap break-words text-base">{note}</p>
+          <div className="break-words text-base">
+            <ReviewText text={note} />
+          </div>
 
           <div className="flex gap-2">
             <Link

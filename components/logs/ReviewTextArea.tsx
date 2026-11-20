@@ -72,6 +72,9 @@ export default function ReviewTextarea({
   autoFocus = false,
   mentions = true,
   id,
+  label,
+  invalid = false,
+  readOnly = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -84,6 +87,12 @@ export default function ReviewTextarea({
   mentions?: boolean;
   // For a label to point at
   id?: string;
+  // The box's name for screen readers, when no label points at it
+  label?: string;
+  // Whether what's written can't be saved as it is
+  invalid?: boolean;
+  // While what's written is being saved, so what's sent is what's shown
+  readOnly?: boolean;
 }) {
   const t = useTranslations();
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -156,13 +165,15 @@ export default function ReviewTextarea({
 
   function handleCut(e: React.ClipboardEvent<HTMLTextAreaElement>) {
     const copied = copySelection(e);
-    if (copied) apply(replaceText(draft, copied.start, copied.end, ""));
+    if (copied && !readOnly)
+      apply(replaceText(draft, copied.start, copied.end, ""));
   }
 
   // Text copied from one of these boxes pastes back with its links, and a web
   // address pasted over selected text links that text to it. Anything else,
   // or a paste too long to fit, pastes as plain text.
   function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    if (readOnly) return;
     const { selectionStart: start, selectionEnd: end } = e.currentTarget;
     const stored = e.clipboardData.getData(CLIPBOARD_TYPE);
     if (!stored) {
@@ -232,6 +243,7 @@ export default function ReviewTextarea({
   // Enter on a list item starts the next one, or ends the list on an empty
   // one. Ctrl or Cmd with B or I makes the selected text bold or italic.
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (readOnly) return;
     const box = e.currentTarget;
     const plainEnter =
       e.key === "Enter" &&
@@ -417,6 +429,9 @@ export default function ReviewTextarea({
             }}
             rows={rows}
             placeholder={placeholder}
+            aria-label={label}
+            aria-invalid={invalid || undefined}
+            readOnly={readOnly}
             className={`${className} relative block w-full bg-transparent! text-transparent! caret-foreground [scrollbar-gutter:stable]`}
           />
         </div>
@@ -425,6 +440,7 @@ export default function ReviewTextarea({
           onItalic={() => mark("*")}
           onLink={openWebLink}
           previewing={previewHeight !== null}
+          readOnly={readOnly}
           onPreview={togglePreview}
           canPreview={value.trim() !== ""}
         />
