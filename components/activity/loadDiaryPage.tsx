@@ -145,6 +145,8 @@ export function parseDiaryCursor(value: unknown): DiaryCursor | null {
 // Whose comment each of these replies answers, by reply id. A reply is stored
 // under the thread's first comment, so a reply to a reply names who it answers
 // by opening with a mention of them; otherwise it answers the first comment.
+// A reply to the first comment that opens with a hand-typed mention is read as
+// answering that person, as the text can't tell the two apart.
 export async function replyTargetsOf(
   supabase: SupabaseClient,
   table: "comments" | "list_comments",
@@ -186,7 +188,9 @@ export async function replyTargetsOf(
   );
   return new Map(
     targets.flatMap(({ id, user, comment }) => {
-      const name = (user && usernames.get(user)) || authors.get(comment);
+      // A leading mention rules out the first comment's author, so when the
+      // person can't be looked up (such as a banned one) no one is named
+      const name = user ? usernames.get(user) : authors.get(comment);
       return name ? [[id, name] as const] : [];
     }),
   );
