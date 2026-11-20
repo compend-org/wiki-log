@@ -15,7 +15,7 @@ export default function TeX({ tex, block }: { tex: string; block: boolean }) {
   return (
     <Tag
       className={
-        block ? "overflow-x-auto" : "inline-block max-w-full overflow-clip"
+        block ? "overflow-x-auto" : "inline-block max-w-full contain-paint"
       }
       // biome-ignore lint/security/noDangerouslySetInnerHtml: KaTeX's own markup, with the commands that link elsewhere or add raw HTML turned off
       dangerouslySetInnerHTML={{ __html: html }}
