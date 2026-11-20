@@ -288,9 +288,9 @@ export default async function ListPage({
           <span>· {t("counts.items", { count: total })}</span>
         </p>
         {list.description && (
-          <p className="mt-2 whitespace-pre-wrap">
+          <div className="mt-2">
             <ReviewText text={list.description} />
-          </p>
+          </div>
         )}
         <div className="mt-2 flex items-center gap-4">
           <ListLikeButton

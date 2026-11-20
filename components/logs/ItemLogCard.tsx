@@ -60,9 +60,9 @@ export default function ItemLogCard({
         </span>
       </div>
       {row.review && (
-        <p className="line-clamp-6 text-sm [overflow-wrap:anywhere]">
+        <div className="line-clamp-6 text-sm [overflow-wrap:anywhere]">
           <ReviewText text={row.review} />
-        </p>
+        </div>
       )}
       <CardActions
         like={

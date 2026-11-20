@@ -270,9 +270,9 @@ export default function Comments({
               </div>
             </form>
           ) : (
-            <p className="whitespace-pre-wrap break-words text-sm">
+            <div className="break-words text-sm">
               <ReviewText text={c.body} />
-            </p>
+            </div>
           )}
           <div className="flex gap-3 text-xs text-muted">
             <CommentLikeButton

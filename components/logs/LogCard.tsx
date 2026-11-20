@@ -152,13 +152,13 @@ export default async function LogCard({
       </div>
 
       {row.review && (
-        <p
-          className={`col-span-2 line-clamp-6 whitespace-pre-wrap break-words text-sm @xl:col-span-1 @xl:border-l @xl:border-dashed @xl:border-line @xl:pl-4 ${
+        <div
+          className={`col-span-2 line-clamp-6 break-words text-sm @xl:col-span-1 @xl:border-l @xl:border-dashed @xl:border-line @xl:pl-4 ${
             topControls || controls ? "@xl:pr-7" : ""
           }`}
         >
           {<ReviewText text={row.review} />}
-        </p>
+        </div>
       )}
     </div>
   );

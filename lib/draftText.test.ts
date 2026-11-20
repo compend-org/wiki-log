@@ -4,10 +4,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   findChange,
+  formatMarks,
   insertDraft,
   replaceText,
   sliceDraft,
   toDraft,
+  toggleMarker,
   toStored,
 } from "./draftText";
 import { mentionToken } from "./format";
@@ -106,4 +108,58 @@ test("pastes links into the middle of text", () => {
   const { draft, caret } = insertDraft(toDraft("Go [[Q1|Earth]]"), 3, 3, piece);
   assert.equal(toStored(draft), `Go see ${ANN} [[Q1|Earth]]`);
   assert.equal(caret, 12);
+});
+
+test("shows a web link by its words and stores it back as markdown", () => {
+  const stored = "Watch [the restoration](https://example.com/a) tonight";
+  const draft = toDraft(stored);
+  assert.equal(draft.text, "Watch the restoration tonight");
+  assert.equal(toStored(draft), stored);
+  // Deleting into the words removes the whole link
+  assert.equal(
+    edit(stored, "Watch the restoratio tonight", 20),
+    "Watch  tonight",
+  );
+});
+
+test("bolds and unbolds the selected text", () => {
+  const draft = toDraft("an offer he can't refuse");
+  const bold = toggleMarker(draft, 3, 8, "**");
+  assert.equal(bold.draft.text, "an **offer** he can't refuse");
+  assert.deepEqual([bold.start, bold.end], [5, 10]);
+  const plain = toggleMarker(bold.draft, bold.start, bold.end, "**");
+  assert.equal(plain.draft.text, "an offer he can't refuse");
+  assert.deepEqual([plain.start, plain.end], [3, 8]);
+});
+
+test("italic and bold stack without undoing each other", () => {
+  const bold = toggleMarker(toDraft("offer"), 0, 5, "**");
+  const both = toggleMarker(bold.draft, bold.start, bold.end, "*");
+  assert.equal(both.draft.text, "***offer***");
+  const justBold = toggleMarker(both.draft, both.start, both.end, "*");
+  assert.equal(justBold.draft.text, "**offer**");
+});
+
+test("marking text that cuts into a link takes the whole link", () => {
+  // Selects "Ask @A", which ends inside "@Ann"
+  const { draft } = toggleMarker(toDraft(STORED), 0, 6, "**");
+  assert.equal(toStored(draft), `**Ask ${ANN}** about [[Q42|Douglas Adams]].`);
+});
+
+test("finds markdown marks and bold text", () => {
+  const text = "> **big** *small* ~~gone~~\n- item";
+  const found = formatMarks(text).map(
+    (m) => `${m.kind}:${text.slice(m.start, m.end)}`,
+  );
+  assert.deepEqual(found.sort(), [
+    "bold:big",
+    "mark:*",
+    "mark:*",
+    "mark:**",
+    "mark:**",
+    "mark:-",
+    "mark:>",
+    "mark:~~",
+    "mark:~~",
+  ]);
 });

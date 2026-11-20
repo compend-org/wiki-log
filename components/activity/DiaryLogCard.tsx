@@ -129,9 +129,9 @@ export default function DiaryLogCard({
             </Link>
             <Stars rating={shownRating} />
             {shownReview && (
-              <p className="line-clamp-2 whitespace-pre-wrap break-words text-sm">
+              <div className="line-clamp-2 break-words text-sm">
                 <ReviewText text={shownReview} />
-              </p>
+              </div>
             )}
           </div>
         </div>

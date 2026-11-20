@@ -66,7 +66,11 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
           {editing === e.id ? (
             <>
               <RatingInput value={rating} onChange={setRating} />
-              <ReviewTextarea value={review} onChange={setReview} />
+              <ReviewTextarea
+                value={review}
+                onChange={setReview}
+                className="border border-line bg-surface px-4 py-2 text-foreground"
+              />
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -92,9 +96,9 @@ export default function MyEntries({ entries }: { entries: MyEntry[] }) {
                 <span className="text-xs text-muted">{e.loggedAgo}</span>
               </div>
               {e.review && (
-                <p className="whitespace-pre-wrap text-sm">
+                <div className="text-sm">
                   <ReviewText text={e.review} />
-                </p>
+                </div>
               )}
               <div className="flex gap-3 text-xs">
                 <button

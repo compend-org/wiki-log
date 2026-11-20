@@ -91,7 +91,12 @@ export default function EditEntryForm({
       className="flex w-full flex-col gap-2"
     >
       <RatingInput value={rating} onChange={setRating} />
-      <ReviewTextarea value={review} onChange={setReview} maxLength={MAX} />
+      <ReviewTextarea
+        value={review}
+        onChange={setReview}
+        maxLength={MAX}
+        className="border border-line bg-surface px-4 py-2 text-foreground"
+      />
       <div className="flex items-center gap-3">
         <button
           type="submit"
