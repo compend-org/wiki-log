@@ -25,6 +25,12 @@ import {
   setListItemPicture,
   stageItem,
 } from "@/app/actions";
+import DraftControls from "@/components/drafts/DraftControls";
+import DraftNotice from "@/components/drafts/DraftNotice";
+import {
+  type ListDraftSession,
+  useListDraft,
+} from "@/components/drafts/useListDraft";
 import ItemImage from "@/components/items/ItemImage";
 import ItemPicker from "@/components/items/ItemPicker";
 import NoteBox, { WIDE_COLUMNS } from "@/components/lists/NoteBox";
@@ -171,13 +177,14 @@ function GroupGrid({
 }
 
 // Makes and edits grouped lists. Everything is kept here until Save, which
-// stores the whole list at once.
+// stores the whole list at once; a new list is kept as a draft until then.
 export default function GroupedListEditor({
   list,
   ownerName,
   initialGroups,
   initialPictures,
   onDraft,
+  savedDraft = null,
 }: {
   list: {
     id: string | null;
@@ -193,6 +200,8 @@ export default function GroupedListEditor({
   // Told what the list holds whenever it changes, so it can be carried to
   // another kind of list
   onDraft?: (draft: CreatorDraft) => void;
+  // The saved draft a new list is kept in
+  savedDraft?: ListDraftSession | null;
 }) {
   const t = useTranslations();
   const [title, setTitle] = useState<string>(list.title);
@@ -249,6 +258,28 @@ export default function GroupedListEditor({
   const activeEntry =
     groups.flatMap((g) => g.items).find((i) => i.itemId === activeId) ?? null;
   const total = groupItemCount(groups);
+
+  // The draft holds what shows, including the note being typed
+  const shownGroups = withOpenNote(groups) ?? groups;
+  const listDraft = useListDraft(
+    savedDraft,
+    {
+      grouped: true,
+      title,
+      description,
+      ranked: false,
+      labeled,
+      content: {
+        groups: shownGroups.map((g) => ({
+          name: g.name,
+          items: g.items.map((i) => i.itemId),
+        })),
+        notes: notesPayload(shownGroups),
+        pictures: keptPictures(pictures),
+      },
+    },
+    { worthStarting: title.trim() !== "" || total > 0, paused: busy },
+  );
 
   function groupLabel(group: DraftGroup, index: number): string {
     return labeled && group.name.trim()
@@ -435,23 +466,22 @@ export default function GroupedListEditor({
     const notes = notesPayload(toSave);
 
     if (list.id === null) {
+      const published = await listDraft.toPublish();
       const result = await createGroupedList({
         title: trimmed,
         description,
         labeled,
         groups: payload,
         notes,
-        pictures: Object.fromEntries(
-          Object.entries(pictures).filter(
-            (entry): entry is [string, string] => entry[1] !== null,
-          ),
-        ),
+        pictures: keptPictures(pictures),
+        draft: published,
       });
       if (result.error || !result.id) {
         setBusy(false);
         setMessage(result.error ?? t("errors.listCreateFailed"));
         return;
       }
+      listDraft.published(published);
       track("list_created", {
         item_count: total,
         ranked: false,
@@ -527,6 +557,12 @@ export default function GroupedListEditor({
     // submit out of an enclosing form, so its Save would reload the page
     // biome-ignore lint/a11y/noStaticElementInteractions: the handler only catches Cmd/Ctrl+Enter bubbling up from the fields inside
     <div onKeyDown={submitOnModEnter} className="flex flex-col gap-6">
+      {savedDraft?.resumed && listDraft.savedAt && (
+        <DraftNotice
+          label={t("drafts.draft")}
+          onDelete={listDraft.deleteDraft}
+        />
+      )}
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold">
           {list.id === null ? t("lists.grouped.newTitle") : t("lists.editList")}
@@ -781,21 +817,30 @@ export default function GroupedListEditor({
       {error && <p className="text-sm text-danger">{error}</p>}
 
       <section className="flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={save}
-          data-submit
-          disabled={busy}
-          className="self-start rounded-lg bg-accent px-6 py-2 text-background disabled:opacity-40"
-        >
-          {list.id === null
-            ? busy
-              ? t("auth.creating")
-              : t("lists.editor.create")
-            : busy
-              ? t("common.saving")
-              : t("lists.editor.saveList")}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={save}
+            data-submit
+            disabled={busy}
+            className="rounded-lg bg-accent px-6 py-2 text-background disabled:opacity-40"
+          >
+            {list.id === null
+              ? busy
+                ? t("auth.creating")
+                : t("lists.editor.create")
+              : busy
+                ? t("common.saving")
+                : t("lists.editor.saveList")}
+          </button>
+          {savedDraft && (
+            <DraftControls
+              draft={listDraft}
+              disabled={busy}
+              onSave={listDraft.saveNow}
+            />
+          )}
+        </div>
         {message && <p className="text-sm text-danger">{message}</p>}
         <p className="text-xs text-muted">
           {list.id === null

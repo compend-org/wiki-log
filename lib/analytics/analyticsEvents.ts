@@ -43,6 +43,12 @@ export type AnalyticsEvents = {
   list_note_saved: { length: number; from: "editor" | "add_to_list" };
   list_note_removed: NoProperties;
 
+  // Drafts of log entries and lists. Saves are counted when asked for with
+  // the Save draft button, not when autosaved.
+  draft_saved: { kind: "log" | "list" };
+  draft_deleted: { kind: "log" | "list"; from: "editor" | "drafts_page" };
+  draft_published: { kind: "log" | "list" };
+
   // Social
   user_followed: { follows_you: boolean; source?: "suggestions" };
   user_unfollowed: NoProperties;

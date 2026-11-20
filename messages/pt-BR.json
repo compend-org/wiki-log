@@ -156,7 +156,8 @@
     "thatIsnTACompound": "Isso não é um composto.",
     "onlyThePersonWhoCrafted": "Só quem criou pode fazer isso.",
     "savedTheTextButThe": "O texto foi salvo, mas não foi possível salvar a imagem.",
-    "savedTheTextButThe2": "O texto foi salvo, mas não foi possível remover a imagem."
+    "savedTheTextButThe2": "O texto foi salvo, mas não foi possível remover a imagem.",
+    "invalidDraft": "Rascunho inválido."
   },
   "nav": {
     "activity": "Atividade",
@@ -779,5 +780,30 @@
     "replyWhereList": "Lista de {name}: {title}",
     "anItem": "um item",
     "openWhere": "Abrir {where}"
+  },
+  "drafts": {
+    "title": "Rascunhos",
+    "profileLink": "Rascunhos · {count}",
+    "none": "Nenhum rascunho ainda.",
+    "reviewsHeading": "Resenhas · {count}",
+    "listsHeading": "Listas · {count}",
+    "yourDraft": "Seu rascunho",
+    "draft": "Rascunho",
+    "saveDraft": "Salvar rascunho",
+    "deleteDraft": "Excluir rascunho",
+    "deleteThis": "Excluir este rascunho",
+    "deleteTitle": "Excluir este rascunho?",
+    "cantUndo": "Isso não pode ser desfeito.",
+    "autosavedAt": "Salvo automaticamente às {time}",
+    "autosavedOn": "Salvo automaticamente em {date}, {time}",
+    "autosaveFailed": "Não foi possível salvar automaticamente",
+    "changedElsewhere": "Este rascunho foi alterado em outro lugar. Recarregue para ver.",
+    "savedAgo": "Salvo {ago}",
+    "listMeta": "{kind, select, grouped {Lista agrupada} ranked {Lista ranqueada} other {Lista}} · salva {ago}",
+    "noRatingYet": "Sem avaliação ainda",
+    "untitledList": "Lista sem título",
+    "noItemsYet": "Nenhum item ainda",
+    "openLog": "Continuar seu rascunho de {title}",
+    "openList": "Continuar seu rascunho {title}"
   }
 }

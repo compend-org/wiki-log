@@ -1,5 +1,5 @@
 // ABOUTME: Creates a list, or edits a saved one: its details, items, order, pictures and notes.
-// ABOUTME: A saved list's item changes save as they're made; its details save with the button.
+// ABOUTME: A saved list's item changes save as they're made; a new one is kept as a draft until created.
 "use client";
 
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
@@ -20,6 +20,12 @@ import {
   setListItemPicture,
   stageItem,
 } from "@/app/actions";
+import DraftControls from "@/components/drafts/DraftControls";
+import DraftNotice from "@/components/drafts/DraftNotice";
+import {
+  type ListDraftSession,
+  useListDraft,
+} from "@/components/drafts/useListDraft";
 import ItemImage from "@/components/items/ItemImage";
 import ItemPicker from "@/components/items/ItemPicker";
 import ListPager from "@/components/lists/ListPager";
@@ -184,6 +190,7 @@ export default function ListEditor({
   initialTotal,
   initialPictures,
   onDraft,
+  savedDraft = null,
 }: {
   list: {
     id: string | null;
@@ -203,6 +210,8 @@ export default function ListEditor({
   // Told what a new list holds whenever it changes, so it can be carried to
   // another kind of list
   onDraft?: (draft: CreatorDraft) => void;
+  // The saved draft a new list is kept in
+  savedDraft?: ListDraftSession | null;
 }) {
   const t = useTranslations();
   const format = useFormatter();
@@ -333,6 +342,36 @@ export default function ListEditor({
     (cleanListNote(noteDraft) === null
       ? "The note is empty. Keep editing to remove it with Remove note."
       : null);
+
+  // The draft holds what shows, including the note being typed
+  const typedNote = cleanListNote(noteDraft);
+  const shownItems =
+    notingEntry && typedNote !== null && !noteProblem(noteDraft)
+      ? draftItems.map((i) =>
+          i.itemId === notingEntry.itemId ? { ...i, note: typedNote } : i,
+        )
+      : draftItems;
+  const listDraft = useListDraft(
+    savedDraft,
+    {
+      grouped: false,
+      title,
+      description,
+      ranked,
+      labeled: true,
+      content: {
+        groups: [{ name: "", items: shownItems.map((i) => i.itemId) }],
+        notes: Object.fromEntries(
+          shownItems.flatMap((i) => (i.note ? [[i.itemId, i.note]] : [])),
+        ),
+        pictures: draftPictures,
+      },
+    },
+    {
+      worthStarting: title.trim() !== "" || draftItems.length > 0,
+      paused: busy,
+    },
+  );
 
   // A new list's contents are passed on as they change
   useEffect(() => {
@@ -623,6 +662,7 @@ export default function ListEditor({
       }
       setBusy(true);
       setDetailsMessage("");
+      const published = await listDraft.toPublish();
       const result = await createList({
         title: trimmed,
         description,
@@ -632,12 +672,14 @@ export default function ListEditor({
         notes: Object.fromEntries(
           items.flatMap((i) => (i.note ? [[i.itemId, i.note]] : [])),
         ),
+        draft: published,
       });
       if (result.error || !result.id) {
         setBusy(false);
         setDetailsMessage(result.error ?? t("errors.listCreateFailed"));
         return;
       }
+      listDraft.published(published);
       track("list_created", { item_count: items.length, ranked });
       router.push(`/list/${result.id}`);
       router.refresh();
@@ -684,6 +726,12 @@ export default function ListEditor({
 
   return (
     <div className="flex flex-col gap-6">
+      {savedDraft?.resumed && listDraft.savedAt && (
+        <DraftNotice
+          label={t("drafts.draft")}
+          onDelete={listDraft.deleteDraft}
+        />
+      )}
       <header className="flex items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">
           {list.id === null ? t("lists.newList") : t("lists.editList")}
@@ -987,20 +1035,29 @@ export default function ListEditor({
         {shownError && <p className="text-sm text-danger">{shownError}</p>}
       </section>
       <section className="flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={() => guard({ kind: "save" })}
-          disabled={busy}
-          className="self-start rounded-lg bg-accent px-6 py-2 text-background disabled:opacity-40"
-        >
-          {list.id === null
-            ? busy
-              ? t("auth.creating")
-              : t("lists.editor.create")
-            : busy
-              ? t("common.saving")
-              : t("lists.editor.saveDetails")}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => guard({ kind: "save" })}
+            disabled={busy}
+            className="rounded-lg bg-accent px-6 py-2 text-background disabled:opacity-40"
+          >
+            {list.id === null
+              ? busy
+                ? t("auth.creating")
+                : t("lists.editor.create")
+              : busy
+                ? t("common.saving")
+                : t("lists.editor.saveDetails")}
+          </button>
+          {savedDraft && (
+            <DraftControls
+              draft={listDraft}
+              disabled={busy}
+              onSave={listDraft.saveNow}
+            />
+          )}
+        </div>
         {detailsMessage && (
           <p className="text-sm text-danger">{detailsMessage}</p>
         )}
