@@ -3,7 +3,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import DiaryReplyCard from "@/components/activity/DiaryReplyCard";
-import { authorsOf } from "@/components/activity/loadDiaryPage";
+import { replyTargetsOf } from "@/components/activity/loadDiaryPage";
 import ListCard from "@/components/lists/ListCard";
 import LogCard from "@/components/logs/LogCard";
 import type { Sharer } from "@/components/logs/SharedLabel";
@@ -91,7 +91,7 @@ export async function loadFeedPage(
 
   let replies: ReplyRow[] = [];
   let listReplies: ListReplyRow[] = [];
-  let parentAuthors = new Map<string, string>();
+  let replyTargets = new Map<string, string>();
   let reviewEntries: Entry[] = [];
   let listEntries: Entry[] = [];
   let next: FeedCursor = { reviews: null, lists: null };
@@ -175,19 +175,11 @@ export async function loadFeedPage(
         !viewer.blocked.has(r.user_id) &&
         !viewer.blocked.has(r.lists.user_id),
     );
-    const [commentAuthors, listCommentAuthors] = await Promise.all([
-      authorsOf(
-        supabase,
-        "comments",
-        replies.flatMap((r) => (r.parent_id ? [r.parent_id] : [])),
-      ),
-      authorsOf(
-        supabase,
-        "list_comments",
-        listReplies.flatMap((r) => (r.parent_id ? [r.parent_id] : [])),
-      ),
+    const [commentTargets, listCommentTargets] = await Promise.all([
+      replyTargetsOf(supabase, "comments", replies),
+      replyTargetsOf(supabase, "list_comments", listReplies),
     ]);
-    parentAuthors = new Map([...commentAuthors, ...listCommentAuthors]);
+    replyTargets = new Map([...commentTargets, ...listCommentTargets]);
     // So are reviews of adult items, when the viewer hides them
     logs = shownEntries(logs, viewer.sfwMode, aboutAdultItem);
 
@@ -298,9 +290,7 @@ export async function loadFeedPage(
         ago={timeAgo(r.created_at, now, t, locale)}
         href={href}
         isReply={r.parent_id !== null}
-        replyingTo={
-          r.parent_id ? (parentAuthors.get(r.parent_id) ?? null) : null
-        }
+        replyingTo={replyTargets.get(id) ?? null}
         where={where}
         body={r.body}
         owner={nameOf(r.user_id, r.profiles?.username)}

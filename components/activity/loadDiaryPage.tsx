@@ -10,7 +10,7 @@ import type { Card, CardsPage } from "@/components/paging/CardPages";
 import type { ActivityView } from "@/lib/activityView";
 import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import { FEATURES } from "@/lib/features";
-import { entryPicture, timeAgo } from "@/lib/format";
+import { entryPicture, leadingMentionId, timeAgo } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
 import { fetchManyGroupPreviews } from "@/lib/lists/groupPreview";
 import { shownGroups } from "@/lib/lists/listGroups";
@@ -142,26 +142,53 @@ export function parseDiaryCursor(value: unknown): DiaryCursor | null {
   };
 }
 
-// Who wrote each of these comments, by comment id
-export async function authorsOf(
+// Whose comment each of these replies answers, by reply id. A reply is stored
+// under the thread's first comment, so a reply to a reply names who it answers
+// by opening with a mention of them; otherwise it answers the first comment.
+export async function replyTargetsOf(
   supabase: SupabaseClient,
   table: "comments" | "list_comments",
-  ids: string[],
+  replies: { id: string; parent_id: string | null; body: string }[],
 ): Promise<Map<string, string>> {
-  if (ids.length === 0) return new Map();
-  const { data } = await supabase
-    .from(table)
-    .select(`id, profiles!${table}_user_id_profiles_fkey(username)`)
-    .in("id", ids);
-  return new Map(
+  const targets = replies.flatMap((r) =>
+    r.parent_id
+      ? [{ id: r.id, user: leadingMentionId(r.body), comment: r.parent_id }]
+      : [],
+  );
+  const userIds = targets.flatMap((t) => (t.user ? [t.user] : []));
+  const commentIds = targets.map((t) => t.comment);
+  const [people, comments] = await Promise.all([
+    userIds.length === 0
+      ? { data: [] }
+      : supabase.from("profiles").select("id, username").in("id", userIds),
+    commentIds.length === 0
+      ? { data: [] }
+      : supabase
+          .from(table)
+          .select(`id, profiles!${table}_user_id_profiles_fkey(username)`)
+          .in("id", commentIds),
+  ]);
+  const usernames = new Map(
+    ((people.data ?? []) as { id: string; username: string }[]).map((p) => [
+      p.id,
+      p.username,
+    ]),
+  );
+  const authors = new Map(
     (
-      (data ?? []) as unknown as {
+      (comments.data ?? []) as unknown as {
         id: string;
         profiles: { username: string } | null;
       }[]
     ).flatMap((c) =>
       c.profiles ? [[c.id, c.profiles.username] as const] : [],
     ),
+  );
+  return new Map(
+    targets.flatMap(({ id, user, comment }) => {
+      const name = (user && usernames.get(user)) || authors.get(comment);
+      return name ? [[id, name] as const] : [];
+    }),
   );
 }
 
@@ -330,17 +357,9 @@ export async function loadDiaryPage(
 
   const replyRows = repliesRes.data as unknown as ReplyRow[];
   const listReplyRows = listRepliesRes.data as unknown as ListReplyRow[];
-  const [replyAuthors, listReplyAuthors] = await Promise.all([
-    authorsOf(
-      supabase,
-      "comments",
-      replyRows.flatMap((r) => (r.parent_id ? [r.parent_id] : [])),
-    ),
-    authorsOf(
-      supabase,
-      "list_comments",
-      listReplyRows.flatMap((r) => (r.parent_id ? [r.parent_id] : [])),
-    ),
+  const [replyTargets, listReplyTargets] = await Promise.all([
+    replyTargetsOf(supabase, "comments", replyRows),
+    replyTargetsOf(supabase, "list_comments", listReplyRows),
   ]);
 
   const now = Date.now();
@@ -446,9 +465,7 @@ export async function loadDiaryPage(
               : "/"
           }
           isReply={r.parent_id !== null}
-          replyingTo={
-            r.parent_id ? (replyAuthors.get(r.parent_id) ?? null) : null
-          }
+          replyingTo={replyTargets.get(r.id) ?? null}
           where={t("activity.replyWhereReview", {
             name: r.logs?.profiles?.username ?? t("common.someone"),
             title: r.logs?.items?.title ?? t("activity.anItem"),
@@ -473,9 +490,7 @@ export async function loadDiaryPage(
           ago={timeAgo(r.created_at, now, t, locale)}
           href={r.lists ? `/list/${r.lists.id}` : "/"}
           isReply={r.parent_id !== null}
-          replyingTo={
-            r.parent_id ? (listReplyAuthors.get(r.parent_id) ?? null) : null
-          }
+          replyingTo={listReplyTargets.get(r.id) ?? null}
           where={t("activity.replyWhereList", {
             name: r.lists?.profiles?.username ?? t("common.someone"),
             title: r.lists?.title ?? "",

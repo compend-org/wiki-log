@@ -143,6 +143,17 @@ export function mentionToken(id: string, username: string): string {
   return `[[@${id}|${username}]]`;
 }
 
+// Whose id a comment opens with a mention of, if it does. Replying to a reply
+// starts the text with a mention of its author, as a reply is stored under the
+// thread's first comment, so this is who it really answers.
+export function leadingMentionId(text: string): string | null {
+  return (
+    /^\s*\[\[@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\|[^\]|]{1,200}\]\]/.exec(
+      text,
+    )?.[1] ?? null
+  );
+}
+
 // A review as plain text, with each item link replaced by the item's title
 // and each mention by @username
 export function plainReview(text: string): string {
