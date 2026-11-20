@@ -25,7 +25,7 @@ Every worktree shares one local Supabase database. Apply migrations to it only w
 npx supabase migration up
 ```
 
-Never apply a migration's SQL by hand with `psql`; it won't be recorded, and the database drifts from `supabase/migrations`. While a migration is still changing, try it inside `begin; … rollback;` with `psql`, and run `migration up` only once it's final. Never edit a migration after it has been applied; write a new one. Never run `npx supabase db reset` on your own; it wipes everyone's local data. Ask first.
+Never apply a migration's SQL by hand with `psql`; it won't be recorded, and the database drifts from `supabase/migrations`. While a migration is still changing, try it inside `begin; … rollback;` with `psql`, and run `migration up` only once it's final. Never edit a migration after it has been applied to the production database; write a new one. A migration applied only to the local database can still be edited, but `migration up` won't run it again, so only make edits that leave local data as it already is, or ask before fixing up the local database. Never run `npx supabase db reset` on your own; it wipes everyone's local data. Ask first.
 
 ## Before opening a pull request
 
