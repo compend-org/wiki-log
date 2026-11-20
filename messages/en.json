@@ -795,7 +795,7 @@
   "hiding": {
     "more": "More",
     "hide": "Hide <b>{title}</b>",
-    "hideNote": "Reviews of it won't show up for you. Only you know.",
+    "hideNote": "Reviews of it won't show up for you.",
     "hiddenHere": "<b>{title}</b> is hidden.",
     "undo": "Undo",
     "manage": "Hidden items",

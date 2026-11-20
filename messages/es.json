@@ -795,7 +795,7 @@
   "hiding": {
     "more": "Más",
     "hide": "Ocultar <b>{title}</b>",
-    "hideNote": "Sus reseñas dejarán de aparecerte. Nadie más lo sabrá.",
+    "hideNote": "Sus reseñas dejarán de aparecerte.",
     "hiddenHere": "<b>{title}</b> está oculto.",
     "undo": "Deshacer",
     "manage": "Elementos ocultos",
