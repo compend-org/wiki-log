@@ -179,6 +179,10 @@ export function toggleMarker(
     if (link.start < from && from < link.end) from = link.start;
     if (link.start < to && to < link.end) to = link.end;
   }
+  // Marks only work hugging the text, so spaces at the ends of the selection
+  // stay outside them
+  while (from < to && /\s/.test(draft.text[from])) from++;
+  while (to > from && /\s/.test(draft.text[to - 1])) to--;
 
   // Bold is two stars and italic one, so three stars around the text are both
   const stars = Math.min(
@@ -207,7 +211,8 @@ export function toggleMarker(
 
 // Pressing Enter at `caret` on a list item: starts the next item, with the
 // next number for a numbered list, carrying over whatever was after the
-// caret. On an empty item it ends the list instead, clearing the bullet.
+// caret. On an empty item it ends the list instead, clearing the bullet and
+// leaving a blank line, without which the next line would join the list.
 // Returns null when the caret isn't after a list item's bullet or number.
 export function listEnter(
   draft: Draft,
@@ -222,7 +227,10 @@ export function listEnter(
 
   const lineEnd = draft.text.indexOf("\n", caret);
   const rest = draft.text.slice(itemEnd, lineEnd === -1 ? undefined : lineEnd);
-  if (rest.trim() === "") return replaceText(draft, lineStart, itemEnd, "");
+  if (rest.trim() === "") {
+    const blank = lineStart > 0 && draft.text[lineStart - 2] !== "\n";
+    return replaceText(draft, lineStart, itemEnd, blank ? "\n" : "");
+  }
 
   const [, indent, bullet, number, closer, space] = item;
   const next = bullet ?? `${Number(number) + 1}${closer}`;

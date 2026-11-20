@@ -13,7 +13,7 @@ import {
   toggleMarker,
   toStored,
 } from "./draftText";
-import { mentionToken } from "./format";
+import { mentionToken, webLinkToken } from "./format";
 
 const ANN = mentionToken("65617370-d22f-4d75-9bf4-456e8caee319", "Ann");
 const STORED = `Ask ${ANN} about [[Q42|Douglas Adams]].`;
@@ -133,6 +133,12 @@ test("bolds and unbolds the selected text", () => {
   assert.deepEqual([plain.start, plain.end], [3, 8]);
 });
 
+test("bold leaves spaces at the ends of the selection outside it", () => {
+  const bold = toggleMarker(toDraft("an offer he"), 2, 9, "**");
+  assert.equal(bold.draft.text, "an **offer** he");
+  assert.deepEqual([bold.start, bold.end], [5, 10]);
+});
+
 test("italic and bold stack without undoing each other", () => {
   const bold = toggleMarker(toDraft("offer"), 0, 5, "**");
   const both = toggleMarker(bold.draft, bold.start, bold.end, "*");
@@ -187,8 +193,9 @@ test("Enter in the middle of a list item moves the rest to the next one", () => 
 });
 
 test("Enter on an empty list item ends the list", () => {
-  assert.equal(enter("- one\n- |"), "- one\n|");
-  assert.equal(enter("- one\n2. |"), "- one\n|");
+  assert.equal(enter("- one\n- |"), "- one\n\n|");
+  assert.equal(enter("- one\n2. |"), "- one\n\n|");
+  assert.equal(enter("- |"), "|");
 });
 
 test("Enter outside a list item is left to the box", () => {
@@ -203,4 +210,11 @@ test("Enter keeps links on the list item", () => {
   const next = listEnter(toDraft(`- ${ANN}`), toDraft(`- ${ANN}`).text.length);
   assert.ok(next);
   assert.equal(toStored(next.draft), `- ${ANN}\n- `);
+});
+
+test("a link keeps every word of a long selection", () => {
+  const words = "word ".repeat(50).trim();
+  const draft = toDraft(webLinkToken(words, "https://example.com"));
+  assert.equal(draft.text, words);
+  assert.equal(draft.links.length, 1);
 });

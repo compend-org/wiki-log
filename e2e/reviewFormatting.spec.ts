@@ -76,7 +76,7 @@ test("Enter carries a list on, and ends it on an empty item", async ({
   await page.keyboard.press("Enter");
   await box.pressSequentially("That's all.");
   await expect(box).toHaveValue(
-    "Ranked:\n1. the hot spring\n2. the orange\nThat's all.",
+    "Ranked:\n1. the hot spring\n2. the orange\n\nThat's all.",
   );
 });
 

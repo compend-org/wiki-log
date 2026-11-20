@@ -146,7 +146,7 @@ export function mentionToken(id: string, username: string): string {
 }
 
 // Review text is markdown, so a link to a web page is [words](https://…)
-export const WEB_LINK = /\[([^[\]\n]{1,200})\]\((https?:\/\/[^\s()]+)\)/g;
+export const WEB_LINK = /\[([^[\]\n]+)\]\((https?:\/\/[^\s()]+)\)/g;
 
 // The address typed or pasted for a link, made whole: https:// is added when
 // it's missing. Null when it isn't the address of a web page.
@@ -167,8 +167,7 @@ export function webLinkToken(words: string, address: string): string {
     words
       .replace(/[[\]\n]/g, " ")
       .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 200) || address;
+      .trim() || address;
   const url = address.replace(/\(/g, "%28").replace(/\)/g, "%29");
   return `[${clean}](${url})`;
 }
