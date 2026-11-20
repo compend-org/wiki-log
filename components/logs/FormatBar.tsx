@@ -3,27 +3,23 @@ import { useTranslations } from "next-intl";
 const BUTTON =
   "inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-md px-2 text-[0.95rem] hover:bg-background";
 
-// The buttons along the top of a review box: bold, italic, and a link to a
+// The buttons along the bottom of a review box: bold, italic, and a link to a
 // web page. Pressing one leaves the box focused, with its text still selected.
 export default function FormatBar({
   onBold,
   onItalic,
   onLink,
-  className = "",
 }: {
   onBold: () => void;
   onItalic: () => void;
   onLink: () => void;
-  className?: string;
 }) {
   const t = useTranslations();
   // Keeps the focus (and the selection) in the box
   const keepFocus = (e: React.MouseEvent) => e.preventDefault();
 
   return (
-    <div
-      className={`${className} items-center gap-0.5 border border-b-0 border-line bg-surface px-1 py-0.5`}
-    >
+    <div className="flex items-center gap-0.5 border border-t-0 border-line bg-surface px-1 py-0.5">
       <button
         type="button"
         onMouseDown={keepFocus}

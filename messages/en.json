@@ -551,7 +551,7 @@
       "italic": "Italic",
       "link": "Link",
       "linkTitle": "Link to a web page",
-      "itemHint": "::link for an item",
+      "itemHint": "“::link” for an item",
       "linkWords": "Link “{words}” to a web page (Esc to cancel)",
       "linkAddress": "Add a link to a web page (Esc to cancel)",
       "addLink": "Add link",

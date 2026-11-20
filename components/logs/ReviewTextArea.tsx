@@ -338,26 +338,14 @@ export default function ReviewTextarea({
   // A line break at the very end only takes up a line once something follows
   if (draft.text.endsWith("\n")) coloured.push(" ");
 
-  // The bar shows while the box is in use: focused, or holding text
-  const barShown = value ? "flex" : "hidden group-focus-within:flex";
-  const underBar = value
-    ? "rounded-t-none"
-    : "group-focus-within:rounded-t-none";
-
   return (
-    <div className="group flex flex-col gap-2">
+    <div className="flex flex-col gap-2">
       <div>
-        <FormatBar
-          onBold={() => mark("**")}
-          onItalic={() => mark("*")}
-          onLink={openWebLink}
-          className={barShown}
-        />
         <div className="relative">
           <div
             ref={backdrop}
             aria-hidden
-            className={`${className} ${underBar} pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words [scrollbar-gutter:stable]`}
+            className={`${className} pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words [scrollbar-gutter:stable]`}
           >
             {coloured}
           </div>
@@ -377,9 +365,14 @@ export default function ReviewTextarea({
             }}
             rows={rows}
             placeholder={placeholder}
-            className={`${className} ${underBar} relative block w-full bg-transparent! text-transparent! caret-foreground [scrollbar-gutter:stable]`}
+            className={`${className} relative block w-full bg-transparent! text-transparent! caret-foreground [scrollbar-gutter:stable]`}
           />
         </div>
+        <FormatBar
+          onBold={() => mark("**")}
+          onItalic={() => mark("*")}
+          onLink={openWebLink}
+        />
       </div>
       {picking && (
         // biome-ignore lint/a11y/noStaticElementInteractions: Escape from the picker inside closes it
