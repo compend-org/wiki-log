@@ -484,6 +484,25 @@ export async function unbanUser(
   return {};
 }
 
+// Admins only: marks an item NSFW or safe. Refreshes from Wikipedia keep the
+// choice.
+export async function setItemNsfw(
+  itemId: string,
+  nsfw: boolean,
+): Promise<{ error?: string }> {
+  const t = await getTranslations();
+  if (!ITEM_ID_PATTERN.test(itemId)) return { error: t("errors.invalidItem") };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_set_item_nsfw", {
+    p_item_id: itemId,
+    p_nsfw: nsfw,
+  });
+  if (error) return { error: error.message };
+  updateTag(POSTS_CACHE_TAG);
+  return {};
+}
+
 export async function signIn(input: {
   identifier: string;
   password: string;
