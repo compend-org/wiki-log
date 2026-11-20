@@ -1,6 +1,9 @@
 // ABOUTME: Loads one page of a home page feed and renders its cards for the viewer.
 // ABOUTME: Kept apart from Feed so server actions can use it without importing FeedPages.
+import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import DiaryReplyCard from "@/components/activity/DiaryReplyCard";
+import { authorsOf } from "@/components/activity/loadDiaryPage";
 import ListCard from "@/components/lists/ListCard";
 import LogCard from "@/components/logs/LogCard";
 import type { Sharer } from "@/components/logs/SharedLabel";
@@ -9,11 +12,14 @@ import {
   getFollowingFeed,
   getPublicFeed,
   getTrendingFeed,
+  type ListReplyRow,
   type ListRow,
   type LogRow,
   type PublicFeed,
+  type ReplyRow,
   type Thumb,
 } from "@/lib/feed/feedData";
+import { timeAgo } from "@/lib/format";
 import {
   type ColumnEnd,
   type FeedCursor,
@@ -83,6 +89,9 @@ export async function loadFeedPage(
     followedCount = count ?? 0;
   }
 
+  let replies: ReplyRow[] = [];
+  let listReplies: ListReplyRow[] = [];
+  let parentAuthors = new Map<string, string>();
   let reviewEntries: Entry[] = [];
   let listEntries: Entry[] = [];
   let next: FeedCursor = { reviews: null, lists: null };
@@ -149,6 +158,36 @@ export async function loadFeedPage(
     // shared by people the viewer follows
     logs = logs.filter((l) => !viewer.blocked.has(l.user_id));
     lists = lists.filter((l) => !viewer.blocked.has(l.user_id));
+    // Replies are left out when the person who wrote them or the owner of what
+    // they were written on is blocked, or the review is of an adult item the
+    // viewer hides. A reply on something that is gone is left out too.
+    replies = feed.replies.filter(
+      (r) =>
+        r.logs !== null &&
+        r.logs.profiles !== null &&
+        !viewer.blocked.has(r.user_id) &&
+        !viewer.blocked.has(r.logs.user_id) &&
+        !(viewer.sfwMode === "hide" && aboutAdultItem(r.logs)),
+    );
+    listReplies = feed.listReplies.filter(
+      (r) =>
+        r.lists !== null &&
+        !viewer.blocked.has(r.user_id) &&
+        !viewer.blocked.has(r.lists.user_id),
+    );
+    const [commentAuthors, listCommentAuthors] = await Promise.all([
+      authorsOf(
+        supabase,
+        "comments",
+        replies.flatMap((r) => (r.parent_id ? [r.parent_id] : [])),
+      ),
+      authorsOf(
+        supabase,
+        "list_comments",
+        listReplies.flatMap((r) => (r.parent_id ? [r.parent_id] : [])),
+      ),
+    ]);
+    parentAuthors = new Map([...commentAuthors, ...listCommentAuthors]);
     // So are reviews of adult items, when the viewer hides them
     logs = shownEntries(logs, viewer.sfwMode, aboutAdultItem);
 
@@ -227,9 +266,96 @@ export async function loadFeedPage(
     };
   };
 
+  // Replies on reviews sit in the reviews column and replies on lists in the
+  // lists column, each at the time it was written. They look like the replies in a diary, with the name of
+  // whoever wrote them.
+  const now = Date.now();
+  const t = await getTranslations();
+  const locale = await getLocale();
+  const nameOf = (userId: string, username: string | undefined) =>
+    userId === viewerId ? t("common.you") : (username ?? t("common.someone"));
+  const replyCard = (
+    id: string,
+    kind: "comment" | "list_comment",
+    r: {
+      user_id: string;
+      parent_id: string | null;
+      body: string;
+      created_at: string;
+      profiles: { username: string } | null;
+    },
+    href: string,
+    where: string,
+  ): FeedCard => ({
+    key: `${kind === "comment" ? "reply" : "list-reply"}-${id}`,
+    order: { score: 0, rank: 0, time: Date.parse(r.created_at) },
+    card: (
+      <DiaryReplyCard
+        key={`${kind}-${id}`}
+        replyId={id}
+        kind={kind}
+        cardKey=""
+        ago={timeAgo(r.created_at, now, t, locale)}
+        href={href}
+        isReply={r.parent_id !== null}
+        replyingTo={
+          r.parent_id ? (parentAuthors.get(r.parent_id) ?? null) : null
+        }
+        where={where}
+        body={r.body}
+        owner={nameOf(r.user_id, r.profiles?.username)}
+        ownerHref={
+          r.profiles
+            ? `/u/${encodeURIComponent(r.profiles.username)}`
+            : undefined
+        }
+      />
+    ),
+  });
+  const reviewReplyCards = replies.flatMap((r) =>
+    r.logs?.profiles
+      ? [
+          replyCard(
+            r.id,
+            "comment",
+            r,
+            `/u/${encodeURIComponent(r.logs.profiles.username)}/${r.logs.id}`,
+            t("activity.replyWhereReview", {
+              name: r.logs.profiles.username,
+              title: r.logs.items?.title ?? t("activity.anItem"),
+            }),
+          ),
+        ]
+      : [],
+  );
+  const listReplyCards = listReplies.flatMap((r) =>
+    r.lists
+      ? [
+          replyCard(
+            r.id,
+            "list_comment",
+            r,
+            `/list/${r.lists.id}`,
+            t("activity.replyWhereList", {
+              name: r.lists.profiles?.username ?? t("common.someone"),
+              title: r.lists.title,
+            }),
+          ),
+        ]
+      : [],
+  );
+  const byTime = (a: FeedCard, b: FeedCard) =>
+    mode === "following" ? b.order.time - a.order.time : 0;
+  const reviewCards = [...reviewEntries.map(toCard), ...reviewReplyCards].sort(
+    byTime,
+  );
+  const listCards = [...listEntries.map(toCard), ...listReplyCards].sort(
+    byTime,
+  );
+
   return {
-    reviews: reviewEntries.map(toCard),
-    lists: listEntries.map(toCard),
+    reviews: reviewCards,
+    lists: listCards,
     next,
     ends,
     error: errorMessage,

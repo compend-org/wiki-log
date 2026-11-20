@@ -31,9 +31,16 @@ export function inIdOrder<Row extends { id: string }>(
 export type Keyset = { at: string; id: string };
 
 // Where one column of a feed got to. Time-ordered columns remember the last
-// post and the last share they took. Trending remembers how far down its
+// post and the last share they took, and in Following's reviews column the
+// last reply on a review and on a list. Trending remembers how far down its
 // ranking it is.
-export type ColumnCursor = { posts?: Keyset; shares?: Keyset; rank?: number };
+export type ColumnCursor = {
+  posts?: Keyset;
+  shares?: Keyset;
+  replies?: Keyset;
+  listReplies?: Keyset;
+  rank?: number;
+};
 
 // Each column is null once it has nothing more to show
 export type FeedCursor = {
@@ -105,13 +112,27 @@ export function parseKeyset(
 function parseColumnCursor(value: unknown): ColumnCursor | null | false {
   if (value === null) return null;
   if (typeof value !== "object") return false;
-  const { posts, shares, rank } = value as Record<string, unknown>;
+  const { posts, shares, replies, listReplies, rank } = value as Record<
+    string,
+    unknown
+  >;
   const cursor: ColumnCursor = {};
   const postsAt = parseKeyset(posts);
   const sharesAt = parseKeyset(shares);
-  if (postsAt === false || sharesAt === false) return false;
+  const repliesAt = parseKeyset(replies);
+  const listRepliesAt = parseKeyset(listReplies);
+  if (
+    postsAt === false ||
+    sharesAt === false ||
+    repliesAt === false ||
+    listRepliesAt === false
+  ) {
+    return false;
+  }
   if (postsAt) cursor.posts = postsAt;
   if (sharesAt) cursor.shares = sharesAt;
+  if (repliesAt) cursor.replies = repliesAt;
+  if (listRepliesAt) cursor.listReplies = listRepliesAt;
   if (rank !== undefined) {
     if (typeof rank !== "number" || !Number.isInteger(rank) || rank < 0) {
       return false;

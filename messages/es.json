@@ -770,8 +770,8 @@
   },
   "activity": {
     "craftedCompound": "{who, select, you {Creaste un compuesto} other {{name} creó un compuesto}}",
-    "reply": "{kind, select, replied {{who, select, you {Respondiste} other {{name} respondió}}} other {{who, select, you {Comentaste} other {{name} comentó}}}}",
-    "replyTo": "{kind, select, replied {{who, select, you {Respondiste} other {{name} respondió}} a <user>{replyingTo}</user>} other {{who, select, you {Comentaste} other {{name} comentó}} a <user>{replyingTo}</user>}}",
+    "reply": "{kind, select, replied {{who, select, you {Respondiste} other {<author>{name}</author> respondió}}} other {{who, select, you {Comentaste} other {<author>{name}</author> comentó}}}}",
+    "replyTo": "{kind, select, replied {{who, select, you {Respondiste} other {<author>{name}</author> respondió}} a <user>{replyingTo}</user>} other {{who, select, you {Comentaste} other {<author>{name}</author> comentó}} a <user>{replyingTo}</user>}}",
     "replyWhereReview": "Reseña de {name} sobre {title}",
     "replyWhereList": "Lista de {name}: {title}",
     "anItem": "un elemento",

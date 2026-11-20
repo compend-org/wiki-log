@@ -2,6 +2,7 @@
 // ABOUTME: The whole card opens the review or list it was written on; the cross deletes the reply.
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import DeleteButton from "@/components/logs/DeleteButton";
 import ReviewText from "@/components/logs/ReviewText";
 
@@ -16,6 +17,7 @@ export default function DiaryReplyCard({
   where,
   body,
   owner,
+  ownerHref,
 }: {
   replyId: string;
   // Whether it is a reply on a review or on a list
@@ -33,6 +35,9 @@ export default function DiaryReplyCard({
   where: string;
   body: string;
   owner?: string;
+  // Where the owner's name links to, when it should (in the feed it is the
+  // commenter's profile)
+  ownerHref?: string;
 }) {
   const t = useTranslations();
   const action = {
@@ -40,6 +45,14 @@ export default function DiaryReplyCard({
     who: owner ? "other" : "you",
     name: owner ?? "",
   };
+  const author = (name: ReactNode) =>
+    ownerHref ? (
+      <Link href={ownerHref} className="relative z-10 hover:underline">
+        {name}
+      </Link>
+    ) : (
+      name
+    );
   return (
     <div className="card relative flex flex-col gap-1 p-3 hover-or-tap:border-accent/60">
       {/* The whole card opens it, except the links above it */}
@@ -54,6 +67,7 @@ export default function DiaryReplyCard({
           {replyingTo
             ? t.rich("activity.replyTo", {
                 ...action,
+                author,
                 replyingTo,
                 user: (name) => (
                   <Link
@@ -64,7 +78,7 @@ export default function DiaryReplyCard({
                   </Link>
                 ),
               })
-            : t("activity.reply", action)}
+            : t.rich("activity.reply", { ...action, author })}
         </p>
         {!owner && (
           <DeleteButton kind={kind} targetId={replyId} cardKey={cardKey} />

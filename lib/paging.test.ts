@@ -61,6 +61,22 @@ test("accepts cursors the feed hands out", () => {
     reviews: { posts: { at: at(30), id: ID } },
     lists: null,
   });
+  assert.deepEqual(
+    parseFeedCursor({
+      reviews: {
+        replies: { at: at(20), id: ID },
+        listReplies: { at: at(10), id: ID },
+      },
+      lists: {},
+    }),
+    {
+      reviews: {
+        replies: { at: at(20), id: ID },
+        listReplies: { at: at(10), id: ID },
+      },
+      lists: {},
+    },
+  );
   assert.deepEqual(parseFeedCursor({ reviews: { rank: 30 }, lists: {} }), {
     reviews: { rank: 30 },
     lists: {},
@@ -75,6 +91,8 @@ test("turns away cursors that could change the filter", () => {
     { reviews: { rank: -1 }, lists: {} },
     { reviews: { rank: 1.5 }, lists: {} },
     { reviews: "all", lists: {} },
+    { reviews: { replies: { at: `${at(30)}),id.gt.(0`, id: ID } }, lists: {} },
+    { reviews: { listReplies: { at: at(30), id: "x,y" } }, lists: {} },
   ];
   for (const cursor of bad) assert.equal(parseFeedCursor(cursor), null);
 });

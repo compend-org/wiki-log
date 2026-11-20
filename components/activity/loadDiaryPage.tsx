@@ -143,7 +143,7 @@ export function parseDiaryCursor(value: unknown): DiaryCursor | null {
 }
 
 // Who wrote each of these comments, by comment id
-async function authorsOf(
+export async function authorsOf(
   supabase: SupabaseClient,
   table: "comments" | "list_comments",
   ids: string[],

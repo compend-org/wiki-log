@@ -75,6 +75,9 @@ export type PublicFeed = {
   ranks: Record<string, number>;
   // Following only: when the people followed shared these, newest first
   shares: ShareRow[];
+  // Following only: replies by the people followed, on reviews and on lists
+  replies: ReplyRow[];
+  listReplies: ListReplyRow[];
   next: FeedCursor;
   // Where each column stopped, counting entries that were left out
   ends: { reviews: ColumnEnd; lists: ColumnEnd };
@@ -88,6 +91,44 @@ export type ShareRow = {
   created_at: string;
   profiles: { username: string } | null;
 };
+
+type ReplyAuthor = { username: string } | null;
+
+// A reply on a review, with the review it was written on
+export type ReplyRow = {
+  id: string;
+  user_id: string;
+  parent_id: string | null;
+  body: string;
+  created_at: string;
+  profiles: ReplyAuthor;
+  logs: {
+    id: string;
+    user_id: string;
+    items: { title: string; nsfw: boolean } | null;
+    profiles: ReplyAuthor;
+  } | null;
+};
+
+export type ListReplyRow = {
+  id: string;
+  user_id: string;
+  parent_id: string | null;
+  body: string;
+  created_at: string;
+  profiles: ReplyAuthor;
+  lists: {
+    id: string;
+    user_id: string;
+    title: string;
+    profiles: ReplyAuthor;
+  } | null;
+};
+
+const REPLY_SELECT =
+  "id, user_id, parent_id, body, created_at, profiles!comments_user_id_profiles_fkey(username), logs!comments_log_fkey(id, user_id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))";
+const LIST_REPLY_SELECT =
+  "id, user_id, parent_id, body, created_at, profiles!list_comments_user_id_profiles_fkey(username), lists(id, user_id, title, profiles!lists_user_id_profiles_fkey(username))";
 
 type PreviewRow = {
   list_id: string;
@@ -165,6 +206,9 @@ type ColumnEvent = { at: string; id: string; target: string };
 
 type Column<Row> = {
   rows: Row[];
+  // Following's reviews column only
+  replies: ReplyRow[];
+  listReplies: ListReplyRow[];
   next: ColumnCursor | null;
   end: ColumnEnd;
   error: string;
@@ -180,9 +224,29 @@ function rowsOf(supabase: SupabaseClient, table: string, following: boolean) {
   return following ? supabase.rpc(`following_${table}`) : supabase.from(table);
 }
 
+// A page of replies (on reviews or on lists, by `table`) written up to `asOf`
+// by the viewer and the people they follow. Removed ones are left out.
+function repliesOf(
+  supabase: SupabaseClient,
+  table: "comments" | "list_comments",
+  asOf: string,
+  after: Keyset | undefined,
+) {
+  let query = rowsOf(supabase, table, true)
+    .select(table === "comments" ? REPLY_SELECT : LIST_REPLY_SELECT)
+    .is("removed_at", null)
+    .lte("created_at", asOf);
+  if (after) query = query.or(olderThan("created_at", after));
+  return query
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(PAGE_SIZE + 1);
+}
+
 // One page of a column in time order: the next posts made up to `asOf`. With
 // `following`, only posts by the viewer and the people they follow, merged
-// with the posts those people shared, each at the time it was shared. The
+// with the posts those people shared, each at the time it was shared. Their
+// replies come in the reviews column, as cards of their own. The
 // same post can come again on a later page if it was also posted or shared
 // earlier.
 async function loadColumn<Row extends { id: string }>(
@@ -192,8 +256,21 @@ async function loadColumn<Row extends { id: string }>(
   cursor: ColumnCursor | null,
   following = false,
 ): Promise<Column<Row>> {
-  if (!cursor) return { rows: [], next: null, end: null, error: "" };
+  if (!cursor) {
+    return {
+      rows: [],
+      replies: [],
+      listReplies: [],
+      next: null,
+      end: null,
+      error: "",
+    };
+  }
   const { table, select, time, share } = KINDS[kind];
+  // Following's reviews column carries the replies on reviews, and its lists
+  // column the replies on lists
+  const withReviewReplies = following && kind === "log";
+  const withListReplies = following && kind === "list";
 
   let posts = rowsOf(supabase, table, following).select(select).lte(time, asOf);
   if (cursor.posts) posts = posts.or(olderThan(time, cursor.posts));
@@ -204,7 +281,7 @@ async function loadColumn<Row extends { id: string }>(
     .lte("created_at", asOf);
   if (cursor.shares) shares = shares.or(olderThan("created_at", cursor.shares));
 
-  const [postsRes, sharesRes] = await Promise.all([
+  const [postsRes, sharesRes, repliesRes, listRepliesRes] = await Promise.all([
     posts
       .order(time, { ascending: false })
       .order("id", { ascending: false })
@@ -215,6 +292,12 @@ async function loadColumn<Row extends { id: string }>(
           .order("id", { ascending: false })
           .limit(PAGE_SIZE + 1)
       : NOTHING,
+    withReviewReplies
+      ? repliesOf(supabase, "comments", asOf, cursor.replies)
+      : NOTHING,
+    withListReplies
+      ? repliesOf(supabase, "list_comments", asOf, cursor.listReplies)
+      : NOTHING,
   ]);
 
   const postRows = (postsRes.data ?? []) as unknown as (Row &
@@ -223,13 +306,18 @@ async function loadColumn<Row extends { id: string }>(
     string,
     string
   >[];
+  const replyRows = (repliesRes.data ?? []) as unknown as ReplyRow[];
+  const listReplyRows = (listRepliesRes.data ??
+    []) as unknown as ListReplyRow[];
   const {
-    taken: [tookPosts, tookShares],
+    taken: [tookPosts, tookShares, tookReplies, tookListReplies],
     hasMore,
   } = takeNewest<ColumnEvent>(
     [
       postRows.map((r) => ({ at: r[time], id: r.id, target: r.id })),
       shareRows.map((s) => ({ at: s.created_at, id: s.id, target: s[share] })),
+      replyRows.map((r) => ({ at: r.created_at, id: r.id, target: r.id })),
+      listReplyRows.map((r) => ({ at: r.created_at, id: r.id, target: r.id })),
     ],
     PAGE_SIZE,
   );
@@ -242,12 +330,21 @@ async function loadColumn<Row extends { id: string }>(
     ? {
         posts: lastOf(tookPosts, cursor.posts),
         shares: lastOf(tookShares, cursor.shares),
+        ...(withReviewReplies && {
+          replies: lastOf(tookReplies, cursor.replies),
+        }),
+        ...(withListReplies && {
+          listReplies: lastOf(tookListReplies, cursor.listReplies),
+        }),
       }
     : null;
   // Everything after this page is older than the oldest thing taken
-  const taken = [tookPosts.at(-1), tookShares.at(-1)].flatMap((e) =>
-    e ? [Date.parse(e.at)] : [],
-  );
+  const taken = [
+    tookPosts.at(-1),
+    tookShares.at(-1),
+    tookReplies.at(-1),
+    tookListReplies.at(-1),
+  ].flatMap((e) => (e ? [Date.parse(e.at)] : []));
   const end = hasMore ? { score: 0, rank: 0, time: Math.min(...taken) } : null;
 
   // Shared posts that didn't come with the posts above
@@ -264,10 +361,24 @@ async function loadColumn<Row extends { id: string }>(
     ...postRows.filter((r) => have.has(r.id)),
     ...((extraRes.data ?? []) as unknown as Row[]),
   ];
+  const tookIds = (events: ColumnEvent[]) => new Set(events.map((e) => e.id));
+  const replyIds = tookIds(tookReplies);
+  const listReplyIds = tookIds(tookListReplies);
   const error = loadMessage(
-    postsRes.error ?? sharesRes.error ?? extraRes.error,
+    postsRes.error ??
+      sharesRes.error ??
+      repliesRes.error ??
+      listRepliesRes.error ??
+      extraRes.error,
   );
-  return { rows, next, end, error };
+  return {
+    rows,
+    replies: replyRows.filter((r) => replyIds.has(r.id)),
+    listReplies: listReplyRows.filter((r) => listReplyIds.has(r.id)),
+    next,
+    end,
+    error,
+  };
 }
 
 // Puts the two columns of a page together, with the previews of its lists
@@ -289,6 +400,8 @@ async function assemble(
     scores,
     ranks,
     shares: [],
+    replies: logs.replies,
+    listReplies: lists.listReplies,
     next: { reviews: logs.next, lists: lists.next },
     ends: { reviews: logs.end, lists: lists.end },
     error: logs.error || lists.error,
@@ -414,7 +527,16 @@ export async function getTrendingFeed(
     ranked: RankRow[],
     cursor: ColumnCursor | null,
   ): Promise<Column<Row>> {
-    if (!cursor) return { rows: [], next: null, end: null, error: "" };
+    if (!cursor) {
+      return {
+        rows: [],
+        replies: [],
+        listReplies: [],
+        next: null,
+        end: null,
+        error: "",
+      };
+    }
     const from = cursor.rank ?? 0;
     const to = from + PAGE_SIZE;
     const ids = ranked.slice(from, to).map((r) => r.row_id);
@@ -427,7 +549,8 @@ export async function getTrendingFeed(
     const end = more
       ? { score: Number(ranked[to - 1].recent_likes), rank: to - 1, time: 0 }
       : null;
-    if (ids.length === 0) return { rows: [], next, end, error: "" };
+    const none = { replies: [], listReplies: [] };
+    if (ids.length === 0) return { rows: [], ...none, next, end, error: "" };
 
     const { table, select } = KINDS[kind];
     const { data, error } = await supabase
@@ -436,7 +559,7 @@ export async function getTrendingFeed(
       .in("id", ids);
     // The ranking's own order
     const rows = inIdOrder((data ?? []) as unknown as Row[], ids);
-    return { rows, next, end, error: loadMessage(error) };
+    return { rows, ...none, next, end, error: loadMessage(error) };
   }
 
   const [logs, lists] = await Promise.all([
