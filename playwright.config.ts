@@ -7,7 +7,15 @@ const PORT = 3210;
 export default defineConfig({
   testDir: "e2e",
   use: { baseURL: `http://localhost:${PORT}`, trace: "retain-on-failure" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    // Signs in once for the tests that need someone signed in
+    { name: "setup", testMatch: /.*\.setup\.ts/ },
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
+    },
+  ],
   // CI tests the site it has built, as it would be deployed
   webServer: {
     command: process.env.CI
