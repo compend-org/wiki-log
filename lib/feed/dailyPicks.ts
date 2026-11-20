@@ -67,7 +67,9 @@ export async function getDailyPicks(): Promise<DailyPicks> {
   const toPick = (row: PickRow | undefined): Pick | null => {
     if (!row) return null;
     const item = items.get(row.item_id);
-    if (!item) return null;
+    // Picks leave adult items out; one flagged since the picks were chosen
+    // drops out now
+    if (!item || item.nsfw) return null;
     return {
       itemId: item.id,
       title: item.title,

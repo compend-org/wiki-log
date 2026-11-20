@@ -42,6 +42,8 @@ async function main() {
       .from("items")
       .select("id, types, image_url, nsfw")
       .like("id", "Q%")
+      // An admin's choice is kept, so those items aren't checked
+      .is("nsfw_set_at", null)
       .gt("id", lastId)
       .order("id")
       .limit(BATCH);
