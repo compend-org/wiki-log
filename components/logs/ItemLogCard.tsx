@@ -62,7 +62,7 @@ export default function ItemLogCard({
         </span>
       </div>
       {row.review && (
-        <div className="line-clamp-6 text-sm [overflow-wrap:anywhere]">
+        <div className="clamp-lines-6 text-sm [overflow-wrap:anywhere]">
           <ReviewText text={row.review} />
         </div>
       )}
