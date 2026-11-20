@@ -91,7 +91,7 @@ export async function loadFeedPage(
 
   let replies: ReplyRow[] = [];
   let listReplies: ListReplyRow[] = [];
-  let parentAuthors = new Map<string, string>();
+  let replyToAuthors = new Map<string, string>();
   let reviewEntries: Entry[] = [];
   let listEntries: Entry[] = [];
   let next: FeedCursor = { reviews: null, lists: null };
@@ -179,15 +179,15 @@ export async function loadFeedPage(
       authorsOf(
         supabase,
         "comments",
-        replies.flatMap((r) => (r.parent_id ? [r.parent_id] : [])),
+        replies.flatMap((r) => (r.reply_to_id ? [r.reply_to_id] : [])),
       ),
       authorsOf(
         supabase,
         "list_comments",
-        listReplies.flatMap((r) => (r.parent_id ? [r.parent_id] : [])),
+        listReplies.flatMap((r) => (r.reply_to_id ? [r.reply_to_id] : [])),
       ),
     ]);
-    parentAuthors = new Map([...commentAuthors, ...listCommentAuthors]);
+    replyToAuthors = new Map([...commentAuthors, ...listCommentAuthors]);
     // So are reviews of adult items, when the viewer hides them
     logs = shownEntries(logs, viewer.sfwMode, aboutAdultItem);
 
@@ -280,6 +280,7 @@ export async function loadFeedPage(
     r: {
       user_id: string;
       parent_id: string | null;
+      reply_to_id: string | null;
       body: string;
       created_at: string;
       profiles: { username: string } | null;
@@ -299,7 +300,7 @@ export async function loadFeedPage(
         href={href}
         isReply={r.parent_id !== null}
         replyingTo={
-          r.parent_id ? (parentAuthors.get(r.parent_id) ?? null) : null
+          r.reply_to_id ? (replyToAuthors.get(r.reply_to_id) ?? null) : null
         }
         where={where}
         body={r.body}

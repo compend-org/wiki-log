@@ -75,6 +75,8 @@ type ListRow = {
 type ReplyRow = {
   id: string;
   parent_id: string | null;
+  // The comment it answers
+  reply_to_id: string | null;
   body: string;
   created_at: string;
   logs: {
@@ -89,6 +91,8 @@ type ReplyRow = {
 type ListReplyRow = {
   id: string;
   parent_id: string | null;
+  // The comment it answers
+  reply_to_id: string | null;
   body: string;
   created_at: string;
   lists: {
@@ -279,7 +283,7 @@ export async function loadDiaryPage(
   let repliesQuery = supabase
     .from("comments")
     .select(
-      "id, parent_id, body, created_at, logs!comments_log_fkey(id, user_id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))",
+      "id, parent_id, reply_to_id, body, created_at, logs!comments_log_fkey(id, user_id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))",
     )
     .eq("user_id", userId)
     .is("removed_at", null);
@@ -289,7 +293,7 @@ export async function loadDiaryPage(
   let listRepliesQuery = supabase
     .from("list_comments")
     .select(
-      "id, parent_id, body, created_at, lists(id, user_id, title, profiles!lists_user_id_profiles_fkey(username))",
+      "id, parent_id, reply_to_id, body, created_at, lists(id, user_id, title, profiles!lists_user_id_profiles_fkey(username))",
     )
     .eq("user_id", userId)
     .is("removed_at", null);
@@ -334,12 +338,12 @@ export async function loadDiaryPage(
     authorsOf(
       supabase,
       "comments",
-      replyRows.flatMap((r) => (r.parent_id ? [r.parent_id] : [])),
+      replyRows.flatMap((r) => (r.reply_to_id ? [r.reply_to_id] : [])),
     ),
     authorsOf(
       supabase,
       "list_comments",
-      listReplyRows.flatMap((r) => (r.parent_id ? [r.parent_id] : [])),
+      listReplyRows.flatMap((r) => (r.reply_to_id ? [r.reply_to_id] : [])),
     ),
   ]);
 
@@ -447,7 +451,7 @@ export async function loadDiaryPage(
           }
           isReply={r.parent_id !== null}
           replyingTo={
-            r.parent_id ? (replyAuthors.get(r.parent_id) ?? null) : null
+            r.reply_to_id ? (replyAuthors.get(r.reply_to_id) ?? null) : null
           }
           where={t("activity.replyWhereReview", {
             name: r.logs?.profiles?.username ?? t("common.someone"),
@@ -474,7 +478,7 @@ export async function loadDiaryPage(
           href={r.lists ? `/list/${r.lists.id}` : "/"}
           isReply={r.parent_id !== null}
           replyingTo={
-            r.parent_id ? (listReplyAuthors.get(r.parent_id) ?? null) : null
+            r.reply_to_id ? (listReplyAuthors.get(r.reply_to_id) ?? null) : null
           }
           where={t("activity.replyWhereList", {
             name: r.lists?.profiles?.username ?? t("common.someone"),

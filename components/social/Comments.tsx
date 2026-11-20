@@ -67,6 +67,9 @@ export default function Comments({
   const loginHref = useLoginHref();
   const [topText, setTopText] = useState<string>("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
+  // The comment Reply was pressed on, which the reply answers. The reply
+  // itself goes under the thread's first comment (replyTo).
+  const [answering, setAnswering] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -78,7 +81,11 @@ export default function Comments({
   const topLevel = comments.filter((c) => c.parentId === null);
   const repliesOf = (id: string) => comments.filter((c) => c.parentId === id);
 
-  async function post(body: string, parentId: string | null): Promise<boolean> {
+  async function post(
+    body: string,
+    parentId: string | null,
+    replyToId: string | null = null,
+  ): Promise<boolean> {
     if (!viewerId) return false;
     const trimmed = body.trim();
     if (trimmed.length < 1 || trimmed.length > 1000) {
@@ -94,6 +101,7 @@ export default function Comments({
         ...scope,
         user_id: viewerId,
         parent_id: parentId,
+        reply_to_id: replyToId,
         body: trimmed,
       });
     setBusy(false);
@@ -118,7 +126,7 @@ export default function Comments({
 
   async function submitReply(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (replyTo && (await post(replyText, replyTo))) {
+    if (replyTo && (await post(replyText, replyTo, answering))) {
       setReplyTo(null);
       setReplyText("");
     }
@@ -287,6 +295,7 @@ export default function Comments({
                 type="button"
                 onClick={() => {
                   setReplyTo(rootId);
+                  setAnswering(c.id);
                   setReplyText(
                     c.parentId
                       ? `${mentionToken(c.authorId, c.authorName)} `

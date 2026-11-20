@@ -240,8 +240,8 @@ join public.logs l on l.user_id = o.id and l.item_id = i.id and l.review <> ''
   )
 join public.profiles p on p.username = v.commenter;
 
-insert into public.comments (log_id, user_id, parent_id, body, created_at)
-select c.log_id, p.id, c.id, v.body, now() - v.age::interval
+insert into public.comments (log_id, user_id, parent_id, reply_to_id, body, created_at)
+select c.log_id, p.id, c.id, c.id, v.body, now() - v.age::interval
 from (values
   ('The orange is doing a lot of the work here.', 'margot', 'It really is. Without the orange it is merely a large wet guinea pig.', '70 minutes'),
   ('Which counter? This matters to me a great deal.', 'priya', 'Cannot say. It may have been a dream. There was a cat involved.', '2 hours'),
@@ -336,8 +336,8 @@ from (values
 join public.lists l on l.title = v.list_title
 join public.profiles p on p.username = v.commenter;
 
-insert into public.list_comments (list_id, user_id, parent_id, body, created_at)
-select c.list_id, p.id, c.id, v.body, now() - v.age::interval
+insert into public.list_comments (list_id, user_id, parent_id, reply_to_id, body, created_at)
+select c.list_id, p.id, c.id, c.id, v.body, now() - v.age::interval
 from (values
   ('Saving the Rubik''s Cube over the cat is a bold position.', 'demo', 'The cat has never once been solved.', '18 hours'),
   ('You went from concrete to Saturn in one meeting? Respect.', 'tomasz', 'It was about the quarterly roadmap.', '20 hours')
