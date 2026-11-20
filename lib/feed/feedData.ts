@@ -130,6 +130,9 @@ const REPLY_SELECT =
 const LIST_REPLY_SELECT =
   "id, user_id, parent_id, body, created_at, profiles!list_comments_user_id_profiles_fkey(username), lists(id, user_id, title, profiles!lists_user_id_profiles_fkey(username))";
 
+// Whether the Following feed shows replies. Off for now.
+const SHOW_FOLLOWING_REPLIES: boolean = false;
+
 type PreviewRow = {
   list_id: string;
   position: number;
@@ -269,8 +272,10 @@ async function loadColumn<Row extends { id: string }>(
   const { table, select, time, share } = KINDS[kind];
   // Following's reviews column carries the replies on reviews, and its lists
   // column the replies on lists
-  const withReviewReplies = following && kind === "log";
-  const withListReplies = following && kind === "list";
+  const withReviewReplies =
+    SHOW_FOLLOWING_REPLIES && following && kind === "log";
+  const withListReplies =
+    SHOW_FOLLOWING_REPLIES && following && kind === "list";
 
   let posts = rowsOf(supabase, table, following).select(select).lte(time, asOf);
   if (cursor.posts) posts = posts.or(olderThan(time, cursor.posts));
