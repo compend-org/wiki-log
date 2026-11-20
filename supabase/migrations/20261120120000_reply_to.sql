@@ -79,44 +79,12 @@ create trigger list_comments_check_reply_to
   before insert on public.list_comments
   for each row execute function public.check_list_comment_reply_to();
 
--- Existing replies. Replying to a reply starts the text with a mention of its
--- author, so a reply that opens with a mention of someone who commented
--- earlier in the thread answers their latest comment before it. Any other
--- reply answers the thread's first comment.
-update public.comments r
-set reply_to_id = coalesce(
-  (
-    select c.id
-    from public.comments c
-    where c.log_id = r.log_id
-      and (c.id = r.parent_id or c.parent_id = r.parent_id)
-      and c.created_at < r.created_at
-      and c.user_id::text = substring(
-        r.body
-        from '^\s*\[\[@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\|'
-      )
-    order by c.created_at desc
-    limit 1
-  ),
-  r.parent_id
-)
-where r.parent_id is not null;
+-- Existing replies didn't record which comment they answer, so they keep
+-- answering the thread's first comment, as they were shown before.
+update public.comments
+set reply_to_id = parent_id
+where parent_id is not null;
 
-update public.list_comments r
-set reply_to_id = coalesce(
-  (
-    select c.id
-    from public.list_comments c
-    where c.list_id = r.list_id
-      and (c.id = r.parent_id or c.parent_id = r.parent_id)
-      and c.created_at < r.created_at
-      and c.user_id::text = substring(
-        r.body
-        from '^\s*\[\[@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\|'
-      )
-    order by c.created_at desc
-    limit 1
-  ),
-  r.parent_id
-)
-where r.parent_id is not null;
+update public.list_comments
+set reply_to_id = parent_id
+where parent_id is not null;
