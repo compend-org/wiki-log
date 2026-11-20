@@ -309,7 +309,7 @@ export default function ReviewTextarea({
     }
     setPicking(null);
     setNotice("");
-    setPreviewHeight(ref.current?.offsetHeight ?? 0);
+    setPreviewHeight(ref.current?.getBoundingClientRect().height ?? 0);
   }
 
   function close() {
