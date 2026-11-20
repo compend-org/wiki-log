@@ -7,7 +7,6 @@ import en from "../messages/en.json";
 import es from "../messages/es.json";
 import {
   entryPicture,
-  leadingMentionId,
   mentionToken,
   plainReview,
   REVIEW_LINK,
@@ -96,14 +95,6 @@ test("shows item links and mentions as plain text", () => {
   const id = "65617370-d22f-4d75-9bf4-456e8caee319";
   const text = `Loved [[Q42|Douglas Adams]], ${mentionToken(id, "Ann Lee")}!`;
   assert.equal(plainReview(text), "Loved Douglas Adams, @Ann Lee!");
-});
-
-test("finds who a comment answers from the mention it opens with", () => {
-  const id = "65617370-d22f-4d75-9bf4-456e8caee319";
-  assert.equal(leadingMentionId(`${mentionToken(id, "sandy")} yeah`), id);
-  assert.equal(leadingMentionId(`yeah ${mentionToken(id, "sandy")}`), null);
-  assert.equal(leadingMentionId("[[Q42|Douglas Adams]] is great"), null);
-  assert.equal(leadingMentionId("just text"), null);
 });
 
 test("finds each link's id and text", () => {

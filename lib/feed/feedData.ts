@@ -100,6 +100,8 @@ export type ReplyRow = {
   id: string;
   user_id: string;
   parent_id: string | null;
+  // The comment it answers
+  reply_to_id: string | null;
   body: string;
   created_at: string;
   profiles: ReplyAuthor;
@@ -115,6 +117,8 @@ export type ListReplyRow = {
   id: string;
   user_id: string;
   parent_id: string | null;
+  // The comment it answers
+  reply_to_id: string | null;
   body: string;
   created_at: string;
   profiles: ReplyAuthor;
@@ -127,9 +131,9 @@ export type ListReplyRow = {
 };
 
 const REPLY_SELECT =
-  "id, user_id, parent_id, body, created_at, profiles!comments_user_id_profiles_fkey(username), logs!comments_log_fkey(id, user_id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))";
+  "id, user_id, parent_id, reply_to_id, body, created_at, profiles!comments_user_id_profiles_fkey(username), logs!comments_log_fkey(id, user_id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))";
 const LIST_REPLY_SELECT =
-  "id, user_id, parent_id, body, created_at, profiles!list_comments_user_id_profiles_fkey(username), lists(id, user_id, title, profiles!lists_user_id_profiles_fkey(username))";
+  "id, user_id, parent_id, reply_to_id, body, created_at, profiles!list_comments_user_id_profiles_fkey(username), lists(id, user_id, title, profiles!lists_user_id_profiles_fkey(username))";
 
 type PreviewRow = {
   list_id: string;

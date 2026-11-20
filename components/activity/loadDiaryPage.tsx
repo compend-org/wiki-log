@@ -10,7 +10,7 @@ import type { Card, CardsPage } from "@/components/paging/CardPages";
 import type { ActivityView } from "@/lib/activityView";
 import { loadMessage } from "@/lib/errors/userFacingErrorMessage";
 import { FEATURES } from "@/lib/features";
-import { entryPicture, leadingMentionId, timeAgo } from "@/lib/format";
+import { entryPicture, timeAgo } from "@/lib/format";
 import { isCompoundId } from "@/lib/ids";
 import { fetchManyGroupPreviews } from "@/lib/lists/groupPreview";
 import { shownGroups } from "@/lib/lists/listGroups";
@@ -75,6 +75,8 @@ type ListRow = {
 type ReplyRow = {
   id: string;
   parent_id: string | null;
+  // The comment it answers
+  reply_to_id: string | null;
   body: string;
   created_at: string;
   logs: {
@@ -89,6 +91,8 @@ type ReplyRow = {
 type ListReplyRow = {
   id: string;
   parent_id: string | null;
+  // The comment it answers
+  reply_to_id: string | null;
   body: string;
   created_at: string;
   lists: {
@@ -142,57 +146,26 @@ export function parseDiaryCursor(value: unknown): DiaryCursor | null {
   };
 }
 
-// Whose comment each of these replies answers, by reply id. A reply is stored
-// under the thread's first comment, so a reply to a reply names who it answers
-// by opening with a mention of them; otherwise it answers the first comment.
-// A reply to the first comment that opens with a hand-typed mention is read as
-// answering that person, as the text can't tell the two apart.
-export async function replyTargetsOf(
+// Who wrote each of these comments, by comment id
+export async function authorsOf(
   supabase: SupabaseClient,
   table: "comments" | "list_comments",
-  replies: { id: string; parent_id: string | null; body: string }[],
+  ids: string[],
 ): Promise<Map<string, string>> {
-  const targets = replies.flatMap((r) =>
-    r.parent_id
-      ? [{ id: r.id, user: leadingMentionId(r.body), comment: r.parent_id }]
-      : [],
-  );
-  const userIds = targets.flatMap((t) => (t.user ? [t.user] : []));
-  const commentIds = targets.map((t) => t.comment);
-  const [people, comments] = await Promise.all([
-    userIds.length === 0
-      ? { data: [] }
-      : supabase.from("profiles").select("id, username").in("id", userIds),
-    commentIds.length === 0
-      ? { data: [] }
-      : supabase
-          .from(table)
-          .select(`id, profiles!${table}_user_id_profiles_fkey(username)`)
-          .in("id", commentIds),
-  ]);
-  const usernames = new Map(
-    ((people.data ?? []) as { id: string; username: string }[]).map((p) => [
-      p.id,
-      p.username,
-    ]),
-  );
-  const authors = new Map(
+  if (ids.length === 0) return new Map();
+  const { data } = await supabase
+    .from(table)
+    .select(`id, profiles!${table}_user_id_profiles_fkey(username)`)
+    .in("id", ids);
+  return new Map(
     (
-      (comments.data ?? []) as unknown as {
+      (data ?? []) as unknown as {
         id: string;
         profiles: { username: string } | null;
       }[]
     ).flatMap((c) =>
       c.profiles ? [[c.id, c.profiles.username] as const] : [],
     ),
-  );
-  return new Map(
-    targets.flatMap(({ id, user, comment }) => {
-      // A leading mention rules out the first comment's author, so when the
-      // person can't be looked up (such as a banned one) no one is named
-      const name = user ? usernames.get(user) : authors.get(comment);
-      return name ? [[id, name] as const] : [];
-    }),
   );
 }
 
@@ -310,7 +283,7 @@ export async function loadDiaryPage(
   let repliesQuery = supabase
     .from("comments")
     .select(
-      "id, parent_id, body, created_at, logs!comments_log_fkey(id, user_id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))",
+      "id, parent_id, reply_to_id, body, created_at, logs!comments_log_fkey(id, user_id, items(title, nsfw), profiles!logs_user_id_profiles_fkey(username))",
     )
     .eq("user_id", userId)
     .is("removed_at", null);
@@ -320,7 +293,7 @@ export async function loadDiaryPage(
   let listRepliesQuery = supabase
     .from("list_comments")
     .select(
-      "id, parent_id, body, created_at, lists(id, user_id, title, profiles!lists_user_id_profiles_fkey(username))",
+      "id, parent_id, reply_to_id, body, created_at, lists(id, user_id, title, profiles!lists_user_id_profiles_fkey(username))",
     )
     .eq("user_id", userId)
     .is("removed_at", null);
@@ -361,9 +334,17 @@ export async function loadDiaryPage(
 
   const replyRows = repliesRes.data as unknown as ReplyRow[];
   const listReplyRows = listRepliesRes.data as unknown as ListReplyRow[];
-  const [replyTargets, listReplyTargets] = await Promise.all([
-    replyTargetsOf(supabase, "comments", replyRows),
-    replyTargetsOf(supabase, "list_comments", listReplyRows),
+  const [replyAuthors, listReplyAuthors] = await Promise.all([
+    authorsOf(
+      supabase,
+      "comments",
+      replyRows.flatMap((r) => (r.reply_to_id ? [r.reply_to_id] : [])),
+    ),
+    authorsOf(
+      supabase,
+      "list_comments",
+      listReplyRows.flatMap((r) => (r.reply_to_id ? [r.reply_to_id] : [])),
+    ),
   ]);
 
   const now = Date.now();
@@ -469,7 +450,9 @@ export async function loadDiaryPage(
               : "/"
           }
           isReply={r.parent_id !== null}
-          replyingTo={replyTargets.get(r.id) ?? null}
+          replyingTo={
+            r.reply_to_id ? (replyAuthors.get(r.reply_to_id) ?? null) : null
+          }
           where={t("activity.replyWhereReview", {
             name: r.logs?.profiles?.username ?? t("common.someone"),
             title: r.logs?.items?.title ?? t("activity.anItem"),
@@ -494,7 +477,9 @@ export async function loadDiaryPage(
           ago={timeAgo(r.created_at, now, t, locale)}
           href={r.lists ? `/list/${r.lists.id}` : "/"}
           isReply={r.parent_id !== null}
-          replyingTo={listReplyTargets.get(r.id) ?? null}
+          replyingTo={
+            r.reply_to_id ? (listReplyAuthors.get(r.reply_to_id) ?? null) : null
+          }
           where={t("activity.replyWhereList", {
             name: r.lists?.profiles?.username ?? t("common.someone"),
             title: r.lists?.title ?? "",

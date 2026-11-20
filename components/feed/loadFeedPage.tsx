@@ -3,7 +3,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import DiaryReplyCard from "@/components/activity/DiaryReplyCard";
-import { replyTargetsOf } from "@/components/activity/loadDiaryPage";
+import { authorsOf } from "@/components/activity/loadDiaryPage";
 import ListCard from "@/components/lists/ListCard";
 import LogCard from "@/components/logs/LogCard";
 import type { Sharer } from "@/components/logs/SharedLabel";
@@ -91,7 +91,7 @@ export async function loadFeedPage(
 
   let replies: ReplyRow[] = [];
   let listReplies: ListReplyRow[] = [];
-  let replyTargets = new Map<string, string>();
+  let replyToAuthors = new Map<string, string>();
   let reviewEntries: Entry[] = [];
   let listEntries: Entry[] = [];
   let next: FeedCursor = { reviews: null, lists: null };
@@ -175,11 +175,19 @@ export async function loadFeedPage(
         !viewer.blocked.has(r.user_id) &&
         !viewer.blocked.has(r.lists.user_id),
     );
-    const [commentTargets, listCommentTargets] = await Promise.all([
-      replyTargetsOf(supabase, "comments", replies),
-      replyTargetsOf(supabase, "list_comments", listReplies),
+    const [commentAuthors, listCommentAuthors] = await Promise.all([
+      authorsOf(
+        supabase,
+        "comments",
+        replies.flatMap((r) => (r.reply_to_id ? [r.reply_to_id] : [])),
+      ),
+      authorsOf(
+        supabase,
+        "list_comments",
+        listReplies.flatMap((r) => (r.reply_to_id ? [r.reply_to_id] : [])),
+      ),
     ]);
-    replyTargets = new Map([...commentTargets, ...listCommentTargets]);
+    replyToAuthors = new Map([...commentAuthors, ...listCommentAuthors]);
     // So are reviews of adult items, when the viewer hides them
     logs = shownEntries(logs, viewer.sfwMode, aboutAdultItem);
 
@@ -272,6 +280,7 @@ export async function loadFeedPage(
     r: {
       user_id: string;
       parent_id: string | null;
+      reply_to_id: string | null;
       body: string;
       created_at: string;
       profiles: { username: string } | null;
@@ -290,7 +299,9 @@ export async function loadFeedPage(
         ago={timeAgo(r.created_at, now, t, locale)}
         href={href}
         isReply={r.parent_id !== null}
-        replyingTo={replyTargets.get(id) ?? null}
+        replyingTo={
+          r.reply_to_id ? (replyToAuthors.get(r.reply_to_id) ?? null) : null
+        }
         where={where}
         body={r.body}
         owner={nameOf(r.user_id, r.profiles?.username)}
