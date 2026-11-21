@@ -423,7 +423,7 @@ export default async function ListPage({
                           )}`}
                         >
                           <span className="font-semibold">{title}</span>
-                          <div className="line-clamp-8 break-words text-sm">
+                          <div className="clamp-lines-8 break-words text-sm">
                             <ReviewText text={entry.note} plain />
                           </div>
                         </div>

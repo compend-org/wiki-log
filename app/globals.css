@@ -12,6 +12,26 @@
   }
 }
 
+/* Cuts text to a number of lines, ending in "…". iOS Safari counts lines
+   inside TeX math, so text with math is cut by height instead and fades out
+   where it's cut. */
+@utility clamp-lines-* {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: --value(integer);
+  overflow: hidden;
+  &:has(.katex) {
+    display: block;
+    -webkit-line-clamp: none;
+    max-height: calc(--value(integer) * 1lh);
+    mask-image: linear-gradient(
+      to bottom,
+      #000 calc((--value(integer) - 1) * 1lh),
+      transparent calc(--value(integer) * 1lh)
+    );
+  }
+}
+
 @theme {
   --color-background: #ffffff;
   --color-surface: #f1f3f8;

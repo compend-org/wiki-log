@@ -90,7 +90,7 @@ export default function DiaryReplyCard({
       >
         {where}
       </Link>
-      <div className="line-clamp-3 break-words border-l-2 border-dashed border-line pl-3 text-sm">
+      <div className="clamp-lines-3 break-words border-l-2 border-dashed border-line pl-3 text-sm">
         <ReviewText text={body} />
       </div>
     </div>

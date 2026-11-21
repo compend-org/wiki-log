@@ -168,7 +168,7 @@ export default async function LogCard({
 
       {row.review && (
         <div
-          className={`col-span-2 line-clamp-6 break-words text-sm @xl:col-span-1 @xl:border-l @xl:border-dashed @xl:border-line @xl:pl-4 ${
+          className={`col-span-2 clamp-lines-6 break-words text-sm @xl:col-span-1 @xl:border-l @xl:border-dashed @xl:border-line @xl:pl-4 ${
             cornered ? "@xl:pr-7" : ""
           }`}
         >
