@@ -191,5 +191,38 @@ export function plainReview(text: string): string {
     .replace(/(\*\*|__|~~)(?=\S)(.+?)\1/g, "$2")
     .replace(/(?<![\w*])([*_])([^\s*](?:.*?[^\s*])?)\1(?![\w*])/g, "$2")
     .replace(/`([^`\n]+)`/g, "$1")
-    .replace(/\$\$\s*([^$]+?)\s*\$\$/g, "$1");
+    .replace(TEX, (_, _fence, tex: string) => tex.trim());
+}
+
+// TeX math goes between $$ (or more dollar signs), and ends at as many as it
+// started with, so a lone $ inside is part of the math
+const TEX = /(?<!\$)(\$\$+)(?!\$)([\s\S]+?)(?<!\$)\1(?!\$)/g;
+
+// TeX between lines of dollar signs is shown on a line of its own
+const DISPLAY_TEX = /^\$+[ \t]*\n[\s\S]*\n[ \t]*\$+$/;
+
+export type ReviewPiece = { text: string } | { tex: string; display: boolean };
+
+// A review as plain text (see plainReview) and the TeX math between it. The
+// line breaks around math on lines of its own go with the math.
+export function reviewPieces(text: string): ReviewPiece[] {
+  const pieces: ReviewPiece[] = [];
+  let rest = 0;
+  for (const match of text.matchAll(TEX)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    const display =
+      (start === 0 || text[start - 1] === "\n") &&
+      (end === text.length || text[end] === "\n") &&
+      DISPLAY_TEX.test(match[0]);
+    const before = text.slice(
+      rest,
+      display ? Math.max(rest, start - 1) : start,
+    );
+    if (before) pieces.push({ text: plainReview(before) });
+    pieces.push({ tex: match[2].trim(), display });
+    rest = display && text[end] === "\n" ? end + 1 : end;
+  }
+  if (rest < text.length) pieces.push({ text: plainReview(text.slice(rest)) });
+  return pieces;
 }

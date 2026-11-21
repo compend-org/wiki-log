@@ -7,15 +7,10 @@ import { getTranslations } from "next-intl/server";
 import HeartIcon from "@/components/social/HeartIcon";
 import ShareIcon from "@/components/social/ShareIcon";
 import { avatarUrl } from "@/lib/avatar";
-import {
-  absolute,
-  entryPicture,
-  plainReview,
-  shortLabel,
-  thumbUrl,
-} from "@/lib/format";
+import { absolute, entryPicture, shortLabel, thumbUrl } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { getProfileByName } from "@/lib/profiles";
+import ReviewImageText from "@/lib/reviewImageText";
 import { getReview } from "@/lib/reviews";
 import {
   COLORS,
@@ -29,6 +24,7 @@ import { HEADERS as WIKIMEDIA_HEADERS } from "@/lib/wikipedia/wikipedia";
 
 const WIDTH = 1080;
 const HEIGHT = 1350;
+const PADDING = 64;
 
 // The card is the site's review card scaled up: one site pixel is this many
 // image pixels, which makes the card fill the image's width
@@ -55,7 +51,7 @@ export async function GET(
   const title = log.items?.title ?? "Unknown item";
   const itemImageUrl = entryPicture(log);
   const rating = Math.max(0, Math.min(5, Number(log.rating ?? 0)));
-  const text = plainReview(log.review).trim();
+  const text = log.review.trim();
   const likes = log.likes?.[0]?.count ?? 0;
   const shares = log.shares?.[0]?.count ?? 0;
   const siteFile = (path: string) => new URL(path, request.url).toString();
@@ -84,7 +80,7 @@ export async function GET(
         flexDirection: "column",
         justifyContent: "center",
         gap: px(22),
-        padding: 64,
+        padding: PADDING,
         background: COLORS.background,
         color: COLORS.foreground,
         fontFamily: "Tinos",
@@ -185,17 +181,13 @@ export async function GET(
         </div>
 
         {text && (
-          <div
-            style={{
-              display: "block",
-              fontSize: px(15),
-              lineHeight: 1.5,
-              lineClamp: REVIEW_LINES,
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {text}
-          </div>
+          <ReviewImageText
+            text={text}
+            fontSize={px(15)}
+            lines={REVIEW_LINES}
+            width={WIDTH - 2 * PADDING - 2 * px(15) - 2 * px(2)}
+            color={COLORS.foreground}
+          />
         )}
       </div>
 
