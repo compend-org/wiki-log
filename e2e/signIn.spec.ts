@@ -13,6 +13,8 @@ test("signing in and out", async ({ page }) => {
   await expect(profile).toBeVisible();
 
   await page.getByRole("button", { name: "Sign out" }).click();
-  await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
+  await expect(
+    page.getByRole("navigation").getByRole("link", { name: "Sign in" }),
+  ).toBeVisible();
   await expect(profile).toHaveCount(0);
 });
