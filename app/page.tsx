@@ -2,9 +2,9 @@
 // ABOUTME: Also tells search engines the site's name and its one address.
 
 import type { Metadata } from "next";
-import Link from "next/link";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
+import SignUpPrompt from "@/components/auth/SignUpPrompt";
 import Digest from "@/components/feed/Digest";
 import Feed from "@/components/feed/Feed";
 import FeedTabs, { type FeedTab } from "@/components/feed/FeedTabs";
@@ -104,26 +104,9 @@ export default async function Home({
               both squares as one picture sits at the right end of their row. */}
           {!signedIn && (
             <div className="grid grid-cols-[1fr_auto_1fr] items-center">
-              <p className="col-start-2 text-center text-sm">
-                {t.rich("home.createAccountOrGuide", {
-                  create: (chunks) => (
-                    <Link
-                      href="/login?mode=signup"
-                      className="text-accent underline hover:no-underline"
-                    >
-                      {chunks}
-                    </Link>
-                  ),
-                  guide: (chunks) => (
-                    <Link
-                      href="/guide"
-                      className="text-accent underline hover:no-underline"
-                    >
-                      {chunks}
-                    </Link>
-                  ),
-                })}
-              </p>
+              <div className="col-start-2 min-w-0">
+                <SignUpPrompt reason={t("home.signUpReason")} />
+              </div>
               {sharePicks && (
                 <div className="col-start-3 justify-self-end">{sharePicks}</div>
               )}
