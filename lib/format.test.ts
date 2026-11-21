@@ -11,6 +11,7 @@ import {
   plainItemDescription,
   plainReview,
   REVIEW_LINK,
+  reviewPieces,
   shownImage,
   starText,
   thumbUrl,
@@ -155,6 +156,28 @@ test("shows TeX as written, without its $$", () => {
     plainReview("Costs $5, or $$\\frac{1}{2}$$ of it.\n$$\nx^2\n$$"),
     "Costs $5, or \\frac{1}{2} of it.\nx^2",
   );
+});
+
+test("splits a review into text and its TeX, on its own line when fenced", () => {
+  assert.deepEqual(
+    reviewPieces(
+      "Costs $5, or $$\\frac{1}{2}$$ of **it**.\n$$\nx^2\n$$\nThe end",
+    ),
+    [
+      { text: "Costs $5, or " },
+      { tex: "\\frac{1}{2}", display: false },
+      { text: " of it." },
+      { tex: "x^2", display: true },
+      { text: "The end" },
+    ],
+  );
+  assert.deepEqual(reviewPieces("$$x$$"), [{ tex: "x", display: false }]);
+  assert.deepEqual(reviewPieces("No math"), [{ text: "No math" }]);
+  assert.deepEqual(reviewPieces("$$\\fbox{$x$}$$ and\n$$$\ny\n$$$"), [
+    { tex: "\\fbox{$x$}", display: false },
+    { text: " and" },
+    { tex: "y", display: true },
+  ]);
 });
 
 test("makes typed web addresses whole", () => {
