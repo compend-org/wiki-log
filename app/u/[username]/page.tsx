@@ -278,7 +278,7 @@ export default async function ProfilePage({
             size={72}
           />
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-            <h1 className="break-words text-3xl font-bold">
+            <h1 className="text-3xl font-bold [overflow-wrap:anywhere]">
               {profile.username}
             </h1>
             {profileIsAdmin && <AdminBadge />}

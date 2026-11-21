@@ -70,7 +70,7 @@ export default async function ProfileActivityPage({
       <Link href={profileHref} className="text-sm text-muted">
         {t("profile.backTo", { name: profile.username })}
       </Link>
-      <h1 className="text-center text-3xl font-bold">
+      <h1 className="text-center text-3xl font-bold [overflow-wrap:anywhere]">
         {t("profile.activityOf", { name: profile.username })}
       </h1>
 
