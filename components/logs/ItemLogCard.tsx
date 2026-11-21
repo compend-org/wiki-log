@@ -43,11 +43,11 @@ export default function ItemLogCard({
           className="card-link absolute inset-0 rounded-[inherit]"
         />
       )}
-      <div className="flex items-center gap-2 text-sm">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
         {author ? (
           <Link
             href={`/u/${encodeURIComponent(author)}`}
-            className="relative z-10 inline-flex items-center gap-1.5 hover:underline font-semibold"
+            className="relative z-10 inline-flex min-w-0 items-center gap-1.5 hover:underline font-semibold [overflow-wrap:anywhere]"
           >
             <Avatar name={author} path={row.profiles?.avatar_path} size={20} />
             {author}
