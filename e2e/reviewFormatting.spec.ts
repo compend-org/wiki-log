@@ -80,6 +80,31 @@ test("Enter carries a list on, and ends it on an empty item", async ({
   );
 });
 
+test("math raised or lowered by thousands of ems doesn't stretch the page", async ({
+  page,
+}) => {
+  await page.goto("/item/Q131538");
+  await page
+    .locator("#log textarea")
+    .fill(
+      "Massive $$\\raisebox{-999em}{Hi}\\raisebox{-999999em}{Hi}$$ and $$\\frac{1}{2}$$",
+    );
+  await page.getByRole("button", { name: "Preview" }).click();
+  const preview = page.locator("#log");
+  await expect(preview.locator(".katex").first()).toBeVisible();
+
+  const height = await page.evaluate(
+    () => document.documentElement.scrollHeight,
+  );
+  expect(height).toBeLessThan(5000);
+  // Math too tall to show is shown as written, in red, as TeX that doesn't
+  // parse is; the math beside it is still drawn
+  await expect(preview.locator(".katex-error")).toHaveText(
+    "\\raisebox{-999em}{Hi}\\raisebox{-999999em}{Hi}",
+  );
+  await expect(preview.locator(".katex")).toHaveCount(1);
+});
+
 test.describe("TeX", () => {
   // demo's own review, so the comment notifies no one. It has no other
   // comments, since each comment on a page draws its own copy of the delete
